@@ -1,0 +1,137 @@
+name: Release Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Decode Keystore
+      env:
+        ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      run: |
+        if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > release.keystore
+        fi
+
+    - name: Build Android Release
+      env:
+        ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+        ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      run: ./gradlew :composeApp:assembleRelease
+
+    - name: Upload Android Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-artifacts
+        path: composeApp/build/outputs/apk/release/*.apk
+
+  build-desktop:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      if: runner.os != 'Windows'
+      run: chmod +x gradlew
+
+    - name: Build Desktop App
+      run: ./gradlew :composeApp:packageDistributionForCurrentOS
+
+    - name: Upload Desktop Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: desktop-artifacts-${{ matrix.os }}
+        path: composeApp/build/compose/binaries/main/*/*
+
+  release:
+    needs: [build-android, build-desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Android Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android-artifacts
+          path: release-artifacts
+
+      - name: Download Desktop Artifacts (Ubuntu)
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-artifacts-ubuntu-latest
+          path: release-artifacts
+
+      - name: Download Desktop Artifacts (Windows)
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-artifacts-windows-latest
+          path: release-artifacts
+
+      - name: Download Desktop Artifacts (macOS)
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-artifacts-macos-latest
+          path: release-artifacts
+
+      - name: Get Last Contributor
+        id: contributor
+        run: |
+          AUTHOR_NAME=$(git log -1 --format='%an')
+          AUTHOR_EMAIL=$(git log -1 --format='%ae')
+          echo "name=$AUTHOR_NAME" >> $GITHUB_OUTPUT
+          echo "email=$AUTHOR_EMAIL" >> $GITHUB_OUTPUT
+          echo "Last contributor: $AUTHOR_NAME <$AUTHOR_EMAIL>"
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "${{ steps.contributor.outputs.name }}"
+          git config --global user.email "${{ steps.contributor.outputs.email }}"
+
+      - name: Create Tag
+        id: tag
+        run: |
+          TAG_NAME="v$(date +'%Y.%m.%d-%H%M')"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          files: release-artifacts/**/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

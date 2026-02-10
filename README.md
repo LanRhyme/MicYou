@@ -25,12 +25,12 @@ Based on the [AndroidMic](https://github.com/team-br/AndroidMic) project.
 ## Screenshots
 
 ### Android App
-| Main Screen | Settings |
-|:---:|:---:|
-| <img src=".img/android_screenshot_main.jpg" width="300" /> | <img src=".img/android_screenshot_settings.jpg" width="300" /> |
+|                        Main Screen                        |                           Settings                            |
+|:---------------------------------------------------------:|:-------------------------------------------------------------:|
+| <img src="img/android_screenshot_main.jpg" width="300" /> | <img src="img/android_screenshot_settings.jpg" width="300" /> |
 
 ### Desktop App
-<img src=".img/pc_screenshot.png" width="600" />
+<img src="img/pc_screenshot.png" width="600" />
 
 ## Getting Started
 
