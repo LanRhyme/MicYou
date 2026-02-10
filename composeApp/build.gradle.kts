@@ -62,6 +62,7 @@ kotlin {
             implementation(libs.kotlinx.coroutinesSwing)
             implementation(libs.kotlinx.serialization.protobuf)
             implementation("de.maxhenkel.rnnoise4j:rnnoise4j:2.1.2")
+            implementation("io.ultreia:bluecove:2.1.1")
         }
     }
 }

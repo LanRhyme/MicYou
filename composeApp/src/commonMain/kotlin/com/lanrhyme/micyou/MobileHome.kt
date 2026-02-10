@@ -103,7 +103,7 @@ fun MobileHome(viewModel: MainViewModel) {
                         ) {
                              val modes = listOf(
                                  ConnectionMode.Wifi to "Wi-Fi",
-                                 ConnectionMode.WifiUdp to "UDP",
+                                 ConnectionMode.Bluetooth to "蓝牙",
                                  ConnectionMode.Usb to "USB"
                              )
                              
@@ -129,22 +129,32 @@ fun MobileHome(viewModel: MainViewModel) {
                              OutlinedTextField(
                                 value = state.ipAddress,
                                 onValueChange = { viewModel.setIp(it) },
-                                label = { Text(if (state.mode == ConnectionMode.Usb) "目标 IP (127.0.0.1)" else "目标 IP") },
-                                modifier = Modifier.weight(1f),
+                                label = {
+                                    Text(
+                                        when (state.mode) {
+                                            ConnectionMode.Usb -> "目标 IP (127.0.0.1)"
+                                            ConnectionMode.Bluetooth -> "蓝牙设备地址 (MAC)"
+                                            else -> "目标 IP"
+                                        }
+                                    )
+                                },
+                                modifier = if (state.mode == ConnectionMode.Bluetooth) Modifier.fillMaxWidth() else Modifier.weight(1f),
                                 singleLine = true,
                                 shape = RoundedCornerShape(12.dp),
                                 textStyle = MaterialTheme.typography.bodyMedium
                             )
                         }
-                         OutlinedTextField(
-                            value = state.port,
-                            onValueChange = { viewModel.setPort(it) },
-                            label = { Text("端口") },
-                            modifier = if (isClient) Modifier.width(100.dp) else Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            textStyle = MaterialTheme.typography.bodyMedium
-                        )
+                        if (state.mode != ConnectionMode.Bluetooth) {
+                             OutlinedTextField(
+                                value = state.port,
+                                onValueChange = { viewModel.setPort(it) },
+                                label = { Text("端口") },
+                                modifier = if (isClient) Modifier.width(100.dp) else Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
              }

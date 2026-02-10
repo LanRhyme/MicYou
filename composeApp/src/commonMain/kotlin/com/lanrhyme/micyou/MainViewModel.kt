@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 
 enum class ConnectionMode(val label: String) {
     Wifi( "Wi-Fi (TCP)"),
-    WifiUdp("Wi-Fi (UDP)"),
+    Bluetooth("Bluetooth"),
     Usb("USB (ADB)")
 }
 
@@ -68,7 +68,10 @@ class MainViewModel : ViewModel() {
     init {
         // Load settings
         val savedModeName = settings.getString("connection_mode", ConnectionMode.Wifi.name)
-        val savedMode = try { ConnectionMode.valueOf(savedModeName) } catch(e: Exception) { ConnectionMode.Wifi }
+        val savedMode = when (savedModeName) {
+            "WifiUdp" -> ConnectionMode.Bluetooth
+            else -> try { ConnectionMode.valueOf(savedModeName) } catch(e: Exception) { ConnectionMode.Wifi }
+        }
         
         val savedIp = settings.getString("ip_address", "192.168.1.5")
         val savedPort = settings.getString("port", "6000")

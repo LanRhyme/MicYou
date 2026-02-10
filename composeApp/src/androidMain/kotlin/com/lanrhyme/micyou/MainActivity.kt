@@ -19,7 +19,12 @@ class MainActivity : ComponentActivity() {
         ContextHelper.init(this)
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1001)
+            val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+                permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            }
+            ActivityCompat.requestPermissions(this, permissions.toTypedArray(), 1001)
         }
 
         setContent {

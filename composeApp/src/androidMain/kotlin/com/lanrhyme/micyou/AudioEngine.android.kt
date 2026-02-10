@@ -21,6 +21,23 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 import android.content.Intent
+import io.ktor.utils.io.jvm.javaio.toByteReadChannel
+import io.ktor.utils.io.*
+import kotlinx.coroutines.*
+import java.io.OutputStream
+
+import kotlin.coroutines.CoroutineContext
+
+@OptIn(DelicateCoroutinesApi::class)
+fun OutputStream.toByteWriteChannel(context: CoroutineContext = Dispatchers.IO): ByteWriteChannel = GlobalScope.reader(context, autoFlush = true) {
+    val buffer = ByteArray(4096)
+    while (!channel.isClosedForRead) {
+        val count = channel.readAvailable(buffer)
+        if (count == -1) break
+        this@toByteWriteChannel.write(buffer, 0, count)
+        this@toByteWriteChannel.flush()
+    }
+}.channel
 
 actual class AudioEngine actual constructor() {
     private val _state = MutableStateFlow(StreamState.Idle)
@@ -65,6 +82,11 @@ actual class AudioEngine actual constructor() {
                     var socket: Socket? = null
                     var recorder: AudioRecord? = null
                     sendChannel = Channel(Channel.UNLIMITED)
+                    
+                    // Connection Abstractions
+                    var input: ByteReadChannel
+                    var output: ByteWriteChannel
+                    var closeConnection: () -> Unit = {}
                     
                     try {
                         // 音频设置
@@ -120,16 +142,34 @@ actual class AudioEngine actual constructor() {
                         
                         // 网络设置
                         val selectorManager = SelectorManager(Dispatchers.IO)
-                        val socketBuilder = aSocket(selectorManager)
                         
-                        if (mode == ConnectionMode.WifiUdp) {
-                             throw UnsupportedOperationException("UDP Not fully implemented yet")
+                        if (mode == ConnectionMode.Bluetooth) {
+                            val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                                ?: throw UnsupportedOperationException("设备不支持蓝牙")
+                            
+                            if (!android.bluetooth.BluetoothAdapter.checkBluetoothAddress(ip)) {
+                                throw IllegalArgumentException("无效的蓝牙 MAC 地址: $ip")
+                            }
+                            
+                            val device = adapter.getRemoteDevice(ip)
+                            // SPP UUID
+                            val uuid = java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+                            
+                            // Note: Missing explicit permission check here, relying on SecurityException if missing
+                            val btSocket = device.createRfcommSocketToServiceRecord(uuid)
+                            btSocket.connect()
+                            
+                            input = btSocket.inputStream.toByteReadChannel()
+                            output = btSocket.outputStream.toByteWriteChannel()
+                            closeConnection = { btSocket.close() }
+                            
                         } else {
-                            socket = socketBuilder.tcp().connect(ip, port)
+                            val socketBuilder = aSocket(selectorManager)
+                            val socket = socketBuilder.tcp().connect(ip, port)
+                            input = socket.openReadChannel()
+                            output = socket.openWriteChannel(autoFlush = true)
+                            closeConnection = { socket.close() }
                         }
-                        
-                        val output = socket!!.openWriteChannel(autoFlush = true)
-                        val input = socket!!.openReadChannel()
 
                         // Start Foreground Service
                         val context = ContextHelper.getContext()
@@ -156,7 +196,7 @@ actual class AudioEngine actual constructor() {
                             println(msg)
                             _state.value = StreamState.Error
                             _lastError.value = msg
-                            socket.close()
+                            closeConnection()
                             return@launch
                         }
 
@@ -290,7 +330,7 @@ actual class AudioEngine actual constructor() {
                             sendChannel?.close()
                             recorder?.stop()
                             recorder?.release()
-                            socket?.close()
+                            closeConnection()
                             
                             // Stop Foreground Service
                             val context = ContextHelper.getContext()

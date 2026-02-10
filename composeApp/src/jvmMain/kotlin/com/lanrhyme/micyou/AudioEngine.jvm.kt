@@ -21,6 +21,24 @@ import kotlin.math.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import de.maxhenkel.rnnoise4j.Denoiser
+import javax.bluetooth.*
+import javax.microedition.io.*
+import io.ktor.utils.io.jvm.javaio.*
+import io.ktor.utils.io.*
+import kotlinx.coroutines.*
+import java.io.OutputStream
+import kotlin.coroutines.CoroutineContext
+
+@OptIn(DelicateCoroutinesApi::class)
+fun OutputStream.toByteWriteChannel(context: CoroutineContext = Dispatchers.IO): ByteWriteChannel = GlobalScope.reader(context, autoFlush = true) {
+    val buffer = ByteArray(4096)
+    while (!channel.isClosedForRead) {
+        val count = channel.readAvailable(buffer)
+        if (count == -1) break
+        this@toByteWriteChannel.write(buffer, 0, count)
+        this@toByteWriteChannel.flush()
+    }
+}.channel
 
 @OptIn(ExperimentalSerializationApi::class)
 actual class AudioEngine actual constructor() {
@@ -41,8 +59,11 @@ actual class AudioEngine actual constructor() {
     private val CHECK_2 = "MicYouCheck2"
     
     private var serverSocket: ServerSocket? = null
+    private var btNotifier: StreamConnectionNotifier? = null
     @Volatile
     private var activeSocket: Socket? = null
+    private var activeBtConnection: StreamConnection? = null
+    
     private var monitoringLine: SourceDataLine? = null
     private var isUsingCable = false
     private var selectorManager: SelectorManager? = null
@@ -119,42 +140,90 @@ actual class AudioEngine actual constructor() {
             } else {
                 _state.value = StreamState.Connecting
                 CoroutineScope(Dispatchers.IO).launch {
-                    selectorManager = SelectorManager(Dispatchers.IO)
-                    
                     try {
-                        serverSocket = aSocket(selectorManager!!).tcp().bind(port = port)
-                        val msg = "监听端口 $port"
-                        println(msg)
-                        
-                        while (isActive) {
-                            val socket = serverSocket?.accept() ?: break
-                            activeSocket = socket
-                            println("接受来自 ${socket.remoteAddress} 的连接")
-                            _state.value = StreamState.Streaming
-                            _lastError.value = null
+                        if (mode == ConnectionMode.Bluetooth) {
+                            try {
+                                val localDevice = LocalDevice.getLocalDevice()
+                                localDevice.discoverable = DiscoveryAgent.GIAC
+                                println("本机蓝牙名称: ${localDevice.friendlyName}, 地址: ${localDevice.bluetoothAddress}")
+                                
+                                val uuid = javax.bluetooth.UUID("0000110100001000800000805F9B34FB", false)
+                                val url = "btspp://localhost:$uuid;name=MicYouServer"
+                                
+                                btNotifier = Connector.open(url) as StreamConnectionNotifier
+                                println("蓝牙服务已启动: $url")
+                                
+                                while (isActive) {
+                                    val connection = btNotifier?.acceptAndOpen() ?: break
+                                    activeBtConnection = connection
+                                    println("接受来自蓝牙的连接")
+                                    _state.value = StreamState.Streaming
+                                    _lastError.value = null
+                                    
+                                    try {
+                                        val input = connection.openInputStream().toByteReadChannel()
+                                        val output = connection.openOutputStream().toByteWriteChannel()
+                                        handleConnection(input, output)
+                                    } catch (e: Exception) {
+                                        if (!isNormalDisconnect(e)) {
+                                            e.printStackTrace()
+                                            _lastError.value = "蓝牙连接错误: ${e.message}"
+                                        }
+                                    } finally {
+                                        activeBtConnection = null
+                                        connection.close()
+                                        _state.value = StreamState.Connecting
+                                    }
+                                }
+                            } catch (e: Exception) { // Bluetooth specific errors
+                                if (isActive) {
+                                    e.printStackTrace()
+                                    _state.value = StreamState.Error
+                                    _lastError.value = "蓝牙初始化失败: ${e.message}. 请确保电脑支持蓝牙且已开启。"
+                                }
+                            }
+                        } else {
+                            // TCP Logic
+                            selectorManager = SelectorManager(Dispatchers.IO)
                             
                             try {
-                                handleConnection(socket)
-                            } catch (e: Exception) {
-                                if (!isNormalDisconnect(e)) {
-                                    e.printStackTrace()
-                                    _lastError.value = "连接处理错误: ${e.message}"
+                                serverSocket = aSocket(selectorManager!!).tcp().bind(port = port)
+                                val msg = "监听端口 $port"
+                                println(msg)
+                                
+                                while (isActive) {
+                                    val socket = serverSocket?.accept() ?: break
+                                    activeSocket = socket
+                                    println("接受来自 ${socket.remoteAddress} 的连接")
+                                    _state.value = StreamState.Streaming
+                                    _lastError.value = null
+                                    
+                                    try {
+                                        val input = socket.openReadChannel()
+                                        val output = socket.openWriteChannel(autoFlush = true)
+                                        handleConnection(input, output)
+                                    } catch (e: Exception) {
+                                        if (!isNormalDisconnect(e)) {
+                                            e.printStackTrace()
+                                            _lastError.value = "连接处理错误: ${e.message}"
+                                        }
+                                    } finally {
+                                        activeSocket = null
+                                        socket.close()
+                                        _state.value = StreamState.Connecting
+                                    }
                                 }
-                            } finally {
-                                activeSocket = null
-                                socket.close()
-                                _state.value = StreamState.Connecting
+                            } catch (e: BindException) {
+                                if (isActive) {
+                                    val msg = "端口 $port 已被占用。请关闭其他 AndroidMic 实例。"
+                                    println(msg)
+                                    _state.value = StreamState.Error
+                                    _lastError.value = msg
+                                }
                             }
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
-                    } catch (e: BindException) {
-                        if (isActive) {
-                            val msg = "端口 $port 已被占用。请关闭其他 AndroidMic 实例。"
-                            println(msg)
-                            _state.value = StreamState.Error
-                            _lastError.value = msg
-                        }
                     } catch (e: Exception) {
                         if (isActive) {
                             if (!isNormalDisconnect(e)) {
@@ -166,6 +235,8 @@ actual class AudioEngine actual constructor() {
                     } finally {
                         serverSocket?.close()
                         serverSocket = null
+                        btNotifier?.close()
+                        btNotifier = null
                         selectorManager?.close()
                         selectorManager = null
                         if (_state.value != StreamState.Error) {
@@ -178,10 +249,7 @@ actual class AudioEngine actual constructor() {
         jobToJoin?.join()
     }
 
-    private suspend fun handleConnection(socket: Socket) {
-        val input = socket.openReadChannel()
-        val output = socket.openWriteChannel(autoFlush = true)
-
+    private suspend fun handleConnection(input: ByteReadChannel, output: ByteWriteChannel) {
         // 握手
         val check1Packet = input.readPacket(CHECK_1.length)
         val check1String = check1Packet.readText()
@@ -343,10 +411,14 @@ actual class AudioEngine actual constructor() {
              job = null
              activeSocket?.close()
              activeSocket = null
+             activeBtConnection?.close()
+             activeBtConnection = null
              sendChannel?.close()
              sendChannel = null
              serverSocket?.close()
              serverSocket = null
+             btNotifier?.close()
+             btNotifier = null
              selectorManager?.close()
              selectorManager = null
              _lastError.value = null

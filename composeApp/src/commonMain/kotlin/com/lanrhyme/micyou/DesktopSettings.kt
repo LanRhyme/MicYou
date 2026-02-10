@@ -434,7 +434,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Text("软件介绍", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "MicYou 是一款开源的麦克风工具，可以将您的 Android 设备变成电脑的高质量麦克风，本软件基于 AndroidMic 进行开发，支持 Wi-Fi (TCP/UDP) 和 USB 连接，提供低延迟的音频传输体验。",
+                            "MicYou 是一款开源的麦克风工具，可以将您的 Android 设备变成电脑的高质量麦克风，本软件基于 AndroidMic 进行开发，支持 Wi-Fi (TCP)、蓝牙 和 USB 连接，提供低延迟的音频传输体验。",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )

@@ -128,7 +128,7 @@ fun DesktopHome(
                                 readOnly = true,
                                 value = when (state.mode) {
                                     ConnectionMode.Wifi -> "Wi-Fi"
-                                    ConnectionMode.WifiUdp -> "Wi-Fi (UDP)"
+                                    ConnectionMode.Bluetooth -> "Bluetooth"
                                     ConnectionMode.Usb -> "USB"
                                 },
                                 onValueChange = {},
@@ -156,9 +156,9 @@ fun DesktopHome(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Wi-Fi (UDP)") },
+                                    text = { Text("Bluetooth") },
                                     onClick = {
-                                        viewModel.setMode(ConnectionMode.WifiUdp)
+                                        viewModel.setMode(ConnectionMode.Bluetooth)
                                         expanded = false
                                     }
                                 )
@@ -172,16 +172,17 @@ fun DesktopHome(
                             }
                         }
 
-                        // Port
-                        OutlinedTextField(
-                            value = state.port,
-                            onValueChange = { viewModel.setPort(it) },
-                            label = { Text("端口") },
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = MaterialTheme.typography.bodySmall,
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
-                        )
+                        if (state.mode != ConnectionMode.Bluetooth) {
+                            OutlinedTextField(
+                                value = state.port,
+                                onValueChange = { viewModel.setPort(it) },
+                                label = { Text("端口") },
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = MaterialTheme.typography.bodySmall,
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
                     }
                 }
             }
