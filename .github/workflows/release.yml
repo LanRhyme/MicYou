@@ -78,6 +78,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
+          merge-multiple: true
 
       - name: Get Last Contributor
         id: contributor

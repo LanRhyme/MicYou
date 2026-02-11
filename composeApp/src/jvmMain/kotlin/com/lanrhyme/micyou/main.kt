@@ -10,7 +10,6 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.app_icon
-import micyou.composeapp.generated.resources.icon
 import org.jetbrains.compose.resources.painterResource
 
 fun main() {
@@ -59,7 +58,7 @@ fun main() {
             onCloseRequest = { isSettingsOpen = false },
             state = settingsState,
             title = "Settings",
-            icon = painterResource(Res.drawable.icon),
+            icon = painterResource(Res.drawable.app_icon),
             resizable = false
         ) {
             // Re-use theme logic from AppTheme but apply to settings window content
