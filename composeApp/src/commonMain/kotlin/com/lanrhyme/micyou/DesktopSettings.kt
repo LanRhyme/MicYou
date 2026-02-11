@@ -229,11 +229,11 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                          HorizontalDivider()
 
                          Text(strings.themeColorLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                         Row(
+                         LazyRow(
                              horizontalArrangement = Arrangement.spacedBy(12.dp),
                              modifier = Modifier.fillMaxWidth()
                          ) {
-                             seedColors.forEach { colorHex ->
+                             items(seedColors) { colorHex ->
                                  val color = Color(colorHex.toInt())
                                  Box(
                                      modifier = Modifier
