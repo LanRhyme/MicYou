@@ -8,11 +8,60 @@ class JVMPlatform: Platform {
     override val name: String = "Java ${System.getProperty("java.version")}"
     override val type: PlatformType = PlatformType.Desktop
     override val ipAddress: String
-        get() = try {
-            InetAddress.getLocalHost().hostAddress
+        get() = ipAddresses.firstOrNull() ?: "Unknown"
+
+    override val ipAddresses: List<String>
+        get() = getLocalIpAddresses()
+
+    private fun getLocalIpAddresses(): List<String> {
+        try {
+            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
+            val candidates = mutableListOf<java.net.InetAddress>()
+
+            while (interfaces.hasMoreElements()) {
+                val iface = interfaces.nextElement()
+                if (iface.isLoopback || !iface.isUp) continue
+
+                // Exclude virtual interfaces common in Clash/VPNs/VirtualBox if identifiable by name
+                // Note: Names vary by OS, but "tun", "tap", "docker", "vbox" are common hints.
+                // However, relying solely on IP filtering is often more robust.
+                
+                val addresses = iface.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val addr = addresses.nextElement()
+                    if (addr is java.net.Inet4Address) {
+                        candidates.add(addr)
+                    }
+                }
+            }
+
+            // Priority:
+            // 1. 192.168.x.x (Common Home LAN)
+            // 2. 172.16.x.x - 172.31.x.x (Private)
+            // 3. 10.x.x.x (Private, but often used by VPNs/Docker too)
+            // 4. Exclude 198.18.x.x (Clash/Benchmarking)
+            // 5. Exclude 169.254.x.x (APIPA)
+
+            val sortedCandidates = candidates.sortedByDescending { addr ->
+                val ip = addr.hostAddress
+                when {
+                    ip.startsWith("192.168.") -> 100
+                    ip.startsWith("172.") && (ip.split(".")[1].toIntOrNull() in 16..31) -> 80
+                    ip.startsWith("10.") -> 50
+                    ip.startsWith("198.18.") -> -10 // Clash
+                    ip.startsWith("169.254.") -> -20 // APIPA
+                    else -> 0
+                }
+            }
+            
+            val result = sortedCandidates.map { it.hostAddress }
+            if (result.isNotEmpty()) return result
+            
+            return listOf(java.net.InetAddress.getLocalHost().hostAddress)
         } catch (e: Exception) {
-            "Unknown"
+            return listOf("Unknown")
         }
+    }
 }
 
 actual fun getPlatform(): Platform = JVMPlatform()

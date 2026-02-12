@@ -11,6 +11,7 @@ interface Platform {
     val name: String
     val type: PlatformType
     val ipAddress: String
+    val ipAddresses: List<String>
 }
 
 expect fun getPlatform(): Platform

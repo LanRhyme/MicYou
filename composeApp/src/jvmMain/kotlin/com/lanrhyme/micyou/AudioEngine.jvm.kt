@@ -230,8 +230,8 @@ actual class AudioEngine actual constructor() {
                                         return@launch
                                     }
                                 }
-                                serverSocket = aSocket(selectorManager!!).tcp().bind(port = port)
-                                val msg = "监听端口 $port"
+                                serverSocket = aSocket(selectorManager!!).tcp().bind("0.0.0.0", port = port)
+                                val msg = "监听端口 $port (0.0.0.0)"
                                 println(msg)
                                 
                                 while (isActive) {

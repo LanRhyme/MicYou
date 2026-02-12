@@ -40,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -110,14 +111,39 @@ fun DesktopHome(
                     modifier = Modifier.padding(16.dp).fillMaxSize(),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("MicYou Desktop", style = MaterialTheme.typography.titleMedium)
                         SelectionContainer {
-                            Text("${strings.ipLabel}${platform.ipAddress}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Box {
+                            var showIpList by remember { mutableStateOf(false) }
+                            val currentIps = remember(showIpList) { 
+                                if (showIpList) platform.ipAddresses else emptyList() 
+                            }
+                            
+                            Text(
+                                "${strings.ipLabel}${platform.ipAddress}", 
+                                style = MaterialTheme.typography.bodySmall, 
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.clickable { showIpList = true }
+                            )
+                            
+                            DropdownMenu(
+                                expanded = showIpList,
+                                onDismissRequest = { showIpList = false },
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                currentIps.forEach { ip ->
+                                    DropdownMenuItem(
+                                        text = { Text(ip) },
+                                        onClick = { showIpList = false }
+                                    )
+                                }
+                            }
+                        }
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         // Connection Mode
                         var expanded by remember { mutableStateOf(false) }
                         ExposedDropdownMenuBox(
@@ -143,12 +169,12 @@ fun DesktopHome(
                                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                                 textStyle = MaterialTheme.typography.bodySmall,
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp)
                             )
                             DropdownMenu(
                                 expanded = expanded,
                                 onDismissRequest = { expanded = false },
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp)
                             ) {
                                 DropdownMenuItem(
                                     text = { Text(strings.modeWifi) },
@@ -182,7 +208,7 @@ fun DesktopHome(
                                 modifier = Modifier.fillMaxWidth(),
                                 textStyle = MaterialTheme.typography.bodySmall,
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp)
                             )
                         }
                     }
