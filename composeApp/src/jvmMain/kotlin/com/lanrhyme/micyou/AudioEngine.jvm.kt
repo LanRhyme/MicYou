@@ -22,6 +22,7 @@ import javax.sound.sampled.*
 import kotlin.math.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+
 import de.maxhenkel.rnnoise4j.Denoiser
 import javax.bluetooth.*
 import javax.microedition.io.*
@@ -30,6 +31,9 @@ import io.ktor.utils.io.*
 import kotlinx.coroutines.*
 import java.io.OutputStream
 import kotlin.coroutines.CoroutineContext
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 
 @OptIn(DelicateCoroutinesApi::class)
 fun OutputStream.toByteWriteChannel(context: CoroutineContext = Dispatchers.IO): ByteWriteChannel = GlobalScope.reader(context, autoFlush = true) {
@@ -78,7 +82,7 @@ actual class AudioEngine actual constructor() {
     
     // 配置状态
     @Volatile private var enableNS: Boolean = false
-    @Volatile private var nsType: NoiseReductionType = NoiseReductionType.RNNoise
+    @Volatile private var nsType: NoiseReductionType = NoiseReductionType.Ulunas
     @Volatile private var enableAGC: Boolean = false
     @Volatile private var agcTargetLevel: Int = 32000
     @Volatile private var enableVAD: Boolean = false
@@ -89,10 +93,17 @@ actual class AudioEngine actual constructor() {
     
     // 内部音频处理状态
     private var agcEnvelope: Float = 0f
-    
+
     // RNNoise 实例
     private var denoiserLeft: Denoiser? = null
     private var denoiserRight: Denoiser? = null
+
+    // Ulunas 音频处理器实例
+    private var ulunasProcessorLeft: AudioProcessor? = null
+    private var ulunasProcessorRight: AudioProcessor? = null
+
+    // Ulunas 模型路径（缓存）
+    private var ulunasModelPath: String? = null
 
     private var dereverbBufferLeft: IntArray? = null
     private var dereverbBufferRight: IntArray? = null
@@ -102,6 +113,8 @@ actual class AudioEngine actual constructor() {
     private var scratchResultBuffer: ByteArray = ByteArray(0)
     private var rnnoiseFrameLeft: ShortArray = ShortArray(0)
     private var rnnoiseFrameRight: ShortArray = ShortArray(0)
+    private var ulunasFrameLeft: FloatArray = FloatArray(0)
+    private var ulunasFrameRight: FloatArray = FloatArray(0)
     private var playbackRatio: Double = 1.0
     private var playbackRatioIntegral: Double = 0.0
     private var resamplePosFrames: Double = 0.0
@@ -416,6 +429,10 @@ actual class AudioEngine actual constructor() {
                     denoiserLeft = null
                     denoiserRight?.close()
                     denoiserRight = null
+                    ulunasProcessorLeft?.destroy()
+                    ulunasProcessorLeft = null
+                    ulunasProcessorRight?.destroy()
+                    ulunasProcessorRight = null
                 } catch (e: Exception) {
                 }
                 _audioLevels.value = 0f
@@ -530,56 +547,110 @@ actual class AudioEngine actual constructor() {
 
         var speechProbability: Float? = null
 
-        if (enableNS && nsType == NoiseReductionType.RNNoise) {
-            if (denoiserLeft == null) denoiserLeft = Denoiser()
-            if (channelCount >= 2 && denoiserRight == null) denoiserRight = Denoiser()
+        if (enableNS) {
+            when (nsType) {
+                NoiseReductionType.RNNoise -> {
+                    // RNNoise 降噪
+                    if (denoiserLeft == null) denoiserLeft = Denoiser()
+                    if (channelCount >= 2 && denoiserRight == null) denoiserRight = Denoiser()
 
-            val frameSize = 480
-            val framesPerChannel = processedShorts.size / channelCount
-            val frameCount = framesPerChannel / frameSize
+                    val frameSize = 480
+                    val framesPerChannel = processedShorts.size / channelCount
+                    val frameCount = framesPerChannel / frameSize
 
-            if (frameCount > 0 && (channelCount == 1 || channelCount == 2)) {
-                if (rnnoiseFrameLeft.size != frameSize) rnnoiseFrameLeft = ShortArray(frameSize)
-                if (channelCount == 2 && rnnoiseFrameRight.size != frameSize) rnnoiseFrameRight = ShortArray(frameSize)
-                val left = rnnoiseFrameLeft
-                val right = if (channelCount == 2) rnnoiseFrameRight else null
+                    if (frameCount > 0 && (channelCount == 1 || channelCount == 2)) {
+                        if (rnnoiseFrameLeft.size != frameSize) rnnoiseFrameLeft = ShortArray(frameSize)
+                        if (channelCount == 2 && rnnoiseFrameRight.size != frameSize) rnnoiseFrameRight = ShortArray(frameSize)
+                        val left = rnnoiseFrameLeft
+                        val right = if (channelCount == 2) rnnoiseFrameRight else null
 
-                var probSum = 0f
-                var probN = 0
+                        var probSum = 0f
+                        var probN = 0
 
-                for (f in 0 until frameCount) {
-                    val base = f * frameSize * channelCount
-                    if (channelCount == 1) {
-                        for (i in 0 until frameSize) {
-                            left[i] = processedShorts[base + i]
+                        for (f in 0 until frameCount) {
+                            val base = f * frameSize * channelCount
+                            if (channelCount == 1) {
+                                for (i in 0 until frameSize) {
+                                    left[i] = processedShorts[base + i]
+                                }
+                                val p = denoiserLeft!!.denoiseInPlace(left)
+                                for (i in 0 until frameSize) {
+                                    processedShorts[base + i] = left[i]
+                                }
+                                probSum += p
+                                probN++
+                            } else {
+                                for (i in 0 until frameSize) {
+                                    val idx = base + i * 2
+                                    left[i] = processedShorts[idx]
+                                    right!![i] = processedShorts[idx + 1]
+                                }
+                                val pL = denoiserLeft!!.denoiseInPlace(left)
+                                val pR = denoiserRight!!.denoiseInPlace(right!!)
+                                for (i in 0 until frameSize) {
+                                    val idx = base + i * 2
+                                    processedShorts[idx] = left[i]
+                                    processedShorts[idx + 1] = right!![i]
+                                }
+                                probSum += ((pL + pR) * 0.5f)
+                                probN++
+                            }
                         }
-                        val p = denoiserLeft!!.denoiseInPlace(left)
-                        for (i in 0 until frameSize) {
-                            processedShorts[base + i] = left[i]
+
+                        if (probN > 0) {
+                            speechProbability = probSum / probN.toFloat()
                         }
-                        probSum += p
-                        probN++
-                    } else {
-                        for (i in 0 until frameSize) {
-                            val idx = base + i * 2
-                            left[i] = processedShorts[idx]
-                            right!![i] = processedShorts[idx + 1]
-                        }
-                        val pL = denoiserLeft!!.denoiseInPlace(left)
-                        val pR = denoiserRight!!.denoiseInPlace(right!!)
-                        for (i in 0 until frameSize) {
-                            val idx = base + i * 2
-                            processedShorts[idx] = left[i]
-                            processedShorts[idx + 1] = right!![i]
-                        }
-                        probSum += ((pL + pR) * 0.5f)
-                        probN++
                     }
                 }
+                NoiseReductionType.Ulunas -> {
+                    // Ulunas 降噪
+                    val modelPath = getUlnasModelPath()
 
-                if (probN > 0) {
-                    speechProbability = probSum / probN.toFloat()
+                    if (ulunasProcessorLeft == null) {
+                        ulunasProcessorLeft = AudioProcessor(0f, 0f, modelPath, 960, 480)
+                    }
+                    if (channelCount >= 2 && ulunasProcessorRight == null) {
+                        ulunasProcessorRight = AudioProcessor(0f, 0f, modelPath, 960, 480)
+                    }
+
+                    val hopLength = 480
+                    val framesPerChannel = processedShorts.size / channelCount
+                    val frameCount = framesPerChannel / hopLength
+
+                    if (frameCount > 0 && (channelCount == 1 || channelCount == 2)) {
+                        if (ulunasFrameLeft.size != hopLength) ulunasFrameLeft = FloatArray(hopLength)
+                        if (channelCount == 2 && ulunasFrameRight.size != hopLength) ulunasFrameRight = FloatArray(hopLength)
+                        val left = ulunasFrameLeft
+                        val right = if (channelCount == 2) ulunasFrameRight else null
+
+                        for (f in 0 until frameCount) {
+                            val base = f * hopLength * channelCount
+                            if (channelCount == 1) {
+                                for (i in 0 until hopLength) {
+                                    left[i] = processedShorts[base + i] / 32768.0f
+                                }
+                                val processedLeft = ulunasProcessorLeft!!.process(left)
+                                for (i in 0 until hopLength) {
+                                    processedShorts[base + i] = (processedLeft[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+                                }
+                            } else {
+                                for (i in 0 until hopLength) {
+                                    val idx = base + i * 2
+                                    left[i] = processedShorts[idx] / 32768.0f
+                                    right!![i] = processedShorts[idx + 1] / 32768.0f
+                                }
+                                val processedLeft = ulunasProcessorLeft!!.process(left)
+                                val processedRight = ulunasProcessorRight!!.process(right!!)
+                                for (i in 0 until hopLength) {
+                                    val idx = base + i * 2
+                                    processedShorts[idx] = (processedLeft[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+                                    processedShorts[idx + 1] = (processedRight[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+                                }
+                            }
+                        }
+                    }
                 }
+                else -> { /* None 或其他类型不处理 */ }
             }
         }
 
@@ -866,5 +937,47 @@ actual class AudioEngine actual constructor() {
             i += 2
         }
         return if (count > 0) kotlin.math.sqrt(sum / count.toDouble()).toFloat() else 0f
+    }
+
+    /**
+     * 获取 Ulunas 模型文件路径
+     * 优先从系统属性获取，否则从资源文件提取到临时目录
+     */
+    private fun getUlnasModelPath(): String {
+        // 检查缓存
+        ulunasModelPath?.let { return it }
+
+        // 优先从系统属性获取
+        System.getProperty("micyou.ulunas.model.path")?.let {
+            ulunasModelPath = it
+            return it
+        }
+
+        // 从资源文件提取到临时目录
+        val tempDir = Files.createTempDirectory("micyou")
+        val modelFile = tempDir.resolve("ulunas.onnx").toFile()
+
+        // 如果临时文件已存在且不为空，直接返回
+        if (modelFile.exists() && modelFile.length() > 0) {
+            ulunasModelPath = modelFile.absolutePath
+            return modelFile.absolutePath
+        }
+
+        // 从资源提取
+        val classLoader = this.javaClass.classLoader
+        val resourceStream = classLoader.getResourceAsStream("models/ulunas.onnx")
+            ?: throw IOException("无法找到 Ulunas 模型文件: models/ulunas.onnx")
+
+        resourceStream.use { input ->
+            modelFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        // 设置删除钩子
+        modelFile.deleteOnExit()
+
+        ulunasModelPath = modelFile.absolutePath
+        return modelFile.absolutePath
     }
 }

@@ -19,6 +19,7 @@ enum class StreamState {
 }
 
 enum class NoiseReductionType(val label: String) {
+    Ulunas("Ulunas (ONNX)"),
     RNNoise("RNNoise"),
     Speexdsp("Speexdsp"),
     None("None")
@@ -40,7 +41,7 @@ data class AppUiState(
     
     // Audio Processing Settings
     val enableNS: Boolean = false,
-    val nsType: NoiseReductionType = NoiseReductionType.RNNoise,
+    val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
     
     val enableAGC: Boolean = false,
     val agcTargetLevel: Int = 32000,
@@ -100,8 +101,8 @@ class MainViewModel : ViewModel() {
         val savedAudioFormat = try { AudioFormat.valueOf(savedAudioFormatName) } catch(e: Exception) { AudioFormat.PCM_FLOAT }
 
         val savedNS = settings.getBoolean("enable_ns", false)
-        val savedNSTypeName = settings.getString("ns_type", NoiseReductionType.RNNoise.name)
-        val savedNSType = try { NoiseReductionType.valueOf(savedNSTypeName) } catch(e: Exception) { NoiseReductionType.RNNoise }
+        val savedNSTypeName = settings.getString("ns_type", NoiseReductionType.Ulunas.name)
+        val savedNSType = try { NoiseReductionType.valueOf(savedNSTypeName) } catch(e: Exception) { NoiseReductionType.Ulunas }
         
         val savedAGC = settings.getBoolean("enable_agc", false)
         val savedAGCTarget = settings.getInt("agc_target", 32000)
