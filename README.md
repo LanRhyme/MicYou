@@ -42,6 +42,9 @@ Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
 1. Run the desktop application.
 2. Configure the connection mode to match the Android app.
 
+> [!TIP]
+> Having issues? Check out the [FAQ](./docs/FAQ.md)
+
 ## Building from Source
 
 This project is built using Kotlin Multiplatform.

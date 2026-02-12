@@ -42,6 +42,9 @@ MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高
 1. 运行桌面端应用程序
 2. 配置连接模式以匹配 Android 应用
 
+> [!TIP]
+> 遇到问题？请查看：[常见问题](./docs/FAQ.md)
+
 ## 源码构建
 
 本项目使用 Kotlin Multiplatform 构建
