@@ -43,7 +43,32 @@ MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高
 2. 配置连接模式以匹配 Android 应用
 
 ### Linux
-1. 请从源码构建使用
+
+#### 使用预编译包（推荐）
+预编译包可在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载
+
+**DEB 包（适用于 Debian/Ubuntu/Mint 等系统）：**
+```bash
+# 从 GitHub Releases 下载 .deb 包
+sudo dpkg -i MicYou-*.deb
+# 如果缺少依赖：
+sudo apt install -f
+```
+
+**RPM 包（适用于 Fedora/RHEL/openSUSE 等系统）：**
+```bash
+# 从 GitHub Releases 下载 .rpm 包
+sudo rpm -i MicYou-*.rpm
+# 或者使用 dnf/yum：
+sudo dnf install MicYou-*.rpm
+```
+
+**运行应用：**
+```bash
+# 安装后可以从应用菜单运行 MicYou
+# 或者从终端运行：
+MicYou
+```
 
 > [!TIP]
 > 遇到问题？请查看：[常见问题](./docs/FAQ_ZH.md)
@@ -52,14 +77,36 @@ MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高
 
 本项目使用 Kotlin Multiplatform 构建
 
-**Android:**
+**Android 应用（APK）：**
 ```bash
 ./gradlew :composeApp:assembleDebug
 ```
 
-**Windows/Linux:**
+**桌面应用（直接运行）：**
 ```bash
 ./gradlew :composeApp:run
+```
+
+**构建发布包：**
+
+**Windows 安装包（NSIS）：**
+```bash
+./gradlew :composeApp:packageWindowsNsis
+```
+
+**Windows ZIP 归档：**
+```bash
+./gradlew :composeApp:packageWindowsZip
+```
+
+**Linux DEB 包：**
+```bash
+./gradlew :composeApp:packageDeb
+```
+
+**Linux RPM 包：**
+```bash
+./gradlew :composeApp:packageRpm
 ```
 
 ## Star History

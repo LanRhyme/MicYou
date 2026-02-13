@@ -43,7 +43,32 @@ Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
 2. Configure the connection mode to match the Android app.
 
 ### Linux
-1. Please build and use from the source code.
+
+#### Using pre-built packages (recommended)
+Pre-built packages are available in [GitHub Releases](https://github.com/LanRhyme/MicYou/releases).
+
+**DEB package (Debian/Ubuntu/Mint etc.):**
+```bash
+# Download the .deb package from GitHub Releases
+sudo dpkg -i MicYou-*.deb
+# If dependencies are missing:
+sudo apt install -f
+```
+
+**RPM package (Fedora/RHEL/openSUSE etc.):**
+```bash
+# Download the .rpm package from GitHub Releases
+sudo rpm -i MicYou-*.rpm
+# Or using dnf/yum:
+sudo dnf install MicYou-*.rpm
+```
+
+**Run the application:**
+```bash
+# After installation, you can run MicYou from your application menu
+# Or from terminal:
+MicYou
+```
 
 > [!TIP]
 > Having issues? Check out the [FAQ](./docs/FAQ.md)
@@ -52,14 +77,36 @@ Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
 
 This project is built using Kotlin Multiplatform.
 
-**Android:**
+**Android app (APK):**
 ```bash
 ./gradlew :composeApp:assembleDebug
 ```
 
-**Windows/Linux:**
+**Desktop application (run directly):**
 ```bash
 ./gradlew :composeApp:run
+```
+
+**Build packages for distribution:**
+
+**Windows installer (NSIS):**
+```bash
+./gradlew :composeApp:packageWindowsNsis
+```
+
+**Windows ZIP archive:**
+```bash
+./gradlew :composeApp:packageWindowsZip
+```
+
+**Linux DEB package:**
+```bash
+./gradlew :composeApp:packageDeb
+```
+
+**Linux RPM package:**
+```bash
+./gradlew :composeApp:packageRpm
 ```
 
 ## Star History
