@@ -16,8 +16,6 @@ import kotlinx.serialization.*
 import java.net.BindException
 import java.io.IOException
 import java.io.EOFException
-import java.io.File
-import java.util.concurrent.TimeUnit
 import javax.sound.sampled.*
 import kotlin.math.*
 import java.nio.ByteBuffer
@@ -178,6 +176,22 @@ actual class AudioEngine actual constructor() {
         }
         
         _lastError.value = null // 清除之前的错误
+        
+        // 如果是USB模式，先执行ADB reverse
+        if (mode == ConnectionMode.Usb) {
+            try {
+                Logger.i("AudioEngine", "Executing ADB reverse for USB mode on port $port")
+                AdbManager.runAdbReverse(port)
+                Logger.i("AudioEngine", "ADB reverse successful, USB tunnel established")
+            } catch (e: Exception) {
+                val errorMsg = "ADB reverse 失败: ${e.message}\n请确保已安装ADB并连接Android设备，然后在终端执行：\nadb reverse tcp:$port tcp:$port"
+                Logger.e("AudioEngine", errorMsg, e)
+                _lastError.value = errorMsg
+                _state.value = StreamState.Error
+                return
+            }
+        }
+        
         val jobToJoin = startStopMutex.withLock {
             val currentJob = job
             if (currentJob != null && !currentJob.isCompleted) {
@@ -933,68 +947,6 @@ actual class AudioEngine actual constructor() {
         return outShorts
     }
 
-    private fun adbExecutableCandidates(): List<String> {
-        val isWindows = System.getProperty("os.name")?.lowercase()?.contains("win") == true
-        val exe = if (isWindows) "adb.exe" else "adb"
-
-        val candidates = LinkedHashSet<String>()
-        candidates.add("adb")
-
-        val sdkRoot = System.getenv("ANDROID_SDK_ROOT") ?: System.getenv("ANDROID_HOME")
-        if (!sdkRoot.isNullOrBlank()) {
-            candidates.add(File(sdkRoot, "platform-tools/$exe").absolutePath)
-        }
-
-        val localAppData = System.getenv("LOCALAPPDATA")
-        if (!localAppData.isNullOrBlank()) {
-            candidates.add(File(localAppData, "Android/Sdk/platform-tools/$exe").absolutePath)
-        }
-
-        val userHome = System.getProperty("user.home")
-        if (!userHome.isNullOrBlank() && isWindows) {
-            candidates.add(File(userHome, "AppData/Local/Android/Sdk/platform-tools/$exe").absolutePath)
-        }
-
-        return candidates.toList()
-    }
-
-    private fun runAdbReverse(port: Int) {
-        val candidates = adbExecutableCandidates()
-        var lastError: Exception? = null
-
-        for (adb in candidates) {
-            val adbFile = File(adb)
-            if (adb != "adb" && !adbFile.exists()) continue
-
-            try {
-                val process = ProcessBuilder(
-                    adb,
-                    "reverse",
-                    "tcp:$port",
-                    "tcp:$port"
-                ).redirectErrorStream(true).start()
-
-                val finished = process.waitFor(6, TimeUnit.SECONDS)
-                if (!finished) {
-                    process.destroy()
-                    throw IOException("ADB 命令执行超时")
-                }
-
-                val output = process.inputStream.bufferedReader().readText().trim()
-                val code = process.exitValue()
-                if (code != 0) {
-                    val msg = if (output.isNotBlank()) output else "exitCode=$code"
-                    throw IOException(msg)
-                }
-
-                return
-            } catch (e: Exception) {
-                lastError = e
-            }
-        }
-
-        throw lastError ?: IOException("未找到 adb")
-    }
 
     private fun calculateRMS(buffer: ByteArray): Float {
         var sum = 0.0
