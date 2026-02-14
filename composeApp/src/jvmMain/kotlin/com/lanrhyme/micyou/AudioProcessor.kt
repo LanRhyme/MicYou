@@ -85,8 +85,28 @@ class AudioProcessor(
                 val tempDir = Files.createTempDirectory("micyou_native")
                 val tempDll = tempDir.resolve(dllName).toFile()
 
-                // 尝试从 classpath 加载 DLL 到临时目录
                 val classLoader = AudioProcessor::class.java.classLoader
+
+                val dependencyDlls = listOf(
+                    "onnxruntime.dll",
+                    "onnxruntime_providers_shared.dll"
+                )
+
+                for (depDll in dependencyDlls) {
+                    val depStream = classLoader.getResourceAsStream(depDll)
+                    if (depStream != null) {
+                        val tempDepDll = tempDir.resolve(depDll).toFile()
+                        if (!tempDepDll.exists() || tempDepDll.length() == 0L) {
+                            depStream.use { input ->
+                                tempDepDll.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            tempDepDll.deleteOnExit()
+                        }
+                    }
+                }
+
                 val resourceStream = classLoader.getResourceAsStream(dllName)
                     ?: classLoader.getResourceAsStream("$dllName")
 
