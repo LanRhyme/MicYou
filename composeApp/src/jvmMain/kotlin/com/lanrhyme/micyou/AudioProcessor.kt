@@ -104,6 +104,7 @@ class AudioProcessor(
                             }
                             tempDepDll.deleteOnExit()
                         }
+                        System.load(tempDepDll.absolutePath)
                     }
                 }
 
