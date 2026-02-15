@@ -28,6 +28,7 @@ import io.ktor.utils.io.jvm.javaio.*
 import java.io.OutputStream
 import kotlin.coroutines.CoroutineContext
 import java.nio.file.Files
+import com.lanrhyme.micyou.audio.AudioOutputManager
 
 @OptIn(DelicateCoroutinesApi::class)
 fun OutputStream.toByteWriteChannel(context: CoroutineContext = Dispatchers.IO): ByteWriteChannel = GlobalScope.reader(context, autoFlush = true) {
@@ -64,15 +65,11 @@ actual class AudioEngine actual constructor() {
     private var activeSocket: Socket? = null
     private var activeBtConnection: StreamConnection? = null
     
-    private var monitoringLine: SourceDataLine? = null
-    private var isUsingCable = false
+    private val audioOutputManager = AudioOutputManager()
     private var selectorManager: SelectorManager? = null
     
     // 发送消息的通道（控制）
     private var sendChannel: Channel<MessageWrapper>? = null
-    
-    @Volatile
-    private var isMonitoring = false
     
     // 配置状态
     @Volatile private var enableNS: Boolean = false
@@ -116,8 +113,7 @@ actual class AudioEngine actual constructor() {
     private var scratchResampledShorts: ShortArray = ShortArray(0)
 
     // 存储原始音频输出设备（用于Linux平台恢复）
-    private var originalDefaultSink: String? = null
-
+    
     actual val installProgress: Flow<String?> = VBCableManager.installProgress
     
     actual suspend fun installDriver() {
@@ -161,19 +157,6 @@ actual class AudioEngine actual constructor() {
     ) {
         if (isClient) return 
         Logger.i("AudioEngine", "Starting JVM AudioEngine: mode=$mode, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}")
-        
-        // 在Linux平台重定向音频输出到虚拟设备
-        if (PlatformUtils.isLinux) {
-            originalDefaultSink = PlatformUtils.getDefaultSink()
-            Logger.i("AudioEngine", "Linux平台：保存原始默认音频输出设备: $originalDefaultSink")
-            
-            val success = PlatformUtils.redirectAudioToVirtualDevice()
-            if (success) {
-                Logger.i("AudioEngine", "成功重定向音频输出到虚拟设备")
-            } else {
-                Logger.w("AudioEngine", "音频重定向失败，可能影响内录功能")
-            }
-        }
         
         _lastError.value = null // 清除之前的错误
         
@@ -389,52 +372,8 @@ actual class AudioEngine actual constructor() {
 
                         val audioPacket = wrapper.audioPacket?.audioPacket
                         if (audioPacket != null) {
-                            if (monitoringLine == null) {
-                                Logger.d("AudioEngine", "Initializing monitoringLine: SR=${audioPacket.sampleRate}, Channels=${audioPacket.channelCount}")
-                                val audioFormat = javax.sound.sampled.AudioFormat(
-                                    audioPacket.sampleRate.toFloat(),
-                                    16,
-                                    audioPacket.channelCount,
-                                    true,
-                                    false 
-                                )
-
-                                val info = DataLine.Info(SourceDataLine::class.java, audioFormat)
-
-                                val mixers = AudioSystem.getMixerInfo()
-                                Logger.d("AudioEngine", "Found ${mixers.size} mixers: ${mixers.joinToString { it.name }}")
-                                
-                                val cableMixerInfo = mixers
-                                    .filter { it.name.contains("CABLE Input", ignoreCase = true) }
-                                    .find { mixerInfo ->
-                                        try {
-                                            val mixer = AudioSystem.getMixer(mixerInfo)
-                                            mixer.isLineSupported(info)
-                                        } catch (e: Exception) {
-                                            false
-                                        }
-                                    }
-
-                                if (cableMixerInfo != null) {
-                                    val mixer = AudioSystem.getMixer(cableMixerInfo)
-                                    monitoringLine = mixer.getLine(info) as SourceDataLine
-                                    isUsingCable = true
-                                    Logger.i("AudioEngine", "Using VB-CABLE Input for audio output: ${cableMixerInfo.name}")
-                                } else {
-                                    Logger.w("AudioEngine", "VB-CABLE Input not found or not supporting format, trying default output")
-                                    try {
-                                        monitoringLine = AudioSystem.getLine(info) as SourceDataLine
-                                        isUsingCable = false
-                                        Logger.i("AudioEngine", "Using default system output")
-                                    } catch (e: Exception) {
-                                        Logger.e("AudioEngine", "Failed to get default system output line", e)
-                                    }
-                                }
-
-                                val bytesPerSecond = (audioPacket.sampleRate * audioPacket.channelCount * 2).coerceAtLeast(1)
-                                val bufferSizeBytes = (bytesPerSecond / 5).coerceIn(8192, 131072)
-                                monitoringLine?.open(audioFormat, bufferSizeBytes)
-                                monitoringLine?.start()
+                            if (!audioOutputManager.init(audioPacket.sampleRate, audioPacket.channelCount)) {
+                                Logger.e("AudioEngine", "Failed to initialize audio output")
                             }
 
                             // 如果积压数据过多（超过5个包），直接丢弃当前包以追赶进度
@@ -446,18 +385,7 @@ actual class AudioEngine actual constructor() {
                             val processedBuffer = processAudio(audioPacket.buffer, audioPacket.audioFormat, audioPacket.channelCount)
 
                             if (processedBuffer != null) {
-                                // 只有在既没使用虚拟电缆也没开启监听时才静音
-                                // 在Linux平台上，音频需要发送到虚拟设备，不应静音
-                                if (!isUsingCable && !isMonitoring && !PlatformUtils.isLinux) {
-                                    // Logger.d("AudioEngine", "Silencing buffer: isUsingCable=$isUsingCable, isMonitoring=$isMonitoring")
-                                    processedBuffer.fill(0.toByte())
-                                }
-
-                                try {
-                                    monitoringLine?.write(processedBuffer, 0, processedBuffer.size)
-                                } catch (e: Exception) {
-                                    Logger.e("AudioEngine", "Error writing to monitoringLine", e)
-                                }
+                                audioOutputManager.write(processedBuffer, 0, processedBuffer.size)
 
                                 val rms = calculateRMS(processedBuffer)
                                 _audioLevels.value = rms
@@ -472,9 +400,7 @@ actual class AudioEngine actual constructor() {
                 writerJob.cancel()
                 sendChannel?.close()
                 sendChannel = null
-                monitoringLine?.drain()
-                monitoringLine?.close()
-                monitoringLine = null
+                audioOutputManager.release()
                 try {
                     denoiserLeft?.close()
                     denoiserLeft = null
@@ -502,7 +428,7 @@ actual class AudioEngine actual constructor() {
     }
     
     actual fun setMonitoring(enabled: Boolean) {
-        isMonitoring = enabled
+        audioOutputManager.setMonitoring(enabled)
     }
 
     actual fun setStreamingNotificationEnabled(enabled: Boolean) {
@@ -529,16 +455,7 @@ actual class AudioEngine actual constructor() {
          } catch (e: Exception) {
              e.printStackTrace()
          } finally {
-             // 在Linux平台恢复原始默认音频输出设备
-             if (PlatformUtils.isLinux && originalDefaultSink != null) {
-                 Logger.i("AudioEngine", "Linux平台：恢复原始默认音频输出设备: $originalDefaultSink")
-                 val success = PlatformUtils.restoreDefaultSink(originalDefaultSink)
-                 if (success) {
-                     Logger.i("AudioEngine", "成功恢复原始音频输出设备")
-                 } else {
-                     Logger.w("AudioEngine", "恢复原始音频输出设备失败")
-                 }
-             }
+             audioOutputManager.release()
          }
     }
 
@@ -821,19 +738,14 @@ actual class AudioEngine actual constructor() {
             }
         }
 
-        val line = monitoringLine
-        if (line != null) {
-            val bytesPerSecond = (line.format.sampleRate.toInt() * line.format.channels * 2).coerceAtLeast(1)
-            val queuedBytes = (line.bufferSize - line.available()).coerceAtLeast(0)
-            val queuedMs = queuedBytes * 1000L / bytesPerSecond.toLong()
-            playbackRatio = updatePlaybackRatio(queuedMs, playbackRatioIntegral).also {
-                playbackRatioIntegral = it.second
-            }.first
+        val queuedMs = audioOutputManager.getQueuedDurationMs()
+        playbackRatio = updatePlaybackRatio(queuedMs, playbackRatioIntegral).also {
+            playbackRatioIntegral = it.second
+        }.first
 
-            if (queuedMs >= 2000) {
-                line.flush()
-                resamplePosFrames = 0.0
-            }
+        if (queuedMs >= 2000) {
+            audioOutputManager.flush()
+            resamplePosFrames = 0.0
         }
 
         var processedShortCount = processedShorts.size
