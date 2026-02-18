@@ -500,14 +500,16 @@ private fun ColorOption(
             .background(color)
             .border(
                 width = if (isSelected) 3.dp else 2.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 1f else 0.3f),
+                color = when {
+                    isSelected -> MaterialTheme.colorScheme.primary
+                    !enabled -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    else -> MaterialTheme.colorScheme.outline
+                },
                 shape = CircleShape
             )
             .then(if (enabled) Modifier.pointerInput(Unit) {
                 detectTapGestures { onClick() }
-            } else Modifier)
-            .alpha(if (enabled) 1f else 0.5f),
+            } else Modifier),
         contentAlignment = Alignment.Center
     ) {
         if (isSelected) {
@@ -549,14 +551,16 @@ private fun CustomColorOption(
             )
             .border(
                 width = if (isSelected) 3.dp else 2.dp,
-                color = if (isSelected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.outline.copy(alpha = if (enabled) 1f else 0.3f),
+                color = when {
+                    isSelected -> MaterialTheme.colorScheme.primary
+                    !enabled -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                    else -> MaterialTheme.colorScheme.outline
+                },
                 shape = CircleShape
             )
             .then(if (enabled) Modifier.pointerInput(Unit) {
                 detectTapGestures { showDialog = true }
-            } else Modifier)
-            .alpha(if (enabled) 1f else 0.5f),
+            } else Modifier),
         contentAlignment = Alignment.Center
     ) {
         // 中心显示当前自定义颜色

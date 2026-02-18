@@ -128,7 +128,7 @@ fun MobileHome(viewModel: MainViewModel) {
              // 1. Connection Config Card
              Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                 shape = RoundedCornerShape(24.dp)
             ) {
                 Column(

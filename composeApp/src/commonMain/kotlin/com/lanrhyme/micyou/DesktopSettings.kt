@@ -308,7 +308,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                              presetColors = seedColors,
                              onColorSelected = { viewModel.setSeedColor(it) },
                              enabled = isSeedColorEnabled,
-                             modifier = Modifier.fillMaxWidth().then(if(!isSeedColorEnabled) Modifier.alpha(0.5f) else Modifier)
+                             modifier = Modifier.fillMaxWidth()
                          )
                      }
                 }

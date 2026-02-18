@@ -1,10 +1,14 @@
 package com.lanrhyme.micyou
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
@@ -178,6 +182,9 @@ val AppShapes = androidx.compose.material3.Shapes(
     extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(22.dp)
 )
 
+// 主题动画配置
+private val themeAnimationSpec: AnimationSpec<Color> = tween(durationMillis = 400)
+
 @Composable
 fun AppTheme(
     themeMode: ThemeMode = ThemeMode.System,
@@ -192,10 +199,113 @@ fun AppTheme(
     }
 
     val dynamicScheme = if (useDynamicColor) getDynamicColorScheme(isDark) else null
-    val colorScheme = dynamicScheme ?: generateColorScheme(seedColor, isDark)
+    val targetColorScheme = dynamicScheme ?: generateColorScheme(seedColor, isDark)
+
+    // 为主题颜色添加动画过渡
+    val animatedPrimary by animateColorAsState(targetColorScheme.primary, themeAnimationSpec)
+    val animatedOnPrimary by animateColorAsState(targetColorScheme.onPrimary, themeAnimationSpec)
+    val animatedPrimaryContainer by animateColorAsState(targetColorScheme.primaryContainer, themeAnimationSpec)
+    val animatedOnPrimaryContainer by animateColorAsState(targetColorScheme.onPrimaryContainer, themeAnimationSpec)
+    val animatedSecondary by animateColorAsState(targetColorScheme.secondary, themeAnimationSpec)
+    val animatedOnSecondary by animateColorAsState(targetColorScheme.onSecondary, themeAnimationSpec)
+    val animatedSecondaryContainer by animateColorAsState(targetColorScheme.secondaryContainer, themeAnimationSpec)
+    val animatedOnSecondaryContainer by animateColorAsState(targetColorScheme.onSecondaryContainer, themeAnimationSpec)
+    val animatedTertiary by animateColorAsState(targetColorScheme.tertiary, themeAnimationSpec)
+    val animatedOnTertiary by animateColorAsState(targetColorScheme.onTertiary, themeAnimationSpec)
+    val animatedTertiaryContainer by animateColorAsState(targetColorScheme.tertiaryContainer, themeAnimationSpec)
+    val animatedOnTertiaryContainer by animateColorAsState(targetColorScheme.onTertiaryContainer, themeAnimationSpec)
+    val animatedBackground by animateColorAsState(targetColorScheme.background, themeAnimationSpec)
+    val animatedOnBackground by animateColorAsState(targetColorScheme.onBackground, themeAnimationSpec)
+    val animatedSurface by animateColorAsState(targetColorScheme.surface, themeAnimationSpec)
+    val animatedOnSurface by animateColorAsState(targetColorScheme.onSurface, themeAnimationSpec)
+    val animatedSurfaceVariant by animateColorAsState(targetColorScheme.surfaceVariant, themeAnimationSpec)
+    val animatedOnSurfaceVariant by animateColorAsState(targetColorScheme.onSurfaceVariant, themeAnimationSpec)
+    val animatedSurfaceContainer by animateColorAsState(targetColorScheme.surfaceContainer, themeAnimationSpec)
+    val animatedSurfaceContainerHigh by animateColorAsState(targetColorScheme.surfaceContainerHigh, themeAnimationSpec)
+    val animatedError by animateColorAsState(targetColorScheme.error, themeAnimationSpec)
+    val animatedOnError by animateColorAsState(targetColorScheme.onError, themeAnimationSpec)
+    val animatedErrorContainer by animateColorAsState(targetColorScheme.errorContainer, themeAnimationSpec)
+    val animatedOnErrorContainer by animateColorAsState(targetColorScheme.onErrorContainer, themeAnimationSpec)
+    val animatedOutline by animateColorAsState(targetColorScheme.outline, themeAnimationSpec)
+    val animatedOutlineVariant by animateColorAsState(targetColorScheme.outlineVariant, themeAnimationSpec)
+    val animatedInverseSurface by animateColorAsState(targetColorScheme.inverseSurface, themeAnimationSpec)
+    val animatedInverseOnSurface by animateColorAsState(targetColorScheme.inverseOnSurface, themeAnimationSpec)
+    val animatedInversePrimary by animateColorAsState(targetColorScheme.inversePrimary, themeAnimationSpec)
+    val animatedSurfaceTint by animateColorAsState(targetColorScheme.surfaceTint, themeAnimationSpec)
+    val animatedScrim by animateColorAsState(targetColorScheme.scrim, themeAnimationSpec)
+
+    val animatedColorScheme = if (isDark) {
+        darkColorScheme(
+            primary = animatedPrimary,
+            onPrimary = animatedOnPrimary,
+            primaryContainer = animatedPrimaryContainer,
+            onPrimaryContainer = animatedOnPrimaryContainer,
+            secondary = animatedSecondary,
+            onSecondary = animatedOnSecondary,
+            secondaryContainer = animatedSecondaryContainer,
+            onSecondaryContainer = animatedOnSecondaryContainer,
+            tertiary = animatedTertiary,
+            onTertiary = animatedOnTertiary,
+            tertiaryContainer = animatedTertiaryContainer,
+            onTertiaryContainer = animatedOnTertiaryContainer,
+            background = animatedBackground,
+            onBackground = animatedOnBackground,
+            surface = animatedSurface,
+            onSurface = animatedOnSurface,
+            surfaceVariant = animatedSurfaceVariant,
+            onSurfaceVariant = animatedOnSurfaceVariant,
+            surfaceContainer = animatedSurfaceContainer,
+            surfaceContainerHigh = animatedSurfaceContainerHigh,
+            error = animatedError,
+            onError = animatedOnError,
+            errorContainer = animatedErrorContainer,
+            onErrorContainer = animatedOnErrorContainer,
+            outline = animatedOutline,
+            outlineVariant = animatedOutlineVariant,
+            inverseSurface = animatedInverseSurface,
+            inverseOnSurface = animatedInverseOnSurface,
+            inversePrimary = animatedInversePrimary,
+            surfaceTint = animatedSurfaceTint,
+            scrim = animatedScrim
+        )
+    } else {
+        lightColorScheme(
+            primary = animatedPrimary,
+            onPrimary = animatedOnPrimary,
+            primaryContainer = animatedPrimaryContainer,
+            onPrimaryContainer = animatedOnPrimaryContainer,
+            secondary = animatedSecondary,
+            onSecondary = animatedOnSecondary,
+            secondaryContainer = animatedSecondaryContainer,
+            onSecondaryContainer = animatedOnSecondaryContainer,
+            tertiary = animatedTertiary,
+            onTertiary = animatedOnTertiary,
+            tertiaryContainer = animatedTertiaryContainer,
+            onTertiaryContainer = animatedOnTertiaryContainer,
+            background = animatedBackground,
+            onBackground = animatedOnBackground,
+            surface = animatedSurface,
+            onSurface = animatedOnSurface,
+            surfaceVariant = animatedSurfaceVariant,
+            onSurfaceVariant = animatedOnSurfaceVariant,
+            surfaceContainer = animatedSurfaceContainer,
+            surfaceContainerHigh = animatedSurfaceContainerHigh,
+            error = animatedError,
+            onError = animatedOnError,
+            errorContainer = animatedErrorContainer,
+            onErrorContainer = animatedOnErrorContainer,
+            outline = animatedOutline,
+            outlineVariant = animatedOutlineVariant,
+            inverseSurface = animatedInverseSurface,
+            inverseOnSurface = animatedInverseOnSurface,
+            inversePrimary = animatedInversePrimary,
+            surfaceTint = animatedSurfaceTint,
+            scrim = animatedScrim
+        )
+    }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = animatedColorScheme,
         shapes = AppShapes,
         content = content
     )
