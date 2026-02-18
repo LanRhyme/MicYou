@@ -32,7 +32,7 @@ data class AppUiState(
     val port: String = "6000",
     val errorMessage: String? = null,
     val themeMode: ThemeMode = ThemeMode.System,
-    val seedColor: Long = 0xFF6750A4,
+    val seedColor: Long = 0xFF4285F4, // Google Blue - 默认主题色
     val monitoringEnabled: Boolean = false,
     val sampleRate: SampleRate = SampleRate.Rate44100,
     val channelCount: ChannelCount = ChannelCount.Mono,
@@ -103,7 +103,7 @@ class MainViewModel : ViewModel() {
         val savedThemeModeName = settings.getString("theme_mode", ThemeMode.System.name)
         val savedThemeMode = try { ThemeMode.valueOf(savedThemeModeName) } catch(e: Exception) { ThemeMode.System }
         
-        val savedSeedColor = settings.getLong("seed_color", 0xFF6750A4)
+        val savedSeedColor = settings.getLong("seed_color", 0xFF4285F4)
         
         val savedMonitoring = settings.getBoolean("monitoring_enabled", false)
 

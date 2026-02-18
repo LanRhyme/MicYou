@@ -146,15 +146,16 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
     val platform = getPlatform()
     val strings = LocalAppStrings.current
 
-    // 预设种子颜色
+    // 预设种子颜色 - Material Design 3 多样化配色方案
     val seedColors = listOf(
-        0xFF6750A4L, // Purple (Default)
-        0xFFB3261EL, // Red
-        0xFFFBC02DL, // Yellow
-        0xFF388E3CL, // Green
-        0xFF006C51L, // Teal
-        0xFF2196F3L, // Blue
-        0xFFE91E63L  // Pink
+        0xFF4285F4L, // Google Blue (Default) - 蓝色
+        0xFF6750A4L, // Material Purple - 紫色
+        0xFFE91E63L, // Pink - 粉色
+        0xFFF44336L, // Red - 红色
+        0xFFFF9800L, // Orange - 橙色
+        0xFF4CAF50L, // Green - 绿色
+        0xFF009688L, // Teal - 青绿色
+        0xFF9C27B0L  // Deep Purple - 深紫
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {

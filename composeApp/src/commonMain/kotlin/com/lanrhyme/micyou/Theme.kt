@@ -169,7 +169,7 @@ enum class ThemeMode {
     System, Light, Dark
 }
 
-val DefaultSeedColor = Color(0xFF6750A4)
+val DefaultSeedColor = Color(0xFF4285F4) // Google Blue - Material Design 3 推荐蓝色
 
 val AppShapes = androidx.compose.material3.Shapes(
     small = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
