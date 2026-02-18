@@ -175,13 +175,17 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                     TextButton(onClick = { expanded = true }) { 
                                         Text(state.language.label) 
                                     }
-                                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                    DropdownMenu(
+                                        expanded = expanded,
+                                        onDismissRequest = { expanded = false },
+                                        shape = RoundedCornerShape(16.dp)
+                                    ) {
                                         AppLanguage.entries.forEach { lang ->
                                             DropdownMenuItem(
                                                 text = { Text(lang.label) },
-                                                onClick = { 
+                                                onClick = {
                                                     viewModel.setLanguage(lang)
-                                                    expanded = false 
+                                                    expanded = false
                                                 },
                                                 trailingIcon = {
                                                     if (state.language == lang) {
@@ -235,7 +239,11 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                                 CloseAction.Exit -> strings.closeActionExit
                                             })
                                         }
-                                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                        DropdownMenu(
+                                            expanded = expanded,
+                                            onDismissRequest = { expanded = false },
+                                            shape = RoundedCornerShape(16.dp)
+                                        ) {
                                             CloseAction.entries.forEach { action ->
                                                 DropdownMenuItem(
                                                     text = {
@@ -347,7 +355,11 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                              onClick = { expanded = true },
                                              enabled = manualSettingsEnabled
                                          ) { Text("${state.sampleRate.value} Hz") }
-                                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                         DropdownMenu(
+                                             expanded = expanded,
+                                             onDismissRequest = { expanded = false },
+                                             shape = RoundedCornerShape(16.dp)
+                                         ) {
                                              SampleRate.entries.forEach { rate ->
                                                  DropdownMenuItem(text = { Text("${rate.value} Hz") }, onClick = { viewModel.setSampleRate(rate); expanded = false })
                                              }
@@ -365,7 +377,11 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                              onClick = { expanded = true },
                                              enabled = manualSettingsEnabled
                                          ) { Text(state.channelCount.label) }
-                                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                         DropdownMenu(
+                                             expanded = expanded,
+                                             onDismissRequest = { expanded = false },
+                                             shape = RoundedCornerShape(16.dp)
+                                         ) {
                                              ChannelCount.entries.forEach { count ->
                                                  DropdownMenuItem(text = { Text(count.label) }, onClick = { viewModel.setChannelCount(count); expanded = false })
                                              }
@@ -383,7 +399,11 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                              onClick = { expanded = true },
                                              enabled = manualSettingsEnabled
                                          ) { Text(state.audioFormat.label) }
-                                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                         DropdownMenu(
+                                             expanded = expanded,
+                                             onDismissRequest = { expanded = false },
+                                             shape = RoundedCornerShape(16.dp)
+                                         ) {
                                              AudioFormat.entries.forEach { format ->
                                                  DropdownMenuItem(text = { Text(format.label) }, onClick = { viewModel.setAudioFormat(format); expanded = false })
                                              }
@@ -450,7 +470,11 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                         var expanded by remember { mutableStateOf(false) }
                                         Box {
                                             TextButton(onClick = { expanded = true }) { Text(state.nsType.name) }
-                                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                            DropdownMenu(
+                                                expanded = expanded,
+                                                onDismissRequest = { expanded = false },
+                                                shape = RoundedCornerShape(16.dp)
+                                            ) {
                                                 NoiseReductionType.entries.forEach { type ->
                                                     DropdownMenuItem(text = { Text(type.name) }, onClick = { viewModel.setNsType(type); expanded = false })
                                                 }
