@@ -576,7 +576,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 }
                                 item {
                                     Text("AndroidMic", style = MaterialTheme.typography.titleSmall)
-                                    Text("https://github.com/mhuth/AndroidMic", style = MaterialTheme.typography.bodySmall)
+                                    Text("MIT License", style = MaterialTheme.typography.bodySmall)
                                 }
                                 item {
                                     Text("JetBrains Compose Multiplatform", style = MaterialTheme.typography.titleSmall)
@@ -607,7 +607,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                 Column {
                     ListItem(
                         headlineContent = { Text(strings.developerLabel) },
-                        supportingContent = { Text("LanRhyme") },
+                        supportingContent = { Text("LanRhyme、ChinsaaWei") },
                         leadingContent = { Icon(Icons.Default.Person, null) }
                     )
                     HorizontalDivider()

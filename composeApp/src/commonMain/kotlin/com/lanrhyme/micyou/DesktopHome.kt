@@ -1,44 +1,79 @@
 package com.lanrhyme.micyou
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Minimize
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MicOff
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.dp
-
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
-
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.ui.draw.rotate
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.LinkOff
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Minimize
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.ripple.RippleAlpha
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RippleConfiguration
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,35 +210,45 @@ fun DesktopHome(
                         Text("MicYou Desktop", style = MaterialTheme.typography.titleMedium)
                         Box {
                             var showIpList by remember { mutableStateOf(false) }
-                            val currentIps = remember(showIpList) { 
-                                if (showIpList) platform.ipAddresses else emptyList() 
+                            val currentIps = remember(showIpList) {
+                                if (showIpList) platform.ipAddresses else emptyList()
                             }
-                            
+
                             SelectionContainer {
                                 Text(
-                                    "${strings.ipLabel}${platform.ipAddress}", 
-                                    style = MaterialTheme.typography.bodySmall, 
+                                    "${strings.ipLabel}${platform.ipAddress}",
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.clickable { showIpList = true }
                                 )
                             }
-                            
-                            DropdownMenu(
-                                expanded = showIpList,
-                                onDismissRequest = { showIpList = false },
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
-                                currentIps.forEach { ip ->
-                                    DropdownMenuItem(
-                                        text = { Text(ip) },
-                                        onClick = { showIpList = false }
-                                    )
+
+                            CompositionLocalProvider(LocalRippleConfiguration provides RippleConfiguration(rippleAlpha = RippleAlpha(
+                                0f,
+                                0f,
+                                0f,
+                                0f
+                            )
+                            )) {
+                                DropdownMenu(
+                                    expanded = showIpList,
+                                    onDismissRequest = { showIpList = false },
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    currentIps.forEach { ip ->
+                                        DropdownMenuItem(
+                                            text = { Text(ip) },
+                                            onClick = { showIpList = false }
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         // Connection Mode
                         var expanded by remember { mutableStateOf(false) }
                         ExposedDropdownMenuBox(
@@ -340,7 +385,7 @@ fun DesktopHome(
                                 Icon(Icons.Filled.Refresh, strings.statusConnecting, modifier = Modifier.rotate(angle))
                             } else {
                                 Icon(
-                                    if (isRunning) Icons.Filled.MicOff else Icons.Filled.Mic,
+                                    if (isRunning) Icons.Filled.LinkOff else Icons.Filled.Link,
                                     contentDescription = if (isRunning) strings.stop else strings.start,
                                     modifier = Modifier.size(32.dp)
                                 )
@@ -456,7 +501,7 @@ fun DesktopHome(
                             )
                         ) {
                             Icon(
-                                if (state.isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                                if (state.isMuted) Icons.Filled.MicOff else Icons.Filled.Mic,
                                 contentDescription = if (state.isMuted) strings.unmuteLabel else strings.muteLabel,
                                 modifier = Modifier.size(20.dp)
                             )
