@@ -38,7 +38,8 @@ actual class AudioEngine actual constructor() {
         },
         onMuteStateChanged = { muted ->
             _isMuted.value = muted
-        }
+        },
+        requiredTokenProvider = { PlatformAdaptor.getAuthToken() }
     )
     
     init {
@@ -166,19 +167,22 @@ actual class AudioEngine actual constructor() {
     }
 
     actual fun stop() {
-         try {
-             job?.cancel()
-             job = null
-             runBlocking {
-                 networkServer.stop()
+         _state.value = StreamState.Idle
+         _lastError.value = null
+         scope.launch(Dispatchers.IO) {
+             try {
+                 startStopMutex.withLock {
+                     val current = job
+                     job = null
+                     current?.cancelAndJoin()
+                     networkServer.stop()
+                 }
+             } catch (e: Exception) {
+                 Logger.e("AudioEngine", "Failed to stop engine", e)
+             } finally {
+                 audioOutputManager.release()
+                 audioPipeline.release()
              }
-             _lastError.value = null
-             _state.value = StreamState.Idle
-         } catch (e: Exception) {
-             e.printStackTrace()
-         } finally {
-             audioOutputManager.release()
-             audioPipeline.release()
          }
     }
     

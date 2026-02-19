@@ -1,11 +1,12 @@
 package com.lanrhyme.micyou.network
 
-import com.lanrhyme.micyou.AudioPacketMessage
 import com.lanrhyme.micyou.ConnectMessage
-import com.lanrhyme.micyou.MessageWrapper
-import com.lanrhyme.micyou.MuteMessage
-import com.lanrhyme.micyou.PACKET_MAGIC
 import com.lanrhyme.micyou.Logger
+import com.lanrhyme.micyou.MessageWrapper
+import com.lanrhyme.micyou.PACKET_MAGIC
+import com.lanrhyme.micyou.VideoConfigMessage
+import com.lanrhyme.micyou.VideoControlMessage
+import com.lanrhyme.micyou.VideoFrameMessage
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readByte
@@ -16,14 +17,10 @@ import io.ktor.utils.io.readText
 import io.ktor.utils.io.writeFully
 import io.ktor.utils.io.writeInt
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ClosedReceiveChannelException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -31,11 +28,12 @@ import kotlinx.serialization.protobuf.ProtoBuf
 import java.io.EOFException
 import java.io.IOException
 
-class ConnectionHandler(
+class VideoConnectionHandler(
     private val input: ByteReadChannel,
     private val output: ByteWriteChannel,
-    private val onAudioPacketReceived: suspend (AudioPacketMessage) -> Unit,
-    private val onMuteStateChanged: (Boolean) -> Unit,
+    private val onVideoConfig: (VideoConfigMessage) -> Unit,
+    private val onVideoFrame: (VideoFrameMessage) -> Unit,
+    private val onRttMeasured: (Long) -> Unit,
     private val onError: (String) -> Unit,
     private val requiredTokenProvider: () -> String = { "" }
 ) {
@@ -45,9 +43,10 @@ class ConnectionHandler(
     @OptIn(ExperimentalSerializationApi::class)
     private val proto = ProtoBuf { }
 
-    private var sendChannel: Channel<MessageWrapper>? = null
-    private var writerJob: Job? = null
     private var authenticated: Boolean = true
+    private val writeMutex = Mutex()
+    private var nextPingId = 1
+    private val pendingRtt = mutableMapOf<Int, Long>()
 
     suspend fun run() {
         try {
@@ -56,23 +55,12 @@ class ConnectionHandler(
                 return
             }
             authenticated = requiredTokenProvider().isBlank()
-            sendChannel = Channel(Channel.UNLIMITED)
-
-            coroutineScope {
-                writerJob = launch(Dispatchers.IO) { processSendQueue() }
-                try {
-                    processReceiveLoop()
-                } finally {
-                    writerJob?.cancel()
-                }
-            }
+            processReceiveLoop()
         } catch (e: Exception) {
             if (!isNormalDisconnect(e)) {
-                Logger.e("ConnectionHandler", "Connection error", e)
-                onError("Connection error: ${e.message}")
+                Logger.e("VideoConnectionHandler", "Connection error", e)
+                onError("Video connection error: ${e.message}")
             }
-        } finally {
-            cleanup()
         }
     }
 
@@ -87,24 +75,8 @@ class ConnectionHandler(
                 true
             }
         } catch (e: Exception) {
-            Logger.e("ConnectionHandler", "Handshake IO error", e)
+            Logger.e("VideoConnectionHandler", "Handshake IO error", e)
             false
-        }
-    }
-
-    private suspend fun processSendQueue() {
-        val channel = sendChannel ?: return
-        for (msg in channel) {
-            try {
-                @OptIn(ExperimentalSerializationApi::class)
-                val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
-                output.writeInt(PACKET_MAGIC)
-                output.writeInt(packetBytes.size)
-                output.writeFully(packetBytes)
-                output.flush()
-            } catch (_: Exception) {
-                break
-            }
         }
     }
 
@@ -122,17 +94,16 @@ class ConnectionHandler(
             }
 
             val length = input.readInt()
-            if (length <= 0 || length > 2 * 1024 * 1024) continue
+            if (length <= 0 || length > 8 * 1024 * 1024) continue
 
             val packetBytes = ByteArray(length)
             input.readFully(packetBytes)
 
             try {
                 val wrapper: MessageWrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), packetBytes)
-                val connect = wrapper.connect
-                if (connect != null) {
-                    handleConnectMessage(connect)
-                    continue
+                wrapper.connect?.let {
+                    handleConnectMessage(it)
+                    return@let
                 }
 
                 if (!authenticated) {
@@ -140,16 +111,15 @@ class ConnectionHandler(
                     throw SecurityException("Authentication required")
                 }
 
-                wrapper.mute?.let { onMuteStateChanged(it.isMuted) }
-
-                val audioPacket = wrapper.audioPacket?.audioPacket
-                if (audioPacket != null) {
-                    onAudioPacketReceived(audioPacket)
+                wrapper.videoControl?.let { control ->
+                    handleVideoControl(control)
                 }
+                wrapper.videoConfig?.let(onVideoConfig)
+                wrapper.videoFrame?.let(onVideoFrame)
             } catch (e: SecurityException) {
                 throw e
             } catch (e: Exception) {
-                Logger.e("ConnectionHandler", "Failed to decode packet", e)
+                Logger.e("VideoConnectionHandler", "Failed to decode packet", e)
             }
         }
     }
@@ -170,24 +140,40 @@ class ConnectionHandler(
         throw SecurityException("Token mismatch")
     }
 
-    suspend fun sendMuteState(muted: Boolean) {
-        try {
-            sendChannel?.send(MessageWrapper(mute = MuteMessage(muted)))
-        } catch (e: Exception) {
-            Logger.e("ConnectionHandler", "Failed to send mute message", e)
+    suspend fun sendRttPing(): Boolean {
+        if (!authenticated) return false
+        val id = nextPingId++
+        pendingRtt[id] = System.currentTimeMillis()
+        val wrapper = MessageWrapper(videoControl = VideoControlMessage(pingId = id))
+        return runCatching { writeWrapper(wrapper) }.isSuccess
+    }
+
+    private suspend fun handleVideoControl(control: VideoControlMessage) {
+        control.pingId?.let { pingId ->
+            writeWrapper(MessageWrapper(videoControl = VideoControlMessage(pongId = pingId)))
+        }
+        control.pongId?.let { pongId ->
+            val sentAt = pendingRtt.remove(pongId)
+            if (sentAt != null) {
+                onRttMeasured((System.currentTimeMillis() - sentAt).coerceAtLeast(0L))
+            }
         }
     }
 
-    private fun cleanup() {
-        writerJob?.cancel()
-        sendChannel?.close()
-        sendChannel = null
+    @OptIn(ExperimentalSerializationApi::class)
+    private suspend fun writeWrapper(wrapper: MessageWrapper) {
+        val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), wrapper)
+        writeMutex.withLock {
+            output.writeInt(PACKET_MAGIC)
+            output.writeInt(packetBytes.size)
+            output.writeFully(packetBytes)
+            output.flush()
+        }
     }
 
     private fun isNormalDisconnect(e: Throwable): Boolean {
         if (e is CancellationException) return true
         if (e is EOFException) return true
-        if (e is ClosedReceiveChannelException) return true
         if (e is IOException) {
             val msg = e.message ?: ""
             if (msg.contains("Socket closed", ignoreCase = true)) return true

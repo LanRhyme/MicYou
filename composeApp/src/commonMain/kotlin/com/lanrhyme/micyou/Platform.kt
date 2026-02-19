@@ -23,6 +23,8 @@ expect fun openUrl(url: String)
 
 expect suspend fun isPortAllowed(port: Int, protocol: String): Boolean
 expect suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit>
+expect fun validateStreamingPrerequisites(mode: ConnectionMode): String?
+expect fun validateVideoPrerequisites(mode: ConnectionMode): String?
 
 /**
  * 日志级别
@@ -67,4 +69,3 @@ interface LoggerImpl {
 
 @Composable
 expect fun getDynamicColorScheme(isDark: Boolean): ColorScheme?
-

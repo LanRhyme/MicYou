@@ -98,9 +98,16 @@ actual fun openUrl(url: String) {
 
 actual suspend fun isPortAllowed(port: Int, protocol: String): Boolean = FirewallManager.isPortAllowed(port, protocol)
 actual suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit> = FirewallManager.addFirewallRule(port, protocol)
+actual fun validateStreamingPrerequisites(mode: ConnectionMode): String? = null
+actual fun validateVideoPrerequisites(mode: ConnectionMode): String? {
+    return if (mode == ConnectionMode.Bluetooth) {
+        "Video over Bluetooth is not supported yet. Please use Wi-Fi or USB."
+    } else {
+        null
+    }
+}
 
 @Composable
 actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {
     return null
 }
-

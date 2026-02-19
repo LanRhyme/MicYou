@@ -1,13 +1,32 @@
 package com.lanrhyme.micyou.network
 
-import com.lanrhyme.micyou.*
-import io.ktor.network.selector.*
-import io.ktor.network.sockets.*
-import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.*
-import kotlinx.coroutines.*
+import com.lanrhyme.micyou.AudioPacketMessage
+import com.lanrhyme.micyou.ConnectionMode
+import com.lanrhyme.micyou.Logger
+import com.lanrhyme.micyou.StreamState
+import io.ktor.network.selector.SelectorManager
+import io.ktor.network.sockets.ServerSocket
+import io.ktor.network.sockets.Socket
+import io.ktor.network.sockets.aSocket
+import io.ktor.network.sockets.openReadChannel
+import io.ktor.network.sockets.openWriteChannel
+import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.ByteReadChannel
+import io.ktor.utils.io.ByteWriteChannel
+import io.ktor.utils.io.jvm.javaio.toByteReadChannel
+import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.net.BindException
 import javax.bluetooth.DiscoveryAgent
 import javax.bluetooth.LocalDevice
@@ -16,17 +35,10 @@ import javax.microedition.io.Connector
 import javax.microedition.io.StreamConnection
 import javax.microedition.io.StreamConnectionNotifier
 
-/**
- * 管理网络服务器（TCP 或蓝牙）的生命周期。
- * 职责包括：
- * 1. 绑定端口/蓝牙 URL
- * 2. 接受传入连接
- * 3. 将连接处理委托给 ConnectionHandler
- * 4. 报告服务器状态
- */
 class NetworkServer(
     private val onAudioPacketReceived: suspend (AudioPacketMessage) -> Unit,
-    private val onMuteStateChanged: (Boolean) -> Unit
+    private val onMuteStateChanged: (Boolean) -> Unit,
+    private val requiredTokenProvider: () -> String = { "" }
 ) {
     private val _state = MutableStateFlow(StreamState.Idle)
     val state = _state.asStateFlow()
@@ -36,24 +48,16 @@ class NetworkServer(
 
     private var serverJob: Job? = null
     private var selectorManager: SelectorManager? = null
-    
-    // TCP 资源
     private var serverSocket: ServerSocket? = null
     private var activeSocket: Socket? = null
-    
-    // 蓝牙资源
     private var btNotifier: StreamConnectionNotifier? = null
     private var activeBtConnection: StreamConnection? = null
-
-    // 当前活动的连接处理器
     private var activeHandler: ConnectionHandler? = null
+    private val bridgeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    suspend fun start(
-        port: Int,
-        mode: ConnectionMode
-    ) {
-        if (serverJob != null && serverJob!!.isActive) {
-            Logger.w("NetworkServer", "服务器已在运行")
+    suspend fun start(port: Int, mode: ConnectionMode) {
+        if (serverJob?.isActive == true) {
+            Logger.w("NetworkServer", "Server is already running")
             return
         }
 
@@ -63,22 +67,16 @@ class NetworkServer(
         coroutineScope {
             serverJob = launch(Dispatchers.IO) {
                 try {
-                    if (mode == ConnectionMode.Bluetooth) {
-                        runBluetoothServer()
-                    } else {
-                        runTcpServer(port)
-                    }
+                    if (mode == ConnectionMode.Bluetooth) runBluetoothServer() else runTcpServer(port)
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Logger.e("NetworkServer", "服务器致命错误", e)
+                    Logger.e("NetworkServer", "Fatal server error", e)
                     _state.value = StreamState.Error
-                    _lastError.value = "服务器错误: ${e.message}"
+                    _lastError.value = "Server error: ${e.message}"
                 } finally {
                     cleanup()
-                    if (_state.value != StreamState.Error) {
-                        _state.value = StreamState.Idle
-                    }
+                    if (_state.value != StreamState.Error) _state.value = StreamState.Idle
                 }
             }
         }
@@ -97,25 +95,24 @@ class NetworkServer(
     private suspend fun runTcpServer(port: Int) {
         try {
             selectorManager = SelectorManager(Dispatchers.IO)
-            serverSocket = aSocket(selectorManager!!).tcp().bind("0.0.0.0", port = port)
-            Logger.i("NetworkServer", "正在监听 TCP 端口 $port")
-            
+            serverSocket = aSocket(selectorManager!!).tcp().bind("0.0.0.0", port)
+            Logger.i("NetworkServer", "Listening on TCP port $port")
+
             while (currentCoroutineContext().isActive) {
                 val socket = serverSocket?.accept() ?: break
                 activeSocket = socket
-                Logger.i("NetworkServer", "接受来自 ${socket.remoteAddress} 的 TCP 连接")
-                
+                Logger.i("NetworkServer", "Accepted TCP connection from ${socket.remoteAddress}")
                 handleConnection(
                     input = socket.openReadChannel(),
                     output = socket.openWriteChannel(autoFlush = true),
-                    closeAction = { 
-                        socket.close() 
+                    closeAction = {
+                        socket.close()
                         activeSocket = null
                     }
                 )
             }
         } catch (e: BindException) {
-            val msg = "端口 $port 已被占用。"
+            val msg = "Port $port is already in use."
             Logger.e("NetworkServer", msg)
             _lastError.value = msg
             _state.value = StreamState.Error
@@ -127,22 +124,18 @@ class NetworkServer(
             try {
                 val localDevice = LocalDevice.getLocalDevice()
                 localDevice.discoverable = DiscoveryAgent.GIAC
-                Logger.i("NetworkServer", "本地蓝牙: ${localDevice.friendlyName} ${localDevice.bluetoothAddress}")
-                
                 val uuid = UUID("0000110100001000800000805F9B34FB", false)
                 val url = "btspp://localhost:$uuid;name=MicYouServer"
-                
                 btNotifier = Connector.open(url) as StreamConnectionNotifier
-                Logger.i("NetworkServer", "蓝牙服务已启动: $url")
-                
+                Logger.i("NetworkServer", "Bluetooth server started: $url")
+
                 while (currentCoroutineContext().isActive) {
                     val connection = btNotifier?.acceptAndOpen() ?: break
                     activeBtConnection = connection
-                    Logger.i("NetworkServer", "接受蓝牙连接")
-                    
+                    Logger.i("NetworkServer", "Accepted Bluetooth connection")
+
                     val input = connection.openInputStream().toByteReadChannel()
-                    val output = connection.openOutputStream().toByteWriteChannel()
-                    
+                    val output = connection.openOutputStream().toManagedByteWriteChannel(bridgeScope)
                     handleConnection(
                         input = input,
                         output = output,
@@ -154,13 +147,13 @@ class NetworkServer(
                 }
             } catch (e: Exception) {
                 if (currentCoroutineContext().isActive) {
-                    Logger.e("NetworkServer", "蓝牙服务器错误", e)
-                     if (_state.value != StreamState.Connecting) {
-                         _state.value = StreamState.Error
-                         _lastError.value = "蓝牙错误: ${e.message}"
-                         delay(5000) // 重试延迟
-                         _state.value = StreamState.Connecting
-                     }
+                    Logger.e("NetworkServer", "Bluetooth server error", e)
+                    if (_state.value != StreamState.Connecting) {
+                        _state.value = StreamState.Error
+                        _lastError.value = "Bluetooth error: ${e.message}"
+                        delay(5000)
+                        _state.value = StreamState.Connecting
+                    }
                 }
             }
         }
@@ -179,19 +172,18 @@ class NetworkServer(
             output = output,
             onAudioPacketReceived = onAudioPacketReceived,
             onMuteStateChanged = onMuteStateChanged,
-            onError = { error ->
-                _lastError.value = error
-            }
+            onError = { _lastError.value = it },
+            requiredTokenProvider = requiredTokenProvider
         )
         activeHandler = handler
-        
+
         try {
             handler.run()
         } finally {
             activeHandler = null
             closeAction()
-            Logger.i("NetworkServer", "连接已关闭")
             _state.value = StreamState.Connecting
+            Logger.i("NetworkServer", "Connection closed")
         }
     }
 
@@ -201,24 +193,22 @@ class NetworkServer(
             activeSocket = null
             serverSocket?.close()
             serverSocket = null
-            
             btNotifier?.close()
             btNotifier = null
             activeBtConnection?.close()
             activeBtConnection = null
-            
             selectorManager?.close()
             selectorManager = null
+            bridgeScope.coroutineContext.cancelChildren()
         } catch (e: Exception) {
-            Logger.e("NetworkServer", "清理资源出错", e)
+            Logger.e("NetworkServer", "Resource cleanup failed", e)
         }
     }
 }
 
-@OptIn(DelicateCoroutinesApi::class)
-private fun java.io.OutputStream.toByteWriteChannel(context: kotlin.coroutines.CoroutineContext = Dispatchers.IO): ByteWriteChannel {
+private fun java.io.OutputStream.toManagedByteWriteChannel(scope: CoroutineScope): ByteWriteChannel {
     val channel = ByteChannel()
-    GlobalScope.launch(context) {
+    scope.launch {
         val buffer = ByteArray(4096)
         try {
             while (!channel.isClosedForRead) {
@@ -227,8 +217,8 @@ private fun java.io.OutputStream.toByteWriteChannel(context: kotlin.coroutines.C
                 write(buffer, 0, count)
                 flush()
             }
-        } catch (e: Exception) {
-            // Ignore
+        } catch (_: Exception) {
+            // Ignore stream close errors.
         }
     }
     return channel

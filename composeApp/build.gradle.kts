@@ -65,6 +65,9 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.androidx.camera.core)
+            implementation(libs.androidx.camera.camera2)
+            implementation(libs.androidx.camera.lifecycle)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -93,6 +96,9 @@ kotlin {
             implementation("de.maxhenkel.rnnoise4j:rnnoise4j:2.1.2")
             implementation("io.ultreia:bluecove:2.1.1")
             implementation(libs.systemtray)
+        }
+        jvmTest.dependencies {
+            implementation(libs.kotlin.testJunit)
         }
     }
 }
@@ -263,9 +269,14 @@ val copyTrayIcon by tasks.registering(Copy::class) {
     from("src/commonMain/composeResources/drawable/icon32.ico")
     into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}"))
 }
+val copyVirtualCameraHelper by tasks.registering(Copy::class) {
+    from("../tools/vcam_helper.py")
+    into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}/vcam"))
+}
 tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable") }
     .configureEach {
         finalizedBy(copyTrayIcon)
+        finalizedBy(copyVirtualCameraHelper)
     }
 tasks.matching { it.name == "jvmRun" }.configureEach {
     if (this is org.gradle.process.JavaForkOptions) {
@@ -278,7 +289,7 @@ tasks.matching { it.name == "jvmRun" }.configureEach {
 }
 
 tasks.register<Zip>("packageWindowsZip") {
-    dependsOn("createDistributable", copyTrayIcon)
+    dependsOn("createDistributable", copyTrayIcon, copyVirtualCameraHelper)
 
     val version = project.property("project.version").toString()
     val distDir = layout.buildDirectory.dir("compose/binaries/main/app")
@@ -360,7 +371,7 @@ abstract class PackageWindowsNsisTask @Inject constructor(
 }
 
 tasks.register<PackageWindowsNsisTask>("packageWindowsNsis") {
-    dependsOn("createDistributable", copyTrayIcon)
+    dependsOn("createDistributable", copyTrayIcon, copyVirtualCameraHelper)
 
     val appNameValue = project.property("project.name").toString()
     val versionValue = project.property("project.version").toString()

@@ -5,6 +5,13 @@ package com.lanrhyme.micyou
  * 处理音频设备重定向和 ADB 操作。
  */
 actual object PlatformAdaptor {
+    @Volatile
+    private var authToken: String = ""
+    @Volatile
+    private var videoProfile: VideoProfile = VideoProfile.FHD_1080P_30
+    @Volatile
+    private var videoQuality: Int = 85
+
     actual fun configureAudioOutput(): Any? {
         if (PlatformUtils.isLinux) {
             val original = PlatformUtils.getDefaultSink()
@@ -42,4 +49,22 @@ actual object PlatformAdaptor {
 
     actual val usesSystemAudioSinkForVirtualOutput: Boolean
         get() = PlatformUtils.isLinux
+
+    actual fun setAuthToken(token: String) {
+        authToken = token.trim()
+    }
+
+    actual fun getAuthToken(): String = authToken
+
+    actual fun setVideoProfile(profile: VideoProfile) {
+        videoProfile = profile
+    }
+
+    actual fun getVideoProfile(): VideoProfile = videoProfile
+
+    actual fun setVideoQuality(quality: Int) {
+        videoQuality = quality.coerceIn(30, 95)
+    }
+
+    actual fun getVideoQuality(): Int = videoQuality
 }

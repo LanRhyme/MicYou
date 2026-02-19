@@ -121,8 +121,8 @@ actual class AudioEngine actual constructor() {
                     sendChannel = Channel(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
                     
                     // 连接抽象
-                    var input: ByteReadChannel
-                    var output: ByteWriteChannel
+                    var input: ByteReadChannel? = null
+                    var output: ByteWriteChannel? = null
                     var closeConnection: () -> Unit = {}
                     
                     try {
@@ -207,65 +207,95 @@ actual class AudioEngine actual constructor() {
                         }
                         
                         // 网络设置
-                        val selectorManager = SelectorManager(Dispatchers.IO)
-                        
-                        if (mode == ConnectionMode.Bluetooth) {
-                            Logger.i("AudioEngine", "Connecting via Bluetooth to $ip")
-                            val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
-                                ?: throw UnsupportedOperationException("设备不支持蓝牙")
-                            
-                            if (!android.bluetooth.BluetoothAdapter.checkBluetoothAddress(ip)) {
-                                throw IllegalArgumentException("无效的蓝牙 MAC 地址: $ip")
+                                                val (maxAttempts, baseDelayMs) = when (mode) {
+                            ConnectionMode.Wifi -> 3 to 600L
+                            ConnectionMode.Usb -> 4 to 400L
+                            ConnectionMode.Bluetooth -> 3 to 1200L
+                        }
+                        var connected = false
+                        var lastConnectError: Exception? = null
+
+                        for (attempt in 1..maxAttempts) {
+                            var selectorManager: SelectorManager? = null
+                            try {
+                                if (mode == ConnectionMode.Bluetooth) {
+                                    Logger.i("AudioEngine", "Connecting via Bluetooth to $ip (attempt $attempt/$maxAttempts)")
+                                    val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+                                        ?: throw UnsupportedOperationException("Bluetooth not supported")
+
+                                    if (!android.bluetooth.BluetoothAdapter.checkBluetoothAddress(ip)) {
+                                        throw IllegalArgumentException("Invalid Bluetooth MAC address: $ip")
+                                    }
+
+                                    val device = adapter.getRemoteDevice(ip)
+                                    val uuid = java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+                                    val btSocket = device.createRfcommSocketToServiceRecord(uuid)
+                                    btSocket.connect()
+                                    input = btSocket.inputStream.toByteReadChannel()
+                                    output = btSocket.outputStream.toByteWriteChannel()
+                                    closeConnection = { btSocket.close() }
+                                } else {
+                                    selectorManager = SelectorManager(Dispatchers.IO)
+                                    val targetIp = if (mode == ConnectionMode.Usb) "127.0.0.1" else ip
+                                    Logger.i("AudioEngine", "Connecting via TCP to $targetIp:$port (attempt $attempt/$maxAttempts)")
+                                    val socket = aSocket(selectorManager).tcp().connect(targetIp, port) {
+                                        keepAlive = true
+                                        socketTimeout = 10000L
+                                        noDelay = true
+                                    }
+                                    input = socket.openReadChannel()
+                                    output = socket.openWriteChannel(autoFlush = true)
+                                    closeConnection = {
+                                        socket.close()
+                                        selectorManager?.close()
+                                    }
+                                }
+
+                                Logger.d("AudioEngine", "Starting handshake")
+                                output!!.writeFully(CHECK_1.encodeToByteArray())
+                                output!!.flush()
+
+                                val responseBuffer = ByteArray(CHECK_2.length)
+                                input!!.readFully(responseBuffer, 0, responseBuffer.size)
+                                if (!responseBuffer.decodeToString().equals(CHECK_2)) {
+                                    throw java.io.IOException("Handshake failed")
+                                }
+
+                                val connectToken = PlatformAdaptor.getAuthToken().ifBlank { null }
+                                val connectWrapper = MessageWrapper(
+                                    connect = ConnectMessage(
+                                        protocolVersion = PROTOCOL_VERSION,
+                                        token = connectToken
+                                    )
+                                )
+                                val connectBytes = proto.encodeToByteArray(MessageWrapper.serializer(), connectWrapper)
+                                output!!.writeInt(PACKET_MAGIC)
+                                output!!.writeInt(connectBytes.size)
+                                output!!.writeFully(connectBytes)
+                                output!!.flush()
+
+                                connected = true
+                                if (attempt > 1) {
+                                    Logger.i("AudioEngine", "Connection recovered after retry")
+                                } else {
+                                    Logger.i("AudioEngine", "Handshake successful")
+                                }
+                                break
+                            } catch (e: Exception) {
+                                lastConnectError = e
+                                closeConnection()
+                                selectorManager?.close()
+                                if (attempt < maxAttempts) {
+                                    val delayMs = baseDelayMs * (1L shl (attempt - 1))
+                                    Logger.w("AudioEngine", "Connect attempt $attempt failed (${e.message}), retrying in ${delayMs}ms")
+                                    kotlinx.coroutines.delay(delayMs)
+                                }
                             }
-                            
-                            val device = adapter.getRemoteDevice(ip)
-                            // SPP UUID
-                            val uuid = java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-                            
-                            // Note: Missing explicit permission check here, relying on SecurityException if missing
-                            val btSocket = device.createRfcommSocketToServiceRecord(uuid)
-                            btSocket.connect()
-                            Logger.i("AudioEngine", "Bluetooth connected to $ip")
-                            
-                            input = btSocket.inputStream.toByteReadChannel()
-                            output = btSocket.outputStream.toByteWriteChannel()
-                            closeConnection = { btSocket.close() }
-                            
-                        } else {
-                            val targetIp = if (mode == ConnectionMode.Usb) "127.0.0.1" else ip
-                            Logger.i("AudioEngine", "Connecting via TCP to $targetIp:$port")
-                            val socketBuilder = aSocket(selectorManager)
-                            val socket = socketBuilder.tcp().connect(targetIp, port) {
-                                // 优化 Socket 参数以应对 Wi-Fi 环境下的连接不稳
-                                keepAlive = true
-                                // 允许更长的等待时间
-                                socketTimeout = 10000L
-                                // 禁用 Nagle 算法，降低音频包延迟
-                                noDelay = true
-                            }
-                            Logger.i("AudioEngine", "TCP connected to $targetIp:$port")
-                            input = socket.openReadChannel()
-                            output = socket.openWriteChannel(autoFlush = true)
-                            closeConnection = { socket.close() }
                         }
 
-                        // 握手
-                        Logger.d("AudioEngine", "Starting handshake")
-                        output.writeFully(CHECK_1.encodeToByteArray())
-                        output.flush()
-
-                        val responseBuffer = ByteArray(CHECK_2.length)
-                        input.readFully(responseBuffer, 0, responseBuffer.size)
-
-                        if (!responseBuffer.decodeToString().equals(CHECK_2)) {
-                            val msg = "握手失败"
-                            Logger.e("AudioEngine", msg)
-                            _state.value = StreamState.Error
-                            _lastError.value = msg
-                            closeConnection()
-                            return@launch
+                        if (!connected) {
+                            throw lastConnectError ?: java.io.IOException("Connection failed")
                         }
-                        Logger.i("AudioEngine", "Handshake successful")
 
                         recorder.startRecording()
                         _state.value = StreamState.Streaming
@@ -285,6 +315,9 @@ actual class AudioEngine actual constructor() {
                             }
                         }
 
+                        val connectedInput = input ?: throw IllegalStateException("Input channel is not initialized")
+                        val connectedOutput = output ?: throw IllegalStateException("Output channel is not initialized")
+
                         // --- Writer Loop (Send Channel -> Socket) ---
                         val writerJob = launch {
                             Logger.d("AudioEngine", "Writer loop started")
@@ -292,10 +325,10 @@ actual class AudioEngine actual constructor() {
                                 try {
                                     val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
                                     val length = packetBytes.size
-                                    output.writeInt(PACKET_MAGIC)
-                                    output.writeInt(length)
-                                    output.writeFully(packetBytes)
-                                    output.flush()
+                                    connectedOutput.writeInt(PACKET_MAGIC)
+                                    connectedOutput.writeInt(length)
+                                    connectedOutput.writeFully(packetBytes)
+                                    connectedOutput.flush()
                                 } catch (e: Exception) {
                                     Logger.e("AudioEngine", "Error writing to socket", e)
                                     break
@@ -310,7 +343,7 @@ actual class AudioEngine actual constructor() {
                             try {
                                 while (isActive) {
                                     val magic = try {
-                                        input.readInt()
+                                        connectedInput.readInt()
                                     } catch (e: Exception) {
                                         if (isActive && _state.value == StreamState.Streaming && !isNormalDisconnect(e)) {
                                             Logger.d("AudioEngine", "Reader loop: socket closed or EOF: ${e.message}")
@@ -323,11 +356,11 @@ actual class AudioEngine actual constructor() {
                                         throw java.io.IOException("Invalid Packet Magic")
                                     }
                                     
-                                    val length = input.readInt()
+                                    val length = connectedInput.readInt()
 
                                     if (length > 0) {
                                         val packetBytes = ByteArray(length)
-                                        input.readFully(packetBytes)
+                                        connectedInput.readFully(packetBytes)
                                         try {
                                             val wrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), packetBytes)
                                             if (wrapper.mute != null) {
@@ -415,7 +448,12 @@ actual class AudioEngine actual constructor() {
                                     "无法到达主机: 请确保手机和电脑在同一个 Wi-Fi 网络下。"
                                 else -> "连接断开: ${e.message}"
                             }
-                            _lastError.value = errorMsg
+                            val modeHint = when (mode) {
+                                ConnectionMode.Wifi -> "[Wi-Fi]"
+                                ConnectionMode.Usb -> "[USB]"
+                                ConnectionMode.Bluetooth -> "[Bluetooth]"
+                            }
+                            _lastError.value = "$modeHint $errorMsg"
                         }
                     } finally {
                         Logger.d("AudioEngine", "Cleaning up resources")

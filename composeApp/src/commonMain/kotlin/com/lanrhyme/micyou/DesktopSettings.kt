@@ -198,6 +198,90 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 }
                             }
                         )
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text("Connection Auth Token") },
+                            supportingContent = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(
+                                        value = state.authToken,
+                                        onValueChange = { viewModel.setAuthToken(it) },
+                                        label = { Text("Optional token (empty = disabled)") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        if (platform.type == PlatformType.Desktop) {
+                                            OutlinedButton(onClick = { viewModel.generateAndSetAuthToken() }) {
+                                                Text("Generate")
+                                            }
+                                        }
+                                        TextButton(onClick = { viewModel.clearAuthToken() }) {
+                                            Text("Clear")
+                                        }
+                                    }
+                                }
+                            }
+                        )
+
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text("Video Stream") },
+                            supportingContent = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Switch(
+                                            checked = state.videoEnabled,
+                                            onCheckedChange = { viewModel.setVideoEnabled(it) }
+                                        )
+                                        Text(if (state.videoEnabled) "Enabled" else "Disabled")
+                                    }
+
+                                    OutlinedTextField(
+                                        value = state.videoPort,
+                                        onValueChange = { viewModel.setVideoPort(it) },
+                                        label = { Text("Video TCP Port") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    var profileExpanded by remember { mutableStateOf(false) }
+                                    Box {
+                                        TextButton(onClick = { profileExpanded = true }) {
+                                            Text("Profile: ${state.videoProfile.label}")
+                                        }
+                                        DropdownMenu(
+                                            expanded = profileExpanded,
+                                            onDismissRequest = { profileExpanded = false },
+                                            shape = RoundedCornerShape(16.dp)
+                                        ) {
+                                            VideoProfile.entries.forEach { profile ->
+                                                DropdownMenuItem(
+                                                    text = { Text(profile.label) },
+                                                    onClick = {
+                                                        viewModel.setVideoProfile(profile)
+                                                        profileExpanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    OutlinedTextField(
+                                        value = state.videoQuality.toString(),
+                                        onValueChange = { text ->
+                                            text.toIntOrNull()?.let { viewModel.setVideoQuality(it) }
+                                        },
+                                        label = { Text("JPEG Quality (30-95)") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        )
 
                         if (platform.type == PlatformType.Android) {
                             HorizontalDivider()

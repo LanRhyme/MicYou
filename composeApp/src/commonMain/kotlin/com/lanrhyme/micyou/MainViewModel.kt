@@ -2,11 +2,13 @@ package com.lanrhyme.micyou
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 enum class ConnectionMode(val label: String) {
     Wifi( "Wi-Fi (TCP)"),
@@ -23,6 +25,48 @@ enum class NoiseReductionType(val label: String) {
     RNNoise("RNNoise"),
     Speexdsp("Speexdsp"),
     None("None")
+}
+
+internal fun mapConnectionModeFromSettings(savedModeName: String): ConnectionMode {
+    return when (savedModeName) {
+        "WifiUdp" -> ConnectionMode.Wifi
+        else -> try {
+            ConnectionMode.valueOf(savedModeName)
+        } catch (e: Exception) {
+            ConnectionMode.Wifi
+        }
+    }
+}
+
+internal data class AutoConfigPreset(
+    val sampleRate: SampleRate,
+    val channelCount: ChannelCount,
+    val audioFormat: AudioFormat
+)
+
+internal fun resolveAutoConfigPreset(mode: ConnectionMode): AutoConfigPreset {
+    return if (mode == ConnectionMode.Bluetooth) {
+        AutoConfigPreset(
+            sampleRate = SampleRate.Rate16000,
+            channelCount = ChannelCount.Mono,
+            audioFormat = AudioFormat.PCM_16BIT
+        )
+    } else {
+        AutoConfigPreset(
+            sampleRate = SampleRate.Rate48000,
+            channelCount = ChannelCount.Stereo,
+            audioFormat = AudioFormat.PCM_16BIT
+        )
+    }
+}
+
+internal fun generateAuthToken(length: Int = 24): String {
+    val alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    return buildString(length) {
+        repeat(length) {
+            append(alphabet[Random.nextInt(alphabet.length)])
+        }
+    }
 }
 
 data class AppUiState(
@@ -70,9 +114,24 @@ data class AppUiState(
     val pendingFirewallPort: Int? = null,
     val minimizeToTray: Boolean = true,
     val closeAction: CloseAction = CloseAction.Prompt,
+    val authToken: String = "",
     val showCloseConfirmDialog: Boolean = false,
     val rememberCloseAction: Boolean = false,
-    val newVersionAvailable: GitHubRelease? = null
+    val newVersionAvailable: GitHubRelease? = null,
+    val videoEnabled: Boolean = false,
+    val videoPort: String = "7000",
+    val videoState: VideoStreamState = VideoStreamState.Idle,
+    val videoErrorMessage: String? = null,
+    val showVirtualCameraDiagDialog: Boolean = false,
+    val virtualCameraDiagMessage: String? = null,
+    val videoProfile: VideoProfile = VideoProfile.FHD_1080P_30,
+    val videoQuality: Int = 85,
+    val videoFps: Int = 0,
+    val videoLatencyMs: Long = 0L,
+    val videoRttMs: Long? = null,
+    val videoVirtualCameraBinding: String? = null,
+    val videoWidth: Int = 0,
+    val videoHeight: Int = 0
 )
 
 enum class CloseAction(val label: String) {
@@ -83,19 +142,19 @@ enum class CloseAction(val label: String) {
 
 class MainViewModel : ViewModel() {
     private val audioEngine = AudioEngine()
+    private val videoEngine = VideoEngine()
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
     val audioLevels = audioEngine.audioLevels
+    val videoFrame = videoEngine.latestFrame
+    val videoStats = videoEngine.stats
     private val settings = SettingsFactory.getSettings()
     private val updateChecker = UpdateChecker()
 
     init {
         // Load settings
         val savedModeName = settings.getString("connection_mode", ConnectionMode.Wifi.name)
-        val savedMode = when (savedModeName) {
-            "WifiUdp" -> ConnectionMode.Bluetooth
-            else -> try { ConnectionMode.valueOf(savedModeName) } catch(e: Exception) { ConnectionMode.Wifi }
-        }
+        val savedMode = mapConnectionModeFromSettings(savedModeName)
         
         val savedIp = settings.getString("ip_address", "192.168.1.5")
         val savedPort = settings.getString("port", "6000")
@@ -148,6 +207,12 @@ class MainViewModel : ViewModel() {
         } catch (e: Exception) {
             CloseAction.Prompt
         }
+        val savedAuthToken = settings.getString("auth_token", "").trim()
+        val savedVideoEnabled = settings.getBoolean("video_enabled", false)
+        val savedVideoPort = settings.getString("video_port", "7000")
+        val savedVideoProfileName = settings.getString("video_profile", VideoProfile.FHD_1080P_30.name)
+        val savedVideoProfile = try { VideoProfile.valueOf(savedVideoProfileName) } catch (e: Exception) { VideoProfile.FHD_1080P_30 }
+        val savedVideoQuality = settings.getInt("video_quality", 85).coerceIn(30, 95)
 
         _uiState.update { 
             it.copy(
@@ -176,9 +241,17 @@ class MainViewModel : ViewModel() {
                 bluetoothAddress = savedBluetoothAddress,
                 isAutoConfig = savedIsAutoConfig,
                 minimizeToTray = savedMinimizeToTray,
-                closeAction = savedCloseAction
+                closeAction = savedCloseAction,
+                authToken = savedAuthToken,
+                videoEnabled = savedVideoEnabled,
+                videoPort = savedVideoPort,
+                videoProfile = savedVideoProfile,
+                videoQuality = savedVideoQuality
             ) 
         }
+        PlatformAdaptor.setAuthToken(savedAuthToken)
+        PlatformAdaptor.setVideoProfile(savedVideoProfile)
+        PlatformAdaptor.setVideoQuality(savedVideoQuality)
         
         // Apply auto config on startup if enabled
         if (savedIsAutoConfig) {
@@ -213,12 +286,60 @@ class MainViewModel : ViewModel() {
             }
         }
 
+        viewModelScope.launch {
+            videoEngine.streamState.collect { state ->
+                _uiState.update { it.copy(videoState = state) }
+            }
+        }
+
+        viewModelScope.launch {
+            videoEngine.lastError.collect { error ->
+                val shouldShowDiag = getPlatform().type == PlatformType.Desktop &&
+                    !error.isNullOrBlank() &&
+                    isVirtualCameraRelatedError(error)
+                _uiState.update {
+                    it.copy(
+                        videoErrorMessage = error,
+                        showVirtualCameraDiagDialog = shouldShowDiag,
+                        virtualCameraDiagMessage = if (shouldShowDiag) buildVirtualCameraDiag(error) else it.virtualCameraDiagMessage
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            videoEngine.stats.collect { stats ->
+                _uiState.update {
+                    it.copy(
+                        videoFps = stats.fps,
+                        videoLatencyMs = stats.latencyMs,
+                        videoWidth = stats.width,
+                        videoHeight = stats.height
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            videoEngine.rttMs.collect { rtt ->
+                _uiState.update { it.copy(videoRttMs = rtt) }
+            }
+        }
+        viewModelScope.launch {
+            videoEngine.virtualCameraBinding.collect { binding ->
+                _uiState.update { it.copy(videoVirtualCameraBinding = binding) }
+            }
+        }
+
         if (getPlatform().type == PlatformType.Desktop) {
             viewModelScope.launch {
                 audioEngine.installDriver()
             }
             if (savedAutoStart) {
                 startStream()
+                if (savedVideoEnabled) {
+                    startVideo()
+                }
             }
         }
 
@@ -264,17 +385,10 @@ class MainViewModel : ViewModel() {
     }
 
     private fun applyAutoConfig(mode: ConnectionMode) {
-        if (mode == ConnectionMode.Bluetooth) {
-            // Low bandwidth optimization
-            setSampleRate(SampleRate.Rate16000)
-            setChannelCount(ChannelCount.Mono)
-            setAudioFormat(AudioFormat.PCM_16BIT)
-        } else {
-            // High quality for WiFi/USB
-            setSampleRate(SampleRate.Rate48000)
-            setChannelCount(ChannelCount.Stereo)
-            setAudioFormat(AudioFormat.PCM_16BIT)
-        }
+        val preset = resolveAutoConfigPreset(mode)
+        setSampleRate(preset.sampleRate)
+        setChannelCount(preset.channelCount)
+        setAudioFormat(preset.audioFormat)
     }
 
     fun setAutoConfig(enabled: Boolean) {
@@ -352,7 +466,21 @@ class MainViewModel : ViewModel() {
         val channelCount = _uiState.value.channelCount
         val audioFormat = _uiState.value.audioFormat
 
+        val prerequisiteError = validateStreamingPrerequisites(mode)
+        if (prerequisiteError != null) {
+            _uiState.update { it.copy(streamState = StreamState.Error, errorMessage = prerequisiteError) }
+            return
+        }
+
         _uiState.update { it.copy(streamState = StreamState.Connecting, errorMessage = null) }
+
+        val shouldStartVideoWithAudio = getPlatform().type == PlatformType.Desktop &&
+            mode != ConnectionMode.Bluetooth &&
+            _uiState.value.videoState != VideoStreamState.Streaming &&
+            _uiState.value.videoState != VideoStreamState.Connecting
+        if (shouldStartVideoWithAudio) {
+            startVideo()
+        }
 
         // 启动音频引擎（不阻塞）
         viewModelScope.launch {
@@ -363,6 +491,8 @@ class MainViewModel : ViewModel() {
                 Logger.d("MainViewModel", "Calling audioEngine.start()")
                 audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat)
                 Logger.i("MainViewModel", "Stream started successfully")
+            } catch (e: CancellationException) {
+                Logger.d("MainViewModel", "Audio start coroutine cancelled")
             } catch (e: Exception) {
                 Logger.e("MainViewModel", "Failed to start stream", e)
                 _uiState.update { it.copy(streamState = StreamState.Error, errorMessage = e.message) }
@@ -404,6 +534,78 @@ class MainViewModel : ViewModel() {
     fun stopStream() {
         Logger.i("MainViewModel", "Stopping stream")
         audioEngine.stop()
+        if (getPlatform().type == PlatformType.Desktop &&
+            (_uiState.value.videoState == VideoStreamState.Streaming || _uiState.value.videoState == VideoStreamState.Connecting)
+        ) {
+            stopVideo()
+        }
+    }
+
+    fun toggleVideo() {
+        if (_uiState.value.videoState == VideoStreamState.Streaming || _uiState.value.videoState == VideoStreamState.Connecting) {
+            stopVideo()
+        } else {
+            startVideo()
+        }
+    }
+
+    fun startVideo() {
+        Logger.i("MainViewModel", "Starting video")
+        val mode = _uiState.value.mode
+        val ip = if (mode == ConnectionMode.Bluetooth) _uiState.value.bluetoothAddress else _uiState.value.ipAddress
+        val port = _uiState.value.videoPort.toIntOrNull() ?: 7000
+        val isClient = getPlatform().type == PlatformType.Android
+        val profile = _uiState.value.videoProfile
+        val quality = _uiState.value.videoQuality
+
+        val prerequisiteError = validateVideoPrerequisites(mode)
+        if (prerequisiteError != null) {
+            _uiState.update { it.copy(videoState = VideoStreamState.Error, videoErrorMessage = prerequisiteError) }
+            return
+        }
+
+        _uiState.update { it.copy(videoState = VideoStreamState.Connecting, videoErrorMessage = null) }
+        viewModelScope.launch {
+            try {
+                videoEngine.updateConfig(profile, quality)
+                videoEngine.start(ip, port, mode, isClient, profile, quality)
+            } catch (e: CancellationException) {
+                Logger.d("MainViewModel", "Video start coroutine cancelled")
+            } catch (e: Exception) {
+                Logger.e("MainViewModel", "Failed to start video", e)
+                _uiState.update { it.copy(videoState = VideoStreamState.Error, videoErrorMessage = e.message) }
+            }
+        }
+
+        if (!isClient && mode == ConnectionMode.Wifi) {
+            viewModelScope.launch {
+                if (!isPortAllowed(port, "TCP")) {
+                    _uiState.update { it.copy(snackbarMessage = "Video port $port may be blocked by firewall.") }
+                }
+            }
+        }
+    }
+
+    fun stopVideo() {
+        Logger.i("MainViewModel", "Stopping video")
+        videoEngine.stop()
+    }
+
+    fun switchVideoCamera() {
+        videoEngine.switchCamera()
+    }
+
+    fun restartVirtualCamera() {
+        videoEngine.restartVirtualCamera()
+        _uiState.update { it.copy(snackbarMessage = "Virtual camera restarted.") }
+    }
+
+    fun testVideoRtt() {
+        videoEngine.requestRttTest()
+    }
+
+    fun dismissVirtualCameraDiagDialog() {
+        _uiState.update { it.copy(showVirtualCameraDiagDialog = false) }
     }
 
     fun setMode(mode: ConnectionMode) {
@@ -453,6 +655,46 @@ class MainViewModel : ViewModel() {
         Logger.d("MainViewModel", "Setting port to $port")
         _uiState.update { it.copy(port = port) }
         settings.putString("port", port)
+    }
+
+    fun setAuthToken(token: String) {
+        val normalized = token.trim()
+        _uiState.update { it.copy(authToken = normalized) }
+        settings.putString("auth_token", normalized)
+        PlatformAdaptor.setAuthToken(normalized)
+    }
+
+    fun clearAuthToken() {
+        setAuthToken("")
+    }
+
+    fun generateAndSetAuthToken() {
+        setAuthToken(generateAuthToken())
+    }
+
+    fun setVideoEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(videoEnabled = enabled) }
+        settings.putBoolean("video_enabled", enabled)
+    }
+
+    fun setVideoPort(port: String) {
+        _uiState.update { it.copy(videoPort = port) }
+        settings.putString("video_port", port)
+    }
+
+    fun setVideoProfile(profile: VideoProfile) {
+        _uiState.update { it.copy(videoProfile = profile) }
+        settings.putString("video_profile", profile.name)
+        PlatformAdaptor.setVideoProfile(profile)
+        videoEngine.updateConfig(profile, _uiState.value.videoQuality)
+    }
+
+    fun setVideoQuality(quality: Int) {
+        val normalized = quality.coerceIn(30, 95)
+        _uiState.update { it.copy(videoQuality = normalized) }
+        settings.putInt("video_quality", normalized)
+        PlatformAdaptor.setVideoQuality(normalized)
+        videoEngine.updateConfig(_uiState.value.videoProfile, normalized)
     }
 
     fun setThemeMode(mode: ThemeMode) {
@@ -586,5 +828,33 @@ class MainViewModel : ViewModel() {
     fun exportLog(onResult: (String?) -> Unit) {
         val path = Logger.getLogFilePath()
         onResult(path)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        audioEngine.stop()
+        videoEngine.stop()
+    }
+
+    private fun isVirtualCameraRelatedError(error: String): Boolean {
+        val normalized = error.lowercase()
+        return normalized.contains("virtual camera") ||
+            normalized.contains("vcam") ||
+            normalized.contains("pyvirtualcam") ||
+            normalized.contains("helper")
+    }
+
+    private fun buildVirtualCameraDiag(error: String): String {
+        return buildString {
+            appendLine("Virtual camera helper start failed.")
+            appendLine("Error: $error")
+            appendLine()
+            appendLine("Quick checks:")
+            appendLine("1) Install dependencies:")
+            appendLine("""   "C:\Users\Administrator\AppData\Local\Programs\Python\Python310\python.exe" -m pip install pyvirtualcam numpy""")
+            appendLine("2) Ensure one virtual camera backend exists (OBS Virtual Camera / Unity Capture).")
+            appendLine("3) Restart MicYou desktop.")
+            appendLine("4) In meeting software choose the virtual camera device.")
+        }
     }
 }

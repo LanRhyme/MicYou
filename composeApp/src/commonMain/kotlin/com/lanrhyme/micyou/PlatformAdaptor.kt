@@ -35,4 +35,16 @@ expect object PlatformAdaptor {
      * If true, audio should be written to the system output even if monitoring is disabled.
      */
     val usesSystemAudioSinkForVirtualOutput: Boolean
+
+    /**
+     * Shared auth token for connection authentication.
+     * Empty token means authentication is disabled.
+     */
+    fun setAuthToken(token: String)
+    fun getAuthToken(): String
+
+    fun setVideoProfile(profile: VideoProfile)
+    fun getVideoProfile(): VideoProfile
+    fun setVideoQuality(quality: Int)
+    fun getVideoQuality(): Int
 }

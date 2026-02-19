@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
+import android.widget.Toast
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,10 +18,14 @@ class MainActivity : ComponentActivity() {
         
         AndroidContext.init(this)
         ContextHelper.init(this)
+        LifecycleOwnerHolder.set(this)
         Logger.init(AndroidLogger(this))
         Logger.i("MainActivity", "App started")
 
         val permissionsToRequest = mutableListOf<String>()
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.CAMERA)
+        }
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
         }
@@ -43,6 +48,26 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             App()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != 1001) return
+
+        val denied = permissions.filterIndexed { index, _ ->
+            grantResults.getOrNull(index) != PackageManager.PERMISSION_GRANTED
+        }
+        if (denied.isNotEmpty()) {
+            Toast.makeText(
+                this,
+                "Permissions denied: ${denied.joinToString()}. Streaming may fail until granted.",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 }

@@ -19,14 +19,17 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Link
@@ -48,6 +51,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -73,6 +77,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,6 +93,7 @@ fun DesktopHome(
 ) {
     val state by viewModel.uiState.collectAsState()
     val audioLevel by viewModel.audioLevels.collectAsState(initial = 0f)
+    val videoFrame by viewModel.videoFrame.collectAsState(initial = null)
     val platform = remember { getPlatform() }
     
     val strings = LocalAppStrings.current
@@ -178,6 +185,26 @@ fun DesktopHome(
                     viewModel.confirmCloseAction(CloseAction.Exit, state.rememberCloseAction, onExit = onExitApp, onHide = onHideApp)
                 }) {
                     Text(strings.closeConfirmExit)
+                }
+            }
+        )
+    }
+
+    if (state.showVirtualCameraDiagDialog && !state.virtualCameraDiagMessage.isNullOrBlank()) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissVirtualCameraDiagDialog() },
+            title = { Text("Virtual Camera Diagnostics") },
+            text = {
+                SelectionContainer {
+                    Text(
+                        state.virtualCameraDiagMessage ?: "",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.dismissVirtualCameraDiagDialog() }) {
+                    Text("Close")
                 }
             }
         )
@@ -401,14 +428,20 @@ fun DesktopHome(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
             ) {
                 Column(
-                    modifier = Modifier.padding(12.dp).fillMaxSize(),
-                    verticalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Top: Window Controls
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End
                     ) {
+                        IconButton(onClick = onOpenSettings, modifier = Modifier.size(32.dp)) {
+                            Icon(Icons.Filled.Settings, strings.settingsTitle, modifier = Modifier.size(18.dp))
+                        }
                         IconButton(onClick = onMinimize, modifier = Modifier.size(32.dp)) {
                             Icon(Icons.Filled.Minimize, strings.minimize, modifier = Modifier.size(18.dp))
                         }
@@ -429,7 +462,15 @@ fun DesktopHome(
                             StreamState.Error -> strings.statusError
                         }
                         
-                        Text(statusText, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         
                         if (state.errorMessage != null) {
                             Spacer(modifier = Modifier.height(4.dp))
@@ -445,7 +486,7 @@ fun DesktopHome(
                                         style = MaterialTheme.typography.labelSmall, 
                                         color = MaterialTheme.colorScheme.error,
                                         maxLines = 2,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        textAlign = TextAlign.Center
                                     )
                                     if (cmd.isNotEmpty()) {
                                         Spacer(modifier = Modifier.height(4.dp))
@@ -468,7 +509,7 @@ fun DesktopHome(
                                                         style = MaterialTheme.typography.bodySmall,
                                                         color = MaterialTheme.colorScheme.onErrorContainer,
                                                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                                        textAlign = TextAlign.Center
                                                     )
                                                 }
                                             }
@@ -480,10 +521,54 @@ fun DesktopHome(
                                     state.errorMessage ?: "", 
                                     style = MaterialTheme.typography.labelSmall, 
                                     color = MaterialTheme.colorScheme.error,
-                                    maxLines = 2,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Video: ${state.videoState.name} ${state.videoWidth}x${state.videoHeight} ${state.videoFps}fps",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "L${state.videoLatencyMs}ms",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (!state.videoVirtualCameraBinding.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "VCam: ${state.videoVirtualCameraBinding}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            VideoPreview(
+                                frame = videoFrame,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                     }
 
@@ -513,6 +598,18 @@ fun DesktopHome(
                         ) {
                             Icon(Icons.Filled.Settings, strings.settingsTitle, modifier = Modifier.size(20.dp))
                         }
+
+                        FilledTonalIconButton(
+                            onClick = { viewModel.toggleVideo() },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                if (state.videoState == VideoStreamState.Streaming || state.videoState == VideoStreamState.Connecting) Icons.Filled.LinkOff else Icons.Filled.Link,
+                                contentDescription = "Toggle video",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
                     }
                 }
             }
