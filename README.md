@@ -1,130 +1,74 @@
-# MicYou
+﻿# MicYou
 
 <p align="center">
   <img src="./img/app_icon.png" width="128" height="128" />
 </p>
 
-<p align="center">
-  <a href="./README_ZH.md">简体中文</a> | <b>English</b>
-</p>
+MicYou 是一个将 Android 手机变成电脑麦克风/摄像头输入的工具，基于 Kotlin Multiplatform 与 Jetpack Compose 构建。
 
-MicYou is a powerful tool that turns your Android device into a high-quality wireless microphone for your PC. Built with Kotlin Multiplatform and Jetpack Compose/Material 3.
+## 预览安装包（PR #44）
 
-Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
+- [MicYou-windows-1.1.0.zip](https://github.com/fguyfguiyytu/MicYou/releases/download/pr44-preview-20260219/MicYou-windows-1.1.0.zip)
+- [composeApp-debug.apk](https://github.com/fguyfguiyytu/MicYou/releases/download/pr44-preview-20260219/composeApp-debug.apk)
+- 暂不支持 Linux
 
-## PR #44 Preview Downloads
+## 主要功能
 
-- Windows package: [MicYou-windows-1.1.0.zip](https://github.com/fguyfguiyytu/MicYou/releases/download/pr44-preview-20260219/MicYou-windows-1.1.0.zip)
-- Android package: [composeApp-debug.apk](https://github.com/fguyfguiyytu/MicYou/releases/download/pr44-preview-20260219/composeApp-debug.apk)
-- Linux support: **Not included in this preview release**
+- 支持 Wi-Fi / USB / 蓝牙连接模式
+- 支持音频处理（降噪、AGC、去混响）
+- 支持 Android 端发送、桌面端接收
+- 支持虚拟麦克风与虚拟摄像头相关能力
+- 支持视频传输与桌面端预览
 
-## Features
-
-- **Multiple Connection Modes**: Support for Wi-Fi, USB (ADB/AOA), and Bluetooth.
-- **Audio Processing**: Built-in Noise Suppression, Auto Gain Control (AGC), and Dereverberation.
-- **Cross-Platform**:
-  - **Android Client**: Modern Material 3 interface, dark/light theme support.
-  - **Desktop Server**: Receive audio on Windows/Linux.
-- **Virtual Microphone**: Works seamlessly with VB-Cable to act as a system microphone input.
-- **Customizable**: Adjust sample rate, channel count, and audio format.
-
-## Screenshots
-
-### Android App
-|                        Main Screen                        |                           Settings                            |
-|:---------------------------------------------------------:|:-------------------------------------------------------------:|
-| <img src="img/android_screenshot_main.jpg" width="300" /> | <img src="img/android_screenshot_settings.jpg" width="300" /> |
-
-### Desktop App
-<img src="img/pc_screenshot.png" width="600" />
-
-## Getting Started
+## 截图
 
 ### Android
-1. Download and install the APK on your Android device.
-2. Ensure your device is on the same network as your PC (for Wi-Fi) or connected via USB.
+
+| 主界面 | 设置界面 |
+|:--:|:--:|
+| <img src="img/android_screenshot_main.jpg" width="300" /> | <img src="img/android_screenshot_settings.jpg" width="300" /> |
+
+### Desktop
+
+<img src="img/pc_screenshot.png" width="700" />
+
+### 新增截图
+
+<img src="img/82dec7f3c5a7aab2965cfcc77aeee931.png" width="700" />
+
+<img src="img/efef85ea6cd01b2ec9de4c2b90ffda1e.png" width="700" />
+
+## 使用说明
+
+### Android
+
+1. 安装 `composeApp-debug.apk`
+2. 打开应用并授予麦克风/摄像头权限
+3. 选择连接模式并填写目标地址
 
 ### Windows
-1. Run the desktop application.
-2. Configure the connection mode to match the Android app.
 
-### Linux
+1. 解压并运行 `MicYou-windows-1.1.0.zip` 中的程序
+2. 选择与手机一致的连接模式
+3. 先连接桌面端，再在手机端开启音频/视频
 
-#### Using pre-built packages (recommended)
-Pre-built packages are available in [GitHub Releases](https://github.com/LanRhyme/MicYou/releases).
+## 源码构建
 
-**DEB package (Debian/Ubuntu/Mint etc.):**
-```bash
-# Download the .deb package from GitHub Releases
-sudo dpkg -i MicYou-*.deb
-# If dependencies are missing:
-sudo apt install -f
-```
+### Android APK
 
-**RPM package (Fedora/RHEL/openSUSE etc.):**
-```bash
-# Download the .rpm package from GitHub Releases
-sudo rpm -i MicYou-*.rpm
-# Or use dnf/yum:
-sudo dnf install MicYou-*.rpm
-```
-
-**AUR (Arch Linux and derivatives):**
-```bash
-# Clone the AUR repo and install the package
-git clone https://aur.archlinux.org/micyou-bin.git
-cd micyou-bin
-makepkg -si
-
-# Or use an AUR helper like paru/yay
-paru -S micyou-bin
-```
-
-**Run the application:**
-```bash
-# After installation, you can run MicYou from your application menu
-# Or from terminal:
-MicYou
-```
-
-> [!TIP]
-> Having issues? Check out the [FAQ](./docs/FAQ.md)
-
-## Building from Source
-
-This project is built using Kotlin Multiplatform.
-
-**Android app (APK):**
 ```bash
 ./gradlew :composeApp:assembleDebug
 ```
 
-**Desktop application (run directly):**
-```bash
-./gradlew :composeApp:run
-```
+### Windows ZIP
 
-**Build packages for distribution:**
-
-**Windows installer (NSIS):**
-```bash
-./gradlew :composeApp:packageWindowsNsis
-```
-
-**Windows ZIP archive:**
 ```bash
 ./gradlew :composeApp:packageWindowsZip
 ```
 
-**Linux DEB package:**
-```bash
-./gradlew :composeApp:packageDeb
-```
+## 常见问题
 
-**Linux RPM package:**
-```bash
-./gradlew :composeApp:packageRpm
-```
+- 见 `docs/FAQ_ZH.md`
 
 ## Star History
 
