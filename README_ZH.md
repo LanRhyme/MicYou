@@ -120,6 +120,12 @@ MicYou
 ./gradlew :composeApp:packageRpm
 ```
 
+## PR #44 Preview Downloads
+
+- Windows 包: [MicYou-windows-1.1.0.zip](https://github.com/fguyfguiyytu/MicYou/releases/download/pr44-preview-20260219/MicYou-windows-1.1.0.zip)
+- Android 包: [composeApp-debug.apk](https://github.com/fguyfguiyytu/MicYou/releases/download/pr44-preview-20260219/composeApp-debug.apk)
+- Linux 支持: **本次预览未提供**
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=lanrhyme/MicYou&type=Date)](https://star-history.com/#lanrhyme/MicYou&Date)

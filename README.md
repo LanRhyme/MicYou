@@ -12,6 +12,12 @@ MicYou is a powerful tool that turns your Android device into a high-quality wir
 
 Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
 
+## PR #44 Preview Downloads
+
+- Windows package: [MicYou-windows-1.1.0.zip](https://github.com/fguyfguiyytu/MicYou/releases/download/pr44-preview-20260219/MicYou-windows-1.1.0.zip)
+- Android package: [composeApp-debug.apk](https://github.com/fguyfguiyytu/MicYou/releases/download/pr44-preview-20260219/composeApp-debug.apk)
+- Linux support: **Not included in this preview release**
+
 ## Features
 
 - **Multiple Connection Modes**: Support for Wi-Fi, USB (ADB/AOA), and Bluetooth.
