@@ -230,7 +230,17 @@ fun main() {
                     trayIcon.addMouseListener(object : MouseAdapter() {
                         override fun mouseClicked(e: MouseEvent) {
                             if (e.button == MouseEvent.BUTTON1) {
-                                isVisible = !isVisible
+                                if (e.clickCount == 2) {
+                                    Logger.d("Tray", "Double left click on tray icon, forcing visibility")
+                                    isVisible = true
+                                    Logger.d("Tray", "Main window forced visible via double click")
+                                } else {
+                                    Logger.d("Tray", "Single left click on tray icon, toggling visibility: $isVisible -> ${!isVisible}")
+                                    isVisible = !isVisible
+                                    if (isVisible) {
+                                        Logger.d("Tray", "Main window made visible")
+                                    }
+                                }
                             } else if (e.button == MouseEvent.BUTTON3) {
                                 val screenX = e.xOnScreen
                                 val screenY = e.yOnScreen
@@ -266,6 +276,7 @@ fun main() {
                                 
                                 trayMenuPosition = WindowPosition(adjustedX.dp, adjustedY.dp)
                                 isTrayMenuOpen = true
+                                Logger.d("Tray", "Tray menu opened")
                             }
                         }
                     })
@@ -308,22 +319,21 @@ fun main() {
                     DisposableEffect(Unit) {
                         Logger.d("Tray", "Tray menu window DisposableEffect initialized")
                         val window = this@Window.window
-                        var hasGainedFocus = false
+                        window.requestFocusInWindow()
+                        
                         val focusListener = object : WindowAdapter() {
-                            override fun windowGainedFocus(e: WindowEvent?) {
-                                hasGainedFocus = true
-                                Logger.d("Tray", "Tray menu window gained focus")
+                            override fun windowDeactivated(e: WindowEvent?) {
+                                Logger.d("Tray", "Tray menu window deactivated")
+                                isTrayMenuOpen = false
                             }
-                            override fun windowLostFocus(e: WindowEvent?) {
-                                Logger.d("Tray", "Tray menu window lost focus, hasGainedFocus=$hasGainedFocus")
-                                if (hasGainedFocus) {
-                                    isTrayMenuOpen = false
-                                }
+                            override fun windowClosing(e: WindowEvent?) {
+                                Logger.d("Tray", "Tray menu window closing")
+                                isTrayMenuOpen = false
                             }
                         }
-                        window.addWindowFocusListener(focusListener)
+                        window.addWindowListener(focusListener)
                         onDispose {
-                            window.removeWindowFocusListener(focusListener)
+                            window.removeWindowListener(focusListener)
                         }
                     }
                     
@@ -338,7 +348,7 @@ fun main() {
                     AppTheme(themeMode = themeMode, seedColor = seedColorObj) {
                         Card(
                             elevation = 4.dp,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(0.dp),
                             backgroundColor = androidx.compose.material3.MaterialTheme.colorScheme.surface
                         ) {
                             Column(
