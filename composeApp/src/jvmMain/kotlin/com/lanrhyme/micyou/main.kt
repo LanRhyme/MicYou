@@ -235,7 +235,36 @@ fun main() {
                                 val screenX = e.xOnScreen
                                 val screenY = e.yOnScreen
                                 Logger.d("Tray", "Right click at screen position: ($screenX, $screenY)")
-                                trayMenuPosition = WindowPosition(screenX.dp, screenY.dp)
+                                
+                                val menuWidth = 160
+                                val menuHeight = 180
+                                
+                                var adjustedX = screenX
+                                var adjustedY = screenY
+                                
+                                val graphicsEnvironment = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
+                                val allScreens = graphicsEnvironment.screenDevices
+                                
+                                for (screen in allScreens) {
+                                    val bounds = screen.defaultConfiguration.bounds
+                                    if (screenX >= bounds.x && screenX < bounds.x + bounds.width &&
+                                        screenY >= bounds.y && screenY < bounds.y + bounds.height) {
+                                        
+                                        if (adjustedX + menuWidth > bounds.x + bounds.width) {
+                                            adjustedX = bounds.x + bounds.width - menuWidth
+                                        }
+                                        if (adjustedY + menuHeight > bounds.y + bounds.height) {
+                                            adjustedY = bounds.y + bounds.height - menuHeight
+                                        }
+                                        if (adjustedX < bounds.x) adjustedX = bounds.x
+                                        if (adjustedY < bounds.y) adjustedY = bounds.y
+                                        
+                                        Logger.d("Tray", "Adjusted position: ($adjustedX, $adjustedY) within screen: $bounds")
+                                        break
+                                    }
+                                }
+                                
+                                trayMenuPosition = WindowPosition(adjustedX.dp, adjustedY.dp)
                                 isTrayMenuOpen = true
                             }
                         }
