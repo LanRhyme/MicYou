@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.VirtualAudioDevice
+import com.lanrhyme.micyou.util.JvmSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,17 @@ object VBCableManager {
 
     private val _installProgress = MutableStateFlow<String?>(null)
     val installProgress = _installProgress.asStateFlow()
+
+    private val settings = SettingsFactory.getSettings()
+    
+    private val savedLanguageName: String
+        get() = settings.getString("language", AppLanguage.System.name)
+    
+    private val language: AppLanguage
+        get() = try { AppLanguage.valueOf(savedLanguageName) } catch(e: Exception) { AppLanguage.System }
+    
+    private val strings: AppStrings
+        get() = getStrings(language)
 
     fun isVBCableInstalled(): Boolean {
         return when (PlatformInfo.currentOS) {
@@ -50,19 +62,19 @@ object VBCableManager {
             PlatformInfo.OS.LINUX -> installLinuxVirtualDevice()
             PlatformInfo.OS.MACOS -> {
                 if (BlackHoleManager.isInstalled()) {
-                    _installProgress.value = "BlackHole 已安装，请在系统设置中配置"
+                    _installProgress.value = strings.blackHoleInstalled
                     delay(2000)
                     _installProgress.value = null
                 } else {
-                    _installProgress.value = "请手动安装 BlackHole 虚拟音频驱动"
+                    _installProgress.value = strings.blackHoleNotInstalled
                     delay(3000)
-                    _installProgress.value = "安装说明: existential.audio/blackhole/"
+                    _installProgress.value = strings.blackHoleInstallHint
                     delay(3000)
                     _installProgress.value = null
                 }
             }
             PlatformInfo.OS.OTHER -> {
-                _installProgress.value = "当前操作系统不支持自动安装虚拟音频设备"
+                _installProgress.value = strings.installOsNotSupported
                 delay(3000)
                 _installProgress.value = null
             }
@@ -70,26 +82,26 @@ object VBCableManager {
     }
     
     private suspend fun installWindowsVBCable() {
-        _installProgress.value = "正在检查安装包..."
+        _installProgress.value = strings.installCheckingPackage
         
         var installerFile = extractInstaller()
         
         if (installerFile == null || !installerFile.exists()) {
             Logger.i("VBCableManager", "Installer not found in resources. Attempting to download...")
-            _installProgress.value = "正在下载 VB-Cable 驱动..."
+            _installProgress.value = strings.installDownloading
             installerFile = downloadAndExtractInstaller()
         }
 
         if (installerFile == null || !installerFile.exists()) {
             Logger.e("VBCableManager", "VB-Cable installer not found. Please place '$INSTALLER_NAME' in resources or ensure internet access.")
-            _installProgress.value = "安装失败：无法下载或找到驱动"
+            _installProgress.value = strings.installDownloadFailed
             delay(2000)
             _installProgress.value = null
             return
         }
 
         Logger.i("VBCableManager", "Installing VB-Cable...")
-        _installProgress.value = "正在安装 VB-Cable 驱动..."
+        _installProgress.value = strings.installInstalling
         
         try {
             val powerShellCommand = "Start-Process -FilePath '${installerFile.absolutePath}' -ArgumentList '-i -h' -Verb RunAs -Wait"
@@ -112,16 +124,16 @@ object VBCableManager {
             
             if (isVBCableInstalled()) {
                 Logger.i("VBCableManager", "VB-Cable installation verified.")
-                _installProgress.value = "安装完成，正在配置.."
+                _installProgress.value = strings.installConfiguring
                 setSystemDefaultMicrophone()
-                _installProgress.value = "配置完成"
+                _installProgress.value = strings.installConfigComplete
             } else {
                 Logger.w("VBCableManager", "VB-Cable installation could not be verified.")
-                _installProgress.value = "安装未完成或被取销"
+                _installProgress.value = strings.installNotCompleted
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _installProgress.value = "安装错误: ${e.message}"
+            _installProgress.value = strings.installError.replace("%s", e.message ?: "Unknown error")
         } finally {
             delay(2000)
             _installProgress.value = null
@@ -129,38 +141,38 @@ object VBCableManager {
     }
     
     private suspend fun installLinuxVirtualDevice() {
-        _installProgress.value = "正在检查Linux音频系统..."
+        _installProgress.value = strings.installCheckingLinux
         
         try {
             if (VirtualAudioDevice.deviceExists()) {
-                _installProgress.value = "虚拟音频设备已存在，正在配置..."
+                _installProgress.value = strings.installLinuxExists
                 delay(1000)
                 setSystemDefaultMicrophone()
-                _installProgress.value = "配置完成"
+                _installProgress.value = strings.installConfigComplete
                 delay(1000)
                 _installProgress.value = null
                 return
             }
             
-            _installProgress.value = "正在创建虚拟音频设备..."
+            _installProgress.value = strings.installCreatingDevice
             
             val success = VirtualAudioDevice.setup()
             
             if (success) {
-                _installProgress.value = "虚拟设备创建成功，正在配置..."
+                _installProgress.value = strings.installDeviceCreated
                 delay(1000)
                 setSystemDefaultMicrophone()
-                _installProgress.value = "配置完成"
+                _installProgress.value = strings.installConfigComplete
                 delay(1000)
                 _installProgress.value = null
             } else {
-                _installProgress.value = "虚拟设备创建失败，请检查系统权限和音频服务"
+                _installProgress.value = strings.installDeviceFailed
                 delay(3000)
                 _installProgress.value = null
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _installProgress.value = "安装错误: ${e.message}"
+            _installProgress.value = strings.installError.replace("%s", e.message ?: "Unknown error")
             delay(2000)
             _installProgress.value = null
         }

@@ -129,7 +129,37 @@ data class AppStrings(
     val updateLater: String,
     val checkUpdate: String,
     val isLatestVersion: String,
-    val checkingUpdate: String
+    val checkingUpdate: String,
+
+    // BlackHole (macOS virtual audio)
+    val blackHoleInstalled: String,
+    val blackHoleNotInstalled: String,
+    val blackHoleInstallHint: String,
+    val blackHoleConfigHint: String,
+    val blackHoleNotFound: String,
+    val blackHoleSwitchSuccess: String,
+    val blackHoleSwitchFailed: String,
+    val blackHoleRestored: String,
+    val blackHoleUsingDevice: String,
+    val blackHoleInitFailed: String,
+    val blackHoleFallback: String,
+    val blackHoleTrying: String,
+
+    // Install progress messages
+    val installOsNotSupported: String,
+    val installCheckingPackage: String,
+    val installDownloading: String,
+    val installDownloadFailed: String,
+    val installInstalling: String,
+    val installConfiguring: String,
+    val installConfigComplete: String,
+    val installNotCompleted: String,
+    val installError: String,
+    val installCheckingLinux: String,
+    val installLinuxExists: String,
+    val installCreatingDevice: String,
+    val installDeviceCreated: String,
+    val installDeviceFailed: String
 )
 
 val EnStrings = AppStrings(
@@ -249,7 +279,37 @@ val EnStrings = AppStrings(
     updateLater = "Later",
     checkUpdate = "Check for Updates",
     isLatestVersion = "Already the latest version",
-    checkingUpdate = "Checking for updates..."
+    checkingUpdate = "Checking for updates...",
+
+    // BlackHole (macOS virtual audio)
+    blackHoleInstalled = "BlackHole is installed, please configure in System Settings",
+    blackHoleNotInstalled = "Please install BlackHole virtual audio driver manually",
+    blackHoleInstallHint = "Installation guide: existential.audio/blackhole/",
+    blackHoleConfigHint = "BlackHole installed, please configure in System Settings",
+    blackHoleNotFound = "Cannot find BlackHole virtual input device",
+    blackHoleSwitchSuccess = "Successfully switched to BlackHole",
+    blackHoleSwitchFailed = "Failed to switch to BlackHole",
+    blackHoleRestored = "Restored to original device",
+    blackHoleUsingDevice = "Using BlackHole device: %s",
+    blackHoleInitFailed = "Failed to initialize BlackHole",
+    blackHoleFallback = "BlackHole not found, falling back to default device",
+    blackHoleTrying = "macOS: Trying to use BlackHole virtual device",
+
+    // Install progress
+    installOsNotSupported = "Auto-install not supported for current OS",
+    installCheckingPackage = "Checking installer...",
+    installDownloading = "Downloading VB-Cable driver...",
+    installDownloadFailed = "Download failed: cannot find or download driver",
+    installInstalling = "Installing VB-Cable driver...",
+    installConfiguring = "Configuring...",
+    installConfigComplete = "Configuration complete",
+    installNotCompleted = "Installation not completed or cancelled",
+    installError = "Installation error: %s",
+    installCheckingLinux = "Checking Linux audio system...",
+    installLinuxExists = "Virtual audio device exists, configuring...",
+    installCreatingDevice = "Creating virtual audio device...",
+    installDeviceCreated = "Virtual device created, configuring...",
+    installDeviceFailed = "Virtual device creation failed, check system permissions and audio service"
 )
 
 val ZhStrings = AppStrings(
@@ -369,7 +429,37 @@ val ZhStrings = AppStrings(
     updateLater = "稍后",
     checkUpdate = "检查更新",
     isLatestVersion = "当前已是最新版本",
-    checkingUpdate = "正在检查更新..."
+    checkingUpdate = "正在检查更新...",
+
+    // BlackHole (macOS virtual audio)
+    blackHoleInstalled = "BlackHole 已安装，请在系统设置中配置",
+    blackHoleNotInstalled = "请手动安装 BlackHole 虚拟音频驱动",
+    blackHoleInstallHint = "安装说明: existential.audio/blackhole/",
+    blackHoleConfigHint = "BlackHole 已安装，请在系统设置中配置",
+    blackHoleNotFound = "无法找到 BlackHole 虚拟输入设备",
+    blackHoleSwitchSuccess = "已切换到 BlackHole",
+    blackHoleSwitchFailed = "切换到 BlackHole 失败",
+    blackHoleRestored = "已恢复原始设备",
+    blackHoleUsingDevice = "正在使用 BlackHole 设备: %s",
+    blackHoleInitFailed = "初始化 BlackHole 失败",
+    blackHoleFallback = "未找到 BlackHole，回退到默认设备",
+    blackHoleTrying = "macOS: 尝试使用 BlackHole 虚拟设备",
+
+    // Install progress
+    installOsNotSupported = "当前操作系统不支持自动安装虚拟音频设备",
+    installCheckingPackage = "正在检查安装包...",
+    installDownloading = "正在下载 VB-Cable 驱动...",
+    installDownloadFailed = "安装失败：无法下载或找到驱动",
+    installInstalling = "正在安装 VB-Cable 驱动...",
+    installConfiguring = "正在配置...",
+    installConfigComplete = "配置完成",
+    installNotCompleted = "安装未完成或被取消",
+    installError = "安装错误: %s",
+    installCheckingLinux = "正在检查Linux音频系统...",
+    installLinuxExists = "虚拟音频设备已存在，正在配置...",
+    installCreatingDevice = "正在创建虚拟音频设备...",
+    installDeviceCreated = "虚拟设备创建成功，正在配置...",
+    installDeviceFailed = "虚拟设备创建失败，请检查系统权限和音频服务"
 )
 
 val LocalAppStrings = staticCompositionLocalOf { ZhStrings }
