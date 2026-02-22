@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MicYou</string>
+    <string name="streaming_notification_title">MicYou 正在傳輸</string>
+    <string name="streaming_notification_text">點擊中斷連線</string>
+</resources>

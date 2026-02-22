@@ -1,7 +1,7 @@
 # 常见问题
 
 <p align="center">
-  <b>简体中文</b> | <a href="./README_ZH.md">English</a>
+   <b>简体中文</b> | <a href="./FAQ_TW.md">繁體中文</a> | <a href="./FAQ.md">English</a>
 </p>
 
 ## 无法连接设备

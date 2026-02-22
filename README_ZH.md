@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <b>简体中文</b> | <a href="./README.md">English</a>
+  <b>简体中文</b> | <a href="./README_TW.md">繁體中文</a> | <a href="./README.md">English</a>
 </p>
 
 MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高质量无线麦克风，于 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建

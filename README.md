@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="./README_ZH.md">简体中文</a> | <b>English</b>
+  <a href="./README_ZH.md">简体中文</a> | <a href="./README_TW.md">繁體中文</a> | <b>English</b>
 </p>
 
 MicYou is a powerful tool that turns your Android device into a high-quality wireless microphone for your PC. Built with Kotlin Multiplatform and Jetpack Compose/Material 3.

@@ -1,7 +1,7 @@
 # FAQ
 
 <p align="center">
-  <a href="./FAQ_ZH.md">简体中文</a> | <b>English</b>
+   <a href="./FAQ_ZH.md">简体中文</a> | <a href="./FAQ_TW.md">繁體中文</a> | <b>English</b>
 </p>
 
 ## Cannot connect to device
