@@ -52,6 +52,9 @@ fun main() {
     System.setProperty("sun.java2d.noddraw", "true")
     System.setProperty("sun.java2d.d3d", "false")
 
+    System.setProperty( "apple.awt.application.name", "MicYou" )
+    System.setProperty( "apple.awt.application.appearance", "system" )
+
     if (PlatformInfo.isMacOS) {
         System.setProperty("skiko.renderApi", "METAL")
     } else {
