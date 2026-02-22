@@ -1,6 +1,7 @@
 package com.lanrhyme.micyou.audio
 
 import com.lanrhyme.micyou.Logger
+import com.lanrhyme.micyou.BlackHoleManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.VirtualAudioDevice
 import javax.sound.sampled.*
@@ -37,6 +38,11 @@ class AudioOutputManager {
         
         if (PlatformInfo.isLinux) {
             val success = initLinux(audioFormat, lineInfo)
+            if (success) return true
+        }
+        
+        if (PlatformInfo.isMacOS) {
+            val success = initMacOS(audioFormat, lineInfo)
             if (success) return true
         }
         
@@ -104,6 +110,51 @@ class AudioOutputManager {
         }
         
         return false
+    }
+    
+    private fun initMacOS(audioFormat: AudioFormat, lineInfo: DataLine.Info): Boolean {
+        Logger.d("AudioOutputManager", "macOS 平台: 尝试使用 BlackHole 虚拟设备")
+        
+        if (!BlackHoleManager.isInstalled()) {
+            Logger.w("AudioOutputManager", "BlackHole 未安装，回退到默认设备")
+            return false
+        }
+        
+        val blackHoleMixer = findBlackHoleMixer(lineInfo)
+        if (blackHoleMixer != null) {
+            try {
+                outputLine = blackHoleMixer.getLine(lineInfo) as SourceDataLine
+                isUsingVirtualDevice = true
+                Logger.i("AudioOutputManager", "使用 BlackHole 虚拟设备: ${blackHoleMixer.mixerInfo.name}")
+                return openAndStartLine(audioFormat)
+            } catch (e: Exception) {
+                Logger.e("AudioOutputManager", "初始化 BlackHole 失败", e)
+            }
+        }
+        
+        Logger.w("AudioOutputManager", "未找到 BlackHole 混音器，回退到默认设备")
+        return false
+    }
+    
+    private fun findBlackHoleMixer(lineInfo: DataLine.Info): Mixer? {
+        val blackHolePattern = Regex("BlackHole\\s*\\d*ch", RegexOption.IGNORE_CASE)
+        val mixers = AudioSystem.getMixerInfo()
+        
+        for (mixerInfo in mixers) {
+            if (blackHolePattern.matches(mixerInfo.name)) {
+                try {
+                    val mixer = AudioSystem.getMixer(mixerInfo)
+                    if (mixer.isLineSupported(lineInfo)) {
+                        Logger.d("AudioOutputManager", "找到 BlackHole 混音器: ${mixerInfo.name}")
+                        return mixer
+                    }
+                } catch (e: Exception) {
+                    Logger.d("AudioOutputManager", "BlackHole 混音器检查失败: ${e.message}")
+                }
+            }
+        }
+        
+        return null
     }
     
     private fun initDefault(audioFormat: AudioFormat, lineInfo: DataLine.Info): Boolean {
@@ -221,6 +272,6 @@ class AudioOutputManager {
     }
     
     private fun usesSystemAudioSinkForVirtualOutput(): Boolean {
-        return PlatformInfo.isLinux
+        return PlatformInfo.isLinux || PlatformInfo.isMacOS
     }
 }

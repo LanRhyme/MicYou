@@ -42,6 +42,29 @@ MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高
 1. 运行桌面端应用程序
 2. 配置连接模式以匹配 Android 应用
 
+### macOS
+
+> [!IMPORTANT]
+> 如果您使用的是 Apple Silicon Mac，在不使用 Rosetta 2 转译的前提下无法使用蓝牙模式
+
+为了保证您的使用体验，需要通过 Homebrew 安装一些依赖
+
+~~~bash
+brew install blackhole-2ch --cask
+brew install switchaudio-osx --formulae
+~~~
+
+**BlackHole 必须安装**，若没有 Homebrew 则前往 https://existential.audio/blackhole/download/ 下载安装包。无论您是通过 Homebrew 还是手动安装，安装后请务必重启
+
+在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载应用并安装到应用程序目录后，第一次使用可能会被 Gatekeeper 拦截
+
+若提示不受信任的开发者，您可以前往 **"系统设置"/"系统偏好设置" -> "隐私与安全"** 中允许应用运行
+
+若提示“应用已损坏”，执行以下指令解决：
+~~~bash
+sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
+~~~
+
 ### Linux
 
 #### 使用预编译包（推荐）

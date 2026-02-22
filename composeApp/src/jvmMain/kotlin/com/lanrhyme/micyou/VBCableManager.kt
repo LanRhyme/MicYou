@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.VirtualAudioDevice
+import com.lanrhyme.micyou.util.JvmSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,17 @@ object VBCableManager {
     private val _installProgress = MutableStateFlow<String?>(null)
     val installProgress = _installProgress.asStateFlow()
 
+    private val settings = SettingsFactory.getSettings()
+    
+    private val savedLanguageName: String
+        get() = settings.getString("language", AppLanguage.System.name)
+    
+    private val language: AppLanguage
+        get() = try { AppLanguage.valueOf(savedLanguageName) } catch(e: Exception) { AppLanguage.System }
+    
+    private val strings: AppStrings
+        get() = getStrings(language)
+
     fun isVBCableInstalled(): Boolean {
         return when (PlatformInfo.currentOS) {
             PlatformInfo.OS.WINDOWS -> {
@@ -32,7 +44,7 @@ object VBCableManager {
                 VirtualAudioDevice.deviceExists()
             }
             PlatformInfo.OS.MACOS -> {
-                false
+                BlackHoleManager.isInstalled()
             }
             else -> false
         }
@@ -40,7 +52,7 @@ object VBCableManager {
 
     suspend fun installVBCable() = withContext(Dispatchers.IO) {
         if (isVBCableInstalled()) {
-            println("虚拟音频设备已安装。")
+            Logger.i("VBCableManager", "Virtual Audio Device installed")
             setSystemDefaultMicrophone()
             return@withContext
         }
@@ -49,12 +61,20 @@ object VBCableManager {
             PlatformInfo.OS.WINDOWS -> installWindowsVBCable()
             PlatformInfo.OS.LINUX -> installLinuxVirtualDevice()
             PlatformInfo.OS.MACOS -> {
-                _installProgress.value = "macOS平台暂不支持自动安装虚拟设备，请手动安装BlackHole等虚拟音频驱动"
-                delay(3000)
-                _installProgress.value = null
+                if (BlackHoleManager.isInstalled()) {
+                    _installProgress.value = strings.blackHoleInstalled
+                    delay(2000)
+                    _installProgress.value = null
+                } else {
+                    _installProgress.value = strings.blackHoleNotInstalled
+                    delay(3000)
+                    _installProgress.value = strings.blackHoleInstallHint
+                    delay(3000)
+                    _installProgress.value = null
+                }
             }
             PlatformInfo.OS.OTHER -> {
-                _installProgress.value = "当前操作系统不支持自动安装虚拟音频设备"
+                _installProgress.value = strings.installOsNotSupported
                 delay(3000)
                 _installProgress.value = null
             }
@@ -62,30 +82,30 @@ object VBCableManager {
     }
     
     private suspend fun installWindowsVBCable() {
-        _installProgress.value = "正在检查安装包..."
+        _installProgress.value = strings.installCheckingPackage
         
         var installerFile = extractInstaller()
         
         if (installerFile == null || !installerFile.exists()) {
-            println("Installer not found in resources. Attempting to download...")
-            _installProgress.value = "正在下载 VB-Cable 驱动..."
+            Logger.i("VBCableManager", "Installer not found in resources. Attempting to download...")
+            _installProgress.value = strings.installDownloading
             installerFile = downloadAndExtractInstaller()
         }
 
         if (installerFile == null || !installerFile.exists()) {
-            println("VB-Cable installer not found. Please place '$INSTALLER_NAME' in resources or ensure internet access.")
-            _installProgress.value = "安装失败：无法下载或找到驱动"
+            Logger.e("VBCableManager", "VB-Cable installer not found. Please place '$INSTALLER_NAME' in resources or ensure internet access.")
+            _installProgress.value = strings.installDownloadFailed
             delay(2000)
             _installProgress.value = null
             return
         }
 
-        println("Installing VB-Cable...")
-        _installProgress.value = "正在安装 VB-Cable 驱动..."
+        Logger.i("VBCableManager", "Installing VB-Cable...")
+        _installProgress.value = strings.installInstalling
         
         try {
             val powerShellCommand = "Start-Process -FilePath '${installerFile.absolutePath}' -ArgumentList '-i -h' -Verb RunAs -Wait"
-            println("Executing: $powerShellCommand")
+            Logger.i("VBCableManager", "Executing: $powerShellCommand")
 
             val processBuilder = ProcessBuilder(
                 "powershell.exe",
@@ -97,23 +117,23 @@ object VBCableManager {
             
             val output = process.inputStream.bufferedReader().readText()
             val exitCode = process.waitFor()
-            
-            println("PowerShell execution finished. Exit code: $exitCode. Output: $output")
+
+            Logger.e("VBCableManager", "PowerShell execution finished. Exit code: $exitCode. Output: $output")
             
             delay(2000)
             
             if (isVBCableInstalled()) {
-                println("VB-Cable installation verified.")
-                _installProgress.value = "安装完成，正在配置.."
+                Logger.i("VBCableManager", "VB-Cable installation verified.")
+                _installProgress.value = strings.installConfiguring
                 setSystemDefaultMicrophone()
-                _installProgress.value = "配置完成"
+                _installProgress.value = strings.installConfigComplete
             } else {
-                println("VB-Cable installation could not be verified.")
-                _installProgress.value = "安装未完成或被取销"
+                Logger.w("VBCableManager", "VB-Cable installation could not be verified.")
+                _installProgress.value = strings.installNotCompleted
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _installProgress.value = "安装错误: ${e.message}"
+            _installProgress.value = strings.installError.replace("%s", e.message ?: "Unknown error")
         } finally {
             delay(2000)
             _installProgress.value = null
@@ -121,38 +141,38 @@ object VBCableManager {
     }
     
     private suspend fun installLinuxVirtualDevice() {
-        _installProgress.value = "正在检查Linux音频系统..."
+        _installProgress.value = strings.installCheckingLinux
         
         try {
             if (VirtualAudioDevice.deviceExists()) {
-                _installProgress.value = "虚拟音频设备已存在，正在配置..."
+                _installProgress.value = strings.installLinuxExists
                 delay(1000)
                 setSystemDefaultMicrophone()
-                _installProgress.value = "配置完成"
+                _installProgress.value = strings.installConfigComplete
                 delay(1000)
                 _installProgress.value = null
                 return
             }
             
-            _installProgress.value = "正在创建虚拟音频设备..."
+            _installProgress.value = strings.installCreatingDevice
             
             val success = VirtualAudioDevice.setup()
             
             if (success) {
-                _installProgress.value = "虚拟设备创建成功，正在配置..."
+                _installProgress.value = strings.installDeviceCreated
                 delay(1000)
                 setSystemDefaultMicrophone()
-                _installProgress.value = "配置完成"
+                _installProgress.value = strings.installConfigComplete
                 delay(1000)
                 _installProgress.value = null
             } else {
-                _installProgress.value = "虚拟设备创建失败，请检查系统权限和音频服务"
+                _installProgress.value = strings.installDeviceFailed
                 delay(3000)
                 _installProgress.value = null
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _installProgress.value = "安装错误: ${e.message}"
+            _installProgress.value = strings.installError.replace("%s", e.message ?: "Unknown error")
             delay(2000)
             _installProgress.value = null
         }
@@ -187,7 +207,7 @@ object VBCableManager {
         val zipFile = File.createTempFile("vbcable_pack", ".zip")
         val outputDir = File(System.getProperty("java.io.tmpdir"), "vbcable_extracted_${System.currentTimeMillis()}")
         
-        println("Downloading VB-Cable driver from $downloadUrl...")
+        Logger.i("VBCableManager", "Downloading VB-Cable driver from $downloadUrl...")
         
         try {
             val url = java.net.URI(downloadUrl).toURL()
@@ -200,7 +220,7 @@ object VBCableManager {
                 }
             }
             
-            println("Download complete. Extracting...")
+            Logger.i("VBCableManager", "Download complete. Extracting...")
             
             if (!outputDir.exists()) outputDir.mkdirs()
             
@@ -225,18 +245,18 @@ object VBCableManager {
             
             val setupFile = File(outputDir, INSTALLER_NAME)
             if (setupFile.exists()) {
-                println("Found installer at ${setupFile.absolutePath}")
+                Logger.i("VBCableManager", "Found installer at ${setupFile.absolutePath}")
                 return setupFile
             }
             
             val found = outputDir.walkTopDown().find { it.name.equals(INSTALLER_NAME, ignoreCase = true) }
             if (found != null) {
-                println("Found installer at ${found.absolutePath}")
+                Logger.i("VBCableManager", "Found installer at ${found.absolutePath}")
                 return found
             }
             
         } catch (e: Exception) {
-            println("Failed to download or extract VB-Cable driver: ${e.message}")
+            Logger.e("VBCableManager", "Failed to download or extract VB-Cable driver: ${e.message}")
             e.printStackTrace()
         } finally {
             zipFile.delete()
@@ -254,14 +274,60 @@ object VBCableManager {
                 if (toCable) Unit else VirtualAudioDevice.cleanup()
             }
             PlatformInfo.OS.MACOS -> {
-                println("macOS平台暂不支持自动设置默认麦克风")
+                if (toCable) setMacOSDefaultMicrophone() else restoreMacOSDefaultMicrophone()
             }
-            PlatformInfo.OS.OTHER -> println("当前操作系统不支持设置默认麦克风")
+            PlatformInfo.OS.OTHER -> Logger.w("VBCableManager", "Current OS cannot set default microphone")
         }
     }
+
+    private suspend fun setMacOSDefaultMicrophone() {
+        if (!BlackHoleManager.isSwitchAudioSourceInstalled()) {
+            Logger.w("VBCableManager", "macOS: switchaudio-osx is not installed")
+            Logger.w("VBCableManager", "Please run `brew install switchaudio-osx` to install!")
+            return
+        }
+
+        if (!BlackHoleManager.isInstalled()) {
+            Logger.e("VBCableManager", "macOS: BlackHole is not installed")
+            return
+        }
+
+        BlackHoleManager.saveCurrentInputDevice()
+
+        val json = BlackHoleManager.getInputDevicesJson()
+        if (json == null) {
+            Logger.e("VBCableManager", "macOS: Failed to load input device list")
+            return
+        }
+
+        val blackHoleDevice = BlackHoleManager.findBlackHoleInJson(json)
+        if (blackHoleDevice == null) {
+            Logger.e("VBCableManager", "macOS: Cannot find BlackHole virtual input device")
+            return
+        }
+        
+        Logger.i("VBCableManager", "macOS: Find BlackHole virtual device: ${blackHoleDevice.name} (ID: ${blackHoleDevice.id})")
+
+        val success = BlackHoleManager.setDefaultInputDevice(blackHoleDevice.id)
+        if (success) {
+            Logger.i("VBCableManager", "macOS: Successfully set default microphone to BlackHole")
+        } else {
+            Logger.e("VBCableManager", "macOS: Failed to set default microphone")
+        }
+    }
+
+    private suspend fun restoreMacOSDefaultMicrophone() {
+        val success = BlackHoleManager.restoreOriginalInputDevice()
+        if (success) {
+            Logger.i("VBCableManager", "macOS: Restored Original Input Device")
+        } else {
+            Logger.e("VBCableManager", "macOS: Failed to Restore Original Input Device")
+        }
+    }
+
     
     private fun restoreWindowsDefaultMicrophone() {
-        println("Windows平台：恢复原始默认麦克风功能暂未实现")
+        Logger.w("VBCableManager", "Windows: Restoring the original input device has not yet been introduced.")
     }
     
     private fun setWindowsDefaultMicrophone() {
@@ -452,7 +518,7 @@ Add-Type -TypeDefinition ${'$'}csharpSource
             val p = process.start()
             val output = p.inputStream.bufferedReader().readText()
             p.waitFor()
-            println("SetDefaultMic Output: $output")
+            Logger.i("VBCableManager", "SetDefaultMic Output: $output")
             tempScript.delete()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -460,6 +526,6 @@ Add-Type -TypeDefinition ${'$'}csharpSource
     }
     
     fun uninstallVBCable() {
-         println("Uninstall functionality not fully implemented. Please uninstall from Control Panel.")
+         Logger.w("VBCableManager", "Uninstall functionality not fully implemented. Please uninstall from Control Panel.")
     }
 }

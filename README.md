@@ -42,6 +42,29 @@ Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
 1. Run the desktop application.
 2. Configure the connection mode to match the Android app.
 
+### macOS
+
+> [!IMPORTANT]
+> If you are using an Apple Silicon Mac, Bluetooth mode cannot be used without Rosetta 2 translation.
+
+To ensure your experience, you need to install some dependencies via Homebrew:
+
+~~~bash
+brew install blackhole-2ch --cask 
+brew install switchaudio-osx --formulae
+~~~
+
+**BlackHole must be installed**. If you don't have Homebrew, go to https://existential.audio/blackhole/download/ to download the installer. Regardless of whether you install via Homebrew or the installer, please restart after installation.
+
+After downloading the app from [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) and installing it in your Applications folder, Gatekeeper may block it during first use.
+
+If prompted with “Untrusted Developer,” navigate to **System Settings/System Preferences -> Privacy & Security** to allow the app to run.
+
+If prompted with “The application is damaged,” resolve it by executing the following command:
+~~~bash
+sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
+~~~
+
 ### Linux
 
 #### Using pre-built packages (recommended)

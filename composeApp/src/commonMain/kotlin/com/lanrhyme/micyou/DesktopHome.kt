@@ -83,7 +83,8 @@ fun DesktopHome(
     onClose: () -> Unit,
     onExitApp: () -> Unit,
     onHideApp: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    isBluetoothDisabled: Boolean = false
 ) {
     val state by viewModel.uiState.collectAsState()
     val audioLevel by viewModel.audioLevels.collectAsState(initial = 0f)
@@ -104,6 +105,13 @@ fun DesktopHome(
     
     LaunchedEffect(Unit) {
         visible = true
+    }
+
+    // Auto-switch from Bluetooth to WiFi if Bluetooth is disabled on this platform
+    LaunchedEffect(isBluetoothDisabled, state.mode) {
+        if (isBluetoothDisabled && state.mode == ConnectionMode.Bluetooth) {
+            viewModel.setMode(ConnectionMode.Wifi)
+        }
     }
 
     if (state.installMessage != null) {
@@ -288,13 +296,15 @@ fun DesktopHome(
                                         expanded = false
                                     }
                                 )
-                                DropdownMenuItem(
-                                    text = { Text(strings.modeBluetooth) },
-                                    onClick = {
-                                        viewModel.setMode(ConnectionMode.Bluetooth)
-                                        expanded = false
-                                    }
-                                )
+                                if (!isBluetoothDisabled) {
+                                    DropdownMenuItem(
+                                        text = { Text(strings.modeBluetooth) },
+                                        onClick = {
+                                            viewModel.setMode(ConnectionMode.Bluetooth)
+                                            expanded = false
+                                        }
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text(strings.modeUsb) },
                                     onClick = {

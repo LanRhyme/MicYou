@@ -13,7 +13,8 @@ fun App(
     onClose: () -> Unit = {},
     onExitApp: () -> Unit = {},
     onHideApp: () -> Unit = {},
-    onOpenSettings: () -> Unit = {}
+    onOpenSettings: () -> Unit = {},
+    isBluetoothDisabled: Boolean = false
 ) {
     val platform = remember { getPlatform() }
     val isClient = platform.type == PlatformType.Android
@@ -54,7 +55,8 @@ fun App(
                     onClose = onClose,
                     onExitApp = onExitApp,
                     onHideApp = onHideApp,
-                    onOpenSettings = onOpenSettings
+                    onOpenSettings = onOpenSettings,
+                    isBluetoothDisabled = isBluetoothDisabled
                 )
             }
 

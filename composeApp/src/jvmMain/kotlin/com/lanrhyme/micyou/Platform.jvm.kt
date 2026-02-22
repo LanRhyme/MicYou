@@ -73,7 +73,7 @@ actual fun openUrl(url: String) {
     try {
         when {
             PlatformInfo.isWindows -> Runtime.getRuntime().exec("rundll32 url.dll,FileProtocolHandler $url")
-            PlatformInfo.isMacOS -> Runtime.getRuntime().exec("open $url")
+            PlatformInfo.isMacOS -> Runtime.getRuntime().exec("/usr/bin/open $url")
             PlatformInfo.isLinux -> Runtime.getRuntime().exec("xdg-open $url")
             else -> java.awt.Desktop.getDesktop().browse(java.net.URI(url))
         }

@@ -157,6 +157,8 @@ compose.desktop {
         jvmArgs("-Dfile.encoding=UTF-8", "-Dapp.version=${project.property("project.version")}")
 
         nativeDistributions {
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
+
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
             packageName = project.property("project.name").toString()
             packageVersion = project.property("project.version").toString().substringBefore("-").substringBefore("hotfix")
@@ -179,6 +181,14 @@ compose.desktop {
             linux {
         		iconFile.set(project.file("src/commonMain/composeResources/drawable/app_icon.png"))
     		}
+
+            macOS {
+                iconFile.set(project.file("src/commonMain/composeResources/drawable/mac_icon.icns"))
+                infoPlist {
+                    extraKeysRawXml = """    <key>CFBundleIconName</key>
+    <string>MicYou</string>"""
+                }
+            }
         }
     }
 }
@@ -263,10 +273,32 @@ val copyTrayIcon by tasks.registering(Copy::class) {
     from("src/commonMain/composeResources/drawable/icon32.ico")
     into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}"))
 }
+
+// 复制 Assets.car 到 macOS app bundle（支持液态玻璃图标）
+val copyAssetsCar by tasks.registering(Copy::class) {
+    from("resources/macos/Assets.car")
+    into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}.app/Contents/Resources"))
+}
+
+// Windows/macOS 打包时执行 copyTrayIcon
 tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable") }
     .configureEach {
-        finalizedBy(copyTrayIcon)
+        dependsOn(copyTrayIcon)
     }
+
+// macOS DMG 打包
+tasks.matching { it.name.startsWith("packageDmg") }
+    .configureEach {
+        dependsOn(copyTrayIcon)
+        dependsOn("createDistributable")
+        dependsOn(copyAssetsCar)
+    }
+
+tasks.matching { it.name == "copyAssetsCar" }
+    .configureEach {
+        mustRunAfter("createDistributable")
+    }
+
 tasks.matching { it.name == "jvmRun" }.configureEach {
     if (this is org.gradle.process.JavaForkOptions) {
         val tmpDir = layout.buildDirectory.dir("tmp/jvmRun").get().asFile

@@ -51,8 +51,16 @@ fun main() {
     
     System.setProperty("sun.java2d.noddraw", "true")
     System.setProperty("sun.java2d.d3d", "false")
-    
-    System.setProperty("skiko.renderApi", "SOFTWARE_FAST")
+
+    System.setProperty( "apple.awt.application.name", "MicYou" )
+    System.setProperty( "apple.awt.application.appearance", "system" )
+
+    if (PlatformInfo.isMacOS) {
+        System.setProperty("skiko.renderApi", "METAL")
+    } else {
+        System.setProperty("skiko.renderApi", "SOFTWARE_FAST")
+    }
+
     System.setProperty("skiko.vsync", "false")
     System.setProperty("skiko.fps.enabled", "false")
 
@@ -61,6 +69,10 @@ fun main() {
         
         if (PlatformInfo.isLinux) {
             fontName = "WenQuanYi Micro Hei"
+        }
+
+        if (PlatformInfo.isMacOS) {
+            fontName = "SF Pro Display"
         }
         
         val font = Font(fontName, Font.PLAIN, 12)
@@ -416,6 +428,9 @@ fun main() {
                 resizable = false
             ) {
                 WindowDraggableArea {
+                    // Apple Silicon Mac cannot use BlueCove without Rosetta 2
+                    val isBluetoothDisabled = PlatformInfo.isMacOS && PlatformInfo.isArm64
+
                     App(
                         viewModel = viewModel,
                         onMinimize = { windowState.isMinimized = true },
@@ -437,7 +452,8 @@ fun main() {
                             exitProcess(0)
                         },
                         onHideApp = { isVisible = false },
-                        onOpenSettings = { isSettingsOpen = true }
+                        onOpenSettings = { isSettingsOpen = true },
+                        isBluetoothDisabled = isBluetoothDisabled
                     )
                 }
             }
