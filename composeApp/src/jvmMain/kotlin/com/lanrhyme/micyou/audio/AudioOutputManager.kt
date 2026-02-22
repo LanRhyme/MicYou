@@ -1,7 +1,7 @@
 package com.lanrhyme.micyou.audio
 
 import com.lanrhyme.micyou.Logger
-import com.lanrhyme.micyou.platform.BlackHoleManager
+import com.lanrhyme.micyou.BlackHoleManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.VirtualAudioDevice
 import javax.sound.sampled.*

@@ -1,6 +1,6 @@
 package com.lanrhyme.micyou
 
-import com.lanrhyme.micyou.platform.BlackHoleManager
+import com.lanrhyme.micyou.BlackHoleManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.VirtualAudioDevice
 import kotlinx.coroutines.Dispatchers
@@ -263,11 +263,57 @@ object VBCableManager {
                 if (toCable) Unit else VirtualAudioDevice.cleanup()
             }
             PlatformInfo.OS.MACOS -> {
-                println("macOS平台暂不支持自动设置默认麦克风")
+                if (toCable) setMacOSDefaultMicrophone() else restoreMacOSDefaultMicrophone()
             }
             PlatformInfo.OS.OTHER -> println("当前操作系统不支持设置默认麦克风")
         }
     }
+
+    private suspend fun setMacOSDefaultMicrophone() {
+        if (!BlackHoleManager.isSwitchAudioSourceInstalled()) {
+            println("macOS: switchaudio-osx 未安装，无法自动设置默认麦克风")
+            println("请运行: brew install switchaudio-osx")
+            return
+        }
+
+        if (!BlackHoleManager.isInstalled()) {
+            println("macOS: BlackHole 未安装")
+            return
+        }
+
+        BlackHoleManager.saveCurrentInputDevice()
+
+        val json = BlackHoleManager.getInputDevicesJson()
+        if (json == null) {
+            println("macOS: 获取输入设备列表失败")
+            return
+        }
+
+        val blackHoleDevice = BlackHoleManager.findBlackHoleInJson(json)
+        if (blackHoleDevice == null) {
+            println("macOS: 未找到 BlackHole 输入设备")
+            return
+        }
+        
+        println("macOS: 找到 BlackHole 设备: ${blackHoleDevice.name} (ID: ${blackHoleDevice.id})")
+
+        val success = BlackHoleManager.setDefaultInputDevice(blackHoleDevice.id)
+        if (success) {
+            println("macOS: 已将默认麦克风设置为 BlackHole")
+        } else {
+            println("macOS: 设置默认麦克风失败")
+        }
+    }
+
+    private suspend fun restoreMacOSDefaultMicrophone() {
+        val success = BlackHoleManager.restoreOriginalInputDevice()
+        if (success) {
+            println("macOS: 已恢复原始麦克风设备")
+        } else {
+            println("macOS: 恢复原始麦克风失败或无记录")
+        }
+    }
+
     
     private fun restoreWindowsDefaultMicrophone() {
         println("Windows平台：恢复原始默认麦克风功能暂未实现")
