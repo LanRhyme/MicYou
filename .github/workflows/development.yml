@@ -159,3 +159,39 @@ jobs:
         path: |
           ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.deb
           ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.rpm
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Read Version
+      id: version
+      run: |
+        VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        architecture: arm64
+        cache: gradle
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    - name: Build macOS DMG
+      run: ./gradlew :composeApp:packageDmg
+    - name: Prepare macOS Artifacts
+      run: |
+        mkdir -p ci-artifacts
+        DMG_FILE=$(ls composeApp/build/compose/binaries/main/dmg/*.dmg 2>/dev/null | head -n 1)
+        if [ -f "$DMG_FILE" ]; then
+          cp "$DMG_FILE" "ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}.dmg"
+        else
+          echo "DMG package not found, check build output."
+          exit 1
+        fi
+    - name: Upload macOS Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: MicYou-macOS-${{ steps.version.outputs.version }}
+        path: ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}.dmg
