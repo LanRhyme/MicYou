@@ -143,6 +143,108 @@ MicYou
 ./gradlew :composeApp:packageRpm
 ```
 
+## 国际化（i18n）
+
+MicYou 支持多种语言，拥有完善的翻译系统。我们欢迎您为 MicYou 贡献翻译！
+
+### 通过 Crowdin 贡献翻译（推荐）
+
+最便捷的翻译方式是通过 [Crowdin](https://crowdin.com/project/micyou)。无需本地开发环境设置：
+
+1. 访问 [MicYou on Crowdin](https://crowdin.com/project/micyou)
+2. 使用 GitHub 账户登录或注册
+3. 从语言列表中选择您的语言
+4. 在网页界面中直接翻译字符串
+5. 提交翻译以供审阅
+
+当翻译被合并时，将通过 GitHub Actions 自动同步到仓库。
+
+### 手动添加新语言
+
+要手动添加新语言：
+
+1. 克隆仓库：
+```bash
+git clone https://github.com/LanRhyme/MicYou.git
+cd MicYou
+```
+
+2. 将英文翻译文件复制为模板：
+```bash
+cp composeApp/src/commonMain/composeResources/files/i18n/strings_en.json \
+   composeApp/src/commonMain/composeResources/files/i18n/strings_xx.json
+```
+将 `xx` 替换为您的语言代码（例如 `fr` 表示法语，`es` 表示西班牙语）。
+
+3. 编辑新建的 JSON 文件，翻译所有字符串值（保持键不变）：
+```json
+{
+  "appName": "MicYou",
+  "ipLabel": "IP: ",
+  ...
+}
+```
+
+4. 在 [Localization.kt](composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/Localization.kt) 中注册新语言：
+
+找到 `AppLanguage` 枚举并添加您的语言：
+```kotlin
+enum class AppLanguage(val label: String, val code: String) {
+    // ... 现有语言 ...
+    French("Français", "fr"),  // 添加此行
+}
+```
+
+同时在 `getStrings()` 函数中处理您的语言：
+```kotlin
+fun getStrings(language: AppLanguage): AppStrings {
+    val langCode = when (language) {
+        // ... 现有语言 ...
+        AppLanguage.French -> "fr"
+        // ...
+    }
+    // ...
+}
+```
+
+### 测试翻译
+
+本地测试翻译：
+
+1. 构建并运行桌面应用：
+```bash
+./gradlew :composeApp:run
+```
+
+2. 进入 **设置 → 外观 → 语言** 并选择您新建的语言
+
+3. 验证所有字符串已正确翻译，布局显示正常
+
+4. 对于 Android 应用，构建 APK：
+```bash
+./gradlew :composeApp:assembleDebug
+```
+
+### 翻译工作流程
+
+- **源语言**：英文（`strings_en.json`）
+- **位置**：`composeApp/src/commonMain/composeResources/files/i18n/`
+
+### 特殊语言变体
+
+某些语言有特殊变体：
+- `strings_zh.json` - 简体中文
+- `strings_zh_tw.json` - 繁体中文（台湾）
+- `strings_zh_hk.json` - 粤语（香港）
+- `strings_zh_hard.json` - 中文（生硬 - 彩蛋）
+- `strings_cat.json` - 猫猫语言（彩蛋）
+
+### 贡献翻译
+
+1. **通过 Crowdin**（推荐）：加入我们的 Crowdin 项目进行协作翻译
+2. **通过 GitHub**：提交包含新增/更新翻译文件的 Pull Request
+3. 在 PR 标题中包含英文和本地语言的语言名称 例如：添加 xx（语言代码）本地化
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=lanrhyme/MicYou&type=Date)](https://star-history.com/#lanrhyme/MicYou&Date)

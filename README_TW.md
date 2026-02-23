@@ -120,6 +120,110 @@ MicYou
 ./gradlew :composeApp:packageRpm
 ```
 
+## 國際化（i18n）
+
+MicYou 支援多種語言，擁有完善的翻譯系統。我們歡迎您為 MicYou 貢獻翻譯！
+
+### 透過 Crowdin 貢獻翻譯（推薦）
+
+最便捷的翻譯方式是透過 [Crowdin](https://crowdin.com/project/micyou)。無需本地開發環境設置：
+
+1. 訪問 [MicYou on Crowdin](https://crowdin.com/project/micyou)
+2. 使用 GitHub 帳戶登入或註冊
+3. 從語言列表中選擇您的語言
+4. 在網頁介面中直接翻譯字符串
+5. 提交翻譯以供審核
+
+當翻譯被合併時，將透過 GitHub Actions 自動同步到儲存庫。
+
+### 手動新增語言
+
+要手動新增語言：
+
+1. 複製儲存庫：
+```bash
+git clone https://github.com/LanRhyme/MicYou.git
+cd MicYou
+```
+
+2. 將英文翻譯檔案複製為範本：
+```bash
+cp composeApp/src/commonMain/composeResources/files/i18n/strings_en.json \
+   composeApp/src/commonMain/composeResources/files/i18n/strings_xx.json
+```
+將 `xx` 取代為您的語言代碼（例如 `fr` 表示法文，`es` 表示西班牙文）。
+
+3. 編輯新建的 JSON 檔案，翻譯所有字符串值（保持鍵不變）：
+```json
+{
+  "appName": "MicYou",
+  "ipLabel": "IP: ",
+  ...
+}
+```
+
+4. 在 [Localization.kt](composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/Localization.kt) 中註冊新語言：
+
+找到 `AppLanguage` 列舉並新增您的語言：
+```kotlin
+enum class AppLanguage(val label: String, val code: String) {
+    // ... 現有語言 ...
+    French("Français", "fr"),  // 新增此行
+}
+```
+
+同時在 `getStrings()` 函數中處理您的語言：
+```kotlin
+fun getStrings(language: AppLanguage): AppStrings {
+    val langCode = when (language) {
+        // ... 現有語言 ...
+        AppLanguage.French -> "fr"
+        // ...
+    }
+    // ...
+}
+```
+
+### 測試翻譯
+
+本地測試翻譯：
+
+1. 建置並執行桌面應用：
+```bash
+./gradlew :composeApp:run
+```
+
+2. 進入 **設定 → 外觀 → 語言** 並選擇您新建的語言
+
+3. 驗證所有字符串已正確翻譯，版面顯示正常
+
+4. 對於 Android 應用，建置 APK：
+```bash
+./gradlew :composeApp:assembleDebug
+```
+
+### 翻譯工作流程
+
+- **源語言**：英文（`strings_en.json`）
+- **位置**：`composeApp/src/commonMain/composeResources/files/i18n/`
+- **檔案格式**：JSON
+- **目前支援**：30+ 種語言，包括簡體中文、繁體中文、粵語
+
+### 特殊語言變體
+
+某些語言有特殊變體：
+- `strings_zh.json` - 簡體中文
+- `strings_zh_tw.json` - 繁體中文（台灣）
+- `strings_zh_hk.json` - 粵語（香港）
+- `strings_zh_hard.json` - 中文（生硬 - 彩蛋）
+- `strings_cat.json` - 貓貓語言（彩蛋）
+
+### 貢獻翻譯
+
+1. **透過 Crowdin**（推薦）：加入我們的 Crowdin 專案進行協作翻譯
+2. **透過 GitHub**：提交包含新增/更新翻譯檔案的 Pull Request
+3. 在 PR 標題中包含英文和本地語言的語言名稱 例如：添加 xx（語言代碼）在地化
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=lanrhyme/MicYou&type=Date)](https://star-history.com/#lanrhyme/MicYou&Date)
