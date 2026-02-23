@@ -234,7 +234,7 @@ To test your translation locally:
 - **Source language**: English (`strings_en.json`)
 - **Location**: `composeApp/src/commonMain/composeResources/files/i18n/`
 - **File format**: JSON
-- **Currently supported**: 30+ languages including Chinese (Simplified, Traditional, Cantonese)
+- **Currently supported**: 5+ languages including Chinese (Simplified, Traditional, Cantonese)
 
 ### Special Language Variants
 
