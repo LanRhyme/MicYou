@@ -176,8 +176,7 @@ cd MicYou
 
 2. Copy the English translation file as a template:
 ```bash
-cp composeApp/src/commonMain/composeResources/files/i18n/strings_en.json \
-   composeApp/src/commonMain/composeResources/files/i18n/strings_xx.json
+cp composeApp/src/commonMain/composeResources/files/i18n/strings_en.json composeApp/src/commonMain/composeResources/files/i18n/strings_xx.json
 ```
 Replace `xx` with your language code (e.g., `fr` for French, `es` for Spanish).
 
