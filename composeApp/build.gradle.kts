@@ -40,8 +40,10 @@ configurations.configureEach {
                 name == "material-icons-core" || name == "material-icons-core-desktop" ||
                 name == "material") {
                 useVersion("1.7.3")
-            } else if (name == "material3") {
+            } else if (name == "material3" || name == "material3-desktop") {
                 useVersion(composeMaterial3Version)
+            } else if (name == "material-symbols" || name == "material-symbols-core") {
+                useVersion(composeVersion)
             } else {
                 useVersion(composeVersion)
             }
