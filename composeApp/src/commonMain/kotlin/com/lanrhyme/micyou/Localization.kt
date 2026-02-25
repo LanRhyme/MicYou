@@ -133,6 +133,8 @@ data class AppStrings(
     val checkUpdate: String = "Check for Updates",
     val isLatestVersion: String = "Already the latest version",
     val checkingUpdate: String = "Checking for updates...",
+    val updateCheckFailed: String = "Failed to check for updates: %s",
+    val newVersionReleased: String = "New version released",
 
     // BlackHole (macOS virtual audio)
     val blackHoleInstalled: String = "BlackHole is installed, please configure in System Settings",
