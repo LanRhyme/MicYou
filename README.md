@@ -275,5 +275,4 @@ Some languages have special variants:
 3. Include the language name in English and native language in your PR title eg: Add xx(code) localization
 
 ## Star History
-
 [![Star History Chart](https://api.star-history.com/svg?repos=lanrhyme/MicYou&type=Date)](https://star-history.com/#lanrhyme/MicYou&Date)
