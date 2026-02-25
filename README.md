@@ -48,12 +48,19 @@ Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
   - `sudo pacman -S android-tools`
   - ...
 
-In most cases ADB will be added to your `PATH` automatically. If not, please add it manually.
+In most cases ADB will be added to your environment variables automatically. If not, please add it manually.
 
-### 2. USB connection
+### 2. Enable USB Debugging
+Using OneUI 8 as an example
+
+1. Go to Settings, tap `About phone`
+2. Tap `Software information`, find `Build number`, tap it **7** times. When you see "No need, developer mode has been enabled", it means the developer mode has been successfully enabled.
+3. Go back to Settings, tap `Developer options`, find `USB debugging`, and enable it.
+
+### 3. USB connection
 Use a stable data cable, and set the connection mode to `USB` on both the desktop app and the Android app.
 
-### 3. Wi-Fi connection
+### 4. Wi-Fi connection
 Ensure your Android device and PC are on the same network, and set the connection mode to `Wi-Fi` on both the desktop app and the Android app.
 
 ### Android
