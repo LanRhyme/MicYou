@@ -16,8 +16,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#include "onnxruntime/include/onnxruntime/core/session/onnxruntime_cxx_api.h"
-#include "onnxruntime/include/onnxruntime/core/providers/cpu/cpu_provider_factory.h"
+#include "onnxruntime_cxx_api.h"
+#include "cpu_provider_factory.h"
 #include "pffft/pffft.h"
 
 class RingBuffer {
@@ -448,7 +448,7 @@ private:
 extern "C" {
 
 JNIEXPORT jlong JNICALL
-Java_com_lanrhyme_micyou_AudioProcessor_nativeCreate(JNIEnv* env, jobject thiz,
+Java_com_lanrhyme_micyou_audio_AudioProcessor_nativeCreate(JNIEnv* env, jobject thiz,
     jfloat preGainDb, jfloat postGainDb, jstring modelPath, jlong frameSize, jlong hopLength)
 {
     const char* path = env->GetStringUTFChars(modelPath, nullptr);
@@ -462,7 +462,7 @@ Java_com_lanrhyme_micyou_AudioProcessor_nativeCreate(JNIEnv* env, jobject thiz,
 }
 
 JNIEXPORT void JNICALL
-Java_com_lanrhyme_micyou_AudioProcessor_nativeDestroy(JNIEnv* env, jobject thiz, jlong handle)
+Java_com_lanrhyme_micyou_audio_AudioProcessor_nativeDestroy(JNIEnv* env, jobject thiz, jlong handle)
 {
     AudioProcessor* processor = reinterpret_cast<AudioProcessor*>(handle);
     if (processor) {
@@ -471,7 +471,7 @@ Java_com_lanrhyme_micyou_AudioProcessor_nativeDestroy(JNIEnv* env, jobject thiz,
 }
 
 JNIEXPORT jfloatArray JNICALL
-Java_com_lanrhyme_micyou_AudioProcessor_nativeProcess(JNIEnv* env, jobject thiz,
+Java_com_lanrhyme_micyou_audio_AudioProcessor_nativeProcess(JNIEnv* env, jobject thiz,
     jlong handle, jfloatArray inputArray)
 {
     AudioProcessor* processor = reinterpret_cast<AudioProcessor*>(handle);
@@ -494,7 +494,7 @@ Java_com_lanrhyme_micyou_AudioProcessor_nativeProcess(JNIEnv* env, jobject thiz,
 }
 
 JNIEXPORT void JNICALL
-Java_com_lanrhyme_micyou_AudioProcessor_nativeSetPreGain(JNIEnv* env, jobject thiz,
+Java_com_lanrhyme_micyou_audio_AudioProcessor_nativeSetPreGain(JNIEnv* env, jobject thiz,
     jlong handle, jfloat gainDb)
 {
     AudioProcessor* processor = reinterpret_cast<AudioProcessor*>(handle);
@@ -504,7 +504,7 @@ Java_com_lanrhyme_micyou_AudioProcessor_nativeSetPreGain(JNIEnv* env, jobject th
 }
 
 JNIEXPORT void JNICALL
-Java_com_lanrhyme_micyou_AudioProcessor_nativeSetPostGain(JNIEnv* env, jobject thiz,
+Java_com_lanrhyme_micyou_audio_AudioProcessor_nativeSetPostGain(JNIEnv* env, jobject thiz,
     jlong handle, jfloat gainDb)
 {
     AudioProcessor* processor = reinterpret_cast<AudioProcessor*>(handle);
@@ -514,7 +514,7 @@ Java_com_lanrhyme_micyou_AudioProcessor_nativeSetPostGain(JNIEnv* env, jobject t
 }
 
 JNIEXPORT void JNICALL
-Java_com_lanrhyme_micyou_AudioProcessor_nativeSetEqGains(JNIEnv* env, jobject thiz,
+Java_com_lanrhyme_micyou_audio_AudioProcessor_nativeSetEqGains(JNIEnv* env, jobject thiz,
     jlong handle, jfloatArray gainsArray)
 {
     AudioProcessor* processor = reinterpret_cast<AudioProcessor*>(handle);
