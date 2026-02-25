@@ -40,6 +40,22 @@ Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
 
 ## Getting Started
 
+### 1. Download ADB
+- Download from [Android Developers](https://developer.android.com/tools/releases/platform-tools?hl=zh_cn)
+- Install via package manager
+  - `winget install -e --id Google.PlatformTools`
+  - `sudo apt install android-tools-adb`
+  - `sudo pacman -S android-tools`
+  - ...
+
+In most cases ADB will be added to your `PATH` automatically. If not, please add it manually.
+
+### 2. USB connection
+Use a stable data cable, and set the connection mode to `USB` on both the desktop app and the Android app.
+
+### 3. Wi-Fi connection
+Ensure your Android device and PC are on the same network, and set the connection mode to `Wi-Fi` on both the desktop app and the Android app.
+
 ### Android
 1. Download and install the APK on your Android device.
 2. Ensure your device is on the same network as your PC (for Wi-Fi) or connected via USB.
