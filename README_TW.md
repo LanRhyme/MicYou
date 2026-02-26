@@ -15,6 +15,8 @@
     <img alt="Github Stars" src="https://img.shields.io/github/stars/LanRhyme/MicYou?style=flat&logo=github&logoColor=white"><a>
   <a href="https://github.com/LanRhyme/MicYou/releases/latest">
     <img alt="GitHub Release" src="https://img.shields.io/github/v/release/LanRhyme/MicYou?logo=github"></a>
+  <a href="https://qm.qq.com/q/V16hPpWPKO">
+    <img alt="QQ" src="https://img.shields.io/badge/QQ%E7%BE%A4-995452107-12B7F5?style=flat&logo=qq&logoColor=white"><a>
   <a href="https://aur.archlinux.org/packages/micyou-bin">
     <img alt="AUR Version" src="https://img.shields.io/aur/version/micyou-bin?logo=archlinux&label=micyou-bin"></a>
   <a href="https://crowdin.com/project/micyou" target="_blank" rel="noopener noreferrer">
