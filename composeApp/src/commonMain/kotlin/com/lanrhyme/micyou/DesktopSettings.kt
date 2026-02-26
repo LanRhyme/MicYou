@@ -269,6 +269,18 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 },
                                 modifier = Modifier.clickable { /* Handled by dropdown */ }
                             )
+                            HorizontalDivider()
+                            ListItem(
+                                headlineContent = { Text("袖珍模式") },
+                                supportingContent = { Text("使用紧凑的窗口布局") },
+                                trailingContent = {
+                                    Switch(
+                                        checked = state.pocketMode,
+                                        onCheckedChange = { viewModel.setPocketMode(it) }
+                                    )
+                                },
+                                modifier = Modifier.clickable { viewModel.setPocketMode(!state.pocketMode) }
+                            )
                         }
                     }
                 }

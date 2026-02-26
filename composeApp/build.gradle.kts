@@ -30,19 +30,23 @@ plugins {
 }
 
 val composeVersion = libs.versions.composeMultiplatform.get()
-val skikoVersion = "0.8.18"
+val composeMaterial3Version = libs.versions.composeMaterial3.get()
 
 configurations.configureEach {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.compose" || requested.group.startsWith("org.jetbrains.compose.")) {
-            useVersion(composeVersion)
-        }
-        if (requested.group == "org.jetbrains.skiko") {
-            useVersion(skikoVersion)
-        }
-        // 强制使用dorkbox/OS 1.11版本以修复60秒阻塞问题
-        if (requested.group == "com.dorkbox" && requested.name == "OS") {
-            useVersion("1.11")
+            val name = requested.name
+            if (name == "material-icons-extended" || name == "material-icons-extended-desktop" || 
+                name == "material-icons-core" || name == "material-icons-core-desktop" ||
+                name == "material") {
+                useVersion("1.7.3")
+            } else if (name == "material3" || name == "material3-desktop") {
+                useVersion(composeMaterial3Version)
+            } else if (name == "material-symbols" || name == "material-symbols-core") {
+                useVersion(composeVersion)
+            } else {
+                useVersion(composeVersion)
+            }
         }
     }
 }
@@ -80,6 +84,7 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.kotlinx.serialization.protobuf)
+            implementation(libs.kotlinx.datetime)
             implementation(libs.compose.material.icons.extended)
         }
         commonTest.dependencies {
@@ -92,7 +97,7 @@ kotlin {
             implementation(libs.ktor.client.java)
             implementation("de.maxhenkel.rnnoise4j:rnnoise4j:2.1.2")
             implementation("io.ultreia:bluecove:2.1.1")
-            implementation(libs.systemtray)
+            implementation(libs.composenativetray)
         }
     }
 }
@@ -286,8 +291,8 @@ tasks.matching { it.name in setOf("createDistributable", "createReleaseDistribut
         dependsOn(copyTrayIcon)
     }
 
-// macOS DMG 打包
-tasks.matching { it.name.startsWith("packageDmg") }
+// macOS DMG 打包 (debug 和 release 版本)
+tasks.matching { it.name.contains("Dmg") }
     .configureEach {
         dependsOn(copyTrayIcon)
         dependsOn("createDistributable")

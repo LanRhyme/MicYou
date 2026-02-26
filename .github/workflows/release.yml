@@ -172,7 +172,7 @@ jobs:
       matrix:
         include:
           - arch: x64
-            runner: macos-14
+            runner: macos-latest
           - arch: arm64
             runner: macos-latest
     steps:
@@ -182,10 +182,10 @@ jobs:
       run: |
         VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-    - name: Set up JDK 17
+    - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '21'
         distribution: 'temurin'
         architecture: ${{ matrix.arch }}
         cache: gradle

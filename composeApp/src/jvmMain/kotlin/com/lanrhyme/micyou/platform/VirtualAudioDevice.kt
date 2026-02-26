@@ -8,8 +8,7 @@ object VirtualAudioDevice {
     private const val SINK_MONITOR = "MicYouVirtualSink.monitor"
     
     private var sinkNodeId: String? = null
-    private var sourceNodeId: String? = null
-    private var loopbackModuleId: String? = null
+    private var loopbackProcess: Process? = null
     private var isSetup = false
     
     val virtualSinkName: String get() = SINK_NAME
@@ -48,14 +47,6 @@ object VirtualAudioDevice {
             
             if (!createVirtualSink()) {
                 Logger.e("VirtualAudioDevice", "创建虚拟 Sink 失败")
-                return false
-            }
-            
-            Thread.sleep(500)
-            
-            if (!createVirtualSource()) {
-                Logger.e("VirtualAudioDevice", "创建虚拟 Source 失败")
-                cleanup()
                 return false
             }
             
@@ -119,58 +110,25 @@ object VirtualAudioDevice {
         }
     }
     
-    private fun createVirtualSource(): Boolean {
-        Logger.d("VirtualAudioDevice", "创建虚拟 Source: $SOURCE_NAME")
-        
-        return try {
-            val process = ProcessBuilder(
-                "pw-cli", "create-node",
-                "adapter",
-                "factory.name=support.null-audio-sink",
-                "node.name=$SOURCE_NAME",
-                "media.class=Audio/Source",
-                "object.linger=true",
-                "audio.position=[FL FR]"
-            ).redirectErrorStream(true).start()
-            
-            val output = process.inputStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
-            
-            if (exitCode == 0 || output.contains("created") || output.contains("bound")) {
-                val idMatch = Regex("(\\d+)").find(output)
-                sourceNodeId = idMatch?.groupValues?.get(1)
-                Logger.i("VirtualAudioDevice", "虚拟 Source 创建成功 (id: $sourceNodeId)")
-                true
-            } else {
-                Logger.e("VirtualAudioDevice", "创建虚拟 Source 失败: $output")
-                false
-            }
-        } catch (e: Exception) {
-            Logger.e("VirtualAudioDevice", "创建虚拟 Source 时出错", e)
-            false
-        }
-    }
-    
     private fun createLoopback(): Boolean {
         Logger.d("VirtualAudioDevice", "创建回环: $SINK_NAME -> $SOURCE_NAME")
         
         return try {
             val process = ProcessBuilder(
-                "pw-cli", "create-node",
-                "loopback",
-                "capture.props={node.name=micyou-loopback-capture target.object=$SINK_NAME}",
-                "playback.props={node.name=micyou-loopback-playback target.object=$SOURCE_NAME}"
+                "pw-loopback",
+                "--capture-props={\"node.target\": \"$SINK_NAME\", \"media.class\": \"Stream/Input/Audio\", \"stream.capture.sink\": true}",
+                "--playback-props={\"node.description\": \"$SOURCE_NAME\", \"media.class\": \"Audio/Source\"}"
             ).redirectErrorStream(true).start()
             
-            val output = process.inputStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
+            loopbackProcess = process
             
-            if (exitCode == 0 || output.contains("created") || output.contains("bound")) {
-                val idMatch = Regex("(\\d+)").find(output)
-                loopbackModuleId = idMatch?.groupValues?.get(1)
-                Logger.i("VirtualAudioDevice", "回环创建成功 (id: $loopbackModuleId)")
+            Thread.sleep(200)
+            
+            if (process.isAlive) {
+                Logger.i("VirtualAudioDevice", "回环创建成功 (pid: ${process.pid()})")
                 true
             } else {
+                val output = process.inputStream.bufferedReader().readText()
                 Logger.e("VirtualAudioDevice", "创建回环失败: $output")
                 false
             }
@@ -266,20 +224,19 @@ object VirtualAudioDevice {
     fun cleanup() {
         Logger.i("VirtualAudioDevice", "清理虚拟音频设备...")
         
-        if (loopbackModuleId != null) {
-            destroyNode(loopbackModuleId!!, "回环")
-            loopbackModuleId = null
-        } else {
-            destroyNodeByName("micyou-loopback-capture", "回环捕获")
-            destroyNodeByName("micyou-loopback-playback", "回环播放")
+        loopbackProcess?.let { process ->
+            try {
+                if (process.isAlive) {
+                    process.destroy()
+                    Logger.d("VirtualAudioDevice", "回环进程已终止")
+                }
+            } catch (e: Exception) {
+                Logger.e("VirtualAudioDevice", "终止回环进程时出错", e)
+            }
+            loopbackProcess = null
         }
         
-        if (sourceNodeId != null) {
-            destroyNode(sourceNodeId!!, "虚拟 Source")
-            sourceNodeId = null
-        } else {
-            destroyNodeByName(SOURCE_NAME, "虚拟 Source")
-        }
+        destroyNodeByName(SOURCE_NAME, "虚拟 Source")
         
         if (sinkNodeId != null) {
             destroyNode(sinkNodeId!!, "虚拟 Sink")

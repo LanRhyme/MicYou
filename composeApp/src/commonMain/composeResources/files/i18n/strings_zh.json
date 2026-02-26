@@ -101,6 +101,7 @@
   "closeConfirmMinimize": "最小化到托盘",
   "closeConfirmExit": "直接退出应用",
   "closeConfirmRemember": "不再提示",
+  "closeConfirmCancel": "取消",
   "closeActionLabel": "关闭按钮操作",
   "closeActionPrompt": "每次询问",
   "closeActionMinimize": "最小化到托盘",

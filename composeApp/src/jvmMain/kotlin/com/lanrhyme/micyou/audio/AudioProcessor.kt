@@ -73,10 +73,24 @@ class AudioProcessor(
         private var libraryLoaded = false
         private val lock = Any()
 
-        private val DEPENDENT_DLLS = listOf(
-            "onnxruntime_providers_shared.dll",
-            "onnxruntime.dll"
-        )
+        private val dependentLibraries: List<String>
+            get() = getPlatformDependentLibraries()
+
+        private fun getPlatformDependentLibraries(): List<String> {
+            val osName = System.getProperty("os.name").lowercase()
+            return when {
+                osName.contains("win") -> listOf(
+                    "onnxruntime.dll",
+                    "onnxruntime_providers_shared.dll"
+                )
+                osName.contains("mac") -> listOf(
+                    "libonnxruntime.dylib"
+                )
+                else -> listOf( // Linux and other Unix-like systems
+                    "libonnxruntime.so"
+                )
+            }
+        }
 
         fun ensureNativeLibraryLoaded() {
             if (libraryLoaded) return
@@ -168,25 +182,25 @@ class AudioProcessor(
         }
 
         private fun extractAndLoadDependentDlls(classLoader: ClassLoader, targetDir: File) {
-            for (depDll in DEPENDENT_DLLS) {
-                val depPaths = listOf(depDll, "natives/$depDll", "native/$depDll")
+            for (depLib in dependentLibraries) {
+                val depPaths = listOf(depLib, "natives/$depLib", "native/$depLib")
                 for (depPath in depPaths) {
                     val depStream = classLoader.getResourceAsStream(depPath)
                     if (depStream != null) {
-                        val targetFile = File(targetDir, depDll)
+                        val targetFile = File(targetDir, depLib)
                         depStream.use { input ->
                             targetFile.outputStream().use { output ->
                                 input.copyTo(output)
                             }
                         }
                         targetFile.deleteOnExit()
-                        Logger.i("AudioProcessor", "Extracted dependent DLL: $depPath -> ${targetFile.absolutePath}")
+                        Logger.i("AudioProcessor", "Extracted dependent library: $depPath -> ${targetFile.absolutePath}")
                         
                         try {
                             System.load(targetFile.absolutePath)
-                            Logger.i("AudioProcessor", "Pre-loaded dependent DLL: ${targetFile.absolutePath}")
+                            Logger.i("AudioProcessor", "Pre-loaded dependent library: ${targetFile.absolutePath}")
                         } catch (e: UnsatisfiedLinkError) {
-                            Logger.w("AudioProcessor", "Failed to pre-load dependent DLL: ${targetFile.absolutePath} - ${e.message}")
+                            Logger.w("AudioProcessor", "Failed to pre-load dependent library: ${targetFile.absolutePath} - ${e.message}")
                         }
                         break
                     }
@@ -195,14 +209,14 @@ class AudioProcessor(
         }
 
         private fun loadDependentDllsFromDirectory(dir: File) {
-            for (depDll in DEPENDENT_DLLS) {
-                val depFile = File(dir, depDll)
+            for (depLib in dependentLibraries) {
+                val depFile = File(dir, depLib)
                 if (depFile.exists() && depFile.isFile) {
                     try {
                         System.load(depFile.absolutePath)
-                        Logger.i("AudioProcessor", "Pre-loaded dependent DLL from dir: ${depFile.absolutePath}")
+                        Logger.i("AudioProcessor", "Pre-loaded dependent library from dir: ${depFile.absolutePath}")
                     } catch (e: UnsatisfiedLinkError) {
-                        Logger.w("AudioProcessor", "Failed to pre-load dependent DLL: ${depFile.absolutePath} - ${e.message}")
+                        Logger.w("AudioProcessor", "Failed to pre-load dependent library: ${depFile.absolutePath} - ${e.message}")
                     }
                 }
             }
@@ -234,20 +248,20 @@ class AudioProcessor(
                     
                     if (dllFile.exists() && dllFile.isFile) {
                         Logger.i("AudioProcessor", "Found DLL at: ${dllFile.absolutePath}")
-                        Logger.i("AudioProcessor", "Loading dependent DLLs from: ${dir.absolutePath}")
+                        Logger.i("AudioProcessor", "Loading dependent libraries from: ${dir.absolutePath}")
                         
-                        for (depDll in DEPENDENT_DLLS) {
-                            val depFile = File(dir, depDll)
-                            Logger.i("AudioProcessor", "Checking dependent DLL: ${depFile.absolutePath}, exists: ${depFile.exists()}")
+                        for (depLib in dependentLibraries) {
+                            val depFile = File(dir, depLib)
+                            Logger.i("AudioProcessor", "Checking dependent library: ${depFile.absolutePath}, exists: ${depFile.exists()}")
                             if (depFile.exists() && depFile.isFile) {
                                 try {
                                     System.load(depFile.absolutePath)
-                                    Logger.i("AudioProcessor", "Pre-loaded dependent DLL: ${depFile.absolutePath}")
+                                    Logger.i("AudioProcessor", "Pre-loaded dependent library: ${depFile.absolutePath}")
                                 } catch (e: UnsatisfiedLinkError) {
-                                    Logger.w("AudioProcessor", "Failed to pre-load dependent DLL: ${depFile.absolutePath} - ${e.message}")
+                                    Logger.w("AudioProcessor", "Failed to pre-load dependent library: ${depFile.absolutePath} - ${e.message}")
                                 }
                             } else {
-                                Logger.w("AudioProcessor", "Dependent DLL not found: ${depFile.absolutePath}")
+                                Logger.w("AudioProcessor", "Dependent library not found: ${depFile.absolutePath}")
                             }
                         }
                         

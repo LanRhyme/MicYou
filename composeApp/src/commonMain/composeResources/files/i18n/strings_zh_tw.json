@@ -101,6 +101,7 @@
   "closeConfirmMinimize": "最小化到系統匣",
   "closeConfirmExit": "直接結束應用程式",
   "closeConfirmRemember": "不再提示",
+  "closeConfirmCancel": "取消",
   "closeActionLabel": "關閉按鈕操作",
   "closeActionPrompt": "每次詢問",
   "closeActionMinimize": "最小化到系統匣",

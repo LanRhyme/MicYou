@@ -169,10 +169,10 @@ jobs:
       run: |
         VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-    - name: Set up JDK 17
+    - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '21'
         distribution: 'temurin'
         architecture: arm64
         cache: gradle

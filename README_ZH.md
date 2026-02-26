@@ -8,6 +8,27 @@
   <b>简体中文</b> | <a href="./README_TW.md">繁體中文</a> | <a href="./README.md">English</a>
 </p>
 
+<p align="center">
+<a href="https://github.com/LanRhyme/MicYou/blob/master/LICENSE">
+  <img alt="LICENSE" src="https://img.shields.io/badge/license-MIT-green"></a>
+<a href="https://github.com/LanRhyme/MicYou/commits/master">
+  <img alt="GitHub commit activity" src="https://img.shields.io/github/commit-activity/t/LanRhyme/MicYou?logo=github"></a>
+<a href="https://github.com/LanRhyme/MicYou/releases/latest">
+  <img alt="GitHub Release" src="https://img.shields.io/github/v/release/LanRhyme/MicYou?logo=github"></a>
+<a href="https://aur.archlinux.org/packages/micyou-bin">
+  <img alt="AUR Version" src="https://img.shields.io/aur/version/micyou-bin?logo=archlinux&label=micyou-bin"></a>
+<a href="https://crowdin.com/project/micyou" target="_blank" rel="noopener noreferrer">
+  <img alt="Crowdin" src="https://badges.crowdin.net/micyou/localized.svg"></a>
+</p>
+
+<p align="center">
+<img alt="Kotlin" src="https://img.shields.io/badge/kotlin-%237F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white" />
+<img alt="Android" src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
+<img alt="Windows" src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" />
+<img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" />
+<img alt="macOS" src="https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=macos&logoColor=F0F0F0" />
+</p>
+
 MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高质量无线麦克风，于 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建
 
 本项目基于 [AndroidMic](https://github.com/teamclouday/AndroidMic) 开发
@@ -18,7 +39,7 @@ MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高
 - **音频处理**：内置噪声抑制、自动增益控制 (AGC) 和去混响功能
 - **跨平台支持**：
   - **Android 客户端**：现代 Material 3 界面，支持深色/浅色主题
-  - **桌面端服务端**：支持 Windows/Linux 接收音频
+  - **桌面端服务端**：支持 Windows/Linux/macOS 接收音频
 - **虚拟麦克风**：配合 VB-Cable 可作为系统麦克风输入使用
 - **高度可定制**：支持调整采样率、声道数和音频格式
 
@@ -33,6 +54,30 @@ MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高
 <img src="img/pc_screenshot.png" width="600" />
 
 ## 使用指南
+
+### 1. 下载 ADB 
+- 从 [Android Developers](https://developer.android.com/tools/releases/platform-tools?hl=zh_cn) 下载
+- 使用包管理器下载
+  - `winget install -e --id Google.PlatformTools`
+  - `sudo apt install android-tools-adb`
+  - `sudo pacman -S android-tools`
+  - ...
+  
+大部分情况下会自动将 ADB 加入环境变量。如果没有，请自行配置
+
+### 2. 启用 USB 调试
+以 OneUI 8 为例
+
+1. 进入设置，点击`关于手机`
+2. 点击`软件信息`，找到`编译编号`，点击 **7** 下，当见到 `不需要，开发者模式已启用`，即开启成功
+3. 返回设置，点击`开发者选项`，找到`USB 调试`，开启即可
+
+### 3. 使用 USB 连接
+确保您在使用一根**稳定**的数据线，并**同时**在桌面端和 Android 客户端将连接模式切换为 `USB`
+
+### 4. 使用 Wi-Fi 连接
+确保您的 Android 设备与 PC 处于**同一网络环境**下，并**同时**在桌面端和 Android 客户端将连接模式切换为 `Wi-Fi`。
+#### 使用
 
 ### Android
 1. 下载并安装 APK 到您的 Android 设备
@@ -142,6 +187,13 @@ MicYou
 ```bash
 ./gradlew :composeApp:packageRpm
 ```
+
+## Contributors
+<a href="https://github.com/LanRhyme/MicYou/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=LanRhyme/MicYou" />
+</a>
+
+Made with [contrib.rocks](https://contrib.rocks).
 
 ## Star History
 

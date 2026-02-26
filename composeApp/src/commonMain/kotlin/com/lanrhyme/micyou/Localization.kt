@@ -12,6 +12,7 @@ enum class AppLanguage(val label: String, val code: String) {
     Cantonese("粤语", "zh-HK"),
     English("English", "en"),
     ChineseCat("中文（猫猫语）🐱", "cat"),
+    ChineseHard("中国人（坚硬）", "zh_hard"),
 }
 
 @Serializable
@@ -118,6 +119,7 @@ data class AppStrings(
     val closeConfirmMinimize: String = "Minimize to Tray",
     val closeConfirmExit: String = "Exit Application",
     val closeConfirmRemember: String = "Don't ask again",
+    val closeConfirmCancel: String = "Cancel",
     val closeActionLabel: String = "Close Button Action",
     val closeActionPrompt: String = "Ask every time",
     val closeActionMinimize: String = "Minimize to Tray",
@@ -131,6 +133,8 @@ data class AppStrings(
     val checkUpdate: String = "Check for Updates",
     val isLatestVersion: String = "Already the latest version",
     val checkingUpdate: String = "Checking for updates...",
+    val updateCheckFailed: String = "Failed to check for updates: %s",
+    val newVersionReleased: String = "New version released",
 
     // BlackHole (macOS virtual audio)
     val blackHoleInstalled: String = "BlackHole is installed, please configure in System Settings",
@@ -179,6 +183,7 @@ fun getStrings(language: AppLanguage): AppStrings {
         AppLanguage.Cantonese -> "zh-HK"
         AppLanguage.English -> "en"
         AppLanguage.ChineseCat -> "cat"
+        AppLanguage.ChineseHard -> "zh_hard"
         AppLanguage.System -> {
             val locale = Locale.current.toLanguageTag()
             when {

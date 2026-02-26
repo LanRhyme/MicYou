@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
@@ -27,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,6 +53,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -129,7 +134,11 @@ fun HsvColorPickerDialog(
                 // 颜色预览和 HEX 值
                 ColorPreview(
                     color = currentColor,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    onColorChange = { newColor ->
+                        currentColor = newColor
+                        colorToHSV(newColor.toArgb(), hsv)
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -311,7 +320,8 @@ fun SaturationValuePanel(
 @Composable
 fun ColorPreview(
     color: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onColorChange: ((Color) -> Unit)? = null
 ) {
     val hsv = remember(color) {
         FloatArray(3).apply {
@@ -319,11 +329,33 @@ fun ColorPreview(
         }
     }
 
+    var hexInput by remember(color) {
+        mutableStateOf(
+            String.format("#%06X", color.toArgb() and 0xFFFFFF)
+        )
+    }
+    var inputError by remember { mutableStateOf(false) }
+    var isEditing by remember { mutableStateOf(false) }
+
+    val hexString = remember(color) {
+        String.format("#%06X", color.toArgb() and 0xFFFFFF)
+    }
+
+    fun parseHexInput(input: String): Int? {
+        val trimmed = input.trim()
+        val hexPattern = Regex("^#([0-9A-Fa-f]{6})$")
+        val match = hexPattern.matchEntire(trimmed) ?: return null
+        return try {
+            match.groupValues[1].toLong(16).toInt() or 0xFF000000.toInt()
+        } catch (e: NumberFormatException) {
+            null
+        }
+    }
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // 颜色预览方块
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -334,17 +366,63 @@ fun ColorPreview(
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // HEX 值显示
-        val hexString = remember(color) {
-            String.format("#%06X", color.toArgb() and 0xFFFFFF)
-        }
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isEditing && onColorChange != null) {
+                    OutlinedTextField(
+                        value = hexInput,
+                        onValueChange = { newValue ->
+                            hexInput = newValue.uppercase()
+                            val parsed = parseHexInput(newValue)
+                            inputError = parsed == null && newValue.isNotEmpty()
+                            if (parsed != null) {
+                                val newColor = Color(parsed)
+                                onColorChange(newColor)
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        textStyle = MaterialTheme.typography.titleMedium,
+                        isError = inputError,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                val parsed = parseHexInput(hexInput)
+                                if (parsed != null) {
+                                    inputError = false
+                                    isEditing = false
+                                } else {
+                                    hexInput = String.format("#%06X", color.toArgb() and 0xFFFFFF)
+                                    inputError = false
+                                }
+                            }
+                        ),
+                        label = { Text("HEX", style = MaterialTheme.typography.labelSmall) },
+                        supportingText = if (inputError) {
+                            { Text("格式: #RRGGBB", style = MaterialTheme.typography.labelSmall) }
+                        } else null
+                    )
+                } else {
+                    Text(
+                        hexString,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.clickable(enabled = onColorChange != null) {
+                            if (onColorChange != null) {
+                                hexInput = hexString
+                                isEditing = true
+                            }
+                        }
+                    )
+                }
+            }
 
-        Column {
-            Text(
-                hexString,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            Spacer(modifier = Modifier.height(4.dp))
+
             Text(
                 "H: ${hsv[0].toInt()}° S: ${(hsv[1] * 100).toInt()}% V: ${(hsv[2] * 100).toInt()}%",
                 style = MaterialTheme.typography.bodySmall,

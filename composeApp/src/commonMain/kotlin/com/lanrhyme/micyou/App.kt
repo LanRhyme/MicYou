@@ -43,21 +43,34 @@ fun App(
 
     val uiState by finalViewModel.uiState.collectAsState()
     val newVersionAvailable = uiState.newVersionAvailable
+    val pocketMode = uiState.pocketMode
 
     CompositionLocalProvider(LocalAppStrings provides strings) {
         AppTheme(themeMode = themeMode, seedColor = seedColorObj, useDynamicColor = useDynamicColor) {
             if (platform.type == PlatformType.Android) {
                 MobileHome(finalViewModel)
             } else {
-                DesktopHome(
-                    viewModel = finalViewModel,
-                    onMinimize = onMinimize,
-                    onClose = onClose,
-                    onExitApp = onExitApp,
-                    onHideApp = onHideApp,
-                    onOpenSettings = onOpenSettings,
-                    isBluetoothDisabled = isBluetoothDisabled
-                )
+                if (pocketMode) {
+                    DesktopHome(
+                        viewModel = finalViewModel,
+                        onMinimize = onMinimize,
+                        onClose = onClose,
+                        onExitApp = onExitApp,
+                        onHideApp = onHideApp,
+                        onOpenSettings = onOpenSettings,
+                        isBluetoothDisabled = isBluetoothDisabled
+                    )
+                } else {
+                    DesktopHomeEnhanced(
+                        viewModel = finalViewModel,
+                        onMinimize = onMinimize,
+                        onClose = onClose,
+                        onExitApp = onExitApp,
+                        onHideApp = onHideApp,
+                        onOpenSettings = onOpenSettings,
+                        isBluetoothDisabled = isBluetoothDisabled
+                    )
+                }
             }
 
             // Update Dialog
