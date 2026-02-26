@@ -1,6 +1,6 @@
 {
-  "appName": "MicYou喵~",
-  "ipLabel": "IP喵：",
+  "appName": "MicYou 喵~",
+  "ipLabel": "IP 喵：",
   "portLabel": "端口喵~",
   "targetIpLabel": "目标 IP (≧∇≦)",
   "targetIpUsbLabel": "目标 IP (127.0.0.1) 喵~",
@@ -72,7 +72,7 @@
   "themeColorLabel": "主题颜色喵~ 🎨",
   "amplificationMultiplierLabel": "倍数喵~",
   "licensesTitle": "开源库和许可证喵~",
-  "basedOnAndroidMic": "MicYou 基于 AndroidMic 喵~",
+  "basedOnAndroidMic": "MicYou 基于 AndroidMic 喵~（虽然好像 AndroidMic 的底层逻辑已经几乎不存在了喵～ (・_・;)）",
   "developerLabel": "开发者喵~ 👨‍💻",
   "githubRepoLabel": "GitHub 仓库喵~",
   "versionLabel": "版本喵~",
