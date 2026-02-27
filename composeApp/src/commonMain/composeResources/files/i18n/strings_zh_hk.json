@@ -35,6 +35,8 @@
     "themeLight": "淺色",
     "themeDark": "深色",
     "autoStartLabel": "自動串流",
+    "pocketModeLabel": "袖珍模式",
+    "pocketModeDesc": "使用緊湊視窗版面",
     "monitoringLabel": "監聽 (淨係桌面版)",
     "sampleRateLabel": "取樣率",
     "channelCountLabel": "聲道數量",

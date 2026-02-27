@@ -271,8 +271,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             )
                             HorizontalDivider()
                             ListItem(
-                                headlineContent = { Text("袖珍模式") },
-                                supportingContent = { Text("使用紧凑的窗口布局") },
+                                headlineContent = { Text(strings.pocketModeLabel) },
+                                supportingContent = { Text(strings.pocketModeDesc) },
                                 trailingContent = {
                                     Switch(
                                         checked = state.pocketMode,

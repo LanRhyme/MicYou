@@ -35,6 +35,8 @@
   "themeLight": "Light",
   "themeDark": "Dark",
   "autoStartLabel": "Auto Start",
+  "pocketModeLabel": "Compact Mode",
+  "pocketModeDesc": "Use a compact window layout",
   "monitoringLabel": "Monitoring (Desktop)",
   "sampleRateLabel": "Sample Rate",
   "channelCountLabel": "Channels",

@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 enum class AppLanguage(val label: String, val code: String) {
-    System("System / 跟随系统", "system"),
+    System("System", "system"),
     Chinese("简体中文", "zh"),
     ChineseTraditional("繁體中文", "zh-TW"),
     Cantonese("粤语", "zh-HK"),
@@ -53,6 +53,8 @@ data class AppStrings(
     val themeLight: String = "Light",
     val themeDark: String = "Dark",
     val autoStartLabel: String = "Auto Start",
+    val pocketModeLabel: String = "Compact Mode",
+    val pocketModeDesc: String = "Use a compact window layout",
     val monitoringLabel: String = "Monitoring (Desktop)",
     val sampleRateLabel: String = "Sample Rate",
     val channelCountLabel: String = "Channels",
@@ -75,7 +77,7 @@ data class AppStrings(
     val enableVadLabel: String = "VAD",
     val vadThresholdLabel: String = "Sensitivity",
     val audioConfigAppliedLabel: String = "Applied",
-    val enableDereverbLabel: String = "Dereverb",
+    val enableDereverbLabel: String = "De-reverb",
     val dereverbLevelLabel: String = "Level",
     val amplificationLabel: String = "Amplification",
     val openSourceLicense: String = "License",

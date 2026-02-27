@@ -35,6 +35,8 @@
   "themeLight": "浅色喵~ ☀️",
   "themeDark": "深色喵~ 🌙",
   "autoStartLabel": "自动启动喵~",
+  "pocketModeLabel": "袖珍模式喵~",
+  "pocketModeDesc": "使用紧凑窗口布局喵~",
   "monitoringLabel": "监控喵~ (Desktop)",
   "sampleRateLabel": "采样率喵~",
   "channelCountLabel": "声道数喵~",
