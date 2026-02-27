@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MicYou</string>
+    <string name="streaming_notification_title">MicYou Streaming</string>
+    <string name="streaming_notification_text">Tap to disconnect</string>
+</resources>

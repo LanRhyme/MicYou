@@ -66,9 +66,11 @@ class AudioService : Service() {
             disconnectIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val (title, text) = resolveNotificationText()
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.streaming_notification_title))
-            .setContentText(getString(R.string.streaming_notification_text))
+            .setContentTitle(title)
+            .setContentText(text)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -76,6 +78,27 @@ class AudioService : Service() {
             .setShowWhen(false)
             .setContentIntent(disconnectPendingIntent)
             .build()
+    }
+
+    private fun resolveNotificationText(): Pair<String, String> {
+        val selectedLanguage = readSelectedLanguage()
+        return when (selectedLanguage) {
+            AppLanguage.English -> "MicYou Streaming" to "Tap to disconnect"
+            AppLanguage.Chinese -> "MicYou 正在传输" to "点击断开连接"
+            AppLanguage.ChineseTraditional -> "MicYou 正在傳輸" to "點擊中斷連線"
+            AppLanguage.Cantonese -> "MicYou 傳輸緊" to "撳掣斷開連線"
+            else -> getString(R.string.streaming_notification_title) to getString(R.string.streaming_notification_text)
+        }
+    }
+
+    private fun readSelectedLanguage(): AppLanguage {
+        val prefs = getSharedPreferences("android_mic_prefs", Context.MODE_PRIVATE)
+        val saved = prefs.getString("language", AppLanguage.System.name)
+        return try {
+            AppLanguage.valueOf(saved ?: AppLanguage.System.name)
+        } catch (_: Exception) {
+            AppLanguage.System
+        }
     }
 
     private fun createNotificationChannel() {
