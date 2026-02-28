@@ -58,11 +58,10 @@ Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
 ### Android App
 |                        Main Screen                        |                           Settings                            |
 |:---------------------------------------------------------:|:-------------------------------------------------------------:|
-|<img width="300" src="https://github.com/user-attachments/assets/09df9524-bf7b-402d-8a43-543d1752e6e3" />| <img width="300" src="https://github.com/user-attachments/assets/949c518a-b794-45c9-bd69-94720db94c03" /> |
+| <img src="img/android_screenshot_main.jpg" width="300" /> | <img src="img/android_screenshot_settings.jpg" width="300" /> |
 
 ### Desktop App
-<img width="600" src="https://github.com/user-attachments/assets/08d236a2-c77e-492c-b64c-8fc4057b852f" />
-
+<img src="img/pc_screenshot.png" width="600" />
 
 ## Getting Started
 
