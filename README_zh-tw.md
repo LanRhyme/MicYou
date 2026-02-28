@@ -58,10 +58,10 @@ MicYou 是一款強大的工具，可以將您的 Android 裝置變成 PC 的高
 ### Android 客戶端
 |                            主畫面                             |                           設定                               |
 |:-----------------------------------------------------------:|:-------------------------------------------------------------:|
-| <img src="img/android_screenshot_main_tw.png" width="300" /> | <img src="img/android_screenshot_settings_tw.png" width="300" /> |
+| <img src="img/android_screenshot_main_zh-tw.png" width="300" /> | <img src="img/android_screenshot_settings_zh-tw.png" width="300" /> |
 
 ### 桌面端
-<img src="img/desktop_screenshot_tw.png" width="600" />
+<img src="img/desktop_screenshot_zh-tw.png" width="600" />
 
 ## 使用指南
 
