@@ -142,6 +142,7 @@
   "installDeviceCreated": "Virtual device created, configuring...",
   "installDeviceFailed": "Virtual device creation failed, check system permissions and audio service",
   "visualizerStyleLabel": "Visualizer Style",
+  "visualizerStyleVolumeRing": "Volume Ring",
   "visualizerStyleRipple": "Ripple",
   "visualizerStyleBars": "Bars",
   "visualizerStyleWave": "Wave",
