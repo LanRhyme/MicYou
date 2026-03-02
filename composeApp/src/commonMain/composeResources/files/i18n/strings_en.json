@@ -140,5 +140,11 @@
   "installLinuxExists": "Virtual audio device exists, configuring...",
   "installCreatingDevice": "Creating virtual audio device...",
   "installDeviceCreated": "Virtual device created, configuring...",
-  "installDeviceFailed": "Virtual device creation failed, check system permissions and audio service"
+  "installDeviceFailed": "Virtual device creation failed, check system permissions and audio service",
+  "backgroundSettingsLabel": "Background",
+  "selectBackgroundImage": "Select Image",
+  "clearBackgroundImage": "Clear",
+  "backgroundBrightnessLabel": "Brightness",
+  "backgroundBlurLabel": "Blur",
+  "cardOpacityLabel": "Card Opacity"
 }
