@@ -59,7 +59,7 @@
   "enableVadLabel": "VAD",
   "vadThresholdLabel": "Sensitivity",
   "audioConfigAppliedLabel": "Applied",
-  "enableDereverbLabel": "Dereverb",
+  "enableDereverbLabel": "De-reverb",
   "dereverbLevelLabel": "Level",
   "amplificationLabel": "Amplification",
   "openSourceLicense": "License",
@@ -92,7 +92,7 @@
   "logExportFailed": "Failed to export log",
   "firewallTitle": "Firewall Check",
   "firewallMessage": "Port %d is not allowed by Windows Firewall. This may prevent Android devices from connecting via Wi-Fi.\n\nWould you like to try adding a firewall rule for this port? (Requires Administrator privileges)",
-  "firewallConfirm": "Try Add Rule",
+  "firewallConfirm": "Add Rule",
   "firewallDismiss": "Ignore",
   "trayShow": "Show App",
   "trayHide": "Hide App",
@@ -140,5 +140,11 @@
   "installLinuxExists": "Virtual audio device exists, configuring...",
   "installCreatingDevice": "Creating virtual audio device...",
   "installDeviceCreated": "Virtual device created, configuring...",
-  "installDeviceFailed": "Virtual device creation failed, check system permissions and audio service"
+  "installDeviceFailed": "Virtual device creation failed, check system permissions and audio service",
+  "backgroundSettingsLabel": "Background",
+  "selectBackgroundImage": "Select Image",
+  "clearBackgroundImage": "Clear",
+  "backgroundBrightnessLabel": "Brightness",
+  "backgroundBlurLabel": "Blur",
+  "cardOpacityLabel": "Card Opacity"
 }
