@@ -35,6 +35,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -172,7 +176,19 @@ fun DesktopHome(
         AlertDialog(
             onDismissRequest = { viewModel.dismissFirewallDialog() },
             title = { Text(strings.firewallTitle) },
-            text = { Text(strings.firewallMessage.replace("%d", state.pendingFirewallPort?.toString() ?: "")) },
+            text = { 
+                Column(
+                    modifier = Modifier
+                        .widthIn(min = 400.dp, max = 500.dp)
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = strings.firewallMessage.replace("%d", state.pendingFirewallPort?.toString() ?: ""),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
             confirmButton = {
                 Button(onClick = { viewModel.confirmAddFirewallRule() }) {
                     Text(strings.firewallConfirm)

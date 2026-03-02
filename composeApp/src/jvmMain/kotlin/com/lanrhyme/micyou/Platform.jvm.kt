@@ -4,6 +4,8 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import com.lanrhyme.micyou.platform.FirewallManager
 import com.lanrhyme.micyou.platform.PlatformInfo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.net.InetAddress
 
 class JVMPlatform: Platform {
@@ -82,9 +84,19 @@ actual fun openUrl(url: String) {
     }
 }
 
-actual suspend fun isPortAllowed(port: Int, protocol: String): Boolean = FirewallManager.isPortAllowed(port)
-actual suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit> = 
-    if (FirewallManager.addFirewallRule(port)) Result.success(Unit) else Result.failure(Exception("Failed to add firewall rule"))
+actual suspend fun isPortAllowed(port: Int, protocol: String): Boolean =
+    withContext(Dispatchers.IO) {
+        FirewallManager.isPortAllowed(port)
+    }
+
+actual suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit> =
+    withContext(Dispatchers.IO) {
+        if (FirewallManager.addFirewallRule(port)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(Exception("Failed to add firewall rule"))
+        }
+    }
 
 @Composable
 actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {

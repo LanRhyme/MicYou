@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -87,7 +89,19 @@ fun DesktopHomeEnhanced(
         AlertDialog(
             onDismissRequest = { viewModel.dismissFirewallDialog() },
             title = { Text(strings.firewallTitle) },
-            text = { Text(strings.firewallMessage.replace("%d", state.pendingFirewallPort?.toString() ?: "")) },
+            text = { 
+                Column(
+                    modifier = Modifier
+                        .widthIn(min = 400.dp, max = 500.dp)
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = strings.firewallMessage.replace("%d", state.pendingFirewallPort?.toString() ?: ""),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
             confirmButton = { Button(onClick = { viewModel.confirmAddFirewallRule() }) { Text(strings.firewallConfirm) } },
             dismissButton = { TextButton(onClick = { viewModel.dismissFirewallDialog() }) { Text(strings.firewallDismiss) } }
         )
