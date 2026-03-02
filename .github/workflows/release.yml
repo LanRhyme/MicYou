@@ -237,7 +237,7 @@ jobs:
         id: tag
         run: |
           VERSION=$(grep "project.version=" gradle.properties | cut -d'=' -f2)
-          TAG_NAME="v$VERSION-$(date +'%Y%m%d-%H%M')"
+          TAG_NAME="v$VERSION"
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           git tag $TAG_NAME
           git push origin $TAG_NAME
