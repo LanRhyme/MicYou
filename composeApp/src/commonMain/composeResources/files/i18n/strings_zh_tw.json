@@ -146,5 +146,7 @@
   "clearBackgroundImage": "Clear",
   "backgroundBrightnessLabel": "Brightness",
   "backgroundBlurLabel": "Blur",
-  "cardOpacityLabel": "Card Opacity"
+  "cardOpacityLabel": "Card Opacity",
+  "enableHazeEffectLabel": "Frosted Glass Effect",
+  "enableHazeEffectDesc": "Add frosted glass blur effect to cards"
 }
