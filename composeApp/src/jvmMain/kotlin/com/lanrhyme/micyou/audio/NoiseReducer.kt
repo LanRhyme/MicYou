@@ -1,5 +1,6 @@
 package com.lanrhyme.micyou.audio
 
+import com.lanrhyme.micyou.Logger
 import com.lanrhyme.micyou.NoiseReductionType
 import de.maxhenkel.rnnoise4j.Denoiser
 import java.io.File
@@ -94,72 +95,83 @@ class NoiseReducer(
     }
 
     private fun processUlunas(input: ShortArray, channelCount: Int) {
-        val modelPath = getUlnasModelPath()
-        
-        // Ulunas hop length is same as frameSize in this context (480)
-        val hopLength = frameSize 
-        
-        if (ulunasProcessorLeft == null) {
-            ulunasProcessorLeft = AudioProcessor(0f, 0f, modelPath, 960, hopLength.toLong())
-        }
-        if (channelCount >= 2 && ulunasProcessorRight == null) {
-            ulunasProcessorRight = AudioProcessor(0f, 0f, modelPath, 960, hopLength.toLong())
-        }
-
-        val framesPerChannel = input.size / channelCount
-        val frameCount = framesPerChannel / hopLength
-
-        if (frameCount > 0 && (channelCount == 1 || channelCount == 2)) {
-            if (ulunasFrameLeft.size != hopLength) ulunasFrameLeft = FloatArray(hopLength)
-            if (channelCount == 2 && ulunasFrameRight.size != hopLength) ulunasFrameRight = FloatArray(hopLength)
+        try {
+            val modelPath = getUlnasModelPath()
             
-            val left = ulunasFrameLeft
-            val right = if (channelCount == 2) ulunasFrameRight else null
+            val hopLength = frameSize 
+            
+            if (ulunasProcessorLeft == null) {
+                Logger.i("NoiseReducer", "Initializing Ulunas processor with model: $modelPath")
+                ulunasProcessorLeft = AudioProcessor(0f, 0f, modelPath, 960, hopLength.toLong())
+            }
+            if (channelCount >= 2 && ulunasProcessorRight == null) {
+                ulunasProcessorRight = AudioProcessor(0f, 0f, modelPath, 960, hopLength.toLong())
+            }
 
-            for (f in 0 until frameCount) {
-                val base = f * hopLength * channelCount
-                if (channelCount == 1) {
-                    for (i in 0 until hopLength) {
-                        left[i] = input[base + i] / 32768.0f
-                    }
-                    val processedLeft = ulunasProcessorLeft!!.process(left)
-                    for (i in 0 until hopLength) {
-                        input[base + i] = (processedLeft[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
-                    }
-                } else {
-                    for (i in 0 until hopLength) {
-                        val idx = base + i * 2
-                        left[i] = input[idx] / 32768.0f
-                        right!![i] = input[idx + 1] / 32768.0f
-                    }
-                    val processedLeft = ulunasProcessorLeft!!.process(left)
-                    val processedRight = ulunasProcessorRight!!.process(right!!)
-                    for (i in 0 until hopLength) {
-                        val idx = base + i * 2
-                        input[idx] = (processedLeft[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
-                        input[idx + 1] = (processedRight[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+            val framesPerChannel = input.size / channelCount
+            val frameCount = framesPerChannel / hopLength
+
+            if (frameCount > 0 && (channelCount == 1 || channelCount == 2)) {
+                if (ulunasFrameLeft.size != hopLength) ulunasFrameLeft = FloatArray(hopLength)
+                if (channelCount == 2 && ulunasFrameRight.size != hopLength) ulunasFrameRight = FloatArray(hopLength)
+                
+                val left = ulunasFrameLeft
+                val right = if (channelCount == 2) ulunasFrameRight else null
+
+                for (f in 0 until frameCount) {
+                    val base = f * hopLength * channelCount
+                    if (channelCount == 1) {
+                        for (i in 0 until hopLength) {
+                            left[i] = input[base + i] / 32768.0f
+                        }
+                        val processedLeft = ulunasProcessorLeft!!.process(left)
+                        for (i in 0 until hopLength) {
+                            input[base + i] = (processedLeft[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+                        }
+                    } else {
+                        for (i in 0 until hopLength) {
+                            val idx = base + i * 2
+                            left[i] = input[idx] / 32768.0f
+                            right!![i] = input[idx + 1] / 32768.0f
+                        }
+                        val processedLeft = ulunasProcessorLeft!!.process(left)
+                        val processedRight = ulunasProcessorRight!!.process(right!!)
+                        for (i in 0 until hopLength) {
+                            val idx = base + i * 2
+                            input[idx] = (processedLeft[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+                            input[idx + 1] = (processedRight[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+                        }
                     }
                 }
             }
+        } catch (e: Exception) {
+            Logger.e("NoiseReducer", "Ulunas processing failed: ${e.message}", e)
+            enableNS = false
         }
     }
     
     private fun getUlnasModelPath(): String {
-        ulunasModelPath?.let { return it }
+        ulunasModelPath?.let { 
+            Logger.d("NoiseReducer", "Using cached Ulunas model path: $it")
+            return it }
         
         System.getProperty("micyou.ulunas.model.path")?.let {
+            Logger.i("NoiseReducer", "Using system property Ulunas model path: $it")
             ulunasModelPath = it
             return it
         }
 
         val tempDir = Files.createTempDirectory("micyou")
+        Logger.d("NoiseReducer", "Created temp directory: ${tempDir}")
         val modelFile = tempDir.resolve("ulunas.onnx").toFile()
 
         if (modelFile.exists() && modelFile.length() > 0) {
+            Logger.i("NoiseReducer", "Found existing model in temp: ${modelFile.absolutePath}, size: ${modelFile.length()}")
             ulunasModelPath = modelFile.absolutePath
             return modelFile.absolutePath
         }
 
+        Logger.i("NoiseReducer", "Loading Ulunas model from resources...")
         val classLoader = this.javaClass.classLoader
         val resourceStream = classLoader.getResourceAsStream("models/ulunas.onnx")
             ?: throw IOException("Unable to find Ulunas model file: models/ulunas.onnx")
@@ -170,6 +182,7 @@ class NoiseReducer(
             }
         }
 
+        Logger.i("NoiseReducer", "Copied model to: ${modelFile.absolutePath}, size: ${modelFile.length()}")
         modelFile.deleteOnExit()
         ulunasModelPath = modelFile.absolutePath
         return modelFile.absolutePath
