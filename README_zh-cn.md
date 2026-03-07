@@ -23,7 +23,7 @@
     <img alt="Crowdin" src="https://badges.crowdin.net/micyou/localized.svg"></a>
 </p>
 
-<h6 align="center">基于</h6>
+<h6 align="center">技术栈</h6>
 <p align="center">
   <img alt="Kotlin" src="https://img.shields.io/badge/kotlin-%237F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white" />
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/Jetpack_Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white">
@@ -38,7 +38,7 @@
   <img alt="macOS" src="https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=apple&logoColor=F0F0F0" />
 </p>
 
-MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高质量无线麦克风，于 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建
+MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高质量无线麦克风，采用 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建
 
 本项目基于 [AndroidMic](https://github.com/teamclouday/AndroidMic) 开发
 

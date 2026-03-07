@@ -44,10 +44,10 @@ Ensure your Android device and PC are on the same network, and set the connectio
 
 To ensure your experience, you need to install some dependencies via Homebrew:
 
-~~~bash
-brew install blackhole-2ch --cask 
+```bash
+brew install blackhole-2ch --cask
 brew install switchaudio-osx --formulae
-~~~
+```
 
 **BlackHole must be installed**. If you don't have Homebrew, go to https://existential.audio/blackhole/download/ to download the installer. Regardless of whether you install via Homebrew or the installer, please restart after installation.
 
@@ -56,9 +56,9 @@ After downloading the app from [GitHub Releases](https://github.com/LanRhyme/Mic
 If prompted with “Untrusted Developer,” navigate to **System Settings/System Preferences -> Privacy & Security** to allow the app to run.
 
 If prompted with “The application is damaged,” resolve it by executing the following command:
-~~~bash
+```bash
 sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
-~~~
+```
 
 ### Linux
 
@@ -120,7 +120,7 @@ MicYou
    - Ensure the Android phone and PC are connected to the **same** router's Wi-Fi.
    - Ensure that **AP Isolation / Network Device Isolation** or similar features are disabled in the router settings (refer to your router's manual on how to access the settings).
 
-> [Tip]
+> [!TIP]
 > Advanced users can try using tools like Nmap or ping to check connectivity.
 >
 > ~Though advanced users probably won't be reading this anyway~

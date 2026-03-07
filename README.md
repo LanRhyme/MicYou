@@ -23,14 +23,14 @@
     <img alt="Crowdin" src="https://badges.crowdin.net/micyou/localized.svg"></a>
 </p>
 
-<h6 align="center">Built in</h6>
+<h6 align="center">Built with</h6>
 
 <p align="center">
   <img alt="Kotlin" src="https://img.shields.io/badge/kotlin-%237F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white" />
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/Jetpack_Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white">
 </p>
 
-<h6 align="center">Platform we support</h6>
+<h6 align="center">Supported Platforms</h6>
 
 <p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" />

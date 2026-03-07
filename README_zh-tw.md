@@ -23,7 +23,7 @@
     <img alt="Crowdin" src="https://badges.crowdin.net/micyou/localized.svg"></a>
 </p>
 
-<h6 align="center">基於</h6>
+<h6 align="center">技術棧</h6>
 
 <p align="center">
   <img alt="Kotlin" src="https://img.shields.io/badge/kotlin-%237F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white" />
@@ -36,10 +36,10 @@
   <img alt="Android" src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
   <img alt="Windows" src="https://custom-icon-badges.demolab.com/badge/Windows-0078D6?&style=for-the-badge&logo=windows11&logoColor=white" />
   <img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" />
-  <img alt="macOS" src="https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=mapple&logoColor=F0F0F0" />
+  <img alt="macOS" src="https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=apple&logoColor=F0F0F0" />
 </p>
 
-MicYou 是一款強大的工具，可以將您的 Android 裝置變成 PC 的高品質無線麥克風，由 Kotlin Multiplatform 與 Jetpack Compose/Material 3 構建
+MicYou 是一款強大的工具，可以將您的 Android 裝置變成 PC 的高品質無線麥克風，採用 Kotlin Multiplatform 與 Jetpack Compose/Material 3 構建
 
 本專案基於 [AndroidMic](https://github.com/teamclouday/AndroidMic) 開發
 

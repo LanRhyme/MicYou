@@ -44,10 +44,10 @@
 
 为了保证您的使用体验，需要通过 Homebrew 安装一些依赖
 
-~~~bash
+```bash
 brew install blackhole-2ch --cask
 brew install switchaudio-osx --formulae
-~~~
+```
 
 **BlackHole 必须安装**，若没有 Homebrew 则前往 https://existential.audio/blackhole/download/ 下载安装包。无论您是通过 Homebrew 还是手动安装，安装后请务必重启
 
@@ -56,9 +56,9 @@ brew install switchaudio-osx --formulae
 若提示不受信任的开发者，您可以前往 **"系统设置"/"系统偏好设置" -> "隐私与安全"** 中允许应用运行
 
 若提示“应用已损坏”，执行以下指令解决：
-~~~bash
+```bash
 sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
-~~~
+```
 
 ### Linux
 
@@ -118,7 +118,7 @@ MicYou
    - 确保 Android 手机和 PC 连接的是**同一个**路由器的 Wi-Fi
    - 确保路由器后台中已关闭 **AP 隔离 / 网络设备隔离** 或类似字样的功能（如何进入路由器后台请自行查阅路由器说明）
 
-> [Tip]
+> [!TIP]
 > 高级用户可自行尝试使用 Nmap 或 ping 等工具检查连接性
 >
 > ~虽然说高级用户一般也看不到这里~
