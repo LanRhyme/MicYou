@@ -28,6 +28,9 @@ dependencyResolutionManagement {
         maven {
             url = uri("https://maven.maxhenkel.de/repository/public")
         }
+        maven {
+            url = uri("https://jitpack.io")
+        }
     }
 }
 

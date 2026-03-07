@@ -3,7 +3,6 @@ package com.lanrhyme.micyou.audio
 import com.lanrhyme.micyou.Logger
 import com.lanrhyme.micyou.NoiseReductionType
 import de.maxhenkel.rnnoise4j.Denoiser
-import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 
@@ -14,15 +13,15 @@ class NoiseReducer(
     var enableNS: Boolean = false
     var nsType: NoiseReductionType = NoiseReductionType.Ulunas
 
-    // RNNoise 实例
+    // RNNoise
     private var denoiserLeft: Denoiser? = null
     private var denoiserRight: Denoiser? = null
     private var rnnoiseFrameLeft: ShortArray = ShortArray(0)
     private var rnnoiseFrameRight: ShortArray = ShortArray(0)
 
-    // Ulunas 实例
-    private var ulunasProcessorLeft: AudioProcessor? = null
-    private var ulunasProcessorRight: AudioProcessor? = null
+    // Ulunas
+    private var ulunasProcessorLeft: UlunasProcessor? = null
+    private var ulunasProcessorRight: UlunasProcessor? = null
     private var ulunasFrameLeft: FloatArray = FloatArray(0)
     private var ulunasFrameRight: FloatArray = FloatArray(0)
     private var ulunasModelPath: String? = null
@@ -101,11 +100,11 @@ class NoiseReducer(
             val hopLength = frameSize 
             
             if (ulunasProcessorLeft == null) {
-                Logger.i("NoiseReducer", "Initializing Ulunas processor with model: $modelPath")
-                ulunasProcessorLeft = AudioProcessor(0f, 0f, modelPath, 960, hopLength.toLong())
+                Logger.i("NoiseReducer", "Initializing Ulunas processor (Kotlin) with model: $modelPath")
+                ulunasProcessorLeft = UlunasProcessor(modelPath, 960, hopLength)
             }
             if (channelCount >= 2 && ulunasProcessorRight == null) {
-                ulunasProcessorRight = AudioProcessor(0f, 0f, modelPath, 960, hopLength.toLong())
+                ulunasProcessorRight = UlunasProcessor(modelPath, 960, hopLength)
             }
 
             val framesPerChannel = input.size / channelCount
@@ -173,8 +172,8 @@ class NoiseReducer(
 
         Logger.i("NoiseReducer", "Loading Ulunas model from resources...")
         val classLoader = this.javaClass.classLoader
-        val resourceStream = classLoader.getResourceAsStream("models/ulunas.onnx")
-            ?: throw IOException("Unable to find Ulunas model file: models/ulunas.onnx")
+        val resourceStream = classLoader.getResourceAsStream("ulunas.onnx")
+            ?: throw IOException("Unable to find Ulunas model file: ulunas.onnx")
 
         resourceStream.use { input ->
             modelFile.outputStream().use { output ->
@@ -189,7 +188,6 @@ class NoiseReducer(
     }
 
     override fun reset() {
-        // No explicit reset logic for native instances, keeping them alive
     }
 
     override fun release() {
@@ -203,7 +201,6 @@ class NoiseReducer(
             ulunasProcessorRight?.destroy()
             ulunasProcessorRight = null
         } catch (e: Exception) {
-            // Ignore close errors
         }
     }
 }
