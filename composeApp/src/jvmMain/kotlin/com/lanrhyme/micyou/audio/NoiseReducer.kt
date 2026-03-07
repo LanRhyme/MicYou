@@ -150,9 +150,7 @@ class NoiseReducer(
     }
     
     private fun getUlnasModelPath(): String {
-        ulunasModelPath?.let { 
-            Logger.d("NoiseReducer", "Using cached Ulunas model path: $it")
-            return it }
+        ulunasModelPath?.let { return it }
         
         System.getProperty("micyou.ulunas.model.path")?.let {
             Logger.i("NoiseReducer", "Using system property Ulunas model path: $it")

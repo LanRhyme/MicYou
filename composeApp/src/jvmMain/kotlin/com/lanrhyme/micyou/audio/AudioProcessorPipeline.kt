@@ -68,19 +68,19 @@ class AudioProcessorPipeline {
         var processed = shorts
 
         // 2. 按顺序应用效果
-        
+
+        // 放大器 (前置增益)
+        processed = amplifierEffect.process(processed, channelCount)
+
         // 降噪
         processed = noiseReducer.process(processed, channelCount)
-        
+
         // 去混响
         processed = dereverbEffect.process(processed, channelCount)
-        
+
         // 自动增益控制 (AGC)
         processed = agcEffect.process(processed, channelCount)
-        
-        // 放大器
-        processed = amplifierEffect.process(processed, channelCount)
-        
+
         // 语音活动检测 (VAD) (使用降噪模块的语音概率)
         vadEffect.speechProbability = noiseReducer.speechProbability
         processed = vadEffect.process(processed, channelCount)
