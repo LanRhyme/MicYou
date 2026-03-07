@@ -63,80 +63,11 @@ MicYou 是一款強大的工具，可以將您的 Android 裝置變成 PC 的高
 ### 桌面端
 <img src="img/desktop_screenshot_zh-tw.png" width="600" />
 
-## 使用指南
+## 使用說明
+快速開始與各平台安裝說明已移至常見問題：
 
-### 1. 下載 ADB
-- 從 [Android Developers](https://developer.android.com/tools/releases/platform-tools?hl=zh_cn) 下載
-- 使用套件管理工具下載
-  - `winget install -e --id Google.PlatformTools`
-  - `sudo apt install android-tools-adb`
-  - `sudo pacman -S android-tools`
-  - ...
-  
-大部分情況下會自動將 ADB 加入環境變數。如果沒有，請自行設定
-
-### 2. 啟用 USB 偵錯
-以 OneUI 8 為例
-
-1. 進入設定，點擊`關於手機`
-2. 點擊`軟體資訊`，找到`編譯編號`，點擊 **7** 下，當見到 `不需要，開發者模式已啟用`，即開啟成功
-3. 返回設定，點擊`開發者選項`，找到`USB 偵錯`，開啟即可
-
-### 3. 使用 USB 連線
-請使用一條**穩定**的傳輸線，並**同時**在桌面端與 Android 應用將連線模式切換為 `USB`。
-
-### 4. 使用 Wi-Fi 連線
-請確保您的 Android 裝置與 PC 位於**同一網路環境**，並**同時**在桌面端與 Android 應用將連線模式切換為 `Wi-Fi`。
-
-### Android
-1. 下載並安裝 APK 到您的 Android 裝置
-2. 確保您的裝置與 PC 位於同一網路（Wi-Fi 模式），或透過 USB 連線
-
-### Windows
-1. 執行桌面端應用程式
-2. 設定連線模式以匹配 Android 應用
-
-### Linux
-
-#### 使用預編譯套件（推薦）
-預編譯套件可在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下載
-
-**DEB 套件（適用於 Debian/Ubuntu/Mint 等發行版）：**
-```bash
-# 從 GitHub Releases 下載 .deb 套件
-sudo dpkg -i MicYou-*.deb
-# 如果缺少依賴：
-sudo apt install -f
-```
-
-**RPM 套件（適用於 Fedora/RHEL/openSUSE 等發行版）：**
-```bash
-# 從 GitHub Releases 下載 .rpm 套件
-sudo rpm -i MicYou-*.rpm
-# 或者使用 dnf/yum：
-sudo dnf install MicYou-*.rpm
-```
-
-**AUR 倉庫（適用於 Arch Linux 及其衍生發行版）：**
-```bash
-# 克隆 AUR 倉庫並自動安裝軟體包及其依賴
-git clone https://aur.archlinux.org/micyou-bin.git
-cd micyou-bin
-makepkg -si
-
-# 或者使用 paru 等 AUR helpers
-paru -S micyou-bin
-```
-
-**執行應用：**
-```bash
-# 安裝後可以從應用程式選單執行 MicYou
-# 或者從終端執行：
-MicYou
-```
-
-> [!TIP]
-> 遇到問題？請查看：[常見問題](./docs/FAQ_TW.md)
+- [快速開始](./docs/FAQ_TW.md#快速開始)
+- [常見問題 (FAQ)](./docs/FAQ_TW.md)
 
 ## 貢獻指南
 
