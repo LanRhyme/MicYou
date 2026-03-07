@@ -14,14 +14,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
-    private val quickStartEvent = MutableStateFlow(0L)
-
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -33,9 +31,7 @@ class MainActivity : ComponentActivity() {
         
         BackgroundImagePicker.registerLauncher(this)
 
-        if (intent?.action == ACTION_QUICK_START) {
-            quickStartEvent.value = System.currentTimeMillis()
-        }
+        val shouldQuickStart = intent?.action == ACTION_QUICK_START
 
         val permissionsToRequest = mutableListOf<String>()
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -64,11 +60,11 @@ class MainActivity : ComponentActivity() {
                 derivedStateOf { state.value.keepScreenOn }
             }
 
-            val quickStartTrigger by quickStartEvent.collectAsState()
-            LaunchedEffect(quickStartTrigger) {
-                if (quickStartTrigger > 0L && appViewModel.uiState.value.streamState == StreamState.Idle) {
+            val activity = LocalContext.current as? ComponentActivity
+            LaunchedEffect(shouldQuickStart) {
+                if (shouldQuickStart && appViewModel.uiState.value.streamState == StreamState.Idle) {
                     appViewModel.startStream()
-                    finish()
+                    activity?.moveTaskToBack(true)
                 }
             }
 
@@ -85,13 +81,6 @@ class MainActivity : ComponentActivity() {
             }
 
             App(viewModel = appViewModel)
-        }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        if (intent.action == ACTION_QUICK_START) {
-            quickStartEvent.value = System.currentTimeMillis()
         }
     }
 
