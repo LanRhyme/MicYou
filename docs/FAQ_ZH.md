@@ -8,7 +8,7 @@
 
 ### 1. 下载 ADB
 
-从 [Android Developers](https://developer.android.com/tools/releases/platform-tools?hl=zh_cn) 下载，或使用包管理器：
+从 [Android Developers](https://developer.android.com/tools/releases/platform-tools?hl=zh_cn) 下载，或使用系统包管理器：
 
 - `winget install -e --id Google.PlatformTools`（Windows）
 - `sudo apt install android-tools-adb`（Ubuntu/Debian）
@@ -25,11 +25,11 @@
 
 ### 3. 使用 USB 连接
 
-请使用稳定的数据线，并在桌面端和 Android 客户端同时将连接模式切换为 `USB`。
+请使用稳定的数据线，并确保桌面端和 Android 客户端均将连接模式切换为 `USB`。
 
 ### 4. 使用 Wi-Fi 连接
 
-请确保 Android 设备与 PC 处于同一网络环境，并在桌面端和 Android 客户端同时将连接模式切换为 `Wi-Fi`。
+请确保 Android 设备与 PC 处于同一网络环境，并确保桌面端和 Android 客户端均将连接模式切换为 `Wi-Fi`。
 
 ### Android
 
@@ -53,7 +53,7 @@ brew install blackhole-2ch --cask
 brew install switchaudio-osx --formulae
 ```
 
-**BlackHole 必须安装**。若未安装 Homebrew，请前往 https://existential.audio/blackhole/download/ 下载并安装。无论是通过 Homebrew 还是手动安装，完成后请务必重启。
+**BlackHole 必须安装**。若未安装 Homebrew，请前往 https://existential.audio/blackhole/download/ 下载并安装。无论通过何种方式安装，完成后请务必重启电脑。
 
 在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载应用并安装到“应用程序”目录后，首次启动可能会被 Gatekeeper 拦截。
 
@@ -111,9 +111,9 @@ MicYou
 
 1. **确认防火墙设置**
 
-   Windows 系统可能会拦截入站连接。请按照以下方法手动放行端口：
+   Windows 系统可能会拦截入站连接。请按以下方法手动放行端口：
 
-   1. 按下 `Win+R`，输入 `cmd`，同时按住 `Ctrl+Shift`，点击「确定」以管理员身份运行命令提示符
+   1. 按下 `Win+R`，输入 `cmd`，同时按住 `Ctrl+Shift`，点击「确定」以管理员身份运行命令提示符。
    2. 输入以下命令：
 
       ```cmd
@@ -127,16 +127,16 @@ MicYou
 2. **检查设备是否在同一子网**
 
    - 确保 Android 手机和 PC 连接的是**同一个**路由器的 Wi-Fi
-   - 确保路由器已关闭 **AP 隔离** 或 **网络设备隔离** 功能（详情请参考路由器说明书）
+   - 确保路由器已关闭 **AP 隔离** 或 **网络设备隔离** 功能（详情请参阅路由器说明书）
 
 > [!TIP]
-> 高级用户可自行尝试使用 Nmap 或 ping 等工具检查连接性
+> 高级用户可尝试使用 Nmap 或 ping 等工具检查连接性
 
 #### USB (ADB) 模式
 
 1. **开启开发者选项**
 
-   > 此处列出的步骤不一定适用于所有设备，**建议使用搜索引擎**查找适配您设备的 ADB 教程。
+   > 此处列出的步骤可能不适用于所有设备，**建议使用搜索引擎**查找适用于您设备的 ADB 教程。
 
    - 在手机设置中找到“关于本机”，连续点击 7 次“系统版本号”开启开发者选项
    - 进入开发者选项，开启 **USB 调试**

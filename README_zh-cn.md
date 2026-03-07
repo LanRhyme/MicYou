@@ -38,9 +38,9 @@
   <img alt="macOS" src="https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=apple&logoColor=F0F0F0" />
 </p>
 
-MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高质量无线麦克风，采用 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建
+MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高质量无线麦克风，采用 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建。
 
-本项目基于 [AndroidMic](https://github.com/teamclouday/AndroidMic) 开发
+本项目基于 [AndroidMic](https://github.com/teamclouday/AndroidMic) 开发。
 
 ## 主要功能
 
@@ -63,14 +63,14 @@ MicYou 是一款强大的工具，可以将您的 Android 设备变成 PC 的高
 <img src="img/desktop_screenshot_zh-cn.png" width="600" />
 
 ## 使用指南
-快速开始和各平台安装说明已迁移至常见问题：
+快速开始指南及各平台安装说明已移至常见问题文档：
 
 - [快速开始](./docs/FAQ_ZH.md#快速开始)
 - [常见问题](./docs/FAQ_ZH.md#常见问题)
 
 ## 贡献指南
 
-我们欢迎各种形式的贡献！无论是报告 Bug、建议功能、协助翻译还是贡献代码，请查看我们的 [贡献指南](./CONTRIBUTING_zh-cn.md) 开始参与。
+我们欢迎各种形式的贡献！无论是报告 Bug、提出功能建议、协助翻译还是贡献代码，都请参阅我们的 [贡献指南](./CONTRIBUTING_zh-cn.md) 以开始参与。
 
 ## Contributors
 <a href="https://github.com/LanRhyme/MicYou/graphs/contributors">
