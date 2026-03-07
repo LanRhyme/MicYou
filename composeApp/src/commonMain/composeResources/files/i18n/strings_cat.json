@@ -68,6 +68,8 @@
   "introText": "MicYou 是一个开源麦克风工具喵~可以把你的安卓设备变成电脑的高质量麦克风喵！基于 AndroidMic，支持 Wi-Fi (TCP)、蓝牙和 USB 连接，提供低延迟音频传输喵~ (≧∇≦)/",
   "systemConfigTitle": "系统配置喵~ ⚙️",
   "enableStreamingNotificationLabel": "传输通知喵~ (Android)",
+  "keepScreenOnLabel": "Keep Screen On",
+  "keepScreenOnDesc": "Prevent the screen from turning off while using the app",
   "clickToStart": "点击开始喵~ (๑•̀ㅂ•́)و✧",
   "autoStartDesc": "应用启动时自动开始传输喵~",
   "noGeneralSettings": "没有可用的通用设置喵~ (´・ω・`)",
