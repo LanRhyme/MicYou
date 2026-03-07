@@ -68,6 +68,8 @@
   "introText": "MicYou is an open source microphone tool that turns your Android device into a high-quality microphone for your computer. Based on AndroidMic, it supports Wi-Fi (TCP), Bluetooth, and USB connections, providing low-latency audio transmission.",
   "systemConfigTitle": "System Configuration",
   "enableStreamingNotificationLabel": "Streaming Notification (Android)",
+  "keepScreenOnLabel": "Keep Screen On",
+  "keepScreenOnDesc": "Prevent the screen from turning off while using the app",
   "clickToStart": "Click to Start",
   "autoStartDesc": "Start streaming automatically on app launch",
   "noGeneralSettings": "No general settings available",
