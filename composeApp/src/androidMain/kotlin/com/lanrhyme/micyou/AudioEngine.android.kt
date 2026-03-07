@@ -63,9 +63,16 @@ actual class AudioEngine actual constructor() {
         fun requestDisconnectFromNotification() {
             activeEngine?.stop()
         }
+
+        fun isStreaming(): Boolean {
+            val state = activeEngine?.currentStreamState()
+            return state == StreamState.Streaming || state == StreamState.Connecting
+        }
     }
     private val _state = MutableStateFlow(StreamState.Idle)
     actual val streamState: Flow<StreamState> = _state
+
+    fun currentStreamState(): StreamState = _state.value
     private val _audioLevels = MutableStateFlow(0f)
     actual val audioLevels: Flow<Float> = _audioLevels
     private val _lastError = MutableStateFlow<String?>(null)

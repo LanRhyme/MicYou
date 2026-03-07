@@ -35,6 +35,17 @@
             android:name=".AudioService"
             android:foregroundServiceType="microphone"
             android:exported="false" />
+
+        <service
+            android:name=".MicYouTileService"
+            android:label="@string/qs_tile_label"
+            android:icon="@drawable/ic_qs_mic"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

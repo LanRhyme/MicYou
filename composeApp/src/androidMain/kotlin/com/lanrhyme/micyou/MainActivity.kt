@@ -1,6 +1,7 @@
 package com.lanrhyme.micyou
 
 import android.Manifest
+import android.content.Intent
 import android.os.Bundle
 import android.content.pm.PackageManager
 import android.view.WindowManager
@@ -9,14 +10,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
+    private val quickStartEvent = MutableStateFlow(0L)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -27,6 +32,10 @@ class MainActivity : ComponentActivity() {
         Logger.i("MainActivity", "App started")
         
         BackgroundImagePicker.registerLauncher(this)
+
+        if (intent?.action == ACTION_QUICK_START) {
+            quickStartEvent.value = System.currentTimeMillis()
+        }
 
         val permissionsToRequest = mutableListOf<String>()
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -55,6 +64,13 @@ class MainActivity : ComponentActivity() {
                 derivedStateOf { state.value.keepScreenOn }
             }
 
+            val quickStartTrigger by quickStartEvent.collectAsState()
+            LaunchedEffect(quickStartTrigger) {
+                if (quickStartTrigger > 0L) {
+                    appViewModel.startStream()
+                }
+            }
+
             DisposableEffect(keepScreenOn) {
                 if (keepScreenOn) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -69,6 +85,17 @@ class MainActivity : ComponentActivity() {
 
             App(viewModel = appViewModel)
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action == ACTION_QUICK_START) {
+            quickStartEvent.value = System.currentTimeMillis()
+        }
+    }
+
+    companion object {
+        const val ACTION_QUICK_START = "com.lanrhyme.micyou.ACTION_QUICK_START"
     }
 }
 

@@ -2,4 +2,6 @@
     <string name="app_name">MicYou</string>
     <string name="streaming_notification_title">MicYou 正在传输</string>
     <string name="streaming_notification_text">点击断开连接</string>
+    <string name="qs_tile_label">MicYou</string>
+    <string name="qs_tile_label_streaming">MicYou 传输中</string>
 </resources>
