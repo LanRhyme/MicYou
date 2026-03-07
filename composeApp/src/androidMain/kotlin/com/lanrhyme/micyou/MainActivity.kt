@@ -66,8 +66,9 @@ class MainActivity : ComponentActivity() {
 
             val quickStartTrigger by quickStartEvent.collectAsState()
             LaunchedEffect(quickStartTrigger) {
-                if (quickStartTrigger > 0L) {
+                if (quickStartTrigger > 0L && appViewModel.uiState.value.streamState == StreamState.Idle) {
                     appViewModel.startStream()
+                    finish()
                 }
             }
 
