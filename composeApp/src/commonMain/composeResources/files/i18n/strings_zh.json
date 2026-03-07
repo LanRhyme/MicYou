@@ -68,6 +68,8 @@
   "introText": "MicYou 是一款开源的麦克风工具，可以将您的 Android 设备变成电脑的高质量麦克风，本软件基于 AndroidMic 进行开发，支持 Wi-Fi (TCP)、蓝牙 和 USB 连接，提供低延迟的音频传输体验。",
   "systemConfigTitle": "系统配置中",
   "enableStreamingNotificationLabel": "串流通知 (Android)",
+  "keepScreenOnLabel": "保持屏幕常亮",
+  "keepScreenOnDesc": "使用应用时防止屏幕自动熄灭",
   "clickToStart": "点击开始",
   "autoStartDesc": "应用启动时自动开始串流",
   "noGeneralSettings": "暂无通用设置",

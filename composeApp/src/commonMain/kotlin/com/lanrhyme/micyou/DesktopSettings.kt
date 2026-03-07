@@ -341,6 +341,26 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
                         }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                        ) {
+                            ListItem(
+                                headlineContent = { Text(strings.keepScreenOnLabel) },
+                                supportingContent = { Text(strings.keepScreenOnDesc) },
+                                trailingContent = {
+                                    Switch(
+                                        checked = state.keepScreenOn,
+                                        onCheckedChange = { viewModel.setKeepScreenOn(it) }
+                                    )
+                                },
+                                modifier = Modifier.clickable { viewModel.setKeepScreenOn(!state.keepScreenOn) },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+                        }
                     }
 
                     if (platform.type == PlatformType.Desktop) {

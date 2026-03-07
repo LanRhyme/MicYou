@@ -68,6 +68,8 @@
   "introText": "MicYou 係一個開源嘅咪高峰工具，可以將你嘅 Android 裝置變做電腦嘅高質素咪高峰，呢個軟件係基於 AndroidMic 嚟開發，支援 Wi-Fi (TCP)、藍牙同 USB 連線，畀到低延遲嘅音訊傳輸體驗。",
   "systemConfigTitle": "系統配置緊",
   "enableStreamingNotificationLabel": "串流通知 (Android)",
+  "keepScreenOnLabel": "保持螢幕常亮",
+  "keepScreenOnDesc": "用緊應用程式時防止螢幕自動熄滅",
   "clickToStart": "㩒呢度開始",
   "autoStartDesc": "開咗應用程式之後自動開始串流",
   "noGeneralSettings": "暫冇一般設定",

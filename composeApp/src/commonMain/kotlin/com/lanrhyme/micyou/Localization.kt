@@ -86,6 +86,8 @@ data class AppStrings(
     val introText: String = "MicYou is an open source microphone tool that turns your Android device into a high-quality microphone for your computer. Based on AndroidMic, it supports Wi-Fi (TCP), Bluetooth, and USB connections, providing low-latency audio transmission.",
     val systemConfigTitle: String = "System Configuration",
     val enableStreamingNotificationLabel: String = "Streaming Notification (Android)",
+    val keepScreenOnLabel: String = "Keep Screen On",
+    val keepScreenOnDesc: String = "Prevent the screen from turning off while using the app",
     val clickToStart: String = "Click to Start",
     val autoStartDesc: String = "Start streaming automatically on app launch",
     val noGeneralSettings: String = "No general settings available",

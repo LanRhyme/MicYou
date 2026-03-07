@@ -66,6 +66,7 @@ data class AppUiState(
     val audioConfigRevision: Int = 0,
 
     val enableStreamingNotification: Boolean = true,
+    val keepScreenOn: Boolean = false,
     
     val autoStart: Boolean = false,
     
@@ -149,6 +150,7 @@ class MainViewModel : ViewModel() {
         val savedAmplification = settings.getFloat("amplification", 10.0f)
 
         val savedEnableStreamingNotification = settings.getBoolean("enable_streaming_notification", true)
+        val savedKeepScreenOn = settings.getBoolean("keep_screen_on", false)
         
         val savedAutoStart = settings.getBoolean("auto_start", false)
 
@@ -203,6 +205,7 @@ class MainViewModel : ViewModel() {
                 amplification = savedAmplification,
                 autoStart = savedAutoStart,
                 enableStreamingNotification = savedEnableStreamingNotification,
+                keepScreenOn = savedKeepScreenOn,
                 language = savedLanguage,
                 useDynamicColor = savedUseDynamicColor,
                 bluetoothAddress = savedBluetoothAddress,
@@ -622,6 +625,11 @@ class MainViewModel : ViewModel() {
         _uiState.update { it.copy(enableStreamingNotification = enabled) }
         settings.putBoolean("enable_streaming_notification", enabled)
         audioEngine.setStreamingNotificationEnabled(enabled)
+    }
+
+    fun setKeepScreenOn(enabled: Boolean) {
+        _uiState.update { it.copy(keepScreenOn = enabled) }
+        settings.putBoolean("keep_screen_on", enabled)
     }
 
     fun setUseDynamicColor(enable: Boolean) {
