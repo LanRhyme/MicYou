@@ -6,4 +6,5 @@
     <string name="qs_toast_connecting">正在连接...</string>
     <string name="qs_toast_connected">已连接</string>
     <string name="qs_toast_failed">连接失败</string>
+    <string name="qs_toast_stopped">串流已结束</string>
 </resources>

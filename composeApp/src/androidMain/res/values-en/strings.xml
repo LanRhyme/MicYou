@@ -6,4 +6,5 @@
     <string name="qs_toast_connecting">Connecting...</string>
     <string name="qs_toast_connected">Connected</string>
     <string name="qs_toast_failed">Connection failed</string>
+    <string name="qs_toast_stopped">Streaming stopped</string>
 </resources>

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import android.widget.Toast
 
 class MicYouTileService : TileService() {
 
@@ -16,9 +17,11 @@ class MicYouTileService : TileService() {
     override fun onClick() {
         super.onClick()
         if (AudioEngine.isStreaming()) {
+            Toast.makeText(this, R.string.qs_toast_stopped, Toast.LENGTH_SHORT).show()
             AudioEngine.requestDisconnectFromNotification()
             updateTile()
         } else {
+            Toast.makeText(this, R.string.qs_toast_connecting, Toast.LENGTH_SHORT).show()
             val intent = Intent(this, MainActivity::class.java).apply {
                 action = MainActivity.ACTION_QUICK_START
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)

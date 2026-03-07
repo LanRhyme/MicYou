@@ -73,9 +73,6 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(shouldQuickStart, streamState) {
                 if (shouldQuickStart) {
                     when (streamState) {
-                        StreamState.Connecting -> {
-                            Toast.makeText(this@MainActivity, R.string.qs_toast_connecting, Toast.LENGTH_SHORT).show()
-                        }
                         StreamState.Streaming -> {
                             Toast.makeText(this@MainActivity, R.string.qs_toast_connected, Toast.LENGTH_SHORT).show()
                         }
