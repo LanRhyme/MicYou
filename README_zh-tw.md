@@ -71,9 +71,6 @@ MicYou 是一款強大的工具，可以將您的 Android 裝置變成 PC 的高
 
 ## 貢獻指南
 
-> [!NOTE]
-> 貢獻指南內容為英文，請參見 [CONTRIBUTING.md](./CONTRIBUTING.md)（英文）。
-
 我們歡迎各種形式的貢獻！無論是回報 Bug、建議功能、協助翻譯還是貢獻程式碼，請查看我們的 [貢獻指南](./CONTRIBUTING.md) 開始參與。
 
 ## Contributors
