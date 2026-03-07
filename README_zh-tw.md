@@ -67,11 +67,11 @@ MicYou 是一款強大的工具，可以將您的 Android 裝置變成 PC 的高
 快速開始與各平台安裝說明已移至常見問題：
 
 - [快速開始](./docs/FAQ_TW.md#快速開始)
-- [常見問題 (FAQ)](./docs/FAQ_TW.md)
+- [常見問題 (FAQ)](./docs/FAQ_TW.md#常見問題)
 
 ## 貢獻指南
 
-我們歡迎各種形式的貢獻！無論是回報 Bug、建議功能、協助翻譯還是貢獻程式碼，請查看我們的 [貢獻指南](./CONTRIBUTING.md) 開始參與。
+我們歡迎各種形式的貢獻！無論是回報 Bug、建議功能、協助翻譯還是貢獻程式碼，請查看我們的 [貢獻指南](./CONTRIBUTING_zh-tw.md) 開始參與。
 
 ## Contributors
 <a href="https://github.com/LanRhyme/MicYou/graphs/contributors">

@@ -1,4 +1,4 @@
-# 常見問題
+# MicYou 文檔
 
 <p align="center">
   <a href="./FAQ_ZH.md">简体中文</a> | <b>繁體中文</b> | <a href="./FAQ.md">English</a>
@@ -99,6 +99,7 @@ paru -S micyou-bin
 # 或者從終端執行：
 MicYou
 ```
+# 常見問題
 
 ## 無法連線裝置
 

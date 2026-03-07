@@ -1,4 +1,4 @@
-# FAQ
+# MicYou Docs
 
 <p align="center">
    <a href="./FAQ_ZH.md">简体中文</a> | <a href="./FAQ_TW.md">繁體中文</a> | <b>English</b>
@@ -98,6 +98,8 @@ paru -S micyou-bin
 # Or from terminal:
 MicYou
 ```
+
+# FAQ
 
 ## Cannot connect to device
 

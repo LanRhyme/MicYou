@@ -1,4 +1,4 @@
-# 常见问题
+# MicYou 文档
 
 <p align="center">
    <b>简体中文</b> | <a href="./FAQ_TW.md">繁體中文</a> | <a href="./FAQ.md">English</a>
@@ -98,6 +98,8 @@ paru -S micyou-bin
 # 或者从终端运行：
 MicYou
 ```
+
+# 常见问题
 
 ## 无法连接设备
 
