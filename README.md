@@ -64,102 +64,10 @@ Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
 <img src="img/desktop_screenshot.png" width="600" />
 
 ## Getting Started
+Quick start and platform-specific setup instructions are now in the FAQ:
 
-### 1. Download ADB
-- Download from [Android Developers](https://developer.android.com/tools/releases/platform-tools?hl=zh_cn)
-- Install via package manager
-  - `winget install -e --id Google.PlatformTools`
-  - `sudo apt install android-tools-adb`
-  - `sudo pacman -S android-tools`
-  - ...
-
-In most cases ADB will be added to your environment variables automatically. If not, please add it manually.
-
-### 2. Enable USB Debugging
-Using OneUI 8 as an example
-
-1. Go to Settings, tap `About phone`
-2. Tap `Software information`, find `Build number`, tap it **7** times. When you see "No need, developer mode has been enabled", it means the developer mode has been successfully enabled.
-3. Go back to Settings, tap `Developer options`, find `USB debugging`, and enable it.
-
-### 3. USB connection
-Use a stable data cable, and set the connection mode to `USB` on both the desktop app and the Android app.
-
-### 4. Wi-Fi connection
-Ensure your Android device and PC are on the same network, and set the connection mode to `Wi-Fi` on both the desktop app and the Android app.
-
-### Android
-1. Download and install the APK on your Android device.
-2. Ensure your device is on the same network as your PC (for Wi-Fi) or connected via USB.
-
-### Windows
-1. Run the desktop application.
-2. Configure the connection mode to match the Android app.
-
-### macOS
-
-> [!IMPORTANT]
-> If you are using an Apple Silicon Mac, Bluetooth mode cannot be used without Rosetta 2 translation.
-
-To ensure your experience, you need to install some dependencies via Homebrew:
-
-~~~bash
-brew install blackhole-2ch --cask 
-brew install switchaudio-osx --formulae
-~~~
-
-**BlackHole must be installed**. If you don't have Homebrew, go to https://existential.audio/blackhole/download/ to download the installer. Regardless of whether you install via Homebrew or the installer, please restart after installation.
-
-After downloading the app from [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) and installing it in your Applications folder, Gatekeeper may block it during first use.
-
-If prompted with “Untrusted Developer,” navigate to **System Settings/System Preferences -> Privacy & Security** to allow the app to run.
-
-If prompted with “The application is damaged,” resolve it by executing the following command:
-~~~bash
-sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
-~~~
-
-### Linux
-
-#### Using pre-built packages (recommended)
-Pre-built packages are available in [GitHub Releases](https://github.com/LanRhyme/MicYou/releases).
-
-**DEB package (Debian/Ubuntu/Mint etc.):**
-```bash
-# Download the .deb package from GitHub Releases
-sudo dpkg -i MicYou-*.deb
-# If dependencies are missing:
-sudo apt install -f
-```
-
-**RPM package (Fedora/RHEL/openSUSE etc.):**
-```bash
-# Download the .rpm package from GitHub Releases
-sudo rpm -i MicYou-*.rpm
-# Or use dnf/yum:
-sudo dnf install MicYou-*.rpm
-```
-
-**AUR (Arch Linux and derivatives):**
-```bash
-# Clone the AUR repo and install the package
-git clone https://aur.archlinux.org/micyou-bin.git
-cd micyou-bin
-makepkg -si
-
-# Or use an AUR helper like paru/yay
-paru -S micyou-bin
-```
-
-**Run the application:**
-```bash
-# After installation, you can run MicYou from your application menu
-# Or from terminal:
-MicYou
-```
-
-> [!TIP]
-> Having issues? Check out the [FAQ](./docs/FAQ.md)
+- [Quick Start](./docs/FAQ.md#quick-start)
+- [Common issues](./docs/FAQ.md)
 
 ## Contributing
 
