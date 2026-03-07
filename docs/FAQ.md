@@ -46,16 +46,16 @@ Ensure your Android device and PC are on the **same network**, and set the conne
 > [!IMPORTANT]
 > If you are using an Apple Silicon Mac, Bluetooth mode cannot be used without Rosetta 2 translation.
 
-To ensure your experience, you need to install some dependencies via Homebrew:
+For the best experience, install the following dependencies via Homebrew:
 
 ```bash
 brew install blackhole-2ch --cask
 brew install switchaudio-osx --formulae
 ```
 
-> **BlackHole** is required (virtual audio driver). If you don't have Homebrew, go to https://existential.audio/blackhole/download/ to download the installer.
+> **BlackHole** is required (virtual audio driver). If you do not have Homebrew, go to https://existential.audio/blackhole/download/ to download the installer.
 
-Please restart after installation.
+Please restart your Mac after installation.
 
 After downloading the app from [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) and installing it in your Applications folder, Gatekeeper may block it during first use:
 
@@ -168,7 +168,7 @@ MicYou
 
 ### No audio output after connecting
 
-Please ensure that VB-Audio driver is correctly installed and the following devices are **not disabled**:
+Please ensure that the VB-Audio driver is correctly installed and that the following devices are **not disabled**:
 
 - **Output Device**: CABLE Input (VB-Audio Virtual Cable)
 - **Input Device**: CABLE Output (VB-Audio Virtual Cable)

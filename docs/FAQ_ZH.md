@@ -25,39 +25,41 @@
 
 ### 3. 使用 USB 连接
 
-确保您在使用一根**稳定**的数据线，并**同时**在桌面端和 Android 客户端将连接模式切换为 `USB`
+请使用稳定的数据线，并在桌面端和 Android 客户端同时将连接模式切换为 `USB`。
 
 ### 4. 使用 Wi-Fi 连接
 
-确保您的 Android 设备与 PC 处于**同一网络环境**下，并**同时**在桌面端和 Android 客户端将连接模式切换为 `Wi-Fi`。
+请确保 Android 设备与 PC 处于同一网络环境，并在桌面端和 Android 客户端同时将连接模式切换为 `Wi-Fi`。
 
 ### Android
+
 1. 下载并安装 APK 到您的 Android 设备
 2. 确保您的设备与 PC 处于同一网络（Wi-Fi 模式），或通过 USB 连接
 
 ### Windows
+
 1. 运行桌面端应用程序
 2. 配置连接模式以匹配 Android 应用
 
 ### macOS
 
 > [!IMPORTANT]
-> 如果您使用的是 Apple Silicon Mac，在不使用 Rosetta 2 转译的前提下无法使用蓝牙模式
+> 如果您使用的是 Apple Silicon Mac，未启用 Rosetta 2 时，蓝牙模式可能无法正常使用。
 
-为了保证您的使用体验，需要通过 Homebrew 安装一些依赖
+为了获得更好的使用体验，建议通过 Homebrew 安装以下依赖：
 
 ```bash
 brew install blackhole-2ch --cask
 brew install switchaudio-osx --formulae
 ```
 
-**BlackHole 必须安装**，若没有 Homebrew 则前往 https://existential.audio/blackhole/download/ 下载安装包。无论您是通过 Homebrew 还是手动安装，安装后请务必重启
+**BlackHole 必须安装**。若未安装 Homebrew，请前往 https://existential.audio/blackhole/download/ 下载并安装。无论是通过 Homebrew 还是手动安装，完成后请务必重启。
 
-在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载应用并安装到应用程序目录后，第一次使用可能会被 Gatekeeper 拦截
+在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载应用并安装到“应用程序”目录后，首次启动可能会被 Gatekeeper 拦截。
 
-若提示不受信任的开发者，您可以前往 **"系统设置"/"系统偏好设置" -> "隐私与安全"** 中允许应用运行
+若提示“不受信任的开发者”，请前往 **“系统设置”/“系统偏好设置” > “隐私与安全”** 允许应用运行。
 
-若提示“应用已损坏”，执行以下指令解决：
+若提示“应用已损坏”，请执行以下命令：
 ```bash
 sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
 ```
@@ -65,7 +67,7 @@ sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
 ### Linux
 
 #### 使用预编译包（推荐）
-预编译包可在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载
+预编译包可在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载。
 
 **DEB 包（适用于 Debian/Ubuntu/Mint 等发行版）：**
 ```bash
@@ -111,7 +113,7 @@ MicYou
 
    Windows 系统可能会拦截入站连接。请按照以下方法手动放行端口：
 
-   1. 按下 `Win+R`，输入 `cmd`，同时按住 `Ctrl+Shift`，点击"确定"以管理员身份运行命令提示符
+   1. 按下 `Win+R`，输入 `cmd`，同时按住 `Ctrl+Shift`，点击「确定」以管理员身份运行命令提示符
    2. 输入以下命令：
 
       ```cmd
@@ -120,7 +122,7 @@ MicYou
 
       > MicYou 默认使用端口 `6000` 建立连接，如需更改请修改上述命令中的端口号。
 
-      如果没有任何信息出现说明操作成功，可以重新尝试连接
+      若未出现任何提示，表示操作成功，可重新尝试连接。
 
 2. **检查设备是否在同一子网**
 
@@ -133,10 +135,14 @@ MicYou
 #### USB (ADB) 模式
 
 1. **开启开发者选项**
-> 此处列出的方案不一定适用于所有设备，**请善用搜索工具**获取为自己的设备开启 ADB 模式的教程
+
+   > 此处列出的步骤不一定适用于所有设备，**建议使用搜索引擎**查找适配您设备的 ADB 教程。
+
    - 在手机设置中找到“关于本机”，连续点击 7 次“系统版本号”开启开发者选项
    - 进入开发者选项，开启 **USB 调试**
+
 2. **确认 ADB 连接**
+
    > 电脑端需要安装 ADB 工具（参见第 1 步：下载 ADB）。
 
    运行以下命令确认有且仅有一个设备已连接：
@@ -155,7 +161,7 @@ MicYou
 
 ### 连接设备后无声音输出
 
-请确保 VB-Audio 驱动已正确安装，且以下设备**未被禁用**：
+请确保 VB-Audio 驱动已正确安装，且以下设备均**未被禁用**：
 
 - **输出设备**：CABLE Input (VB-Audio Virtual Cable)
 - **输入设备**：CABLE Output (VB-Audio Virtual Cable)
