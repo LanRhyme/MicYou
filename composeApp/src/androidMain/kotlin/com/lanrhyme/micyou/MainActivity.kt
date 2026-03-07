@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.content.pm.PackageManager
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -59,12 +60,33 @@ class MainActivity : ComponentActivity() {
             val keepScreenOn by appViewModel.uiState.collectAsState().let { state ->
                 derivedStateOf { state.value.keepScreenOn }
             }
+            val streamState by appViewModel.uiState.collectAsState().let { state ->
+                derivedStateOf { state.value.streamState }
+            }
 
             val activity = LocalContext.current as? ComponentActivity
             LaunchedEffect(shouldQuickStart) {
                 if (shouldQuickStart && appViewModel.uiState.value.streamState == StreamState.Idle) {
                     appViewModel.startStream()
                     activity?.moveTaskToBack(true)
+                }
+            }
+
+            LaunchedEffect(shouldQuickStart, streamState) {
+                if (shouldQuickStart) {
+                    val context = activity ?: return@LaunchedEffect
+                    when (streamState) {
+                        StreamState.Connecting -> {
+                            Toast.makeText(context, R.string.qs_toast_connecting, Toast.LENGTH_SHORT).show()
+                        }
+                        StreamState.Streaming -> {
+                            Toast.makeText(context, R.string.qs_toast_connected, Toast.LENGTH_SHORT).show()
+                        }
+                        StreamState.Error -> {
+                            Toast.makeText(context, R.string.qs_toast_failed, Toast.LENGTH_SHORT).show()
+                        }
+                        else -> {}
+                    }
                 }
             }
 

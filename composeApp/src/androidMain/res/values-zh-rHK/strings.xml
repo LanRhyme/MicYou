@@ -3,4 +3,7 @@
     <string name="streaming_notification_title">MicYou 傳輸緊</string>
     <string name="streaming_notification_text">撳掣斷開連線</string>
     <string name="qs_tile_label">MicYou</string>
+    <string name="qs_toast_connecting">連緊...</string>
+    <string name="qs_toast_connected">連咗</string>
+    <string name="qs_toast_failed">連唔到</string>
 </resources>
