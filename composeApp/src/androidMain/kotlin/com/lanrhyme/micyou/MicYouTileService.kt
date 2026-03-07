@@ -37,14 +37,9 @@ class MicYouTileService : TileService() {
     }
 
     private fun updateTile() {
-        val tile = qsTile ?: return
-        if (AudioEngine.isStreaming()) {
-            tile.state = Tile.STATE_ACTIVE
-            tile.label = getString(R.string.qs_tile_label_streaming)
-        } else {
-            tile.state = Tile.STATE_INACTIVE
-            tile.label = getString(R.string.qs_tile_label)
+        qsTile?.apply {
+            state = if (AudioEngine.isStreaming()) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+            updateTile()
         }
-        tile.updateTile()
     }
 }
