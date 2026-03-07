@@ -39,17 +39,17 @@
   <img alt="macOS" src="https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=apple&logoColor=F0F0F0" />
 </p>
 
-MicYou 是一款強大的工具，可以將您的 Android 裝置變成 PC 的高品質無線麥克風，採用 Kotlin Multiplatform 與 Jetpack Compose/Material 3 構建。
+MicYou 是一款強大的工具，能夠將您的 Android 裝置轉變為 PC 的高品質無線麥克風。它採用 Kotlin Multiplatform 與 Jetpack Compose/Material 3 構建。
 
-本專案基於 [AndroidMic](https://github.com/teamclouday/AndroidMic) 開發。
+本專案基於 [AndroidMic](https://github.com/teamclouday/AndroidMic) 開發而成。
 
 ## 主要功能
 
 - **多種連線模式**：支援 Wi-Fi、USB (ADB/AOA) 與藍牙連線
 - **音訊處理**：內建噪聲抑制、自動增益控制 (AGC) 與去混響功能
 - **跨平台支援**：
-  - **Android 客戶端**：現代 Material 3 介面，支援深色/淺色主題
-  - **桌面端服務端**：支援 Windows/Linux/macOS 接收音訊
+  - **Android 客戶端**：採用現代 Material 3 設計，支援深色與淺色主題
+  - **桌面端服務端**：可在 Windows、Linux 與 macOS 上接收音訊
 - **虛擬麥克風**：搭配 VB-Cable 可作為系統麥克風輸入使用
 - **高度可自訂**：支援調整取樣率、聲道數與音訊格式
 

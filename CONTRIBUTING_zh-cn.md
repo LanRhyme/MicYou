@@ -1,10 +1,10 @@
 # 为 MicYou 做出贡献
 
-首先，感谢您对 MicYou 做出贡献的兴趣！我们欢迎所有类型的贡献，无论是错误报告、功能请求、代码贡献还是翻译。
+首先，感谢您有兴趣为 MicYou 做出贡献！我们欢迎所有类型的贡献，包括错误报告、功能请求、代码贡献以及翻译。
 
 ## 从源代码构建
 
-该项目使用 Kotlin Multiplatform 构建。
+本项目使用 Kotlin Multiplatform 构建。
 
 **Android 应用（APK）：**
 ```bash
@@ -40,7 +40,7 @@
 
 ## 国际化（i18n）
 
-MicYou 支持多国语言，并拥有强大的翻译系统。我们欢迎贡献者将 MicYou 翻译成您的母语！
+MicYou 支持多国语言，并具备强大的翻译系统。我们欢迎贡献者将 MicYou 翻译成您的母语！
 
 ### 通过 Crowdin 翻译（推荐）
 
@@ -103,7 +103,7 @@ fun getStrings(language: AppLanguage): AppStrings {
 
 ### 测试翻译
 
-若要在本地测试您的翻译，请按以下步骤操作：
+若要在本地测试您的翻译，请按照以下步骤操作：
 
 1. 构建并运行桌面应用：
 ```bash
@@ -124,7 +124,7 @@ fun getStrings(language: AppLanguage): AppStrings {
 - **源语言**：英文（`strings_en.json`）
 - **位置**：`composeApp/src/commonMain/composeResources/files/i18n/`
 - **文件格式**：JSON
-- **目前支持**：5+ 种语言，包括中文（简体、繁体、粤语）
+- **目前已支持**：5+ 种语言，包括中文（简体、繁体、粤语）
 
 ### 特殊语言变体
 
@@ -138,5 +138,5 @@ fun getStrings(language: AppLanguage): AppStrings {
 ### 贡献翻译
 
 1. **通过 Crowdin**（推荐）：加入我们的 Crowdin 项目进行协作翻译。
-2. **通过 GitHub**：提交包含您的新的/更新的翻译文件的拉取请求
+2. **通过 GitHub**：提交包含您的新的或更新的翻译文件的拉取请求。
 3. 请在 PR 标题中包含英文及母语的语言名称，例如：Add xx(code) localization。
