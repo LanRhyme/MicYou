@@ -15,7 +15,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -64,26 +63,24 @@ class MainActivity : ComponentActivity() {
                 derivedStateOf { state.value.streamState }
             }
 
-            val activity = LocalContext.current as? ComponentActivity
             LaunchedEffect(shouldQuickStart) {
                 if (shouldQuickStart && appViewModel.uiState.value.streamState == StreamState.Idle) {
                     appViewModel.startStream()
-                    activity?.moveTaskToBack(true)
+                    moveTaskToBack(true)
                 }
             }
 
             LaunchedEffect(shouldQuickStart, streamState) {
                 if (shouldQuickStart) {
-                    val context = activity ?: return@LaunchedEffect
                     when (streamState) {
                         StreamState.Connecting -> {
-                            Toast.makeText(context, R.string.qs_toast_connecting, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, R.string.qs_toast_connecting, Toast.LENGTH_SHORT).show()
                         }
                         StreamState.Streaming -> {
-                            Toast.makeText(context, R.string.qs_toast_connected, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, R.string.qs_toast_connected, Toast.LENGTH_SHORT).show()
                         }
                         StreamState.Error -> {
-                            Toast.makeText(context, R.string.qs_toast_failed, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, R.string.qs_toast_failed, Toast.LENGTH_SHORT).show()
                         }
                         else -> {}
                     }
