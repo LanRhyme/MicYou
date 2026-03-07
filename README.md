@@ -67,7 +67,7 @@ Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
 Quick start and platform-specific setup instructions are now in the FAQ:
 
 - [Quick Start](./docs/FAQ.md#quick-start)
-- [Common issues](./docs/FAQ.md)
+- [Common issues](./docs/FAQ.md#faq)
 
 ## Contributing
 
