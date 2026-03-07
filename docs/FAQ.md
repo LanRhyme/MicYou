@@ -99,11 +99,11 @@ paru -S micyou-bin
 MicYou
 ```
 
-# FAQ
+## FAQ
 
-## Cannot connect to device
+### Cannot connect to device
 
-### Wi-Fi Mode
+#### Wi-Fi Mode
 
 1. **Check Firewall Settings**
    Windows may block inbound connections. You can try to manually allow the port using the following method:
@@ -127,7 +127,7 @@ MicYou
 >
 > ~Though advanced users probably won't be reading this anyway~
 
-### USB (ADB) Mode
+#### USB (ADB) Mode
 
 1. **Enable Developer Options**
    > The steps listed here may not apply to all devices. **Please use search engines** to find tutorials on how to enable ADB mode for your specific device.
@@ -147,7 +147,7 @@ MicYou
 
    The device serial number can be found in the output of `adb devices`.
 
-## No audio output after connecting
+### No audio output after connecting
 
 Please ensure that your VB-Audio driver is correctly installed and that the following devices are not disabled:
 
