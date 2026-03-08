@@ -1,0 +1,66 @@
+name: 功能建议/Feature Request
+description: 为 MicYou 提出一个新功能或改进建议
+title: "[Feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您花时间提出功能建议！您的想法将帮助我们让 MicYou 变得更好。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 功能描述
+      description: 请清晰简洁地描述您希望添加的功能是什么。
+      placeholder: 例如：希望在 Android 端增加音频波形可视化功能，方便用户实时监控声音输入。
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 相关痛点（可选）
+      description: 这个功能解决了什么问题？如果与某个使用中的不便有关，请描述。
+      placeholder: 例如：目前无法直观判断麦克风是否正常工作，需要额外软件确认。
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: 预期行为
+      description: 您期望这个功能如何工作？请尽量详细描述。
+      placeholder: |
+        例如：在 Android 主界面添加一个波形图区域，随着声音大小实时跳动。点击波形图可以查看更详细的频谱分析。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 适用范围
+      description: 该功能适用于哪个平台？
+      options:
+        - Android 客户端
+        - PC 服务端
+        - 两端都需要
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: 附加上下文
+      description: 在此处添加关于该功能建议的任何其他信息，如截图、参考其他类似应用的实现、技术实现思路等。
+      placeholder: 您可以将图片拖拽至此区域上传，或粘贴链接。
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: 确认事项
+      description: 请确认以下事项：
+      options:
+        - label: 我已搜索现有 Issues，确认没有重复的建议。
+          required: true
+        - label: 我使用的是最新版本，但此功能尚未实现。
+          required: true
