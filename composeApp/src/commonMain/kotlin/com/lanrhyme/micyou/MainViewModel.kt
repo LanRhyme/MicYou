@@ -61,7 +61,7 @@ data class AppUiState(
     val enableDereverb: Boolean = false,
     val dereverbLevel: Float = 0.5f,
     
-    val amplification: Float = 10.0f,
+    val amplification: Float = 0.0f,
 
     val audioConfigRevision: Int = 0,
 
@@ -147,7 +147,7 @@ class MainViewModel : ViewModel() {
         val savedDereverb = settings.getBoolean("enable_dereverb", false)
         val savedDereverbLevel = settings.getFloat("dereverb_level", 0.5f)
         
-        val savedAmplification = settings.getFloat("amplification", 10.0f)
+        val savedAmplification = settings.getFloat("amplification", 0.0f)
 
         val savedEnableStreamingNotification = settings.getBoolean("enable_streaming_notification", true)
         val savedKeepScreenOn = settings.getBoolean("keep_screen_on", false)

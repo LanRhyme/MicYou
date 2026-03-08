@@ -62,6 +62,7 @@
   "enableDereverbLabel": "去迴響 (Dereverb)",
   "dereverbLevelLabel": "強度",
   "amplificationLabel": "訊號放大 (Amplification)",
+  "gainLabel": "增益",
   "openSourceLicense": "開放原始碼授權",
   "viewLibraries": "睇吓用咗嘅開源程式庫",
   "softwareIntro": "軟件介紹",

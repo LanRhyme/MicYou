@@ -42,8 +42,8 @@ class AudioProcessorPipeline {
         
         dereverbEffect.enableDereverb = enableDereverb
         dereverbEffect.dereverbLevel = dereverbLevel
-        
-        amplifierEffect.amplification = amplification
+
+        amplifierEffect.gainDb = amplification
     }
 
     /**
