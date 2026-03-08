@@ -1097,6 +1097,7 @@ private fun StatusControlPanel(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
+                if (!state.useSystemTitleBar) {
                 AnimatedIconButton(
                     onClick = onMinimize,
                     content = {
@@ -1119,6 +1120,7 @@ private fun StatusControlPanel(
                         )
                     }
                 )
+                }
             }
         }
 

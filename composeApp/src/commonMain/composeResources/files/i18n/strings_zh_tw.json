@@ -170,5 +170,7 @@
   "contributorsLoading": "正在載入貢獻者...",
   "contributorsPeopleCount": "%d 位貢獻者",
   "floatingWindowLabel": "懸浮窗",
-  "floatingWindowDesc": "顯示一個帶有音訊視覺化的小型置頂視窗"
+  "floatingWindowDesc": "顯示一個帶有音訊視覺化的小型置頂視窗",
+  "useSystemTitleBarLabel": "系統標題列",
+  "useSystemTitleBarDesc": "使用系統原生視窗裝飾取代自訂標題列"
 }

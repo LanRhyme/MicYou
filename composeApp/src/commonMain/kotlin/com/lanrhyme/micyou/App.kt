@@ -62,6 +62,7 @@ fun App(
     val uiState by finalViewModel.uiState.collectAsState()
     val newVersionAvailable = uiState.newVersionAvailable
     val pocketMode = uiState.pocketMode
+    val useSystemTitleBar = uiState.useSystemTitleBar
 
     CompositionLocalProvider(LocalAppStrings provides strings) {
         AppTheme(
@@ -78,7 +79,7 @@ fun App(
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(22.dp)
+                    shape = if (useSystemTitleBar) RoundedCornerShape(0.dp) else RoundedCornerShape(22.dp)
                 ) {
                     AnimatedContent(
                         targetState = showSettings,

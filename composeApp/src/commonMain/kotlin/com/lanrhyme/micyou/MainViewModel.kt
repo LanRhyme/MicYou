@@ -101,7 +101,10 @@ data class AppUiState(
     val backgroundSettings: BackgroundSettings = BackgroundSettings(),
     
     // Floating Window Settings (Desktop only)
-    val floatingWindowEnabled: Boolean = false
+    val floatingWindowEnabled: Boolean = false,
+    
+    // System Title Bar (Desktop only)
+    val useSystemTitleBar: Boolean = false
 )
 
 enum class CloseAction(val label: String) {
@@ -195,6 +198,7 @@ class MainViewModel : ViewModel() {
         
         val savedFloatingWindowEnabled = settings.getBoolean("floating_window_enabled", false)
         val savedAutoCheckUpdate = settings.getBoolean("auto_check_update", true)
+        val savedUseSystemTitleBar = settings.getBoolean("use_system_title_bar", false)
 
         _uiState.update { 
             it.copy(
@@ -236,7 +240,8 @@ class MainViewModel : ViewModel() {
                     enableHazeEffect = savedEnableHazeEffect
                 ),
                 floatingWindowEnabled = savedFloatingWindowEnabled,
-                autoCheckUpdate = savedAutoCheckUpdate
+                autoCheckUpdate = savedAutoCheckUpdate,
+                useSystemTitleBar = savedUseSystemTitleBar
             ) 
         }
         
@@ -451,6 +456,11 @@ class MainViewModel : ViewModel() {
     fun setFloatingWindowEnabled(enabled: Boolean) {
         _uiState.update { it.copy(floatingWindowEnabled = enabled) }
         settings.putBoolean("floating_window_enabled", enabled)
+    }
+
+    fun setUseSystemTitleBar(enabled: Boolean) {
+        _uiState.update { it.copy(useSystemTitleBar = enabled) }
+        settings.putBoolean("use_system_title_bar", enabled)
     }
 
     fun handleCloseRequest(onExit: () -> Unit, onHide: () -> Unit) {

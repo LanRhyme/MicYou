@@ -457,6 +457,7 @@ private fun HeaderSection(
                 }
             }
             
+            if (!state.useSystemTitleBar) {
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 IconButton(onClick = onMinimize, modifier = Modifier.size(30.dp)) {
                     Icon(Icons.Rounded.Minimize, null, modifier = Modifier.size(16.dp))
@@ -464,6 +465,7 @@ private fun HeaderSection(
                 IconButton(onClick = onClose, modifier = Modifier.size(30.dp)) {
                     Icon(Icons.Rounded.Close, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                 }
+            }
             }
         }
     }

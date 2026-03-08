@@ -480,6 +480,25 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
+                                headlineContent = { Text(strings.useSystemTitleBarLabel) },
+                                supportingContent = { Text(strings.useSystemTitleBarDesc) },
+                                trailingContent = {
+                                    Switch(
+                                        checked = state.useSystemTitleBar,
+                                        onCheckedChange = { viewModel.setUseSystemTitleBar(it) }
+                                    )
+                                },
+                                modifier = Modifier.clickable { viewModel.setUseSystemTitleBar(!state.useSystemTitleBar) },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                        ) {
+                            ListItem(
                                 headlineContent = { Text(strings.floatingWindowLabel) },
                                 supportingContent = { Text(strings.floatingWindowDesc) },
                                 trailingContent = {

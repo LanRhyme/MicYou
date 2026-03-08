@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -30,6 +31,8 @@ import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import java.awt.Font
 import java.awt.Toolkit
+import javax.swing.JCheckBox
+import javax.swing.JOptionPane
 import javax.swing.UIManager
 import kotlin.system.exitProcess
 
@@ -129,6 +132,61 @@ fun main() {
             derivedStateOf { state.value.pocketMode }
         }
 
+        val useSystemTitleBar by viewModel.uiState.collectAsState().let { state ->
+            derivedStateOf { state.value.useSystemTitleBar }
+        }
+        val closeAction by viewModel.uiState.collectAsState().let { state ->
+            derivedStateOf { state.value.closeAction }
+        }
+
+        val exitApp = {
+            runBlocking {
+                VBCableManager.setSystemDefaultMicrophone(toCable = false)
+            }
+            exitProcess(0)
+        }
+
+        val handleCloseRequest = {
+            if (useSystemTitleBar && closeAction == CloseAction.Prompt) {
+                val rememberCheckBox = JCheckBox(strings.closeConfirmRemember)
+                val options = arrayOf(
+                    strings.closeConfirmMinimize,
+                    strings.closeConfirmExit,
+                    strings.closeConfirmCancel
+                )
+                val result = JOptionPane.showOptionDialog(
+                    null,
+                    arrayOf(strings.closeConfirmMessage, rememberCheckBox),
+                    strings.closeConfirmTitle,
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    options,
+                    options[0]
+                )
+
+                when (result) {
+                    0 -> viewModel.confirmCloseAction(
+                        action = CloseAction.Minimize,
+                        remember = rememberCheckBox.isSelected,
+                        onExit = { exitApp() },
+                        onHide = { isVisible = false }
+                    )
+                    1 -> viewModel.confirmCloseAction(
+                        action = CloseAction.Exit,
+                        remember = rememberCheckBox.isSelected,
+                        onExit = { exitApp() },
+                        onHide = { isVisible = false }
+                    )
+                }
+            } else {
+                viewModel.handleCloseRequest(
+                    onExit = { exitApp() },
+                    onHide = { isVisible = false }
+                )
+            }
+        }
+
         val windowState = rememberWindowState(
             width = if (pocketMode) 600.dp else 850.dp,
             height = if (pocketMode) 250.dp else 650.dp,
@@ -143,59 +201,44 @@ fun main() {
         }
 
         if (isVisible) {
+            key(useSystemTitleBar) {
             Window(
-                onCloseRequest = { 
-                    viewModel.handleCloseRequest(
-                        onExit = { 
-                            runBlocking {
-                                VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                            }
-                            exitProcess(0)
-                        },
-                        onHide = { isVisible = false }
-                    )
-                },
+                onCloseRequest = handleCloseRequest,
                 state = windowState,
                 title = strings.appName,
                 icon = icon,
-                undecorated = true,
-                transparent = true,
+                undecorated = !useSystemTitleBar,
+                transparent = !useSystemTitleBar,
                 resizable = false
             ) {
-                WindowDraggableArea {
+                val windowContent: @Composable () -> Unit = {
                     // Apple Silicon Mac cannot use BlueCove without Rosetta 2
                     val isBluetoothDisabled = PlatformInfo.isMacOS && PlatformInfo.isArm64
 
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(8.dp)
+                            .then(if (!useSystemTitleBar) Modifier.padding(8.dp) else Modifier)
                     ) {
                         App(
                             viewModel = viewModel,
                             onMinimize = { windowState.isMinimized = true },
-                        onClose = { 
-                            viewModel.handleCloseRequest(
-                                onExit = { 
-                                    runBlocking {
-                                        VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                                    }
-                                    exitProcess(0)
-                                },
-                                onHide = { isVisible = false }
-                            )
-                        },
-                        onExitApp = { 
-                            runBlocking {
-                                VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                            }
-                            exitProcess(0)
-                        },
+                        onClose = handleCloseRequest,
+                        onExitApp = { exitApp() },
                         onHideApp = { isVisible = false },
                         isBluetoothDisabled = isBluetoothDisabled
                     )
                     }
                 }
+
+                if (!useSystemTitleBar) {
+                    WindowDraggableArea {
+                        windowContent()
+                    }
+                } else {
+                    windowContent()
+                }
+            }
             }
         }
 
@@ -203,7 +246,7 @@ fun main() {
             derivedStateOf { state.value.showCloseConfirmDialog }
         }
 
-        if (showCloseConfirmDialog) {
+        if (showCloseConfirmDialog && !useSystemTitleBar) {
             val closeConfirmState = rememberWindowState(
                 width = 500.dp,
                 height = 250.dp,
@@ -241,12 +284,7 @@ fun main() {
                                 viewModel.confirmCloseAction(
                                     CloseAction.Minimize,
                                     rememberCloseAction,
-                                    onExit = {
-                                        runBlocking {
-                                            VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                                        }
-                                        exitProcess(0)
-                                    },
+                                    onExit = { exitApp() },
                                     onHide = { isVisible = false }
                                 )
                             },
@@ -254,12 +292,7 @@ fun main() {
                                 viewModel.confirmCloseAction(
                                     CloseAction.Exit,
                                     rememberCloseAction,
-                                    onExit = {
-                                        runBlocking {
-                                            VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                                        }
-                                        exitProcess(0)
-                                    },
+                                    onExit = { exitApp() },
                                     onHide = { isVisible = false }
                                 )
                             },

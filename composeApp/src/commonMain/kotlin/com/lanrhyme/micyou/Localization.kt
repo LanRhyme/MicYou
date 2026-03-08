@@ -202,7 +202,11 @@ data class AppStrings(
     
     // Floating Window
     val floatingWindowLabel: String = "Floating Window",
-    val floatingWindowDesc: String = "Show a small always-on-top window with audio visualization"
+    val floatingWindowDesc: String = "Show a small always-on-top window with audio visualization",
+    
+    // System Title Bar
+    val useSystemTitleBarLabel: String = "System Title Bar",
+    val useSystemTitleBarDesc: String = "Use native system window decorations instead of custom title bar"
 )
 
 val LocalAppStrings = staticCompositionLocalOf { AppStrings() }

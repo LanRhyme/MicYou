@@ -164,5 +164,7 @@
   "contributorsLoading": "Loading contributors...",
   "contributorsPeopleCount": "%d contributors",
   "floatingWindowLabel": "Floating Window",
-  "floatingWindowDesc": "Show a small always-on-top window with audio visualization"
+  "floatingWindowDesc": "Show a small always-on-top window with audio visualization",
+  "useSystemTitleBarLabel": "System Title Bar",
+  "useSystemTitleBarDesc": "Use native system window decorations instead of custom title bar"
 }
