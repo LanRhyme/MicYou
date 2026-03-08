@@ -1,0 +1,20 @@
+# GitHub Issue 模板配置文件
+# 用于控制用户在创建新 Issue 时看到的模板选择页面
+# 更多信息: https://docs.github.com/zh/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository
+
+# 是否允许用户创建空白 Issue（不选择任何模板）
+# 设置为 false 以强制用户使用模板，确保信息完整
+blank_issues_enabled: true
+
+# 联系渠道链接
+# 这些链接会显示在模板选择页面的底部，引导用户到合适的渠道
+contact_links:
+  - name: "📖 使用指南 / FAQ"
+    url: "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md"
+    about: "在报告问题前，请先查阅使用指南和常见问题解答"
+
+  - name: "最新版本下载"
+    url: "https://github.com/LanRhyme/MicYou/releases/latest"
+    about: "我们只处理最新版本的问题，请先确认您使用的是最新版"
+
+# 注意：模板文件（bug_report.yml）需要单独创建并放在同一目录下
