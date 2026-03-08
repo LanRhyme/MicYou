@@ -1,0 +1,131 @@
+name: Bug 反馈
+description: 报告一个 Bug 以帮助我们改进 MicYou（仅接受最新版本）
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您花时间填写这份 Bug 报告！请提供尽可能详细的信息，这能帮助我们更快地定位和解决问题。
+
+        ⚠️ **注意**：我们**只处理最新版本**的问题。在提交前，请确认您已升级到 [最新版本](https://github.com/LanRhyme/MicYou/releases)。
+
+  - type: checkboxes
+    id: latest_version_confirmation
+    attributes:
+      label: 确认使用最新版本
+      description: 我们只接受最新版本的 Bug 报告。请确认您已经升级到 MicYou 的最新版本。
+      options:
+        - label: 我已经确认使用的是最新版本
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 请清晰简洁地描述这个 Bug 是什么。
+      placeholder: 例如：连接成功后，PC 端没有声音输入；或 Android 应用频繁闪退。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请提供复现该问题的详细步骤。
+      placeholder: |
+        1. 打开 Android 端 App，并选择 'Wi-Fi' 模式
+        2. 在 PC 端打开 MicYou Server
+        3. 点击 Android 端的 '连接' 按钮
+        4. 看到连接成功提示，但 PC 端麦克风无任何电平反应
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+      description: 您期望发生什么？
+      placeholder: 例如：连接成功后，PC 端应能正常接收到 Android 设备的麦克风声音。
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 实际发生了什么？
+      placeholder: 例如：PC 端软件无声音输入，或 Android 端断开连接。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection_mode
+    attributes:
+      label: 连接模式
+      description: 您在使用哪种连接方式时遇到了问题？
+      options:
+        - Wi-Fi
+        - USB (ADB/AOA)
+        - 蓝牙
+      default: 0
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: "## 环境信息"
+
+  - type: dropdown
+    id: client_os
+    attributes:
+      label: Android 客户端环境
+      description: 您的 Android 设备信息
+      options:
+        - Android (请在下方的“附加信息”中补充具体版本和机型)
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: server_os
+    attributes:
+      label: PC 服务端操作系统
+      description: 您的 PC 运行的是哪个操作系统？
+      options:
+        - Windows
+        - Linux
+        - macOS
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: additional_env
+    attributes:
+      label: 其他环境细节
+      description: 请补充其他可能影响问题的环境信息，例如 PC 是否安装了 VB-Cable，使用的音频输入设备等。
+      placeholder: 例如：已安装 VB-Cable，并将 MicYou 设为默认输入设备。
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志（选填，但强烈推荐提供）
+      description: |
+        提供日志能极大加快问题定位。您可以通过以下方式获取日志：
+        - 在应用内进入「设置」→「关于」→「导出日志」，将生成的日志文件拖拽到此处上传，或复制内容粘贴。
+      placeholder: 请将日志文件拖拽至此区域上传，或粘贴文本内容。
+      
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏
+      description: 如果适用，请添加截图或录屏以帮助解释您的问题。
+      placeholder: 您可以将图片或视频拖拽到此区域上传。
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 附加上下文
+      description: 在此处添加关于该问题的任何其他上下文（如是否在特定网络环境下发生、是否曾经正常工作过、临时解决方案等）。
