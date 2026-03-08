@@ -21,7 +21,7 @@ body:
     id: confirmation
     attributes:
       label: Confirmation
-      description: Please confirm the following:
+      description: Please confirm the following
       options:
         - label: I am using the latest version, but this feature is not yet implemented
           required: true
