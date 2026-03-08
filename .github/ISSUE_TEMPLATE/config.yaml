@@ -4,7 +4,7 @@
 
 # 是否允许用户创建空白 Issue（不选择任何模板）
 # 设置为 false 以强制用户使用模板，确保信息完整
-blank_issues_enabled: true
+blank_issues_enabled: false
 
 # 联系渠道链接
 # 这些链接会显示在模板选择页面的底部，引导用户到合适的渠道
