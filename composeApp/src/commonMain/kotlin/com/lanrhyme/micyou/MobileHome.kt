@@ -107,6 +107,8 @@ fun MobileHome(viewModel: MainViewModel) {
     val isClient = platform.type == PlatformType.Android
     val strings = LocalAppStrings.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val isDarkTheme = isDarkThemeActive(state.themeMode)
+    val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
     
     var showSettings by remember { mutableStateOf(false) }
     var contentVisible by remember { mutableStateOf(false) }
@@ -140,13 +142,14 @@ fun MobileHome(viewModel: MainViewModel) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color.Transparent,
+        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             CustomBackground(
                 settings = state.backgroundSettings,
                 modifier = Modifier.fillMaxSize(),
-                hazeState = hazeState
+                hazeState = hazeState,
+                forcePureBlackBackground = forcePureBlackBackground
             )
             
             Column(

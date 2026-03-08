@@ -31,6 +31,9 @@ fun App(
     val useDynamicColor by finalViewModel.uiState.collectAsState().let { state ->
         derivedStateOf { state.value.useDynamicColor }
     }
+    val oledPureBlack by finalViewModel.uiState.collectAsState().let { state ->
+        derivedStateOf { state.value.oledPureBlack }
+    }
     
     // Convert Long color to Color object
     val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
@@ -46,7 +49,12 @@ fun App(
     val pocketMode = uiState.pocketMode
 
     CompositionLocalProvider(LocalAppStrings provides strings) {
-        AppTheme(themeMode = themeMode, seedColor = seedColorObj, useDynamicColor = useDynamicColor) {
+        AppTheme(
+            themeMode = themeMode,
+            seedColor = seedColorObj,
+            useDynamicColor = useDynamicColor,
+            oledPureBlack = oledPureBlack
+        ) {
             if (platform.type == PlatformType.Android) {
                 MobileHome(finalViewModel)
             } else {

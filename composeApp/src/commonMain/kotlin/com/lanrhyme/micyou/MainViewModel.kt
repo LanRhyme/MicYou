@@ -67,6 +67,7 @@ data class AppUiState(
 
     val enableStreamingNotification: Boolean = true,
     val keepScreenOn: Boolean = false,
+    val oledPureBlack: Boolean = false,
     
     val autoStart: Boolean = false,
     
@@ -151,6 +152,7 @@ class MainViewModel : ViewModel() {
 
         val savedEnableStreamingNotification = settings.getBoolean("enable_streaming_notification", true)
         val savedKeepScreenOn = settings.getBoolean("keep_screen_on", false)
+        val savedOledPureBlack = settings.getBoolean("oled_pure_black", false)
         
         val savedAutoStart = settings.getBoolean("auto_start", false)
 
@@ -206,6 +208,7 @@ class MainViewModel : ViewModel() {
                 autoStart = savedAutoStart,
                 enableStreamingNotification = savedEnableStreamingNotification,
                 keepScreenOn = savedKeepScreenOn,
+                oledPureBlack = savedOledPureBlack,
                 language = savedLanguage,
                 useDynamicColor = savedUseDynamicColor,
                 bluetoothAddress = savedBluetoothAddress,
@@ -630,6 +633,11 @@ class MainViewModel : ViewModel() {
     fun setKeepScreenOn(enabled: Boolean) {
         _uiState.update { it.copy(keepScreenOn = enabled) }
         settings.putBoolean("keep_screen_on", enabled)
+    }
+
+    fun setOledPureBlack(enabled: Boolean) {
+        _uiState.update { it.copy(oledPureBlack = enabled) }
+        settings.putBoolean("oled_pure_black", enabled)
     }
 
     fun setUseDynamicColor(enable: Boolean) {

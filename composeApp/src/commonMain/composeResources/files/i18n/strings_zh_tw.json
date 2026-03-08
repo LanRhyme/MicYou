@@ -74,6 +74,8 @@
   "autoStartDesc": "應用程式啟動時自動開始串流",
   "noGeneralSettings": "暫無一般設定",
   "themeColorLabel": "主題顏色",
+  "oledPureBlackLabel": "OLED 優化",
+  "oledPureBlackDesc": "在深色模式下使用純黑背景",
   "amplificationMultiplierLabel": "倍數",
   "licensesTitle": "開源函式庫與許可證",
   "basedOnAndroidMic": "MicYou 基於 AndroidMic 專案開發。",

@@ -32,8 +32,16 @@ fun rememberHazeState(): HazeState {
 fun CustomBackground(
     settings: BackgroundSettings,
     modifier: Modifier = Modifier,
-    hazeState: HazeState? = null
+    hazeState: HazeState? = null,
+    forcePureBlackBackground: Boolean = false
 ) {
+    if (forcePureBlackBackground) {
+        Box(
+            modifier = modifier.background(Color.Black)
+        )
+        return
+    }
+
     if (!settings.hasCustomBackground) {
         return
     }

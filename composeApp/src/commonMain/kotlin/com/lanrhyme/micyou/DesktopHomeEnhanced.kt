@@ -126,6 +126,8 @@ fun DesktopHomeEnhanced(
     val audioLevel by viewModel.audioLevels.collectAsState(initial = 0f)
     val platform = remember { getPlatform() }
     val strings = LocalAppStrings.current
+    val isDarkTheme = isDarkThemeActive(state.themeMode)
+    val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
     
     var visible by remember { mutableStateOf(false) }
     var cardVisible by remember { mutableStateOf(false) }
@@ -204,7 +206,8 @@ fun DesktopHomeEnhanced(
             CustomBackground(
                 settings = state.backgroundSettings,
                 modifier = Modifier.fillMaxSize(),
-                hazeState = hazeState
+                hazeState = hazeState,
+                forcePureBlackBackground = forcePureBlackBackground
             )
             
             Column(modifier = Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

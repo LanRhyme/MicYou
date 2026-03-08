@@ -169,8 +169,40 @@ fun generateColorScheme(seed: Color, isDark: Boolean): androidx.compose.material
     }
 }
 
+private fun androidx.compose.material3.ColorScheme.withOledDarkBackground(): androidx.compose.material3.ColorScheme {
+    val pureBlack = Color(0xFF000000)
+    val lowSurface = Color(0xFF141414)
+    val mediumSurface = Color(0xFF1D1D1D)
+    val highSurface = Color(0xFF262626)
+    val topSurface = Color(0xFF303030)
+
+    return copy(
+        background = pureBlack,
+        surface = pureBlack,
+        surfaceDim = pureBlack,
+        surfaceBright = mediumSurface,
+        surfaceContainerLowest = pureBlack,
+        surfaceContainerLow = lowSurface,
+        surfaceContainer = mediumSurface,
+        surfaceContainerHigh = highSurface,
+        surfaceContainerHighest = topSurface,
+        surfaceVariant = highSurface,
+        inverseSurface = Color(0xFFF3F3F3),
+        scrim = pureBlack
+    )
+}
+
 enum class ThemeMode {
     System, Light, Dark
+}
+
+@Composable
+fun isDarkThemeActive(themeMode: ThemeMode): Boolean {
+    return when (themeMode) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
 }
 
 val DefaultSeedColor = Color(0xFF4285F4) // Google Blue - Material Design 3 推荐蓝色
@@ -190,16 +222,18 @@ fun AppTheme(
     themeMode: ThemeMode = ThemeMode.System,
     seedColor: Color = DefaultSeedColor,
     useDynamicColor: Boolean = false,
+    oledPureBlack: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val isDark = when (themeMode) {
-        ThemeMode.System -> isSystemInDarkTheme()
-        ThemeMode.Light -> false
-        ThemeMode.Dark -> true
-    }
+    val isDark = isDarkThemeActive(themeMode)
 
     val dynamicScheme = if (useDynamicColor) getDynamicColorScheme(isDark) else null
-    val targetColorScheme = dynamicScheme ?: generateColorScheme(seedColor, isDark)
+    val baseColorScheme = dynamicScheme ?: generateColorScheme(seedColor, isDark)
+    val targetColorScheme = if (isDark && oledPureBlack) {
+        baseColorScheme.withOledDarkBackground()
+    } else {
+        baseColorScheme
+    }
 
     // 为主题颜色添加动画过渡
     val animatedPrimary by animateColorAsState(targetColorScheme.primary, themeAnimationSpec)

@@ -99,6 +99,8 @@ fun DesktopSettings(
     val snackbarHostState = remember { SnackbarHostState() }
     val state by viewModel.uiState.collectAsState()
     val strings = LocalAppStrings.current
+    val isDarkTheme = isDarkThemeActive(state.themeMode)
+    val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
 
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let {
@@ -115,7 +117,8 @@ fun DesktopSettings(
         Box(modifier = Modifier.padding(padding)) {
             CustomBackground(
                 settings = state.backgroundSettings,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                forcePureBlackBackground = forcePureBlackBackground
             )
             if (platform.type == PlatformType.Desktop) {
                 DesktopLayout(viewModel, onClose)
@@ -523,6 +526,26 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
                         }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                    ) {
+                        ListItem(
+                            headlineContent = { Text(strings.oledPureBlackLabel) },
+                            supportingContent = { Text(strings.oledPureBlackDesc) },
+                            trailingContent = {
+                                Switch(
+                                    checked = state.oledPureBlack,
+                                    onCheckedChange = { viewModel.setOledPureBlack(it) }
+                                )
+                            },
+                            modifier = Modifier.clickable { viewModel.setOledPureBlack(!state.oledPureBlack) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
                     }
 
                     Box(

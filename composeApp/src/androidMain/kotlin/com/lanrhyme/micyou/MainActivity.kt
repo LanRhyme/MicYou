@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
@@ -82,6 +83,33 @@ class MainActivity : ComponentActivity() {
                         else -> {}
                     }
                 }
+            }
+
+            val themeMode by appViewModel.uiState.collectAsState().let { state ->
+                derivedStateOf { state.value.themeMode }
+            }
+            val isDark = isDarkThemeActive(themeMode)
+
+            DisposableEffect(isDark) {
+                this@MainActivity.enableEdgeToEdge(
+                    statusBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        )
+                    },
+                    navigationBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT
+                        )
+                    }
+                )
+                onDispose {}
             }
 
             DisposableEffect(keepScreenOn) {
