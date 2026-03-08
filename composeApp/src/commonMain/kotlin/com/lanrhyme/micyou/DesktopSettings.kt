@@ -816,7 +816,14 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                     modifier = Modifier.weight(1f)
                                 )
 
-                                Text("${state.amplification.toInt()} dB", style = MaterialTheme.typography.bodySmall)
+                                // 固定宽度避免进度条左右移动，"-50 dB" 是最宽的情况
+                                val gainText = if (state.amplification >= 0) "+${state.amplification.toInt()} dB" else "${state.amplification.toInt()} dB"
+                                Text(
+                                    gainText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.width(60.dp),
+                                    textAlign = TextAlign.End
+                                )
                             }
                         }
 
