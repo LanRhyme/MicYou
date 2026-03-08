@@ -471,6 +471,27 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             )
                         }
                     }
+
+                    // Auto check update toggle (all platforms)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                    ) {
+                        ListItem(
+                            headlineContent = { Text(strings.autoCheckUpdateLabel) },
+                            supportingContent = { Text(strings.autoCheckUpdateDesc) },
+                            trailingContent = {
+                                Switch(
+                                    checked = state.autoCheckUpdate,
+                                    onCheckedChange = { viewModel.setAutoCheckUpdate(it) }
+                                )
+                            },
+                            modifier = Modifier.clickable { viewModel.setAutoCheckUpdate(!state.autoCheckUpdate) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+                    }
                 }
             }
             SettingsSection.Appearance -> {

@@ -7,15 +7,34 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.utils.io.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 @Serializable
+data class GitHubAsset(
+    @SerialName("name") val name: String,
+    @SerialName("browser_download_url") val browserDownloadUrl: String,
+    @SerialName("size") val size: Long,
+    @SerialName("content_type") val contentType: String = ""
+)
+
+@Serializable
 data class GitHubRelease(
     @SerialName("tag_name") val tagName: String,
     @SerialName("html_url") val htmlUrl: String,
-    @SerialName("body") val body: String
+    @SerialName("body") val body: String,
+    @SerialName("assets") val assets: List<GitHubAsset> = emptyList()
+)
+
+data class DownloadProgress(
+    val downloadedBytes: Long = 0,
+    val totalBytes: Long = 0,
+    val progress: Float = 0f
 )
 
 class UpdateChecker {
@@ -27,6 +46,11 @@ class UpdateChecker {
             })
         }
     }
+
+    private val downloadClient = HttpClient()
+
+    private val _downloadProgress = MutableStateFlow(DownloadProgress())
+    val downloadProgress: StateFlow<DownloadProgress> = _downloadProgress.asStateFlow()
 
     suspend fun checkUpdate(): Result<GitHubRelease?> {
         val currentVersion = getAppVersion()
@@ -57,6 +81,42 @@ class UpdateChecker {
             Logger.e("UpdateChecker", "API check failed, trying fallback...", e)
             return checkUpdateViaWebsite(currentVersion, "New version released")
         }
+    }
+
+    suspend fun downloadUpdate(downloadUrl: String, targetPath: String): Result<String> {
+        _downloadProgress.value = DownloadProgress()
+        return try {
+            downloadClient.prepareGet(downloadUrl) {
+                header(HttpHeaders.UserAgent, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+            }.execute { response ->
+                val totalBytes = response.contentLength() ?: 0L
+                var downloadedBytes = 0L
+                val channel: ByteReadChannel = response.body()
+                val buffer = ByteArray(8192)
+
+                writeToFile(targetPath) { writeChunk ->
+                    while (!channel.isClosedForRead) {
+                        val bytesRead = channel.readAvailable(buffer)
+                        if (bytesRead <= 0) break
+                        writeChunk(buffer, 0, bytesRead)
+                        downloadedBytes += bytesRead
+                        val progress = if (totalBytes > 0) downloadedBytes.toFloat() / totalBytes else 0f
+                        _downloadProgress.value = DownloadProgress(downloadedBytes, totalBytes, progress)
+                    }
+                }
+
+                Logger.i("UpdateChecker", "Download completed: $targetPath ($downloadedBytes bytes)")
+                Result.success(targetPath)
+            }
+        } catch (e: Exception) {
+            Logger.e("UpdateChecker", "Download failed", e)
+            _downloadProgress.value = DownloadProgress()
+            Result.failure(e)
+        }
+    }
+
+    fun findAssetForPlatform(release: GitHubRelease): GitHubAsset? {
+        return findPlatformAsset(release.assets)
     }
 
     private suspend fun checkUpdateViaWebsite(currentVersion: String, releaseBody: String): Result<GitHubRelease?> {
@@ -104,3 +164,15 @@ class UpdateChecker {
         return false
     }
 }
+
+// Platform-specific: write downloaded bytes to file
+expect suspend fun writeToFile(path: String, writer: suspend ((ByteArray, Int, Int) -> Unit) -> Unit)
+
+// Platform-specific: find the right asset for the current platform
+expect fun findPlatformAsset(assets: List<GitHubAsset>): GitHubAsset?
+
+// Platform-specific: get the download directory for updates
+expect fun getUpdateDownloadPath(fileName: String): String
+
+// Platform-specific: install the downloaded update file
+expect fun installUpdate(filePath: String)
