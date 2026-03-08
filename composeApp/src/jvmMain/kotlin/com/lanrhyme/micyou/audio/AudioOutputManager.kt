@@ -9,6 +9,7 @@ import javax.sound.sampled.*
 class AudioOutputManager {
     private var outputLine: SourceDataLine? = null
     private var monitorLoopbackProcess: Process? = null
+    private var monitorLine: SourceDataLine? = null
     private var isUsingVirtualDevice = false
     private var isMonitoring = false
     private var currentSampleRate = 0
@@ -234,6 +235,12 @@ class AudioOutputManager {
         } catch (e: Exception) {
             Logger.e("AudioOutputManager", "Failed to write audio data", e)
         }
+        
+        try {
+            monitorLine?.write(buffer, offset, length)
+        } catch (e: Exception) {
+            Logger.e("AudioOutputManager", "Failed to write monitor audio data", e)
+        }
     }
     
     fun getQueuedDurationMs(): Long {
@@ -245,6 +252,7 @@ class AudioOutputManager {
     
     fun flush() {
         outputLine?.flush()
+        monitorLine?.flush()
     }
     
     fun setMonitoring(enabled: Boolean) {
@@ -257,31 +265,59 @@ class AudioOutputManager {
     }
     
     private fun startMonitorLoopback() {
-        if (monitorLoopbackProcess?.isAlive == true) return
-        
-        if (PlatformInfo.isLinux && VirtualAudioDevice.isSetupComplete()) {
-            try {
-                val sinkName = VirtualAudioDevice.virtualSinkName
-                val process = ProcessBuilder(
-                    "pw-loopback",
-                    "--capture-props={\"node.target\": \"$sinkName\", \"media.class\": \"Stream/Input/Audio\", \"stream.capture.sink\": true}",
-                    "--playback-props={\"media.class\": \"Stream/Output/Audio\"}"
-                ).redirectErrorStream(true).start()
-                
-                Thread.sleep(200)
-                
-                if (process.isAlive) {
-                    monitorLoopbackProcess = process
-                    Logger.i("AudioOutputManager", "Monitor loopback started (pid: ${process.pid()})")
-                } else {
-                    val output = process.inputStream.bufferedReader().readText()
-                    Logger.e("AudioOutputManager", "Monitor loopback failed to start: $output")
-                }
-            } catch (e: Exception) {
-                Logger.e("AudioOutputManager", "Failed to start monitor loopback", e)
-            }
+        if (PlatformInfo.isLinux) {
+            startLinuxMonitorLoopback()
         } else {
-            Logger.w("AudioOutputManager", "Monitor loopback not available (not Linux or virtual device not setup)")
+            openMonitorLine()
+        }
+    }
+    
+    private fun startLinuxMonitorLoopback() {
+        if (monitorLoopbackProcess?.isAlive == true) return
+        if (!VirtualAudioDevice.isSetupComplete()) {
+            Logger.w("AudioOutputManager", "Monitor loopback not available: virtual device not setup")
+            return
+        }
+        try {
+            val sinkName = VirtualAudioDevice.virtualSinkName
+            val process = ProcessBuilder(
+                "pw-loopback",
+                "--capture-props={\"node.target\": \"$sinkName\", \"media.class\": \"Stream/Input/Audio\", \"stream.capture.sink\": true}",
+                "--playback-props={\"media.class\": \"Stream/Output/Audio\"}"
+            ).redirectErrorStream(true).start()
+            
+            Thread.sleep(200)
+            
+            if (process.isAlive) {
+                monitorLoopbackProcess = process
+                Logger.i("AudioOutputManager", "Monitor loopback started (pid: ${process.pid()})")
+            } else {
+                val output = process.inputStream.bufferedReader().readText()
+                Logger.e("AudioOutputManager", "Monitor loopback failed to start: $output")
+            }
+        } catch (e: Exception) {
+            Logger.e("AudioOutputManager", "Failed to start monitor loopback", e)
+        }
+    }
+    
+    private fun openMonitorLine() {
+        if (monitorLine != null) return
+        if (currentSampleRate == 0 || currentChannelCount == 0) return
+        
+        val audioFormat = AudioFormat(
+            currentSampleRate.toFloat(), 16, currentChannelCount, true, false
+        )
+        val lineInfo = DataLine.Info(SourceDataLine::class.java, audioFormat)
+        
+        try {
+            val line = AudioSystem.getLine(lineInfo) as SourceDataLine
+            val bytesPerSecond = (currentSampleRate * currentChannelCount * 2).coerceAtLeast(1)
+            line.open(audioFormat, (bytesPerSecond / 4).coerceIn(8192, 131072))
+            line.start()
+            monitorLine = line
+            Logger.i("AudioOutputManager", "Monitor line opened (system default speaker)")
+        } catch (e: Exception) {
+            Logger.e("AudioOutputManager", "Failed to open monitor line", e)
         }
     }
     
@@ -297,6 +333,14 @@ class AudioOutputManager {
             }
         }
         monitorLoopbackProcess = null
+        
+        try {
+            monitorLine?.stop()
+            monitorLine?.close()
+        } catch (e: Exception) {
+            Logger.e("AudioOutputManager", "Error closing monitor line", e)
+        }
+        monitorLine = null
     }
     
     fun isUsingVirtualDevice(): Boolean = isUsingVirtualDevice
