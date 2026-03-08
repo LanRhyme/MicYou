@@ -1,4 +1,4 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
   - name: "使用指南 / FAQ"
     url: "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ_ZH.md"
