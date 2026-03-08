@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.TextSnippet
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
@@ -36,6 +38,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +51,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,17 +74,14 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
-import micyou.composeapp.generated.resources.Res
-import micyou.composeapp.generated.resources.icon_compass
-import micyou.composeapp.generated.resources.icon_creative
-import micyou.composeapp.generated.resources.icon_file
-import micyou.composeapp.generated.resources.icon_microphone
-import micyou.composeapp.generated.resources.icon_palette
-import micyou.composeapp.generated.resources.icon_planet
-import micyou.composeapp.generated.resources.icon_settings
-import micyou.composeapp.generated.resources.icon_star_fall
-import micyou.composeapp.generated.resources.icon_star_fall_mini
-import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Settings
 
 enum class SettingsSection {
     General,
@@ -113,8 +115,8 @@ fun DesktopSettings(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface
-    ) { padding ->
-        Box(modifier = Modifier.padding(padding)) {
+    ) { _ ->
+        Box(modifier = Modifier.fillMaxSize()) {
             CustomBackground(
                 settings = state.backgroundSettings,
                 modifier = Modifier.fillMaxSize(),
@@ -136,7 +138,9 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
     val cardOpacity = state.backgroundSettings.cardOpacity
     
-    Row(modifier = Modifier.fillMaxSize()) {
+    Row(
+        modifier = Modifier.fillMaxSize()
+    ) {
         Surface(
             modifier = Modifier.width(220.dp).fillMaxSize(),
             color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.9f)
@@ -144,26 +148,34 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(vertical = 24.dp),
+                    .padding(top = 0.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 item {
-                    Text(
-                        strings.settingsTitle,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = strings.close, modifier = Modifier.size(20.dp))
+                        }
+                        Text(
+                            strings.settingsTitle,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
                 
                 item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
                 
                 items(SettingsSection.entries.toList()) { section ->
                     val icon = when (section) {
-                        SettingsSection.General -> painterResource(Res.drawable.icon_settings)
-                        SettingsSection.Appearance -> painterResource(Res.drawable.icon_palette)
-                        SettingsSection.Audio -> painterResource(Res.drawable.icon_microphone)
-                        SettingsSection.About -> painterResource(Res.drawable.icon_compass)
+                        SettingsSection.General -> Icons.Rounded.Settings
+                        SettingsSection.Appearance -> Icons.Rounded.Palette
+                        SettingsSection.Audio -> Icons.Rounded.Mic
+                        SettingsSection.About -> Icons.Rounded.Info
                     }
                     val isSelected = currentSection == section
                     
@@ -171,7 +183,7 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 3.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(28.dp))
                             .clickable { currentSection = section }
                             .background(
                                 if (isSelected) MaterialTheme.colorScheme.secondaryContainer
@@ -182,7 +194,7 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            painter = icon,
+                            imageVector = icon,
                             contentDescription = section.getLabel(strings),
                             modifier = Modifier.size(22.dp),
                             tint = if (isSelected) MaterialTheme.colorScheme.primary
@@ -201,16 +213,13 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit) {
             }
         }
         
-        VerticalDivider()
-        
         Surface(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
-            shape = RoundedCornerShape(16.dp)
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(top = 8.dp, start = 20.dp, end = 20.dp, bottom = 20.dp)) {
                 Text(currentSection.getLabel(strings), style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(8.dp))
                 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     item {
@@ -222,41 +231,51 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit) {
     val strings = LocalAppStrings.current
     val state by viewModel.uiState.collectAsState()
     val cardOpacity = state.backgroundSettings.cardOpacity
     
-    LazyColumn(
-        modifier = Modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(strings.settingsTitle, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Default.Close, strings.close)
-                }
-            }
-        }
-        
-        SettingsSection.entries.forEach { section ->
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity)
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(section.getLabel(strings), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.height(8.dp))
-                        SettingsContent(section, viewModel)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(strings.settingsTitle) },
+                navigationIcon = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = strings.close)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier.padding(padding).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            SettingsSection.entries.forEach { section ->
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity)
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(section.getLabel(strings), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.height(8.dp))
+                            SettingsContent(section, viewModel)
+                        }
                     }
                 }
             }
+            item { Spacer(Modifier.height(16.dp)) }
         }
     }
 }
@@ -1088,7 +1107,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         ListItem(
                             headlineContent = { Text(strings.developerLabel) },
                             supportingContent = { Text("LanRhyme、ChinsaaWei") },
-                            leadingContent = { Icon(painterResource(Res.drawable.icon_star_fall_mini), null,modifier = Modifier.size(24.dp)) },
+                            leadingContent = { Icon(Icons.Rounded.Person, null,modifier = Modifier.size(24.dp)) },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
                     }
@@ -1108,7 +1127,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                     modifier = Modifier.clickable { uriHandler.openUri("https://github.com/LanRhyme/MicYou") }
                                 ) 
                             },
-                            leadingContent = { Icon(painterResource(Res.drawable.icon_planet), null,modifier = Modifier.size(24.dp)) },
+                            leadingContent = { Icon(Icons.Rounded.Language, null,modifier = Modifier.size(24.dp)) },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
                     }
@@ -1121,7 +1140,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         ListItem(
                             headlineContent = { Text(strings.contributorsLabel) },
                             supportingContent = { Text(strings.contributorsDesc) },
-                            leadingContent = { Icon(painterResource(Res.drawable.icon_star_fall), null,modifier = Modifier.size(24.dp)) },
+                            leadingContent = { Icon(Icons.Rounded.People, null,modifier = Modifier.size(24.dp)) },
                             modifier = Modifier.clickable { showContributorsDialog = true },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
@@ -1135,7 +1154,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         ListItem(
                             headlineContent = { Text(strings.versionLabel) },
                             supportingContent = { Text(getAppVersion()) },
-                            leadingContent = { Icon(painterResource(Res.drawable.icon_compass), null,modifier = Modifier.size(24.dp)) },
+                            leadingContent = { Icon(Icons.Rounded.Info, null,modifier = Modifier.size(24.dp)) },
                             trailingContent = {
                                 TextButton(onClick = { viewModel.checkUpdateManual() }) {
                                     Text(strings.checkUpdate)
@@ -1153,7 +1172,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         ListItem(
                             headlineContent = { Text(strings.openSourceLicense) },
                             supportingContent = { Text(strings.viewLibraries) },
-                            leadingContent = { Icon(painterResource(Res.drawable.icon_creative), null,modifier = Modifier.size(24.dp)) },
+                            leadingContent = { Icon(Icons.Rounded.Description, null,modifier = Modifier.size(24.dp)) },
                             modifier = Modifier.clickable { showLicenseDialog = true },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
@@ -1167,7 +1186,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         ListItem(
                             headlineContent = { Text(strings.exportLog) },
                             supportingContent = { Text(strings.exportLogDesc) },
-                            leadingContent = { Icon(painterResource(Res.drawable.icon_file), null,modifier = Modifier.size(24.dp)) },
+                            leadingContent = { Icon(Icons.AutoMirrored.Rounded.TextSnippet, null,modifier = Modifier.size(24.dp)) },
                             modifier = Modifier.clickable {
                                 viewModel.exportLog { path ->
                                     if (path != null) {

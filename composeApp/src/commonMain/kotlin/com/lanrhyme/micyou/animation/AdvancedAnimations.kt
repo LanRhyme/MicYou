@@ -13,65 +13,18 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.*
 
 object EasingFunctions {
-    val EaseOutExpo: Easing = Easing { x ->
-        if (x == 1f) 1f else 1f - 2f.pow(-10f * x)
-    }
-    
-    val EaseInOutExpo: Easing = Easing { x ->
-        when {
-            x == 0f -> 0f
-            x == 1f -> 1f
-            x < 0.5f -> 2f.pow(20f * x - 10f) / 2f
-            else -> (2f - 2f.pow(-20f * x + 10f)) / 2f
-        }
-    }
-    
-    val EaseOutBack: Easing = Easing { x ->
-        val c1 = 1.70158f
-        val c3 = c1 + 1f
-        1f + c3 * (x - 1f).pow(3) + c1 * (x - 1f).pow(2)
-    }
-    
-    val EaseInOutBack: Easing = Easing { x ->
-        val c1 = 1.70158f
-        val c2 = c1 * 1.525f
-        when {
-            x < 0.5f -> ((2f * x).pow(2) * ((c2 + 1f) * 2f * x - c2)) / 2f
-            else -> ((2f * x - 2f).pow(2) * ((c2 + 1f) * (x * 2f - 2f) + c2) + 2f) / 2f
-        }
-    }
-    
-    val EaseOutElastic: Easing = Easing { x ->
-        val c4 = (2f * PI).toFloat() / 3f
-        when {
-            x == 0f -> 0f
-            x == 1f -> 1f
-            else -> 2f.pow(-10f * x) * sin((x * 10f - 0.75f) * c4) + 1f
-        }
-    }
-    
-    val EaseOutBounce: Easing = Easing { x ->
-        val n1 = 7.5625f
-        val d1 = 2.75f
-        when {
-            x < 1f / d1 -> n1 * x * x
-            x < 2f / d1 -> n1 * (x - 1.5f / d1).pow(2) + 0.75f
-            x < 2.5f / d1 -> n1 * (x - 2.25f / d1).pow(2) + 0.9375f
-            else -> n1 * (x - 2.625f / d1).pow(2) + 0.984375f
-        }
-    }
-    
-    val EaseInOutCubic: Easing = Easing { x ->
-        if (x < 0.5f) 4f * x * x * x else 1f - (-2f * x + 2f).pow(3) / 2f
-    }
-    
-    val EaseOutQuart: Easing = Easing { x ->
-        1f - (1f - x).pow(4)
-    }
-    
-    val EaseOutCirc: Easing = Easing { x ->
-        sqrt(1f - (x - 1f).pow(2))
-    }
+    // Map legacy custom easings to system / Material-friendly easings so the whole
+    // codebase can switch to platform defaults by editing one place.
+    // Use FastOutSlowInEasing and LinearOutSlowInEasing as sensible defaults.
+    val EaseOutExpo: Easing = FastOutSlowInEasing
+    val EaseInOutExpo: Easing = FastOutSlowInEasing
+    val EaseOutBack: Easing = FastOutSlowInEasing
+    val EaseInOutBack: Easing = FastOutSlowInEasing
+    val EaseOutElastic: Easing = FastOutSlowInEasing
+    val EaseOutBounce: Easing = FastOutSlowInEasing
+    val EaseInOutCubic: Easing = FastOutSlowInEasing
+    val EaseOutQuart: Easing = FastOutSlowInEasing
+    val EaseOutCirc: Easing = FastOutSlowInEasing
 }
 
 object AnimationSpecs {

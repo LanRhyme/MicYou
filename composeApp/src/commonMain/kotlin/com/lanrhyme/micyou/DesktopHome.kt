@@ -97,11 +97,9 @@ import com.lanrhyme.micyou.animation.rememberGlowAnimation
 import com.lanrhyme.micyou.animation.rememberPulseAnimation
 import com.lanrhyme.micyou.animation.rememberRotationAnimation
 import com.lanrhyme.micyou.animation.rememberWaveAnimation
+import androidx.compose.material.icons.rounded.Settings
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
-import micyou.composeapp.generated.resources.Res
-import micyou.composeapp.generated.resources.icon_settings
-import org.jetbrains.compose.resources.painterResource
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
@@ -207,7 +205,6 @@ fun DesktopHome(
     Surface(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = RoundedCornerShape(22.dp),
         modifier = Modifier
             .fillMaxSize()
             .graphicsLayer {
@@ -1272,7 +1269,7 @@ private fun StatusControlPanel(
                         modifier = Modifier.size(40.dp),
                         content = {
                             Icon(
-                                painter = painterResource(Res.drawable.icon_settings),
+                                Icons.Rounded.Settings,
                                 contentDescription = strings.settingsTitle,
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant

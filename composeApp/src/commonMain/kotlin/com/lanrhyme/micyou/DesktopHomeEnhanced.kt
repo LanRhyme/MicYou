@@ -98,14 +98,12 @@ import com.lanrhyme.micyou.animation.EasingFunctions
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import micyou.composeapp.generated.resources.Res
-import micyou.composeapp.generated.resources.icon_bluetooth
-import micyou.composeapp.generated.resources.icon_home_wifi
-import micyou.composeapp.generated.resources.icon_pip
-import micyou.composeapp.generated.resources.icon_planet
-import micyou.composeapp.generated.resources.icon_settings
-import micyou.composeapp.generated.resources.icon_usb
-import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Podcasts
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Usb
+import androidx.compose.material.icons.rounded.Wifi
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
@@ -199,7 +197,6 @@ fun DesktopHomeEnhanced(
     Surface(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = RoundedCornerShape(22.dp),
         modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -320,7 +317,7 @@ private fun HeaderSection(
                     modifier = Modifier.size(36.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(painter = painterResource(Res.drawable.icon_pip), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Rounded.Podcasts, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     }
                 }
                 Column {
@@ -392,7 +389,7 @@ private fun HeaderSection(
                                     )
                                 }
                                 Icon(
-                                    painterResource(Res.drawable.icon_planet),
+                                    Icons.Rounded.Language,
                                     null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(14.dp)
@@ -565,9 +562,9 @@ private fun ModeCard(
             Text(strings.connectionModeLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             
             val modes = listOfNotNull(
-                ConnectionMode.Wifi to (strings.modeWifi to painterResource(Res.drawable.icon_home_wifi)),
-                if (!isBluetoothDisabled) ConnectionMode.Bluetooth to (strings.modeBluetooth to painterResource(Res.drawable.icon_bluetooth)) else null,
-                ConnectionMode.Usb to (strings.modeUsb to painterResource(Res.drawable.icon_usb))
+                ConnectionMode.Wifi to (strings.modeWifi to Icons.Rounded.Wifi),
+                if (!isBluetoothDisabled) ConnectionMode.Bluetooth to (strings.modeBluetooth to Icons.Rounded.Bluetooth) else null,
+                ConnectionMode.Usb to (strings.modeUsb to Icons.Rounded.Usb)
             )
             
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1332,7 +1329,7 @@ private fun BottomBar(
             
             IconButton(onClick = onOpenSettings, modifier = Modifier.size(32.dp)) {
                 Icon(
-                    painter = painterResource(Res.drawable.icon_settings),
+                    Icons.Rounded.Settings,
                     contentDescription = strings.settingsTitle,
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant

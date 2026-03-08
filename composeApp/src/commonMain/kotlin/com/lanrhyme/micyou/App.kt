@@ -1,10 +1,21 @@
 package com.lanrhyme.micyou
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.Modifier
@@ -18,7 +29,6 @@ fun App(
     onClose: () -> Unit = {},
     onExitApp: () -> Unit = {},
     onHideApp: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
     isBluetoothDisabled: Boolean = false
 ) {
     val platform = remember { getPlatform() }
@@ -63,26 +73,72 @@ fun App(
             if (platform.type == PlatformType.Android) {
                 MobileHome(finalViewModel)
             } else {
-                if (pocketMode) {
-                    DesktopHome(
-                        viewModel = finalViewModel,
-                        onMinimize = onMinimize,
-                        onClose = onClose,
-                        onExitApp = onExitApp,
-                        onHideApp = onHideApp,
-                        onOpenSettings = onOpenSettings,
-                        isBluetoothDisabled = isBluetoothDisabled
-                    )
-                } else {
-                    DesktopHomeEnhanced(
-                        viewModel = finalViewModel,
-                        onMinimize = onMinimize,
-                        onClose = onClose,
-                        onExitApp = onExitApp,
-                        onHideApp = onHideApp,
-                        onOpenSettings = onOpenSettings,
-                        isBluetoothDisabled = isBluetoothDisabled
-                    )
+                var showSettings by remember { mutableStateOf(false) }
+                
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(22.dp)
+                ) {
+                    AnimatedContent(
+                        targetState = showSettings,
+                        transitionSpec = {
+                        // smoother horizontal slide + fade with consistent easing
+                        val enter = slideInHorizontally(
+                            initialOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = tween(360, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing))
+
+                        val exit = slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> -fullWidth / 3 },
+                            animationSpec = tween(300, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+
+                        if (targetState) enter togetherWith exit
+                        else {
+                            val enterBack = slideInHorizontally(
+                                initialOffsetX = { fullWidth -> -fullWidth / 3 },
+                                animationSpec = tween(300, easing = FastOutSlowInEasing)
+                            ) + fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing))
+
+                            val exitBack = slideOutHorizontally(
+                                targetOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = tween(360, easing = FastOutSlowInEasing)
+                            ) + fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+
+                            enterBack togetherWith exitBack
+                        }
+                    }
+                ) { isSettings ->
+                    if (isSettings) {
+                        DesktopSettings(
+                            viewModel = finalViewModel,
+                            onClose = { showSettings = false }
+                        )
+                    } else {
+                        if (pocketMode) {
+                            DesktopHome(
+                                viewModel = finalViewModel,
+                                onMinimize = onMinimize,
+                                onClose = onClose,
+                                onExitApp = onExitApp,
+                                onHideApp = onHideApp,
+                                onOpenSettings = { showSettings = true },
+                                isBluetoothDisabled = isBluetoothDisabled
+                            )
+                        } else {
+                            DesktopHomeEnhanced(
+                                viewModel = finalViewModel,
+                                onMinimize = onMinimize,
+                                onClose = onClose,
+                                onExitApp = onExitApp,
+                                onHideApp = onHideApp,
+                                onOpenSettings = { showSettings = true },
+                                isBluetoothDisabled = isBluetoothDisabled
+                            )
+                        }
+                    }
+                }
                 }
             }
 

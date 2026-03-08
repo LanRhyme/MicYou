@@ -18,7 +18,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +35,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,8 +53,9 @@ import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+// BackHandlerCompat provides a platform-safe back handler (actual implementations per target)
+import com.lanrhyme.micyou.BackHandlerCompat
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -78,6 +81,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.lanrhyme.micyou.animation.EasingFunctions
 import com.lanrhyme.micyou.animation.rememberBreathAnimation
 import com.lanrhyme.micyou.animation.rememberGlowAnimation
@@ -86,13 +90,11 @@ import com.lanrhyme.micyou.animation.rememberRotationAnimation
 import com.lanrhyme.micyou.animation.rememberWaveAnimation
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
-import micyou.composeapp.generated.resources.Res
-import micyou.composeapp.generated.resources.icon_bluetooth
-import micyou.composeapp.generated.resources.icon_home_wifi
-import micyou.composeapp.generated.resources.icon_pip
-import micyou.composeapp.generated.resources.icon_settings
-import micyou.composeapp.generated.resources.icon_usb
-import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material.icons.rounded.Bluetooth
+import androidx.compose.material.icons.rounded.Podcasts
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Usb
+import androidx.compose.material.icons.rounded.Wifi
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
@@ -112,6 +114,11 @@ fun MobileHome(viewModel: MainViewModel) {
     
     var showSettings by remember { mutableStateOf(false) }
     var contentVisible by remember { mutableStateOf(false) }
+
+    // Handle Android system back gesture to close settings page (no-op on desktop)
+    BackHandlerCompat(enabled = showSettings) {
+        showSettings = false
+    }
     
     val hazeState = if (state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground) {
         rememberHazeState()
@@ -129,16 +136,7 @@ fun MobileHome(viewModel: MainViewModel) {
         }
     }
 
-    if (showSettings) {
-        ModalBottomSheet(
-            onDismissRequest = { showSettings = false },
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-        ) {
-            Box(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
-                DesktopSettings(viewModel = viewModel, onClose = { showSettings = false })
-            }
-        }
-    }
+    // settings overlay handled below via AnimatedVisibility so exit animation can run
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -219,6 +217,35 @@ fun MobileHome(viewModel: MainViewModel) {
                     )
                 }
             }
+            // Settings overlay: scrim + settings sheet / page
+            AnimatedVisibility(
+                visible = showSettings,
+                enter = slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(360, easing = EasingFunctions.EaseOutExpo)
+                ) + fadeIn(animationSpec = tween(240, easing = EasingFunctions.EaseOutExpo)),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth },
+                    animationSpec = tween(300, easing = EasingFunctions.EaseInOutExpo)
+                ) + fadeOut(animationSpec = tween(200, easing = EasingFunctions.EaseInOutExpo))
+            ) {
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(1f)
+                ) {
+                    // scrim
+                    Box(modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.36f))
+                        .clickable { showSettings = false }
+                    )
+
+                    // settings content
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        DesktopSettings(viewModel = viewModel, onClose = { showSettings = false })
+                    }
+                }
+            }
         }
     }
 }
@@ -295,7 +322,7 @@ private fun MobileHeaderSection(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            painter = painterResource(Res.drawable.icon_pip),
+                            Icons.Rounded.Podcasts,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
@@ -345,7 +372,7 @@ private fun MobileHeaderSection(
                 modifier = Modifier.size(32.dp).scale(settingsScale)
             ) {
                 Icon(
-                    painterResource(Res.drawable.icon_settings),
+                    Icons.Rounded.Settings,
                     contentDescription = strings.settingsTitle,
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -389,9 +416,9 @@ private fun ConnectionConfigCard(
             // Mode selector - icon style like Desktop
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 val modes = listOf(
-                    ConnectionMode.Wifi to (strings.modeWifi to painterResource(Res.drawable.icon_home_wifi)),
-                    ConnectionMode.Bluetooth to (strings.modeBluetooth to painterResource(Res.drawable.icon_bluetooth)),
-                    ConnectionMode.Usb to (strings.modeUsb to painterResource(Res.drawable.icon_usb))
+                    ConnectionMode.Wifi to (strings.modeWifi to Icons.Rounded.Wifi),
+                    ConnectionMode.Bluetooth to (strings.modeBluetooth to Icons.Rounded.Bluetooth),
+                    ConnectionMode.Usb to (strings.modeUsb to Icons.Rounded.Usb)
                 )
                 
                 modes.forEach { (mode, info) ->

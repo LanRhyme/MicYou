@@ -1,11 +1,12 @@
 package com.lanrhyme.micyou
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.window.WindowDraggableArea
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -13,8 +14,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.AwtWindow
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
@@ -84,9 +85,7 @@ fun main() {
     Logger.i("Main", "App started")
     application {
         val viewModel = remember { MainViewModel() }
-        var isSettingsOpen by remember { mutableStateOf(false) }
         var isVisible by remember { mutableStateOf(true) }
-        var bringSettingsToFront by remember { mutableStateOf(false) }
 
         val language by viewModel.uiState.collectAsState().let { state ->
             derivedStateOf { state.value.language }
@@ -108,13 +107,6 @@ fun main() {
                 label = if (isVisible) strings.trayHide else strings.trayShow
             ) {
                 isVisible = !isVisible
-            }
-
-            Item(
-                label = strings.settingsTitle
-            ) {
-                isSettingsOpen = true
-                isVisible = true
             }
 
             Item(
@@ -174,9 +166,14 @@ fun main() {
                     // Apple Silicon Mac cannot use BlueCove without Rosetta 2
                     val isBluetoothDisabled = PlatformInfo.isMacOS && PlatformInfo.isArm64
 
-                    App(
-                        viewModel = viewModel,
-                        onMinimize = { windowState.isMinimized = true },
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp)
+                    ) {
+                        App(
+                            viewModel = viewModel,
+                            onMinimize = { windowState.isMinimized = true },
                         onClose = { 
                             viewModel.handleCloseRequest(
                                 onExit = { 
@@ -195,64 +192,8 @@ fun main() {
                             exitProcess(0)
                         },
                         onHideApp = { isVisible = false },
-                        onOpenSettings = { 
-                            if (isSettingsOpen) {
-                                bringSettingsToFront = true
-                            } else {
-                                isSettingsOpen = true
-                            }
-                        },
                         isBluetoothDisabled = isBluetoothDisabled
                     )
-                }
-            }
-        }
-
-        if (isSettingsOpen) {
-            val settingsState = rememberWindowState(
-                width = 850.dp,
-                height = 650.dp,
-                position = WindowPosition(Alignment.Center)
-            )
-            
-            LaunchedEffect(bringSettingsToFront) {
-                if (bringSettingsToFront) {
-                    java.awt.Window.getWindows()
-                        .filterIsInstance<java.awt.Frame>()
-                        .find { it.title == strings.settingsTitle }
-                        ?.toFront()
-                    bringSettingsToFront = false
-                }
-            }
-            
-            Window(
-                onCloseRequest = { isSettingsOpen = false },
-                state = settingsState,
-                title = strings.settingsTitle,
-                icon = icon,
-                resizable = false
-            ) {
-                val themeMode by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.themeMode }
-                }
-                val seedColor by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.seedColor }
-                }
-                val oledPureBlack by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.oledPureBlack }
-                }
-                val language by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.language }
-                }
-                val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
-                val strings = getStrings(language)
-
-                CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(themeMode = themeMode, seedColor = seedColorObj, oledPureBlack = oledPureBlack) {
-                        DesktopSettings(
-                            viewModel = viewModel,
-                            onClose = { isSettingsOpen = false }
-                        )
                     }
                 }
             }
