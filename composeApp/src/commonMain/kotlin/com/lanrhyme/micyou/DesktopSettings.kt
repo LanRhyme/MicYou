@@ -3,6 +3,7 @@ package com.lanrhyme.micyou
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,6 +100,12 @@ fun DesktopSettings(
     val snackbarHostState = remember { SnackbarHostState() }
     val state by viewModel.uiState.collectAsState()
     val strings = LocalAppStrings.current
+    val isDarkTheme = when (state.themeMode) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
+    val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
 
     LaunchedEffect(state.snackbarMessage) {
         state.snackbarMessage?.let {
@@ -115,7 +122,8 @@ fun DesktopSettings(
         Box(modifier = Modifier.padding(padding)) {
             CustomBackground(
                 settings = state.backgroundSettings,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                forcePureBlackBackground = forcePureBlackBackground
             )
             if (platform.type == PlatformType.Desktop) {
                 DesktopLayout(viewModel, onClose)

@@ -32,9 +32,10 @@ fun rememberHazeState(): HazeState {
 fun CustomBackground(
     settings: BackgroundSettings,
     modifier: Modifier = Modifier,
-    hazeState: HazeState? = null
+    hazeState: HazeState? = null,
+    forcePureBlackBackground: Boolean = false
 ) {
-    if (LocalOledPureBlackActive.current) {
+    if (forcePureBlackBackground) {
         Box(
             modifier = modifier.background(Color.Black)
         )

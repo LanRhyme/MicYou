@@ -19,6 +19,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -107,6 +108,12 @@ fun MobileHome(viewModel: MainViewModel) {
     val isClient = platform.type == PlatformType.Android
     val strings = LocalAppStrings.current
     val snackbarHostState = remember { SnackbarHostState() }
+    val isDarkTheme = when (state.themeMode) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
+    val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
     
     var showSettings by remember { mutableStateOf(false) }
     var contentVisible by remember { mutableStateOf(false) }
@@ -146,7 +153,8 @@ fun MobileHome(viewModel: MainViewModel) {
             CustomBackground(
                 settings = state.backgroundSettings,
                 modifier = Modifier.fillMaxSize(),
-                hazeState = hazeState
+                hazeState = hazeState,
+                forcePureBlackBackground = forcePureBlackBackground
             )
             
             Column(
