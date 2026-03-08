@@ -77,16 +77,32 @@ body:
     attributes:
       value: "## 环境信息"
 
-  - type: dropdown
-    id: client_os
+  - type: input
+    id: android_version
     attributes:
-      label: Android 客户端环境
-      description: 您的 Android 设备信息
-      options:
-        - Android (请在下方的“附加信息”中补充具体版本和机型)
-      default: 0
+      label: 安卓版本
+      description: 例如 Android 13、Android 14 等
+      placeholder: 例如：Android 14
     validations:
       required: true
+
+  - type: input
+    id: device_model
+    attributes:
+      label: 设备型号
+      description: 例如小米 14 Pro、三星 S24、Pixel 8 等
+      placeholder: 例如：小米 14 Pro
+    validations:
+      required: true
+
+  - type: input
+    id: system_version
+    attributes:
+      label: 系统版本（可选）
+      description: 如果有厂商定制系统，请填写具体版本，例如 MIUI 14、One UI 6.0 等
+      placeholder: 例如：MIUI 14.0.5
+    validations:
+      required: false
 
   - type: dropdown
     id: server_os
