@@ -2,7 +2,7 @@
 .kotlin
 .gradle
 **/build/
-composeApp/bin/main/com/lanrhyme/micyou/BuildConfig.class
+composeApp/bin/
 xcuserdata
 !src/**/build/
 local.properties
