@@ -53,6 +53,8 @@ import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.Headphones
+import androidx.compose.material.icons.rounded.HeadsetOff
 import androidx.compose.material.icons.rounded.Minimize
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
@@ -1324,11 +1326,20 @@ private fun BottomBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            MuteButton(
-                isMuted = state.isMuted,
-                onToggle = { viewModel.toggleMute() },
-                strings = strings
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MuteButton(
+                    isMuted = state.isMuted,
+                    onToggle = { viewModel.toggleMute() },
+                    strings = strings
+                )
+                MonitorButton(
+                    isMonitoring = state.monitoringEnabled,
+                    onToggle = { viewModel.setMonitoringEnabled(!state.monitoringEnabled) },
+                    strings = strings
+                )
+            }
             
             IconButton(onClick = onOpenSettings, modifier = Modifier.size(32.dp)) {
                 Icon(
@@ -1380,6 +1391,50 @@ private fun MuteButton(
             )
             Text(
                 if (isMuted) strings.unmuteLabel else strings.muteLabel,
+                style = MaterialTheme.typography.labelSmall, color = contentColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun MonitorButton(
+    isMonitoring: Boolean,
+    onToggle: () -> Unit,
+    strings: AppStrings
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.9f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
+    )
+    
+    val bgColor by animateColorAsState(
+        targetValue = if (isMonitoring) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = tween(200)
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isMonitoring) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(200)
+    )
+    
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = bgColor,
+        modifier = Modifier.scale(scale).clickable(interactionSource, null) { onToggle() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                if (isMonitoring) Icons.Rounded.Headphones else Icons.Rounded.HeadsetOff,
+                null, tint = contentColor, modifier = Modifier.size(16.dp)
+            )
+            Text(
+                strings.monitoringLabel,
                 style = MaterialTheme.typography.labelSmall, color = contentColor
             )
         }

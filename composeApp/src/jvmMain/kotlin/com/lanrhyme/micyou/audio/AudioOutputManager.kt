@@ -8,6 +8,7 @@ import javax.sound.sampled.*
 
 class AudioOutputManager {
     private var outputLine: SourceDataLine? = null
+    private var monitorLoopbackProcess: Process? = null
     private var isUsingVirtualDevice = false
     private var isMonitoring = false
     private var currentSampleRate = 0
@@ -248,12 +249,62 @@ class AudioOutputManager {
     
     fun setMonitoring(enabled: Boolean) {
         isMonitoring = enabled
+        if (enabled) {
+            startMonitorLoopback()
+        } else {
+            stopMonitorLoopback()
+        }
+    }
+    
+    private fun startMonitorLoopback() {
+        if (monitorLoopbackProcess?.isAlive == true) return
+        
+        if (PlatformInfo.isLinux && VirtualAudioDevice.isSetupComplete()) {
+            try {
+                val sinkName = VirtualAudioDevice.virtualSinkName
+                val process = ProcessBuilder(
+                    "pw-loopback",
+                    "--capture-props={\"node.target\": \"$sinkName\", \"media.class\": \"Stream/Input/Audio\", \"stream.capture.sink\": true}",
+                    "--playback-props={\"media.class\": \"Stream/Output/Audio\"}"
+                ).redirectErrorStream(true).start()
+                
+                Thread.sleep(200)
+                
+                if (process.isAlive) {
+                    monitorLoopbackProcess = process
+                    Logger.i("AudioOutputManager", "Monitor loopback started (pid: ${process.pid()})")
+                } else {
+                    val output = process.inputStream.bufferedReader().readText()
+                    Logger.e("AudioOutputManager", "Monitor loopback failed to start: $output")
+                }
+            } catch (e: Exception) {
+                Logger.e("AudioOutputManager", "Failed to start monitor loopback", e)
+            }
+        } else {
+            Logger.w("AudioOutputManager", "Monitor loopback not available (not Linux or virtual device not setup)")
+        }
+    }
+    
+    private fun stopMonitorLoopback() {
+        monitorLoopbackProcess?.let { process ->
+            try {
+                if (process.isAlive) {
+                    process.destroy()
+                    Logger.i("AudioOutputManager", "Monitor loopback stopped")
+                }
+            } catch (e: Exception) {
+                Logger.e("AudioOutputManager", "Error stopping monitor loopback", e)
+            }
+        }
+        monitorLoopbackProcess = null
     }
     
     fun isUsingVirtualDevice(): Boolean = isUsingVirtualDevice
     
     fun release() {
         Logger.d("AudioOutputManager", "Release audio output resources")
+        
+        stopMonitorLoopback()
         
         try {
             outputLine?.drain()
@@ -275,3 +326,4 @@ class AudioOutputManager {
         return PlatformInfo.isLinux || PlatformInfo.isMacOS
     }
 }
+
