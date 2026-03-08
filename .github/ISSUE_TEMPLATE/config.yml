@@ -1,0 +1,13 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "使用指南 / FAQ"
+    url: "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ_ZH.md"
+    about: "在报告问题前，请先查阅使用指南和常见问题解答\nPlease read the user guide and FAQ before reporting issues"
+  
+  - name: "QQ 群 / QQ Group"
+    url: "https://qm.qq.com/q/V16hPpWPKO"
+    about: "加入 QQ 群与我们交流，获取更快的支持\nJoin our QQ group for faster support and discussions"
+
+  - name: "讨论区 / Discussions"
+    url: "https://github.com/LanRhyme/MicYou/discussions"
+    about: "对于功能讨论、使用问题或一般性问题，请使用讨论区\nFor feature discussions, usage questions, or general inquiries"

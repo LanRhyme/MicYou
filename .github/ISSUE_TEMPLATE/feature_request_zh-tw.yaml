@@ -1,0 +1,91 @@
+name: 功能建議
+description: 為 MicYou 提出一個新功能或改進建議
+title: "[Feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝您花時間提出功能建議！您的想法將幫助我們讓 MicYou 變得更好。
+
+  - type: checkboxes
+    id: search_existing_issues
+    attributes:
+      label: 搜尋已有問題
+      description: 提交前請先搜尋已有問題，避免重複提交。
+      options:
+        - label: 我已搜尋現有 Issues，確認沒有重複的建議
+          required: true
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: 確認事項
+      description: 請確認以下事項：
+      options:
+        - label: 我使用的是最新版本，但此功能尚未實作
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 功能描述
+      description: 請清晰簡潔地描述您希望新增的功能是什麼。
+      placeholder: 例如：希望在 Android 端增加音訊波形視覺化功能，方便使用者即時監控聲音輸入。
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 相關痛點（可選）
+      description: 這個功能解決了什麼問題？如果與某個使用中的不便有關，請描述。
+      placeholder: 例如：目前無法直觀判斷麥克風是否正常運作，需要額外軟體確認。
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: 預期行為
+      description: 您預期這個功能如何運作？請盡量詳細描述。
+      placeholder: |
+        例如：在 Android 主介面新增一個波形圖區域，隨著聲音大小即時跳動。點選波形圖可以檢視更詳細的頻譜分析。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 適用範圍
+      description: 該功能適用於哪個平台？
+      options:
+        - Android 客戶端
+        - PC 伺服器端
+        - 兩端都需要
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 優先順序（可選）
+      description: 從您的角度來看，這個功能有多重要？
+      options:
+        - 低 - 有了更好
+        - 中 - 能顯著提升體驗
+        - 高 - 當前缺少的關鍵功能
+      default: 1
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案（可選）
+      description: 您是否考慮過任何替代解決方案或變通方法？
+      placeholder: 例如：目前使用第三方應用程式監測音訊電平。
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: 附加內容
+      description: 在此處新增關於該功能建議的任何其他資訊，如截圖、參考其他類似應用程式的實作、技術實作思路等。
+      placeholder: 您可以將圖片拖曳至此區域上傳，或貼上連結。
