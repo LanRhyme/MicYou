@@ -1,0 +1,91 @@
+name: Feature Request
+description: Suggest a new feature or improvement for MicYou
+title: "[Feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to suggest a feature! Your ideas will help us make MicYou better.
+
+  - type: checkboxes
+    id: search_existing_issues
+    attributes:
+      label: Search Existing Issues
+      description: Please search existing issues before submitting to avoid duplicates.
+      options:
+        - label: I have searched existing issues and found no duplicates
+          required: true
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      description: Please confirm the following:
+      options:
+        - label: I am using the latest version, but this feature is not yet implemented
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Please provide a clear and concise description of the feature you would like to add.
+      placeholder: e.g., Add audio waveform visualization on Android to help users monitor audio input in real-time.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Related Problem (Optional)
+      description: What problem does this feature solve? If it relates to an inconvenience in usage, please describe it.
+      placeholder: e.g., Currently unable to visually determine if the microphone is working properly, requiring additional software to verify.
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: How do you expect this feature to work? Please describe in as much detail as possible.
+      placeholder: |
+        e.g., Add a waveform graph area on the Android main interface that bounces in real-time with the audio level. Tapping the waveform graph should show more detailed spectrum analysis.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Applicable Scope
+      description: Which platform(s) should this feature apply to?
+      options:
+        - Android Client
+        - PC Server
+        - Both
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (Optional)
+      description: From your perspective, how important is this feature?
+      options:
+        - Low - Nice to have
+        - Medium - Would significantly improve experience
+        - High - Essential feature that's currently missing
+      default: 1
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions (Optional)
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: e.g., Currently using a third-party app to monitor audio levels.
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Add any other information about the feature request here, such as screenshots, references to similar implementations in other apps, technical implementation ideas, etc.
+      placeholder: You can drag images here to upload, or paste links.

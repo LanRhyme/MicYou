@@ -1,9 +1,25 @@
 blank_issues_enabled: false
 contact_links:
   - name: "使用指南 / FAQ"
-    url: "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md"
+    url: "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ_ZH.md"
     about: "在报告问题前，请先查阅使用指南和常见问题解答"
 
-  - name: "最新版本下载"
+  - name: "User Guide / FAQ"
+    url: "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md"
+    about: "Please read the user guide and FAQ before reporting issues"
+
+  - name: "使用指南 / FAQ"
+    url: "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ_TW.md"
+    about: "在報告問題前，請先查閱使用指南和常見問題解答"
+
+  - name: "最新版本下载 / Latest Release"
     url: "https://github.com/LanRhyme/MicYou/releases/latest"
-    about: "我们只处理最新版本的问题，请先确认您使用的是最新版"
+    about: "我们只处理最新版本的问题，请先确认您使用的是最新版\nWe only handle issues for the latest version"
+
+  - name: "讨论区 / Discussions"
+    url: "https://github.com/LanRhyme/MicYou/discussions"
+    about: "对于功能讨论、使用问题或一般性问题，请使用讨论区\nFor feature discussions, usage questions, or general inquiries"
+
+  - name: "贡献指南 / Contributing"
+    url: "https://github.com/LanRhyme/MicYou/blob/master/CONTRIBUTING.md"
+    about: "了解如何为 MicYou 做出贡献\nLearn how to contribute to MicYou"

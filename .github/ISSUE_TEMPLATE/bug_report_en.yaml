@@ -1,0 +1,166 @@
+name: Bug Report
+description: Report a bug to help us improve MicYou (Latest version only)
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to fill out this bug report! Please provide as much detail as possible to help us locate and resolve the issue quickly.
+
+        ⚠️ **Important**: We **only process issues for the latest version**. Before submitting, please ensure you have upgraded to the [latest release](https://github.com/LanRhyme/MicYou/releases).
+
+  - type: checkboxes
+    id: latest_version_confirmation
+    attributes:
+      label: Confirm Latest Version
+      description: We only accept bug reports for the latest version. Please confirm you have upgraded to the latest version of MicYou.
+      options:
+        - label: I confirm I am using the latest version
+          required: true
+
+  - type: checkboxes
+    id: search_existing_issues
+    attributes:
+      label: Search Existing Issues
+      description: Please search existing issues before submitting to avoid duplicates.
+      options:
+        - label: I have searched existing issues and found no duplicates
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Please provide a clear and concise description of the bug.
+      placeholder: e.g., After successful connection, there is no audio input on PC; or Android app crashes frequently.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Please provide detailed steps to reproduce the issue.
+      placeholder: |
+        1. Open Android app and select 'Wi-Fi' mode
+        2. Open MicYou Server on PC
+        3. Tap 'Connect' button on Android
+        4. Connection shows successful, but PC microphone shows no audio level activity
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: e.g., After successful connection, PC should receive audio from Android device's microphone normally.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: e.g., PC software shows no audio input, or Android device disconnects.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection_mode
+    attributes:
+      label: Connection Mode
+      description: Which connection method were you using when the issue occurred?
+      options:
+        - Wi-Fi
+        - USB (ADB/AOA)
+        - Bluetooth
+      default: 0
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: "## 📱 Environment Information"
+
+  - type: input
+    id: android_version
+    attributes:
+      label: Android Version
+      description: e.g., Android 13, Android 14, etc.
+      placeholder: e.g., Android 14
+    validations:
+      required: true
+
+  - type: input
+    id: device_model
+    attributes:
+      label: Device Model
+      description: e.g., Xiaomi 14 Pro, Samsung S24, Pixel 8, etc.
+      placeholder: e.g., Xiaomi 14 Pro
+    validations:
+      required: true
+
+  - type: input
+    id: system_version
+    attributes:
+      label: Custom ROM/Skin Version (Optional)
+      description: If using a manufacturer's custom system, please specify the version, e.g., MIUI 14, One UI 6.0, etc.
+      placeholder: e.g., MIUI 14.0.5
+    validations:
+      required: false
+
+  - type: dropdown
+    id: server_os
+    attributes:
+      label: PC Server Operating System
+      description: Which operating system is your PC running?
+      options:
+        - Windows
+        - Linux
+        - macOS
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: server_os_version
+    attributes:
+      label: PC OS Version (Optional)
+      description: e.g., Windows 11 23H2, Ubuntu 22.04, macOS Sonoma 14.3, etc.
+      placeholder: e.g., Windows 11 23H2
+    validations:
+      required: false
+
+  - type: input
+    id: additional_env
+    attributes:
+      label: Additional Environment Details
+      description: Please provide any other environment information that might affect the issue, such as whether VB-Cable is installed on PC, the audio input device used, etc.
+      placeholder: e.g., VB-Cable installed and MicYou set as default input device.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs (Optional but highly recommended)
+      description: |
+        Providing logs can greatly speed up issue diagnosis. You can obtain logs by:
+        - In the app, go to Settings → About → Export Logs, then drag the generated log file here or paste the content.
+      placeholder: Drag the log file here or paste the text content.
+      render: shell
+      
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or Screen Recordings
+      description: If applicable, please add screenshots or screen recordings to help explain the issue.
+      placeholder: You can drag images or videos here to upload.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the issue here (e.g., does it occur in specific network environments, did it work before, temporary workarounds, etc.).

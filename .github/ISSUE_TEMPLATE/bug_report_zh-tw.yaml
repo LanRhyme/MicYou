@@ -1,0 +1,166 @@
+name: Bug 回報
+description: 回報 Bug 以協助我們改進 MicYou（僅接受最新版本）
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝您花時間填寫這份 Bug 回報！請提供盡可能詳細的資訊，這能幫助我們更快地定位和解決問題。
+
+        ⚠️ **注意**：我們**只處理最新版本**的問題。在提交前，請確認您已升級到 [最新版本](https://github.com/LanRhyme/MicYou/releases)。
+
+  - type: checkboxes
+    id: latest_version_confirmation
+    attributes:
+      label: 確認使用最新版本
+      description: 我們只接受最新版本的 Bug 回報。請確認您已經升級到 MicYou 的最新版本。
+      options:
+        - label: 我已經確認使用的是最新版本
+          required: true
+
+  - type: checkboxes
+    id: search_existing_issues
+    attributes:
+      label: 搜尋已有問題
+      description: 提交前請先搜尋已有問題，避免重複提交。
+      options:
+        - label: 我已經搜尋過已有問題，沒有發現重複
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 問題描述
+      description: 請清晰簡潔地描述這個 Bug 是什麼。
+      placeholder: 例如：連線成功後，PC 端沒有聲音輸入；或 Android 應用程式頻繁閃退。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟
+      description: 請提供重現該問題的詳細步驟。
+      placeholder: |
+        1. 開啟 Android 端 App，並選擇 'Wi-Fi' 模式
+        2. 在 PC 端開啟 MicYou Server
+        3. 點選 Android 端的 '連線' 按鈕
+        4. 看到連線成功提示，但 PC 端麥克風無任何電平反應
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 預期行為
+      description: 您預期會發生什麼？
+      placeholder: 例如：連線成功後，PC 端應能正常接收到 Android 裝置的麥克風聲音。
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 實際行為
+      description: 實際發生了什麼？
+      placeholder: 例如：PC 端軟體無聲音輸入，或 Android 端斷開連線。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection_mode
+    attributes:
+      label: 連線模式
+      description: 您在使用哪種連線方式時遇到了問題？
+      options:
+        - Wi-Fi
+        - USB (ADB/AOA)
+        - 藍牙
+      default: 0
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: "## 📱 環境資訊"
+
+  - type: input
+    id: android_version
+    attributes:
+      label: Android 版本
+      description: 例如 Android 13、Android 14 等
+      placeholder: 例如：Android 14
+    validations:
+      required: true
+
+  - type: input
+    id: device_model
+    attributes:
+      label: 裝置型號
+      description: 例如小米 14 Pro、三星 S24、Pixel 8 等
+      placeholder: 例如：小米 14 Pro
+    validations:
+      required: true
+
+  - type: input
+    id: system_version
+    attributes:
+      label: 系統版本（可選）
+      description: 如果有廠商定製系統，請填寫具體版本，例如 MIUI 14、One UI 6.0 等
+      placeholder: 例如：MIUI 14.0.5
+    validations:
+      required: false
+
+  - type: dropdown
+    id: server_os
+    attributes:
+      label: PC 伺服器端作業系統
+      description: 您的 PC 執行的是哪個作業系統？
+      options:
+        - Windows
+        - Linux
+        - macOS
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: server_os_version
+    attributes:
+      label: PC 系統版本（可選）
+      description: 例如 Windows 11 23H2、Ubuntu 22.04、macOS Sonoma 14.3 等
+      placeholder: 例如：Windows 11 23H2
+    validations:
+      required: false
+
+  - type: input
+    id: additional_env
+    attributes:
+      label: 其他環境細節
+      description: 請補充其他可能影響問題的環境資訊，例如 PC 是否安裝了 VB-Cable，使用的音訊輸入裝置等。
+      placeholder: 例如：已安裝 VB-Cable，並將 MicYou 設為預設輸入裝置。
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相關日誌（選填，但強烈推薦提供）
+      description: |
+        提供日誌能極大加快問題定位。您可以透過以下方式取得日誌：
+        - 在應用程式內進入「設定」→「關於」→「匯出日誌」，將產生的日誌檔案拖曳到此處上傳，或複製內容貼上。
+      placeholder: 請將日誌檔案拖曳至此區域上傳，或貼上文字內容。
+      render: shell
+      
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截圖或錄影
+      description: 如果適用，請新增截圖或錄影以協助解釋您的問題。
+      placeholder: 您可以將圖片或影片拖曳到此區域上傳。
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 附加內容
+      description: 在此處新增關於該問題的任何其他內容（如是否在特定網路環境下發生、是否曾經正常運作過、臨時解決方案等）。

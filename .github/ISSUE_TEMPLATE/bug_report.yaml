@@ -1,4 +1,4 @@
-name: Bug 反馈
+name: Bug 报告
 description: 报告一个 Bug 以帮助我们改进 MicYou（仅接受最新版本）
 title: "[Bug]: "
 labels: ["bug"]
@@ -17,6 +17,15 @@ body:
       description: 我们只接受最新版本的 Bug 报告。请确认您已经升级到 MicYou 的最新版本。
       options:
         - label: 我已经确认使用的是最新版本
+          required: true
+
+  - type: checkboxes
+    id: search_existing_issues
+    attributes:
+      label: 搜索已有问题
+      description: 提交前请先搜索已有问题，避免重复提交。
+      options:
+        - label: 我已经搜索过已有问题，没有发现重复
           required: true
 
   - type: textarea
@@ -38,7 +47,7 @@ body:
         2. 在 PC 端打开 MicYou Server
         3. 点击 Android 端的 '连接' 按钮
         4. 看到连接成功提示，但 PC 端麦克风无任何电平反应
-      render: shell
+      render: markdown
     validations:
       required: true
 
@@ -75,7 +84,7 @@ body:
 
   - type: markdown
     attributes:
-      value: "## 环境信息"
+      value: "## 📱 环境信息"
 
   - type: input
     id: android_version
@@ -118,6 +127,15 @@ body:
       required: true
 
   - type: input
+    id: server_os_version
+    attributes:
+      label: PC 系统版本（可选）
+      description: 例如 Windows 11 23H2、Ubuntu 22.04、macOS Sonoma 14.3 等
+      placeholder: 例如：Windows 11 23H2
+    validations:
+      required: false
+
+  - type: input
     id: additional_env
     attributes:
       label: 其他环境细节
@@ -132,6 +150,7 @@ body:
         提供日志能极大加快问题定位。您可以通过以下方式获取日志：
         - 在应用内进入「设置」→「关于」→「导出日志」，将生成的日志文件拖拽到此处上传，或复制内容粘贴。
       placeholder: 请将日志文件拖拽至此区域上传，或粘贴文本内容。
+      render: shell
       
   - type: textarea
     id: screenshots
