@@ -164,5 +164,9 @@
   "contributorsLoading": "正在加载贡献者...",
   "contributorsPeopleCount": "%d 位贡献者",
   "floatingWindowLabel": "悬浮窗",
-  "floatingWindowDesc": "显示一个带有音频可视化的小型置顶窗口"
+  "floatingWindowDesc": "显示一个带有音频可视化的小型置顶窗口",
+  "firstLaunchTitle": "Welcome to MicYou",
+  "firstLaunchMessage": "You seem to be using MicYou for the first time. This app turns your Android device into a high-quality microphone for your computer via Wi-Fi, Bluetooth, or USB.",
+  "firstLaunchGuideButton": "View Usage Guide",
+  "firstLaunchGotItButton": "I know how to use it"
 }
