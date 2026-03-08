@@ -82,6 +82,43 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: version
+    attributes:
+      label: MicYou Version
+      description: Please provide the MicYou version you are currently using (e.g., v1.2.3). You can find the version in the "About" page within the app.
+      placeholder: e.g., v1.2.3
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is the impact of this bug on your usage?
+      options:
+        - Blocking - Completely unusable
+        - Critical - Major functionality broken
+        - Moderate - Functionality works but with flaws
+        - Minor - Minor issue, does not affect core functionality
+      default: 2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Reproduction Frequency
+      description: How often does this bug occur?
+      options:
+        - Always
+        - Frequently
+        - Occasionally
+        - Once
+      default: 1
+    validations:
+      required: true
+
   - type: markdown
     attributes:
       value: "## 📱 Environment Information"

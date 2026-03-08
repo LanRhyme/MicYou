@@ -82,6 +82,43 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: version
+    attributes:
+      label: MicYou 版本
+      description: 請填寫您目前使用的 MicYou 版本號（例如：v1.2.3）。您可以在應用內的「關於」頁面找到版本資訊。
+      placeholder: 例如：v1.2.3
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 嚴重程度
+      description: 這個 Bug 對您使用的影響有多大？
+      options:
+        - 阻塞 - 完全無法使用
+        - 嚴重 - 主要功能受損
+        - 一般 - 功能可用但有缺陷
+        - 輕微 - 細微問題，不影響主要功能
+      default: 2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: 重現頻率
+      description: 這個 Bug 出現的頻率如何？
+      options:
+        - 總是
+        - 經常
+        - 偶爾
+        - 僅一次
+      default: 1
+    validations:
+      required: true
+
   - type: markdown
     attributes:
       value: "## 📱 環境資訊"
