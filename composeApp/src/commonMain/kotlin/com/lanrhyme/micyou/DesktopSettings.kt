@@ -795,22 +795,39 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        var showApplied by remember { mutableStateOf(false) }
-                        LaunchedEffect(state.audioConfigRevision) {
-                            if (state.audioConfigRevision > 0) {
-                                showApplied = true
-                                delay(1200)
-                                showApplied = false
+                        // 1. 增益 (Amplifier) - 第一行显示
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(strings.gainLabel, style = MaterialTheme.typography.titleSmall)
+
+                                Slider(
+                                    value = state.amplification,
+                                    onValueChange = { viewModel.setAmplification(it) },
+                                    valueRange = -50.0f..50.0f,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                // 固定宽度避免进度条左右移动，"-50 dB" 是最宽的情况
+                                val gainText = if (state.amplification >= 0) "+${state.amplification.toInt()} dB" else "${state.amplification.toInt()} dB"
+                                Text(
+                                    gainText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.width(60.dp),
+                                    textAlign = TextAlign.End
+                                )
                             }
                         }
-                        if (showApplied) {
-                            Text(
-                                strings.audioConfigAppliedLabel,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
+
+                        // 2. 降噪 (Noise Suppression)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -867,69 +884,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 NoiseReductionHelpPopup(onDismiss = { showNsTypeHelp = false })
                             }
                         }
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.enableAgcLabel) },
-                                trailingContent = { Switch(checked = state.enableAGC, onCheckedChange = { viewModel.setEnableAGC(it) }) },
-                                modifier = Modifier.clickable { viewModel.setEnableAGC(!state.enableAGC) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-                        if (state.enableAGC) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("${strings.agcTargetLabel}: ${state.agcTargetLevel}", style = MaterialTheme.typography.bodySmall)
-                                    Slider(
-                                        value = state.agcTargetLevel.toFloat(),
-                                        onValueChange = { viewModel.setAgcTargetLevel(it.toInt()) },
-                                        valueRange = 0f..100f
-                                    )
-                                }
-                            }
-                        }
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.enableVadLabel) },
-                                trailingContent = { Switch(checked = state.enableVAD, onCheckedChange = { viewModel.setEnableVAD(it) }) },
-                                modifier = Modifier.clickable { viewModel.setEnableVAD(!state.enableVAD) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-                        if (state.enableVAD) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("${strings.vadThresholdLabel}: ${state.vadThreshold}", style = MaterialTheme.typography.bodySmall)
-                                    Slider(
-                                        value = state.vadThreshold.toFloat(),
-                                        onValueChange = { viewModel.setVadThreshold(it.toInt()) },
-                                        valueRange = 0f..100f
-                                    )
-                                }
-                            }
-                        }
-                        
+
+                        // 3. 去混响 (Dereverb)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -960,48 +916,68 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 }
                             }
                         }
-                        
+
+                        // 4. 自动增益控制 (AGC)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(strings.amplificationLabel, style = MaterialTheme.typography.titleSmall)
-                                Spacer(Modifier.height(8.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("${strings.amplificationMultiplierLabel}: ${((state.amplification * 10).toInt()) / 10f}x", style = MaterialTheme.typography.bodySmall)
-                                    
-                                    var textValue by remember(state.amplification) { mutableStateOf(((state.amplification * 10).toInt() / 10f).toString()) }
-                                    
-                                    BasicTextField(
-                                        value = textValue,
-                                        onValueChange = { 
-                                            textValue = it
-                                            it.toFloatOrNull()?.let { val floatVal = it.coerceIn(0f, 60f); viewModel.setAmplification(floatVal) }
-                                        },
-                                        textStyle = MaterialTheme.typography.bodySmall.copy(
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            textAlign = TextAlign.End
-                                        ),
-                                        modifier = Modifier
-                                            .width(60.dp)
-                                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(4.dp))
-                                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                            ListItem(
+                                headlineContent = { Text(strings.enableAgcLabel) },
+                                trailingContent = { Switch(checked = state.enableAGC, onCheckedChange = { viewModel.setEnableAGC(it) }) },
+                                modifier = Modifier.clickable { viewModel.setEnableAGC(!state.enableAGC) },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+                        }
+                        if (state.enableAGC) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("${strings.agcTargetLabel}: ${state.agcTargetLevel}", style = MaterialTheme.typography.bodySmall)
+                                    Slider(
+                                        value = state.agcTargetLevel.toFloat(),
+                                        onValueChange = { viewModel.setAgcTargetLevel(it.toInt()) },
+                                        valueRange = 0f..100f
                                     )
                                 }
-                                Slider(
-                                    value = state.amplification,
-                                    onValueChange = { viewModel.setAmplification(it) },
-                                    valueRange = 0.0f..60.0f
-                                )
+                            }
+                        }
+
+                        // 5. 语音活动检测 (VAD)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                        ) {
+                            ListItem(
+                                headlineContent = { Text(strings.enableVadLabel) },
+                                trailingContent = { Switch(checked = state.enableVAD, onCheckedChange = { viewModel.setEnableVAD(it) }) },
+                                modifier = Modifier.clickable { viewModel.setEnableVAD(!state.enableVAD) },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                            )
+                        }
+                        if (state.enableVAD) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("${strings.vadThresholdLabel}: ${state.vadThreshold}", style = MaterialTheme.typography.bodySmall)
+                                    Slider(
+                                        value = state.vadThreshold.toFloat(),
+                                        onValueChange = { viewModel.setVadThreshold(it.toInt()) },
+                                        valueRange = 0f..100f
+                                    )
+                                }
                             }
                         }
                     }

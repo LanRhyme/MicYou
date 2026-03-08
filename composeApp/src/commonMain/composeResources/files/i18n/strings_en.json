@@ -62,6 +62,7 @@
   "enableDereverbLabel": "De-reverb",
   "dereverbLevelLabel": "Level",
   "amplificationLabel": "Amplification",
+  "gainLabel": "Gain",
   "openSourceLicense": "License",
   "viewLibraries": "View Open Source Libraries",
   "softwareIntro": "Introduction",

@@ -62,6 +62,7 @@
   "enableDereverbLabel": "去混响 (Dereverb)",
   "dereverbLevelLabel": "强度",
   "amplificationLabel": "信号放大 (Amplification)",
+  "gainLabel": "增益",
   "openSourceLicense": "开源许可",
   "viewLibraries": "查看使用的开源库",
   "softwareIntro": "软件介绍",

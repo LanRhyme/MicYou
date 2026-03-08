@@ -80,6 +80,7 @@ data class AppStrings(
     val enableDereverbLabel: String = "De-reverb",
     val dereverbLevelLabel: String = "Level",
     val amplificationLabel: String = "Amplification",
+    val gainLabel: String = "Gain",
     val openSourceLicense: String = "License",
     val viewLibraries: String = "View Open Source Libraries",
     val softwareIntro: String = "Introduction",
