@@ -196,6 +196,15 @@ enum class ThemeMode {
     System, Light, Dark
 }
 
+@Composable
+fun isDarkThemeActive(themeMode: ThemeMode): Boolean {
+    return when (themeMode) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
+}
+
 val DefaultSeedColor = Color(0xFF4285F4) // Google Blue - Material Design 3 推荐蓝色
 
 val AppShapes = androidx.compose.material3.Shapes(
@@ -216,11 +225,7 @@ fun AppTheme(
     oledPureBlack: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val isDark = when (themeMode) {
-        ThemeMode.System -> isSystemInDarkTheme()
-        ThemeMode.Light -> false
-        ThemeMode.Dark -> true
-    }
+    val isDark = isDarkThemeActive(themeMode)
 
     val dynamicScheme = if (useDynamicColor) getDynamicColorScheme(isDark) else null
     val baseColorScheme = dynamicScheme ?: generateColorScheme(seedColor, isDark)
