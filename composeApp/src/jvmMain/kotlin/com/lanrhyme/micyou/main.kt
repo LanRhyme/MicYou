@@ -238,6 +238,9 @@ fun main() {
                 val seedColor by viewModel.uiState.collectAsState().let { state ->
                     derivedStateOf { state.value.seedColor }
                 }
+                val oledPureBlack by viewModel.uiState.collectAsState().let { state ->
+                    derivedStateOf { state.value.oledPureBlack }
+                }
                 val language by viewModel.uiState.collectAsState().let { state ->
                     derivedStateOf { state.value.language }
                 }
@@ -245,7 +248,7 @@ fun main() {
                 val strings = getStrings(language)
 
                 CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(themeMode = themeMode, seedColor = seedColorObj) {
+                    AppTheme(themeMode = themeMode, seedColor = seedColorObj, oledPureBlack = oledPureBlack) {
                         DesktopSettings(
                             viewModel = viewModel,
                             onClose = { isSettingsOpen = false }
@@ -281,13 +284,16 @@ fun main() {
                 val seedColor by viewModel.uiState.collectAsState().let { state ->
                     derivedStateOf { state.value.seedColor }
                 }
+                val oledPureBlack by viewModel.uiState.collectAsState().let { state ->
+                    derivedStateOf { state.value.oledPureBlack }
+                }
                 val rememberCloseAction by viewModel.uiState.collectAsState().let { state ->
                     derivedStateOf { state.value.rememberCloseAction }
                 }
                 val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
 
                 CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(themeMode = themeMode, seedColor = seedColorObj) {
+                    AppTheme(themeMode = themeMode, seedColor = seedColorObj, oledPureBlack = oledPureBlack) {
                         CloseConfirmDialog(
                             onDismiss = { viewModel.setShowCloseConfirmDialog(false) },
                             onMinimize = {
@@ -347,6 +353,7 @@ private fun FloatingMicWindowContainer(
     val uiState by viewModel.uiState.collectAsState()
     val themeMode = uiState.themeMode
     val seedColor = uiState.seedColor
+    val oledPureBlack = uiState.oledPureBlack
     val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
 
     Window(
@@ -365,7 +372,7 @@ private fun FloatingMicWindowContainer(
         }
         
         CompositionLocalProvider(LocalAppStrings provides strings) {
-            AppTheme(themeMode = themeMode, seedColor = seedColorObj) {
+            AppTheme(themeMode = themeMode, seedColor = seedColorObj, oledPureBlack = oledPureBlack) {
                 FloatingMicWindow(
                     viewModel = viewModel, 
                     window = window,

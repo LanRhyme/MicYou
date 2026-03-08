@@ -92,6 +92,8 @@ data class AppStrings(
     val autoStartDesc: String = "Start streaming automatically on app launch",
     val noGeneralSettings: String = "No general settings available",
     val themeColorLabel: String = "Theme Color",
+    val oledPureBlackLabel: String = "OLED Optimization",
+    val oledPureBlackDesc: String = "Use a pure black background in dark mode",
     val amplificationMultiplierLabel: String = "Multiplier",
     val licensesTitle: String = "Open Source Libraries and Licenses",
     val basedOnAndroidMic: String = "MicYou is based on AndroidMic.",

@@ -531,6 +531,26 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
+                        ListItem(
+                            headlineContent = { Text(strings.oledPureBlackLabel) },
+                            supportingContent = { Text(strings.oledPureBlackDesc) },
+                            trailingContent = {
+                                Switch(
+                                    checked = state.oledPureBlack,
+                                    onCheckedChange = { viewModel.setOledPureBlack(it) }
+                                )
+                            },
+                            modifier = Modifier.clickable { viewModel.setOledPureBlack(!state.oledPureBlack) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                    ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(strings.themeColorLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                             val isSeedColorEnabled = !state.useDynamicColor

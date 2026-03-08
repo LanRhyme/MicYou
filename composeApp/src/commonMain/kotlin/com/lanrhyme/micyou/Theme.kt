@@ -8,10 +8,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
+
+val LocalOledPureBlackActive = staticCompositionLocalOf { false }
 
 // Helper class to handle Color conversions in Common code
 // since android.graphics.Color is not available in commonMain directly for all targets without expect/actual,
@@ -169,6 +173,29 @@ fun generateColorScheme(seed: Color, isDark: Boolean): androidx.compose.material
     }
 }
 
+private fun androidx.compose.material3.ColorScheme.withOledDarkBackground(): androidx.compose.material3.ColorScheme {
+    val pureBlack = Color(0xFF000000)
+    val lowSurface = Color(0xFF141414)
+    val mediumSurface = Color(0xFF1D1D1D)
+    val highSurface = Color(0xFF262626)
+    val topSurface = Color(0xFF303030)
+
+    return copy(
+        background = pureBlack,
+        surface = pureBlack,
+        surfaceDim = pureBlack,
+        surfaceBright = mediumSurface,
+        surfaceContainerLowest = pureBlack,
+        surfaceContainerLow = lowSurface,
+        surfaceContainer = mediumSurface,
+        surfaceContainerHigh = highSurface,
+        surfaceContainerHighest = topSurface,
+        surfaceVariant = highSurface,
+        inverseSurface = Color(0xFFF3F3F3),
+        scrim = pureBlack
+    )
+}
+
 enum class ThemeMode {
     System, Light, Dark
 }
@@ -190,6 +217,7 @@ fun AppTheme(
     themeMode: ThemeMode = ThemeMode.System,
     seedColor: Color = DefaultSeedColor,
     useDynamicColor: Boolean = false,
+    oledPureBlack: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val isDark = when (themeMode) {
@@ -199,7 +227,12 @@ fun AppTheme(
     }
 
     val dynamicScheme = if (useDynamicColor) getDynamicColorScheme(isDark) else null
-    val targetColorScheme = dynamicScheme ?: generateColorScheme(seedColor, isDark)
+    val baseColorScheme = dynamicScheme ?: generateColorScheme(seedColor, isDark)
+    val targetColorScheme = if (isDark && oledPureBlack) {
+        baseColorScheme.withOledDarkBackground()
+    } else {
+        baseColorScheme
+    }
 
     // 为主题颜色添加动画过渡
     val animatedPrimary by animateColorAsState(targetColorScheme.primary, themeAnimationSpec)
@@ -307,7 +340,13 @@ fun AppTheme(
     MaterialTheme(
         colorScheme = animatedColorScheme,
         shapes = AppShapes,
-        content = content
+        content = {
+            CompositionLocalProvider(
+                LocalOledPureBlackActive provides (isDark && oledPureBlack)
+            ) {
+                content()
+            }
+        }
     )
 }
 

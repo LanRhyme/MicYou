@@ -34,6 +34,13 @@ fun CustomBackground(
     modifier: Modifier = Modifier,
     hazeState: HazeState? = null
 ) {
+    if (LocalOledPureBlackActive.current) {
+        Box(
+            modifier = modifier.background(Color.Black)
+        )
+        return
+    }
+
     if (!settings.hasCustomBackground) {
         return
     }
