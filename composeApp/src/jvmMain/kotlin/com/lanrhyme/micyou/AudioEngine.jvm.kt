@@ -203,6 +203,10 @@ actual class AudioEngine actual constructor() {
     actual fun setStreamingNotificationEnabled(enabled: Boolean) {
     }
 
+    actual fun setAudioSource(sourceName: String) {
+        // JVM 端不支持音频源选择
+    }
+
     actual fun stop() {
          try {
              job?.cancel()

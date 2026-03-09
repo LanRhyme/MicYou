@@ -51,4 +51,7 @@ expect class AudioEngine() {
     suspend fun setMute(muted: Boolean)
 
     fun setStreamingNotificationEnabled(enabled: Boolean)
+
+    // 设置音频源（仅 Android 端有效）
+    fun setAudioSource(sourceName: String)
 }
