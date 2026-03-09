@@ -164,8 +164,8 @@ fun App(
                 )
             }
 
-            // First Launch Dialog (Desktop only)
-            if (showFirstLaunchDialog && platform.type != PlatformType.Android) {
+            // First Launch Dialog
+            if (showFirstLaunchDialog) {
                 AlertDialog(
                     onDismissRequest = { },
                     title = { Text(strings.firstLaunchTitle) },

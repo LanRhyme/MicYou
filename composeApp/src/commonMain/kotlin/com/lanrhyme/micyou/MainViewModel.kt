@@ -203,8 +203,7 @@ class MainViewModel : ViewModel() {
         val savedUseSystemTitleBar = settings.getBoolean("use_system_title_bar", false)
         
         val hasLaunchedBefore = settings.getBoolean("has_launched_before", false)
-        val isDesktop = getPlatform().type == PlatformType.Desktop
-        val shouldShowFirstLaunchDialog = !hasLaunchedBefore && isDesktop
+        val shouldShowFirstLaunchDialog = !hasLaunchedBefore
         if (shouldShowFirstLaunchDialog) {
             settings.putBoolean("has_launched_before", true)
         }
