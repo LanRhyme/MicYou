@@ -31,8 +31,6 @@ import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import java.awt.Font
 import java.awt.Toolkit
-import javax.swing.JCheckBox
-import javax.swing.JOptionPane
 import javax.swing.UIManager
 import kotlin.system.exitProcess
 
@@ -135,57 +133,6 @@ fun main() {
         val useSystemTitleBar by viewModel.uiState.collectAsState().let { state ->
             derivedStateOf { state.value.useSystemTitleBar }
         }
-        val closeAction by viewModel.uiState.collectAsState().let { state ->
-            derivedStateOf { state.value.closeAction }
-        }
-
-        val exitApp = {
-            runBlocking {
-                VBCableManager.setSystemDefaultMicrophone(toCable = false)
-            }
-            exitProcess(0)
-        }
-
-        val handleCloseRequest = {
-            if (useSystemTitleBar && closeAction == CloseAction.Prompt) {
-                val rememberCheckBox = JCheckBox(strings.closeConfirmRemember)
-                val options = arrayOf(
-                    strings.closeConfirmMinimize,
-                    strings.closeConfirmExit,
-                    strings.closeConfirmCancel
-                )
-                val result = JOptionPane.showOptionDialog(
-                    null,
-                    arrayOf(strings.closeConfirmMessage, rememberCheckBox),
-                    strings.closeConfirmTitle,
-                    JOptionPane.DEFAULT_OPTION,
-                    JOptionPane.QUESTION_MESSAGE,
-                    null,
-                    options,
-                    options[0]
-                )
-
-                when (result) {
-                    0 -> viewModel.confirmCloseAction(
-                        action = CloseAction.Minimize,
-                        remember = rememberCheckBox.isSelected,
-                        onExit = { exitApp() },
-                        onHide = { isVisible = false }
-                    )
-                    1 -> viewModel.confirmCloseAction(
-                        action = CloseAction.Exit,
-                        remember = rememberCheckBox.isSelected,
-                        onExit = { exitApp() },
-                        onHide = { isVisible = false }
-                    )
-                }
-            } else {
-                viewModel.handleCloseRequest(
-                    onExit = { exitApp() },
-                    onHide = { isVisible = false }
-                )
-            }
-        }
 
         val windowState = rememberWindowState(
             width = if (pocketMode) 600.dp else 850.dp,
@@ -203,7 +150,17 @@ fun main() {
         if (isVisible) {
             key(useSystemTitleBar) {
             Window(
-                onCloseRequest = handleCloseRequest,
+                onCloseRequest = { 
+                    viewModel.handleCloseRequest(
+                        onExit = { 
+                            runBlocking {
+                                VBCableManager.setSystemDefaultMicrophone(toCable = false)
+                            }
+                            exitProcess(0)
+                        },
+                        onHide = { isVisible = false }
+                    )
+                },
                 state = windowState,
                 title = strings.appName,
                 icon = icon,
@@ -223,8 +180,23 @@ fun main() {
                         App(
                             viewModel = viewModel,
                             onMinimize = { windowState.isMinimized = true },
-                        onClose = handleCloseRequest,
-                        onExitApp = { exitApp() },
+                        onClose = { 
+                            viewModel.handleCloseRequest(
+                                onExit = { 
+                                    runBlocking {
+                                        VBCableManager.setSystemDefaultMicrophone(toCable = false)
+                                    }
+                                    exitProcess(0)
+                                },
+                                onHide = { isVisible = false }
+                            )
+                        },
+                        onExitApp = { 
+                            runBlocking {
+                                VBCableManager.setSystemDefaultMicrophone(toCable = false)
+                            }
+                            exitProcess(0)
+                        },
                         onHideApp = { isVisible = false },
                         isBluetoothDisabled = isBluetoothDisabled
                     )
@@ -246,7 +218,7 @@ fun main() {
             derivedStateOf { state.value.showCloseConfirmDialog }
         }
 
-        if (showCloseConfirmDialog && !useSystemTitleBar) {
+        if (showCloseConfirmDialog) {
             val closeConfirmState = rememberWindowState(
                 width = 500.dp,
                 height = 250.dp,
@@ -284,7 +256,12 @@ fun main() {
                                 viewModel.confirmCloseAction(
                                     CloseAction.Minimize,
                                     rememberCloseAction,
-                                    onExit = { exitApp() },
+                                    onExit = {
+                                        runBlocking {
+                                            VBCableManager.setSystemDefaultMicrophone(toCable = false)
+                                        }
+                                        exitProcess(0)
+                                    },
                                     onHide = { isVisible = false }
                                 )
                             },
@@ -292,7 +269,12 @@ fun main() {
                                 viewModel.confirmCloseAction(
                                     CloseAction.Exit,
                                     rememberCloseAction,
-                                    onExit = { exitApp() },
+                                    onExit = {
+                                        runBlocking {
+                                            VBCableManager.setSystemDefaultMicrophone(toCable = false)
+                                        }
+                                        exitProcess(0)
+                                    },
                                     onHide = { isVisible = false }
                                 )
                             },
