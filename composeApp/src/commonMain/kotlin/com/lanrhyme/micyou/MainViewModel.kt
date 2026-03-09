@@ -104,7 +104,7 @@ data class AppUiState(
     val floatingWindowEnabled: Boolean = false,
     
     // System Title Bar (Desktop only)
-    val useSystemTitleBar: Boolean = false
+    val useSystemTitleBar: Boolean = false,
     // First Launch Dialog
     val showFirstLaunchDialog: Boolean = false
 )
@@ -250,7 +250,7 @@ class MainViewModel : ViewModel() {
                 ),
                 floatingWindowEnabled = savedFloatingWindowEnabled,
                 autoCheckUpdate = savedAutoCheckUpdate,
-                useSystemTitleBar = savedUseSystemTitleBar
+                useSystemTitleBar = savedUseSystemTitleBar,
                 showFirstLaunchDialog = shouldShowFirstLaunchDialog
             ) 
         }
