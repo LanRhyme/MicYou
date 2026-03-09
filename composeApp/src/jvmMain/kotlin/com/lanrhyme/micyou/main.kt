@@ -87,6 +87,7 @@ fun main() {
     application {
         val viewModel = remember { MainViewModel() }
         var isVisible by remember { mutableStateOf(true) }
+            var showSettingsWindow by remember { mutableStateOf(false) }
 
         val language by viewModel.uiState.collectAsState().let { state ->
             derivedStateOf { state.value.language }
@@ -198,6 +199,7 @@ fun main() {
                             exitProcess(0)
                         },
                         onHideApp = { isVisible = false },
+                        onOpenSettings = { showSettingsWindow = true },
                         isBluetoothDisabled = isBluetoothDisabled
                     )
                     }
@@ -280,6 +282,38 @@ fun main() {
                             },
                             rememberCloseAction = rememberCloseAction,
                             onRememberChange = { viewModel.setRememberCloseAction(it) }
+                        )
+                    }
+                }
+            }
+        }
+
+        if (showSettingsWindow) {
+            val settingsWindowState = rememberWindowState(width = 800.dp, height = 600.dp, position = WindowPosition(Alignment.Center))
+            Window(
+                onCloseRequest = { showSettingsWindow = false },
+                state = settingsWindowState,
+                title = strings.settingsTitle ?: "Settings",
+                icon = icon,
+                undecorated = false,
+                resizable = true
+            ) {
+                val themeMode by viewModel.uiState.collectAsState().let { state ->
+                    derivedStateOf { state.value.themeMode }
+                }
+                val seedColor by viewModel.uiState.collectAsState().let { state ->
+                    derivedStateOf { state.value.seedColor }
+                }
+                val oledPureBlack by viewModel.uiState.collectAsState().let { state ->
+                    derivedStateOf { state.value.oledPureBlack }
+                }
+                val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
+
+                CompositionLocalProvider(LocalAppStrings provides strings) {
+                    AppTheme(themeMode = themeMode, seedColor = seedColorObj, oledPureBlack = oledPureBlack) {
+                        DesktopSettings(
+                            viewModel = viewModel,
+                            onClose = { showSettingsWindow = false }
                         )
                     }
                 }

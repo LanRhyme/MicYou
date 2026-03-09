@@ -29,6 +29,7 @@ fun App(
     onClose: () -> Unit = {},
     onExitApp: () -> Unit = {},
     onHideApp: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     isBluetoothDisabled: Boolean = false
 ) {
     val platform = remember { getPlatform() }
@@ -113,10 +114,13 @@ fun App(
                     }
                 ) { isSettings ->
                     if (isSettings) {
-                        DesktopSettings(
-                            viewModel = finalViewModel,
-                            onClose = { showSettings = false }
-                        )
+                        // On desktop, open settings in a separate window via callback
+                        LaunchedEffect(Unit) {
+                            onOpenSettings()
+                            showSettings = false
+                        }
+                        // render an empty container while the external window opens
+                        Box(modifier = Modifier.fillMaxSize()) {}
                     } else {
                         if (pocketMode) {
                             DesktopHome(
