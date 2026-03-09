@@ -105,6 +105,8 @@ data class AppUiState(
     
     // System Title Bar (Desktop only)
     val useSystemTitleBar: Boolean = false
+    // First Launch Dialog
+    val showFirstLaunchDialog: Boolean = false
 )
 
 enum class CloseAction(val label: String) {
@@ -199,6 +201,13 @@ class MainViewModel : ViewModel() {
         val savedFloatingWindowEnabled = settings.getBoolean("floating_window_enabled", false)
         val savedAutoCheckUpdate = settings.getBoolean("auto_check_update", true)
         val savedUseSystemTitleBar = settings.getBoolean("use_system_title_bar", false)
+        
+        val hasLaunchedBefore = settings.getBoolean("has_launched_before", false)
+        val isDesktop = getPlatform().type == PlatformType.Desktop
+        val shouldShowFirstLaunchDialog = !hasLaunchedBefore && isDesktop
+        if (shouldShowFirstLaunchDialog) {
+            settings.putBoolean("has_launched_before", true)
+        }
 
         _uiState.update { 
             it.copy(
@@ -242,6 +251,7 @@ class MainViewModel : ViewModel() {
                 floatingWindowEnabled = savedFloatingWindowEnabled,
                 autoCheckUpdate = savedAutoCheckUpdate,
                 useSystemTitleBar = savedUseSystemTitleBar
+                showFirstLaunchDialog = shouldShowFirstLaunchDialog
             ) 
         }
         
@@ -320,6 +330,12 @@ class MainViewModel : ViewModel() {
                 updateDownloadProgress = 0f,
                 updateErrorMessage = null
             )
+        }
+    }
+
+    fun dismissFirstLaunchDialog() {
+        _uiState.update {
+            it.copy(showFirstLaunchDialog = false)
         }
     }
 

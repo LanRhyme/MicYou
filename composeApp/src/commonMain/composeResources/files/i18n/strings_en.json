@@ -167,4 +167,8 @@
   "floatingWindowDesc": "Show a small always-on-top window with audio visualization",
   "useSystemTitleBarLabel": "System Title Bar",
   "useSystemTitleBarDesc": "Use native system window decorations instead of custom title bar"
+  "firstLaunchTitle": "Welcome to MicYou",
+  "firstLaunchMessage": "You seem to be using MicYou for the first time. This app turns your Android device into a high-quality microphone for your computer via Wi-Fi, Bluetooth, or USB.",
+  "firstLaunchGuideButton": "View Usage Guide",
+  "firstLaunchGotItButton": "I know how to use it"
 }

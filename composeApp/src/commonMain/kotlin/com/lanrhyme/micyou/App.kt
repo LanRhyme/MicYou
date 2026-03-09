@@ -63,6 +63,7 @@ fun App(
     val newVersionAvailable = uiState.newVersionAvailable
     val pocketMode = uiState.pocketMode
     val useSystemTitleBar = uiState.useSystemTitleBar
+    val showFirstLaunchDialog = uiState.showFirstLaunchDialog
 
     CompositionLocalProvider(LocalAppStrings provides strings) {
         AppTheme(
@@ -205,6 +206,34 @@ fun App(
                             TextButton(onClick = { finalViewModel.dismissUpdateDialog() }) {
                                 Text(strings.updateLater)
                             }
+                        }
+                    }
+                )
+            }
+
+            // First Launch Dialog (Desktop only)
+            if (showFirstLaunchDialog && platform.type != PlatformType.Android) {
+                AlertDialog(
+                    onDismissRequest = { },
+                    title = { Text(strings.firstLaunchTitle) },
+                    text = {
+                        Column {
+                            Text(strings.firstLaunchMessage)
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            openUrl("https://www.bilibili.com/video/BV1MpNKz8ELw")
+                            finalViewModel.dismissFirstLaunchDialog()
+                        }) {
+                            Text(strings.firstLaunchGuideButton)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            finalViewModel.dismissFirstLaunchDialog()
+                        }) {
+                            Text(strings.firstLaunchGotItButton)
                         }
                     }
                 )

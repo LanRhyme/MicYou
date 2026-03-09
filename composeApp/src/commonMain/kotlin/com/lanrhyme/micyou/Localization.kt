@@ -151,6 +151,12 @@ data class AppStrings(
     val autoCheckUpdateLabel: String = "Auto Check for Updates",
     val autoCheckUpdateDesc: String = "Automatically check for new versions on app launch",
 
+    // First launch dialog
+    val firstLaunchTitle: String = "Welcome to MicYou",
+    val firstLaunchMessage: String = "You seem to be using MicYou for the first time. This app turns your Android device into a high-quality microphone for your computer via Wi-Fi, Bluetooth, or USB.",
+    val firstLaunchGuideButton: String = "View Usage Guide",
+    val firstLaunchGotItButton: String = "I know how to use it",
+
     // BlackHole (macOS virtual audio)
     val blackHoleInstalled: String = "BlackHole is installed, please configure in System Settings",
     val blackHoleNotInstalled: String = "Please install BlackHole virtual audio driver manually",

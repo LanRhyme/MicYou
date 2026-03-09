@@ -173,4 +173,8 @@
   "floatingWindowDesc": "顯示一個帶有音訊視覺化的小型置頂視窗",
   "useSystemTitleBarLabel": "系統標題列",
   "useSystemTitleBarDesc": "使用系統原生視窗裝飾取代自訂標題列"
+  "firstLaunchTitle": "歡迎使用 MicYou",
+  "firstLaunchMessage": "您似乎是第一次使用 MicYou。本應用可以將您的 Android 裝置透過 Wi-Fi、藍牙或 USB 變成電腦的高品質麥克風。",
+  "firstLaunchGuideButton": "讓我看看使用指南",
+  "firstLaunchGotItButton": "我很清楚怎麼使用"
 }

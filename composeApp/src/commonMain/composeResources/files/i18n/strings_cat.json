@@ -167,5 +167,9 @@
   "contributorsLoading": "正在加载贡献者喵... (・_・)",
   "contributorsPeopleCount": "我们有 %d 位贡献者喵~",
   "floatingWindowLabel": "悬浮窗喵~ 🪟",
-  "floatingWindowDesc": "显示一个带有音频可视化的小型置顶窗口喵~ (´・ω・`)"
+  "floatingWindowDesc": "显示一个带有音频可视化的小型置顶窗口喵~ (´・ω・`)",
+  "firstLaunchTitle": "欢迎使用 MicYou 喵~",
+  "firstLaunchMessage": "猫猫似乎是第一次使用 MicYou 喵！MicYou 是一个开源麦克风工具喵~可以把你的安卓设备变成电脑的高质量麦克风喵！",
+  "firstLaunchGuideButton": "看看使用指南喵~",
+  "firstLaunchGotItButton": "猫猫知道怎么使用喵~"
 }
