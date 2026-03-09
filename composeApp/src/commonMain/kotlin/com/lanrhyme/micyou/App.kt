@@ -1,13 +1,5 @@
 package com.lanrhyme.micyou
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -76,75 +68,32 @@ fun App(
             if (platform.type == PlatformType.Android) {
                 MobileHome(finalViewModel)
             } else {
-                var showSettings by remember { mutableStateOf(false) }
-                
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.surface,
                     shape = if (useSystemTitleBar) RoundedCornerShape(0.dp) else RoundedCornerShape(22.dp)
                 ) {
-                    AnimatedContent(
-                        targetState = showSettings,
-                        transitionSpec = {
-                        // smoother horizontal slide + fade with consistent easing
-                        val enter = slideInHorizontally(
-                            initialOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = tween(360, easing = FastOutSlowInEasing)
-                        ) + fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing))
-
-                        val exit = slideOutHorizontally(
-                            targetOffsetX = { fullWidth -> -fullWidth / 3 },
-                            animationSpec = tween(300, easing = FastOutSlowInEasing)
-                        ) + fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
-
-                        if (targetState) enter togetherWith exit
-                        else {
-                            val enterBack = slideInHorizontally(
-                                initialOffsetX = { fullWidth -> -fullWidth / 3 },
-                                animationSpec = tween(300, easing = FastOutSlowInEasing)
-                            ) + fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing))
-
-                            val exitBack = slideOutHorizontally(
-                                targetOffsetX = { fullWidth -> fullWidth },
-                                animationSpec = tween(360, easing = FastOutSlowInEasing)
-                            ) + fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
-
-                            enterBack togetherWith exitBack
-                        }
-                    }
-                ) { isSettings ->
-                    if (isSettings) {
-                        // On desktop, open settings in a separate window via callback
-                        LaunchedEffect(Unit) {
-                            onOpenSettings()
-                            showSettings = false
-                        }
-                        // render an empty container while the external window opens
-                        Box(modifier = Modifier.fillMaxSize()) {}
+                    if (pocketMode) {
+                        DesktopHome(
+                            viewModel = finalViewModel,
+                            onMinimize = onMinimize,
+                            onClose = onClose,
+                            onExitApp = onExitApp,
+                            onHideApp = onHideApp,
+                            onOpenSettings = onOpenSettings,
+                            isBluetoothDisabled = isBluetoothDisabled
+                        )
                     } else {
-                        if (pocketMode) {
-                            DesktopHome(
-                                viewModel = finalViewModel,
-                                onMinimize = onMinimize,
-                                onClose = onClose,
-                                onExitApp = onExitApp,
-                                onHideApp = onHideApp,
-                                onOpenSettings = { showSettings = true },
-                                isBluetoothDisabled = isBluetoothDisabled
-                            )
-                        } else {
-                            DesktopHomeEnhanced(
-                                viewModel = finalViewModel,
-                                onMinimize = onMinimize,
-                                onClose = onClose,
-                                onExitApp = onExitApp,
-                                onHideApp = onHideApp,
-                                onOpenSettings = { showSettings = true },
-                                isBluetoothDisabled = isBluetoothDisabled
-                            )
-                        }
+                        DesktopHomeEnhanced(
+                            viewModel = finalViewModel,
+                            onMinimize = onMinimize,
+                            onClose = onClose,
+                            onExitApp = onExitApp,
+                            onHideApp = onHideApp,
+                            onOpenSettings = onOpenSettings,
+                            isBluetoothDisabled = isBluetoothDisabled
+                        )
                     }
-                }
                 }
             }
 

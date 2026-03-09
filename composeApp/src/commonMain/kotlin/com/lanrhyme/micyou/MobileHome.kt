@@ -21,7 +21,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -54,10 +53,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-// BackHandlerCompat provides a platform-safe back handler (actual implementations per target)
-import com.lanrhyme.micyou.BackHandlerCompat
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -81,7 +79,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import com.lanrhyme.micyou.BackHandlerCompat
 import com.lanrhyme.micyou.animation.EasingFunctions
 import com.lanrhyme.micyou.animation.rememberBreathAnimation
 import com.lanrhyme.micyou.animation.rememberGlowAnimation
@@ -217,33 +215,20 @@ fun MobileHome(viewModel: MainViewModel) {
                     )
                 }
             }
-            // Settings overlay: scrim + settings sheet / page
+            // Settings page overlay
             AnimatedVisibility(
                 visible = showSettings,
                 enter = slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth },
+                    initialOffsetX = { it },
                     animationSpec = tween(360, easing = EasingFunctions.EaseOutExpo)
-                ) + fadeIn(animationSpec = tween(240, easing = EasingFunctions.EaseOutExpo)),
+                ) + fadeIn(animationSpec = tween(240)),
                 exit = slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth },
+                    targetOffsetX = { it },
                     animationSpec = tween(300, easing = EasingFunctions.EaseInOutExpo)
-                ) + fadeOut(animationSpec = tween(200, easing = EasingFunctions.EaseInOutExpo))
+                ) + fadeOut(animationSpec = tween(200))
             ) {
-                Box(modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(1f)
-                ) {
-                    // scrim
-                    Box(modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.36f))
-                        .clickable { showSettings = false }
-                    )
-
-                    // settings content
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        DesktopSettings(viewModel = viewModel, onClose = { showSettings = false })
-                    }
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    DesktopSettings(viewModel = viewModel, onClose = { showSettings = false })
                 }
             }
         }

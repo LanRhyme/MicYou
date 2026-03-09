@@ -87,7 +87,7 @@ fun main() {
     application {
         val viewModel = remember { MainViewModel() }
         var isVisible by remember { mutableStateOf(true) }
-            var showSettingsWindow by remember { mutableStateOf(false) }
+        var showSettingsWindow by remember { mutableStateOf(false) }
 
         val language by viewModel.uiState.collectAsState().let { state ->
             derivedStateOf { state.value.language }
@@ -293,7 +293,7 @@ fun main() {
             Window(
                 onCloseRequest = { showSettingsWindow = false },
                 state = settingsWindowState,
-                title = strings.settingsTitle ?: "Settings",
+                title = strings.settingsTitle,
                 icon = icon,
                 undecorated = false,
                 resizable = true
