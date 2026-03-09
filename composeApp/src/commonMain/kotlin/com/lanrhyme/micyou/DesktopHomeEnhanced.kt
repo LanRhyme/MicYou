@@ -54,9 +54,9 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Minimize
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -1268,7 +1268,11 @@ private fun MainControlButton(
             elevation = FloatingActionButtonDefaults.elevation(defaultElevation = if (isPressed) 2.dp else 6.dp)
         ) {
             Icon(
-                if (isConnecting) Icons.Rounded.Refresh else if (isRunning) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                when {
+                    isConnecting -> Icons.Rounded.Refresh
+                    isRunning -> Icons.Filled.LinkOff
+                    else -> Icons.Filled.Link
+                },
                 null, modifier = Modifier.size(28.dp), tint = Color.White
             )
         }
