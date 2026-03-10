@@ -18,6 +18,9 @@ object WindowsAccentColorExtractor {
     private const val DWM_REGISTRY_PATH = "HKCU\\Software\\Microsoft\\Windows\\DWM"
     private const val COLORIZATION_COLOR = "ColorizationColor"
 
+    // Pre-compiled regex for registry value extraction
+    private val REG_DWORD_REGEX = Regex("REG_DWORD\\s+0x([0-9a-fA-F]+)", RegexOption.IGNORE_CASE)
+
     /**
      * 获取 Windows 系统主题色
      * @return 系统主题色，如果无法获取则返回 null
@@ -25,11 +28,11 @@ object WindowsAccentColorExtractor {
     fun getAccentColor(): Color? {
         return try {
             // Windows 10+: 优先使用 AccentColorMenu
-            var color = getAccentColorViaRegistry()
+            var color = queryRegistryColor(ACCENT_REGISTRY_PATH, ACCENT_COLOR_MENU, convertAbgrToArgb = true)
 
             // 如果失败，尝试 DWM ColorizationColor
             if (color == null) {
-                color = getColorizationColor()
+                color = queryRegistryColor(DWM_REGISTRY_PATH, COLORIZATION_COLOR, convertAbgrToArgb = false)
             }
 
             color
@@ -40,79 +43,63 @@ object WindowsAccentColorExtractor {
     }
 
     /**
-     * 从 AccentColorMenu 获取主题色 (Windows 10+)
-     * 注意：AccentColorMenu 使用 ABGR 格式存储，需要转换为 ARGB
+     * 从注册表查询颜色值
+     * @param registryPath 注册表路径
+     * @param valueName 值名称
+     * @param convertAbgrToArgb 是否需要从 ABGR 转换为 ARGB
      */
-    private fun getAccentColorViaRegistry(): Color? {
+    private fun queryRegistryColor(registryPath: String, valueName: String, convertAbgrToArgb: Boolean): Color? {
         return try {
-            val process = ProcessBuilder("reg", "query", ACCENT_REGISTRY_PATH, "/v", ACCENT_COLOR_MENU)
+            val process = ProcessBuilder("reg", "query", registryPath, "/v", valueName)
                 .redirectErrorStream(true)
                 .start()
 
-            val output = process.inputStream.bufferedReader().readText()
-            process.waitFor()
+            process.inputStream.bufferedReader().use { reader ->
+                val output = reader.readText()
+                process.waitFor()
 
-            val regex = Regex("$ACCENT_COLOR_MENU\\s+REG_DWORD\\s+0x([0-9a-fA-F]+)", RegexOption.IGNORE_CASE)
-            val match = regex.find(output)
+                val match = REG_DWORD_REGEX.find(output)
+                if (match != null) {
+                    val hexValue = match.groupValues[1]
+                    val rawValue = hexValue.toLong(16)
 
-            if (match != null) {
-                val hexValue = match.groupValues[1]
-                val abgr = hexValue.toLong(16)
+                    val argb = if (convertAbgrToArgb) {
+                        // ABGR 转 ARGB: 保留 G 和 A，交换 R 和 B
+                        abgrToArgb(rawValue)
+                    } else {
+                        rawValue
+                    }
 
-                // ABGR 转 ARGB: 保留 G 和 A，交换 R 和 B
-                // (ABGR & 0xFF00FF00) + ((ABGR & 0xFF) << 16) + ((ABGR & 0xFF0000) >> 16)
-                val argb = (abgr and 0xFF00FF00) or
-                          ((abgr and 0xFF) shl 16) or
-                          ((abgr and 0xFF0000) shr 16)
-
-                val r = ((argb shr 16) and 0xFF).toInt()
-                val g = ((argb shr 8) and 0xFF).toInt()
-                val b = (argb and 0xFF).toInt()
-
-                Logger.d("AccentColorExtractor", "AccentColorMenu: 0x$hexValue (ABGR) -> 0x${argb.toString(16)} (ARGB) -> RGB($r, $g, $b)")
-                Color(r, g, b, 255)
-            } else {
-                null
+                    val color = argbToColor(argb)
+                    val formatNote = if (convertAbgrToArgb) "ABGR" else "ARGB"
+                    Logger.d("AccentColorExtractor", "$valueName: 0x$hexValue ($formatNote) -> ${color}")
+                    color
+                } else {
+                    null
+                }
             }
         } catch (e: Exception) {
-            Logger.d("AccentColorExtractor", "Could not read AccentColorMenu")
+            Logger.d("AccentColorExtractor", "Could not read $valueName")
             null
         }
     }
 
     /**
-     * 从 DWM ColorizationColor 获取主题色 (Windows Vista+)
-     * ColorizationColor 已经是 ARGB 格式
+     * ABGR 转 ARGB
      */
-    private fun getColorizationColor(): Color? {
-        return try {
-            val process = ProcessBuilder("reg", "query", DWM_REGISTRY_PATH, "/v", COLORIZATION_COLOR)
-                .redirectErrorStream(true)
-                .start()
+    private fun abgrToArgb(abgr: Long): Long {
+        return (abgr and 0xFF00FF00) or
+                ((abgr and 0xFF) shl 16) or
+                ((abgr and 0xFF0000) shr 16)
+    }
 
-            val output = process.inputStream.bufferedReader().readText()
-            process.waitFor()
-
-            val regex = Regex("$COLORIZATION_COLOR\\s+REG_DWORD\\s+0x([0-9a-fA-F]+)", RegexOption.IGNORE_CASE)
-            val match = regex.find(output)
-
-            if (match != null) {
-                val hexValue = match.groupValues[1]
-                val argb = hexValue.toLong(16)
-
-                // ColorizationColor 已经是 ARGB 格式
-                val r = ((argb shr 16) and 0xFF).toInt()
-                val g = ((argb shr 8) and 0xFF).toInt()
-                val b = (argb and 0xFF).toInt()
-
-                Logger.d("AccentColorExtractor", "ColorizationColor: 0x$hexValue (ARGB) -> RGB($r, $g, $b)")
-                Color(r, g, b, 255)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            Logger.d("AccentColorExtractor", "Could not read ColorizationColor")
-            null
-        }
+    /**
+     * 从 ARGB 值创建 Color 对象
+     */
+    private fun argbToColor(argb: Long): Color {
+        val r = ((argb shr 16) and 0xFF).toInt()
+        val g = ((argb shr 8) and 0xFF).toInt()
+        val b = (argb and 0xFF).toInt()
+        return Color(r, g, b, 255)
     }
 }
