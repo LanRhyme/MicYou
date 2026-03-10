@@ -37,7 +37,7 @@
   "autoStartLabel": "Auto Start",
   "pocketModeLabel": "Compact Mode",
   "pocketModeDesc": "Use a compact window layout",
-  "monitoringLabel": "Monitoring (Desktop)",
+  "monitoringLabel": "Monitoring",
   "sampleRateLabel": "Sample Rate",
   "channelCountLabel": "Channels",
   "audioFormatLabel": "Audio Format",

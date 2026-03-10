@@ -141,8 +141,8 @@ class MainViewModel : ViewModel() {
         val savedThemeMode = try { ThemeMode.valueOf(savedThemeModeName) } catch(e: Exception) { ThemeMode.System }
         
         val savedSeedColor = settings.getLong("seed_color", 0xFF4285F4)
-        
-        val savedMonitoring = settings.getBoolean("monitoring_enabled", false)
+        val savedMonitoring = false
+        settings.putBoolean("monitoring_enabled", false)
 
         val savedSampleRateName = settings.getString("sample_rate", SampleRate.Rate48000.name)
         val savedSampleRate = try { SampleRate.valueOf(savedSampleRateName) } catch(e: Exception) { SampleRate.Rate48000 }

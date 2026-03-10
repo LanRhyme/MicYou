@@ -37,7 +37,7 @@
   "autoStartLabel": "自动串流",
   "pocketModeLabel": "袖珍模式",
   "pocketModeDesc": "使用紧凑的窗口布局",
-  "monitoringLabel": "监听 (仅桌面)",
+  "monitoringLabel": "监听",
   "sampleRateLabel": "采样率",
   "channelCountLabel": "通道数",
   "audioFormatLabel": "音频格式",
