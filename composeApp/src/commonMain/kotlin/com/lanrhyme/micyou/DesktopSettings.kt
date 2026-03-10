@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.TextSnippet
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
@@ -873,6 +874,63 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 modifier = Modifier.clickable { viewModel.setAndroidAudioProcessing(!(state.enableNS || state.enableAGC)) },
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
+                        }
+
+                        // Android 音频源选择 (下拉菜单)
+                        val audioSources = listOf(
+                            "Mic" to "默认",
+                            "VoiceCommunication" to "VoIP",
+                            "VoiceRecognition" to "语音识别",
+                            "VoicePerformance" to "低延迟",
+                            "Camcorder" to "摄像机",
+                            "Unprocessed" to "原始音频"
+                        )
+                        val currentSourceLabel = audioSources.find { it.first == state.androidAudioSourceName }?.second ?: "默认"
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                        ) {
+                            var expanded by remember { mutableStateOf(false) }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                // 左侧标题
+                                Text("音频源", style = MaterialTheme.typography.titleSmall)
+                                // 右侧下拉按钮
+                                Box {
+                                    TextButton(onClick = { expanded = true }) {
+                                        Text(currentSourceLabel, style = MaterialTheme.typography.bodyMedium)
+                                        Icon(Icons.Default.ArrowDropDown, contentDescription = "展开")
+                                    }
+                                    DropdownMenu(
+                                        expanded = expanded,
+                                        onDismissRequest = { expanded = false },
+                                        modifier = Modifier.width(200.dp)
+                                    ) {
+                                        audioSources.forEach { (sourceName, label) ->
+                                            DropdownMenuItem(
+                                                text = { Text(label) },
+                                                onClick = {
+                                                    viewModel.setAndroidAudioSource(sourceName)
+                                                    expanded = false
+                                                },
+                                                trailingIcon = {
+                                                    if (state.androidAudioSourceName == sourceName) {
+                                                        Icon(Icons.Default.Check, contentDescription = "已选择")
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 } else {

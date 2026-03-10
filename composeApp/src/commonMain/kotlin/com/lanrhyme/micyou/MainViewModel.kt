@@ -67,6 +67,9 @@ data class AppUiState(
     
     val amplification: Float = 0.0f,
 
+    // Android only: Audio source selection (stored as string to avoid enum dependency)
+    val androidAudioSourceName: String = "Mic",
+
     val audioConfigRevision: Int = 0,
 
     val enableStreamingNotification: Boolean = true,
@@ -162,8 +165,10 @@ class MainViewModel : ViewModel() {
         
         val savedDereverb = settings.getBoolean("enable_dereverb", false)
         val savedDereverbLevel = settings.getFloat("dereverb_level", 0.5f)
-        
+
         val savedAmplification = settings.getFloat("amplification", 0.0f)
+
+        val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Mic")
 
         val savedEnableStreamingNotification = settings.getBoolean("enable_streaming_notification", true)
         val savedKeepScreenOn = settings.getBoolean("keep_screen_on", false)
@@ -228,6 +233,7 @@ class MainViewModel : ViewModel() {
                 enableDereverb = savedDereverb,
                 dereverbLevel = savedDereverbLevel,
                 amplification = savedAmplification,
+                androidAudioSourceName = savedAndroidAudioSourceName,
                 autoStart = savedAutoStart,
                 enableStreamingNotification = savedEnableStreamingNotification,
                 keepScreenOn = savedKeepScreenOn,
@@ -723,7 +729,14 @@ class MainViewModel : ViewModel() {
         settings.putFloat("amplification", amp)
         updateAudioEngineConfig()
     }
-    
+
+    fun setAndroidAudioSource(sourceName: String) {
+        _uiState.update { it.copy(androidAudioSourceName = sourceName) }
+        settings.putString("android_audio_source", sourceName)
+        // Call Android-specific method to update audio source
+        audioEngine.setAudioSource(sourceName)
+    }
+
     fun setAutoStart(enabled: Boolean) {
         _uiState.update { it.copy(autoStart = enabled) }
         settings.putBoolean("auto_start", enabled)
