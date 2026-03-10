@@ -37,7 +37,7 @@
   "autoStartLabel": "自動串流",
   "pocketModeLabel": "袋裝模式",
   "pocketModeDesc": "用返個細啲嘅視窗佈局",
-  "monitoringLabel": "監聽 (淨係桌面版)",
+  "monitoringLabel": "監聽",
   "sampleRateLabel": "取樣率",
   "channelCountLabel": "聲道數目",
   "audioFormatLabel": "音訊格式",

@@ -37,7 +37,7 @@
   "autoStartLabel": "自动起动项",
   "pocketModeLabel": "袖珍样式模式项",
   "pocketModeDesc": "使用紧凑窗口布局项",
-  "monitoringLabel": "监视之中 (桌面端)",
+  "monitoringLabel": "监视之中",
   "sampleRateLabel": "样本率数",
   "channelCountLabel": "通道数量值",
   "audioFormatLabel": "音频格式化项",

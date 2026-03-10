@@ -55,7 +55,7 @@ data class AppStrings(
     val autoStartLabel: String = "Auto Start",
     val pocketModeLabel: String = "Compact Mode",
     val pocketModeDesc: String = "Use a compact window layout",
-    val monitoringLabel: String = "Monitoring (Desktop)",
+    val monitoringLabel: String = "Monitoring",
     val sampleRateLabel: String = "Sample Rate",
     val channelCountLabel: String = "Channels",
     val audioFormatLabel: String = "Audio Format",
