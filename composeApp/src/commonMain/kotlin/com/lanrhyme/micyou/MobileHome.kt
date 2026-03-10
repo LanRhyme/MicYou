@@ -20,7 +20,9 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +68,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
@@ -282,7 +285,7 @@ private fun MobileHeaderSection(
     hazeState: HazeState? = null
 ) {
     HazeSurface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MD3Shapes.Medium,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
         hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
@@ -290,17 +293,17 @@ private fun MobileHeaderSection(
         enabled = state.backgroundSettings.enableHazeEffect
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = MD3Spacing.ExtraLarge, vertical = MD3Spacing.Large),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(MD3Spacing.Large)
             ) {
                 // App icon badge
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = MD3Shapes.Small,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.size(36.dp)
                 ) {
@@ -309,7 +312,7 @@ private fun MobileHeaderSection(
                             Icons.Rounded.Podcasts,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(MD3Sizes.IconMedium)
                         )
                     }
                 }
@@ -379,7 +382,7 @@ private fun ConnectionConfigCard(
     hazeState: HazeState? = null
 ) {
     HazeSurface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MD3Shapes.Medium,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
         hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
@@ -387,8 +390,8 @@ private fun ConnectionConfigCard(
         enabled = state.backgroundSettings.enableHazeEffect
     ) {
         Column(
-            modifier = Modifier.padding(14.dp).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(MD3Spacing.Large).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(MD3Spacing.Large)
         ) {
             // Mode label
             Text(
@@ -396,19 +399,19 @@ private fun ConnectionConfigCard(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            
+
             // Mode selector - icon style like Desktop
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(MD3Spacing.Small)) {
                 val modes = listOf(
                     ConnectionMode.Wifi to (strings.modeWifi to Icons.Rounded.Wifi),
                     ConnectionMode.Bluetooth to (strings.modeBluetooth to Icons.Rounded.Bluetooth),
                     ConnectionMode.Usb to (strings.modeUsb to Icons.Rounded.Usb)
                 )
-                
+
                 modes.forEach { (mode, info) ->
                     val (label, icon) = info
                     val isSelected = state.mode == mode
-                    
+
                     val bgColor by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -419,13 +422,14 @@ private fun ConnectionConfigCard(
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                         animationSpec = tween(200)
                     )
-                    
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = bgColor,
+
+                    Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
+                            .clip(MD3Shapes.Card)
+                            .background(bgColor)
+                            .hoverable(interactionSource = remember { MutableInteractionSource() })
                             .clickable { viewModel.setMode(mode) }
                     ) {
                         Column(
@@ -433,8 +437,8 @@ private fun ConnectionConfigCard(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Icon(icon, null, tint = contentColor, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.height(2.dp))
+                            Icon(icon, null, tint = contentColor, modifier = Modifier.size(MD3Sizes.IconMedium))
+                            Spacer(Modifier.height(MD3Spacing.ExtraSmall))
                             Text(
                                 label,
                                 style = MaterialTheme.typography.labelSmall,
@@ -502,7 +506,7 @@ private fun MainControlCard(
     val isConnecting = state.streamState == StreamState.Connecting
 
     HazeSurface(
-        shape = RoundedCornerShape(24.dp),
+        shape = MD3Shapes.Large,
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f * cardOpacity),
         hazeColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f * cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
@@ -514,9 +518,9 @@ private fun MainControlCard(
             Column(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 20.dp),
+                    .padding(top = MD3Spacing.XXL),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(MD3Spacing.Medium)
             ) {
                 // Status icon
                 val statusColor by animateColorAsState(
@@ -528,9 +532,9 @@ private fun MainControlCard(
                     },
                     animationSpec = tween(300)
                 )
-                
+
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = MD3Shapes.Card,
                     color = statusColor.copy(alpha = 0.12f),
                     modifier = Modifier.size(40.dp)
                 ) {
@@ -544,7 +548,7 @@ private fun MainControlCard(
                             },
                             contentDescription = null,
                             tint = statusColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(MD3Sizes.IconMedium)
                         )
                     }
                 }
@@ -569,7 +573,7 @@ private fun MainControlCard(
                     )
                     if (isRunning) {
                         Surface(
-                            shape = RoundedCornerShape(3.dp),
+                            shape = MD3Shapes.ExtraSmall,
                             color = statusColor
                         ) {
                             Text(
@@ -577,7 +581,7 @@ private fun MainControlCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                modifier = Modifier.padding(horizontal = MD3Spacing.Small, vertical = MD3Spacing.ExtraSmall)
                             )
                         }
                     }
@@ -591,15 +595,15 @@ private fun MainControlCard(
                 ) {
                     if (state.errorMessage != null) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = MD3Shapes.Small,
                             color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                            modifier = Modifier.padding(horizontal = 24.dp)
+                            modifier = Modifier.padding(horizontal = MD3Spacing.XXL)
                         ) {
                             Text(
                                 state.errorMessage ?: "",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(8.dp),
+                                modifier = Modifier.padding(MD3Spacing.Medium),
                                 maxLines = 3,
                                 textAlign = TextAlign.Center
                             )
@@ -648,7 +652,7 @@ private fun MobileBottomBar(
     hazeState: HazeState? = null
 ) {
     HazeSurface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MD3Shapes.Medium,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
         hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
@@ -656,7 +660,7 @@ private fun MobileBottomBar(
         enabled = state.backgroundSettings.enableHazeEffect
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = MD3Spacing.Large, vertical = MD3Spacing.Medium),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -714,7 +718,7 @@ private fun MobileMuteButton(
     )
     
     Surface(
-        shape = RoundedCornerShape(10.dp),
+        shape = MD3Shapes.Small,
         color = bgColor,
         modifier = Modifier.scale(scale).clickable(interactionSource, null) { onToggle() }
     ) {

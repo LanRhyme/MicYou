@@ -85,6 +85,8 @@
   "versionLabel": "版本",
   "useDynamicColorLabel": "開啟動態取色",
   "useDynamicColorDesc": "使用系統主題色作為應用程式主題",
+  "dynamicColorActiveHint": "目前正在使用系統動態顏色",
+  "dynamicColorEnabledHint": "動態取色已啟用",
   "androidAudioProcessingLabel": "手機硬體內建音訊處理",
   "androidAudioProcessingDesc": "開啟後可能會影響輸出的最終效果",
   "contributorsLabel": "貢獻者",

@@ -85,6 +85,8 @@
   "versionLabel": "Version",
   "useDynamicColorLabel": "Enable Dynamic Color",
   "useDynamicColorDesc": "Use system accent color for app theme",
+  "dynamicColorActiveHint": "Currently using system dynamic color",
+  "dynamicColorEnabledHint": "Dynamic color is enabled",
   "androidAudioProcessingLabel": "Built-in Audio Processing",
   "androidAudioProcessingDesc": "Use hardware audio processing. May affect output quality.",
   "contributorsLabel": "Contributors",

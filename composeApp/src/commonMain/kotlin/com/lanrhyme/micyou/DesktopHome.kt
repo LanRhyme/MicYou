@@ -247,7 +247,7 @@ fun DesktopHome(
                     delayMillis = 200,
                     modifier = Modifier.weight(0.8f).fillMaxHeight(),
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(22.dp),
+                    shape = MD3Shapes.CardLarge,
                     cardOpacity = state.backgroundSettings.cardOpacity,
                     hazeState = hazeState,
                     enableHaze = state.backgroundSettings.enableHazeEffect
@@ -288,7 +288,7 @@ private fun AnimatedCard(
     delayMillis: Int,
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
-    shape: RoundedCornerShape = RoundedCornerShape(22.dp),
+    shape: RoundedCornerShape = MD3Shapes.CardLarge,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
     enableHaze: Boolean = false,
@@ -415,7 +415,7 @@ private fun NetworkConfigCard(
                         DropdownMenu(
                             expanded = showIpList,
                             onDismissRequest = { showIpList = false },
-                            shape = RoundedCornerShape(16.dp)
+                            shape = MD3Shapes.Menu
                         ) {
                             currentIps.forEach { ip ->
                                 DropdownMenuItem(
@@ -462,12 +462,12 @@ private fun NetworkConfigCard(
                         colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                         textStyle = MaterialTheme.typography.bodySmall,
                         singleLine = true,
-                        shape = RoundedCornerShape(16.dp)
+                        shape = MD3Shapes.Medium
                     )
                     DropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
-                        shape = RoundedCornerShape(16.dp)
+                        shape = MD3Shapes.Menu
                     ) {
                         DropdownMenuItem(
                             text = { Text(strings.modeWifi) },
@@ -1190,7 +1190,7 @@ private fun StatusControlPanel(
                                         colors = CardDefaults.cardColors(
                                             containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
                                         ),
-                                        shape = RoundedCornerShape(8.dp)
+                                        shape = MD3Shapes.Small
                                     ) {
                                         SelectionContainer {
                                             Text(

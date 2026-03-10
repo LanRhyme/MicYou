@@ -103,6 +103,8 @@ data class AppStrings(
     val versionLabel: String = "Version",
     val useDynamicColorLabel: String = "Enable Dynamic Color",
     val useDynamicColorDesc: String = "Use system accent color for app theme",
+    val dynamicColorActiveHint: String = "Currently using system dynamic color",
+    val dynamicColorEnabledHint: String = "Dynamic color is enabled",
     val androidAudioProcessingLabel: String = "Built-in Audio Processing",
     val androidAudioProcessingDesc: String = "Use hardware audio processing. May affect output quality.",
     val contributorsLabel: String = "Contributors",

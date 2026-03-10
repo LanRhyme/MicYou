@@ -284,13 +284,21 @@ fun main() {
                 val seedColor by viewModel.uiState.collectAsState().let { state ->
                     derivedStateOf { state.value.seedColor }
                 }
+                val useDynamicColor by viewModel.uiState.collectAsState().let { state ->
+                    derivedStateOf { state.value.useDynamicColor }
+                }
                 val oledPureBlack by viewModel.uiState.collectAsState().let { state ->
                     derivedStateOf { state.value.oledPureBlack }
                 }
                 val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
 
                 CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(themeMode = themeMode, seedColor = seedColorObj, oledPureBlack = oledPureBlack) {
+                    AppTheme(
+                        themeMode = themeMode,
+                        seedColor = seedColorObj,
+                        useDynamicColor = useDynamicColor,
+                        oledPureBlack = oledPureBlack
+                    ) {
                         DesktopSettings(
                             viewModel = viewModel,
                             onClose = { showSettingsWindow = false }
@@ -319,10 +327,11 @@ private fun FloatingMicWindowContainer(
     strings: AppStrings
 ) {
     val screenSize = Toolkit.getDefaultToolkit().screenSize
-    
+
     val uiState by viewModel.uiState.collectAsState()
     val themeMode = uiState.themeMode
     val seedColor = uiState.seedColor
+    val useDynamicColor = uiState.useDynamicColor
     val oledPureBlack = uiState.oledPureBlack
     val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
 
@@ -335,16 +344,21 @@ private fun FloatingMicWindowContainer(
         alwaysOnTop = true
     ) {
         val window = this.window
-        
+
         LaunchedEffect(Unit) {
             window.setSize(36, 36)
             window.setLocation(screenSize.width - 60, 60)
         }
-        
+
         CompositionLocalProvider(LocalAppStrings provides strings) {
-            AppTheme(themeMode = themeMode, seedColor = seedColorObj, oledPureBlack = oledPureBlack) {
+            AppTheme(
+                themeMode = themeMode,
+                seedColor = seedColorObj,
+                useDynamicColor = useDynamicColor,
+                oledPureBlack = oledPureBlack
+            ) {
                 FloatingMicWindow(
-                    viewModel = viewModel, 
+                    viewModel = viewModel,
                     window = window,
                     onClose = { viewModel.setFloatingWindowEnabled(false) }
                 )

@@ -82,6 +82,8 @@
   "versionLabel": "版本喵~",
   "useDynamicColorLabel": "开启动态取色喵~ 🌈",
   "useDynamicColorDesc": "用系统主题色做应用主题喵~",
+  "dynamicColorActiveHint": "正在用系统动态颜色喵~ ✨",
+  "dynamicColorEnabledHint": "动态取色已启用喵~ 🎨",
   "androidAudioProcessingLabel": "内置音频处理喵~",
   "androidAudioProcessingDesc": "使用硬件音频处理喵~可能会影响输出质量喵~",
   "contributorsLabel": "贡献者喵~ 💖",

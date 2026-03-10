@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -480,6 +481,7 @@ fun ColorSelectorWithPicker(
     presetColors: List<Long>,
     onColorSelected: (Long) -> Unit,
     enabled: Boolean = true,
+    disabledHint: String = "Dynamic color is enabled",
     modifier: Modifier = Modifier
 ) {
     var customColor by remember { mutableStateOf<Long?>(null) }
@@ -488,26 +490,25 @@ fun ColorSelectorWithPicker(
     val allColors = presetColors + (customColor ?: selectedColor)
     val isCustomSelected = customColor != null && selectedColor == customColor
 
-    Column(modifier = modifier) {
-        // 使用网格布局显示颜色
-        ColorGrid(
-            colors = allColors,
-            selectedColor = selectedColor,
-            onColorSelected = { colorHex ->
-                if (enabled) {
-                    if (colorHex == allColors.last() && isCustomSelected) {
-                        // 点击的是自定义颜色按钮
-                        onColorSelected(colorHex)
-                    } else {
-                        onColorSelected(colorHex)
-                    }
+    // 使用网格布局显示颜色
+    ColorGrid(
+        colors = allColors,
+        selectedColor = selectedColor,
+        onColorSelected = { colorHex ->
+            if (enabled) {
+                if (colorHex == allColors.last() && isCustomSelected) {
+                    // 点击的是自定义颜色按钮
+                    onColorSelected(colorHex)
+                } else {
+                    onColorSelected(colorHex)
                 }
-            },
-            onCustomColorClick = { /* 自定义颜色按钮单独处理 */ },
-            enabled = enabled,
-            columns = 5
-        )
-    }
+            }
+        },
+        onCustomColorClick = { /* 自定义颜色按钮单独处理 */ },
+        enabled = enabled,
+        columns = 5,
+        modifier = modifier
+    )
 }
 
 /**
@@ -520,12 +521,14 @@ private fun ColorGrid(
     onColorSelected: (Long) -> Unit,
     onCustomColorClick: () -> Unit,
     enabled: Boolean = true,
-    columns: Int = 5
+    columns: Int = 5,
+    modifier: Modifier = Modifier
 ) {
     val itemSize = 40.dp
     val spacing = 12.dp
 
     Column(
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(spacing)
     ) {
         // 将颜色分组，每行 columns 个

@@ -20,6 +20,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -83,6 +84,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -585,10 +587,14 @@ private fun ModeCard(
                         animationSpec = tween(200)
                     )
                     
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = bgColor,
-                        modifier = Modifier.weight(1f).height(42.dp).clickable { onModeSelected(mode) }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(bgColor)
+                            .hoverable(interactionSource = remember { MutableInteractionSource() })
+                            .clickable { onModeSelected(mode) }
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),

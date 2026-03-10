@@ -82,6 +82,8 @@
   "versionLabel": "版本号码值",
   "useDynamicColorLabel": "开启动态取色功能项",
   "useDynamicColorDesc": "使用系统主题色作为应用程序主题颜色值",
+  "dynamicColorActiveHint": "当前正在使用系统动态颜色值",
+  "dynamicColorEnabledHint": "动态取色功能项已启用状态值",
   "androidAudioProcessingLabel": "安卓德内建音频处理",
   "androidAudioProcessingDesc": "使用硬件音频处理。可能影响输出的质量值。",
   "contributorsLabel": "贡献者们们",
