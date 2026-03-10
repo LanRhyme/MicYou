@@ -350,7 +350,6 @@ fun AppTheme(
 
     MaterialTheme(
         colorScheme = animatedColorScheme,
-        shapes = getMD3Shapes(),
         content = content
     )
 }

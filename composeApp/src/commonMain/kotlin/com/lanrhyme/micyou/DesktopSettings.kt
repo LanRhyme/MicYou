@@ -185,7 +185,7 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 3.dp)
-                            .clip(MD3Shapes.ListItem)
+                            .clip(MaterialTheme.shapes.extraLarge)
                             .clickable { currentSection = section }
                             .background(
                                 if (isSelected) MaterialTheme.colorScheme.secondaryContainer
@@ -267,7 +267,7 @@ fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit) {
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity)
                         ),
-                        shape = MD3Shapes.Menu
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(section.getLabel(strings), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -309,7 +309,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
@@ -323,7 +323,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                     DropdownMenu(
                                         expanded = expanded,
                                         onDismissRequest = { expanded = false },
-                                        shape = MD3Shapes.Menu
+                                        shape = MaterialTheme.shapes.medium
                                     ) {
                                         AppLanguage.entries.forEach { lang ->
                                             DropdownMenuItem(
@@ -350,7 +350,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -369,7 +369,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -391,7 +391,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -410,7 +410,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -428,7 +428,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                         DropdownMenu(
                                             expanded = expanded,
                                             onDismissRequest = { expanded = false },
-                                            shape = MD3Shapes.Menu
+                                            shape = MaterialTheme.shapes.medium
                                         ) {
                                             CloseAction.entries.forEach { action ->
                                                 DropdownMenuItem(
@@ -459,7 +459,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -478,7 +478,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -497,7 +497,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -519,7 +519,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
@@ -542,7 +542,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -573,7 +573,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -594,7 +594,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
@@ -614,7 +614,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -659,7 +659,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -691,7 +691,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -779,7 +779,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -801,7 +801,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -816,7 +816,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                         DropdownMenu(
                                             expanded = expanded,
                                             onDismissRequest = { expanded = false },
-                                            shape = MD3Shapes.Menu
+                                            shape = MaterialTheme.shapes.medium
                                         ) {
                                             SampleRate.entries.forEach { rate ->
                                                 DropdownMenuItem(text = { Text("${rate.value} Hz") }, onClick = { viewModel.setSampleRate(rate); expanded = false })
@@ -830,7 +830,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -845,7 +845,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                         DropdownMenu(
                                             expanded = expanded,
                                             onDismissRequest = { expanded = false },
-                                            shape = MD3Shapes.Menu
+                                            shape = MaterialTheme.shapes.medium
                                         ) {
                                             ChannelCount.entries.forEach { count ->
                                                 DropdownMenuItem(text = { Text(count.label) }, onClick = { viewModel.setChannelCount(count); expanded = false })
@@ -859,7 +859,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -874,7 +874,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                         DropdownMenu(
                                             expanded = expanded,
                                             onDismissRequest = { expanded = false },
-                                            shape = MD3Shapes.Menu
+                                            shape = MaterialTheme.shapes.medium
                                         ) {
                                             AudioFormat.entries.forEach { format ->
                                                 DropdownMenuItem(text = { Text(format.label) }, onClick = { viewModel.setAudioFormat(format); expanded = false })
@@ -888,7 +888,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -919,7 +919,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             var expanded by remember { mutableStateOf(false) }
@@ -968,7 +968,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             Row(
@@ -1000,7 +1000,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -1016,7 +1016,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(MD3Shapes.Card)
+                                    .clip(MaterialTheme.shapes.medium)
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 ListItem(
@@ -1036,7 +1036,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                                 DropdownMenu(
                                                     expanded = expanded,
                                                     onDismissRequest = { expanded = false },
-                                                    shape = MD3Shapes.Menu
+                                                    shape = MaterialTheme.shapes.medium
                                                 ) {
                                                     NoiseReductionType.entries.forEach { type ->
                                                         DropdownMenuItem(text = { Text(type.name) }, onClick = { viewModel.setNsType(type); expanded = false })
@@ -1058,7 +1058,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -1072,7 +1072,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(MD3Shapes.Card)
+                                    .clip(MaterialTheme.shapes.medium)
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -1090,7 +1090,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -1104,7 +1104,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(MD3Shapes.Card)
+                                    .clip(MaterialTheme.shapes.medium)
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -1122,7 +1122,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(MD3Shapes.Card)
+                                .clip(MaterialTheme.shapes.medium)
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
@@ -1136,7 +1136,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(MD3Shapes.Card)
+                                    .clip(MaterialTheme.shapes.medium)
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
@@ -1207,7 +1207,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
@@ -1220,7 +1220,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
@@ -1240,7 +1240,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
@@ -1254,7 +1254,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
@@ -1272,7 +1272,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
@@ -1286,7 +1286,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MD3Shapes.Card)
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
@@ -1311,7 +1311,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = cardOpacity * 0.7f)
                     ),
-                    shape = MD3Shapes.Card
+                    shape = MaterialTheme.shapes.medium
                 ) {
                      Column(modifier = Modifier.padding(16.dp)) {
                         Text(strings.softwareIntro, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
@@ -1349,7 +1349,7 @@ fun NoiseReductionHelpPopup(onDismiss: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            shape = MD3Shapes.Menu,
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             )
@@ -1444,7 +1444,7 @@ private fun AlgorithmInfoItem(
                 Spacer(modifier = Modifier.width(8.dp))
                 Surface(
                     color = if (isRecommended) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                    shape = MD3Shapes.ExtraSmall
+                    shape = MaterialTheme.shapes.extraSmall
                 ) {
                     Text(
                         recommendation,
