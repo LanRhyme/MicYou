@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/LanRhyme/MicYou/blob/master/LICENSE">
-    <img alt="LICENSE" src="https://img.shields.io/badge/license-MIT-green"></a>
+    <img alt="LICENSE" src="https://img.shields.io/badge/license-GPLv3-green"></a>
   <a href="https://github.com/LanRhyme/MicYou/stargazers">
     <img alt="Github Stars" src="https://img.shields.io/github/stars/LanRhyme/MicYou?style=flat&logo=github&logoColor=white"><a>
   <a href="https://github.com/LanRhyme/MicYou/releases/latest">
