@@ -2,8 +2,11 @@ package com.lanrhyme.micyou
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import com.lanrhyme.micyou.platform.FirewallManager
 import com.lanrhyme.micyou.platform.PlatformInfo
+import com.lanrhyme.micyou.platform.WindowsAccentColorExtractor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
@@ -98,7 +101,31 @@ actual suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit> =
         }
     }
 
+/**
+ * 缓存提取的系统主题色
+ */
+private var cachedAccentColor: Color? = null
+
+actual fun isDynamicColorSupported(): Boolean {
+    // 目前只为 Windows 提供莫奈取色
+    return PlatformInfo.isWindows
+}
+
 @Composable
 actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {
-    return null
+    // 目前只为 Windows 提供莫奈取色
+    if (!PlatformInfo.isWindows) {
+        return null
+    }
+
+    // 使用 remember 缓存提取的颜色
+    val seedColor = remember { cachedAccentColor ?: WindowsAccentColorExtractor.getAccentColor()?.also { cachedAccentColor = it } }
+
+    // 如果无法获取系统主题色，返回 null 使用默认主题
+    val color = seedColor ?: return null
+
+    Logger.d("Platform", "Using Windows accent color: $color")
+
+    // 使用现有的颜色方案生成器
+    return generateColorScheme(color, isDark)
 }

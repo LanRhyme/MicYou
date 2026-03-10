@@ -26,33 +26,14 @@ fun App(
 ) {
     val platform = remember { getPlatform() }
     val isClient = platform.type == PlatformType.Android
-    
+
     // Use passed viewModel or create one
     val finalViewModel = viewModel ?: if (isClient) viewModel { MainViewModel() } else remember { MainViewModel() }
 
-    val themeMode by finalViewModel.uiState.collectAsState().let { state ->
-        derivedStateOf { state.value.themeMode }
-    }
-    val seedColor by finalViewModel.uiState.collectAsState().let { state ->
-        derivedStateOf { state.value.seedColor }
-    }
-    val useDynamicColor by finalViewModel.uiState.collectAsState().let { state ->
-        derivedStateOf { state.value.useDynamicColor }
-    }
-    val oledPureBlack by finalViewModel.uiState.collectAsState().let { state ->
-        derivedStateOf { state.value.oledPureBlack }
-    }
-    
-    // Convert Long color to Color object
-    val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
-    
-    val language by finalViewModel.uiState.collectAsState().let { state ->
-        derivedStateOf { state.value.language }
-    }
-    
-    val strings = getStrings(language)
-
     val uiState by finalViewModel.uiState.collectAsState()
+    val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
+    val strings = getStrings(uiState.language)
+
     val newVersionAvailable = uiState.newVersionAvailable
     val pocketMode = uiState.pocketMode
     val useSystemTitleBar = uiState.useSystemTitleBar
@@ -60,10 +41,10 @@ fun App(
 
     CompositionLocalProvider(LocalAppStrings provides strings) {
         AppTheme(
-            themeMode = themeMode,
+            themeMode = uiState.themeMode,
             seedColor = seedColorObj,
-            useDynamicColor = useDynamicColor,
-            oledPureBlack = oledPureBlack
+            useDynamicColor = uiState.useDynamicColor,
+            oledPureBlack = uiState.oledPureBlack
         ) {
             if (platform.type == PlatformType.Android) {
                 MobileHome(finalViewModel)

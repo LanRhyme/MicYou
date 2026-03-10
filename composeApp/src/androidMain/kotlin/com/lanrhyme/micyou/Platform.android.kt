@@ -45,3 +45,7 @@ actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {
     return null
 }
 
+actual fun isDynamicColorSupported(): Boolean {
+    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+}
+

@@ -567,7 +567,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         }
                     }
 
-                    if (platform.type == PlatformType.Android) {
+                    // 动态取色选项：Android 和 Windows 支持
+                    if (platform.type == PlatformType.Android || isDynamicColorSupported()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -576,6 +577,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.useDynamicColorLabel) },
+                                supportingContent = { Text(strings.useDynamicColorDesc) },
                                 trailingContent = {
                                     Switch(
                                         checked = state.useDynamicColor,

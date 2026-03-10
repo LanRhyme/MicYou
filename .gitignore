@@ -20,3 +20,4 @@ captures
 node_modules/
 gradle.properties
 gradle/wrapper/gradle-wrapper.properties
+CLAUDE.md

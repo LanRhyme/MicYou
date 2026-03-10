@@ -89,6 +89,14 @@ fun main() {
         var isVisible by remember { mutableStateOf(true) }
         var showSettingsWindow by remember { mutableStateOf(false) }
 
+        // Helper function for app exit
+        val exitApp: () -> Unit = {
+            runBlocking {
+                VBCableManager.setSystemDefaultMicrophone(toCable = false)
+            }
+            exitProcess(0)
+        }
+
         val language by viewModel.uiState.collectAsState().let { state ->
             derivedStateOf { state.value.language }
         }
@@ -120,10 +128,7 @@ fun main() {
             Item(
                 label = strings.trayExit
             ) {
-                runBlocking {
-                    VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                }
-                exitProcess(0)
+                exitApp()
             }
         }
 
@@ -151,14 +156,9 @@ fun main() {
         if (isVisible) {
             key(useSystemTitleBar) {
             Window(
-                onCloseRequest = { 
+                onCloseRequest = {
                     viewModel.handleCloseRequest(
-                        onExit = { 
-                            runBlocking {
-                                VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                            }
-                            exitProcess(0)
-                        },
+                        onExit = exitApp,
                         onHide = { isVisible = false }
                     )
                 },
@@ -181,23 +181,13 @@ fun main() {
                         App(
                             viewModel = viewModel,
                             onMinimize = { windowState.isMinimized = true },
-                        onClose = { 
+                        onClose = {
                             viewModel.handleCloseRequest(
-                                onExit = { 
-                                    runBlocking {
-                                        VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                                    }
-                                    exitProcess(0)
-                                },
+                                onExit = exitApp,
                                 onHide = { isVisible = false }
                             )
                         },
-                        onExitApp = { 
-                            runBlocking {
-                                VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                            }
-                            exitProcess(0)
-                        },
+                        onExitApp = exitApp,
                         onHideApp = { isVisible = false },
                         onOpenSettings = { showSettingsWindow = true },
                         isBluetoothDisabled = isBluetoothDisabled
@@ -258,12 +248,7 @@ fun main() {
                                 viewModel.confirmCloseAction(
                                     CloseAction.Minimize,
                                     rememberCloseAction,
-                                    onExit = {
-                                        runBlocking {
-                                            VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                                        }
-                                        exitProcess(0)
-                                    },
+                                    onExit = exitApp,
                                     onHide = { isVisible = false }
                                 )
                             },
@@ -271,12 +256,7 @@ fun main() {
                                 viewModel.confirmCloseAction(
                                     CloseAction.Exit,
                                     rememberCloseAction,
-                                    onExit = {
-                                        runBlocking {
-                                            VBCableManager.setSystemDefaultMicrophone(toCable = false)
-                                        }
-                                        exitProcess(0)
-                                    },
+                                    onExit = exitApp,
                                     onHide = { isVisible = false }
                                 )
                             },
