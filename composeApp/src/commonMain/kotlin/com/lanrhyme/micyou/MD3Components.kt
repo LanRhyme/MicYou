@@ -2,7 +2,6 @@ package com.lanrhyme.micyou
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -20,23 +19,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardElevation
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.FloatingActionButtonElevation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -54,7 +46,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -63,24 +54,31 @@ import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 
+// ==================== 公共动画工具 ====================
+
 /**
- * Material Design 3 卡片变体
+ * 按压缩放动画修饰符
  */
-enum class MD3CardVariant {
-    Elevated,    // 带阴影的凸起卡片
-    Filled,      // 填充色卡片
-    Outlined     // 带边框的卡片
+@Composable
+fun Modifier.pressScale(
+    interactionSource: MutableInteractionSource,
+    pressedScale: Float = 0.95f
+): Modifier {
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) pressedScale else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "PressScale"
+    )
+    return this.scale(scale)
 }
+
+// ==================== 卡片组件 ====================
+
+enum class MD3CardVariant { Elevated, Filled, Outlined }
 
 /**
  * M3 标准卡片组件
- * 
- * @param variant 卡片变体：Elevated, Filled, Outlined
- * @param shape 卡片形状，默认使用 M3 标准
- * @param onClick 点击回调，为 null 时卡片不可点击
- * @param hazeState 毛玻璃效果状态
- * @param enableHaze 是否启用毛玻璃效果
- * @param cardOpacity 卡片透明度
  */
 @Composable
 fun MD3Card(
@@ -99,19 +97,18 @@ fun MD3Card(
         MD3CardVariant.Outlined -> MaterialTheme.colorScheme.surface
     }
 
-    val elevation: CardElevation = when (variant) {
-        MD3CardVariant.Elevated -> CardDefaults.cardElevation(defaultElevation = MD3Elevation.CardElevated)
-        MD3CardVariant.Filled -> CardDefaults.cardElevation(defaultElevation = MD3Elevation.Level0)
-        MD3CardVariant.Outlined -> CardDefaults.cardElevation(defaultElevation = MD3Elevation.Level0)
+    val elevation = when (variant) {
+        MD3CardVariant.Elevated -> CardDefaults.cardElevation(defaultElevation = MD3Elevation.Level2)
+        else -> CardDefaults.cardElevation(defaultElevation = MD3Elevation.Level0)
     }
 
-    val border: BorderStroke? = if (variant == MD3CardVariant.Outlined) {
+    val border = if (variant == MD3CardVariant.Outlined) {
         BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     } else null
 
-    val clickModifier = if (onClick != null) {
-        Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-    } else Modifier
+    val clickModifier = onClick?.let {
+        Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = it)
+    } ?: Modifier
 
     if (enableHaze && hazeState != null) {
         Box(
@@ -132,9 +129,7 @@ fun MD3Card(
         Card(
             modifier = modifier.then(clickModifier),
             shape = shape,
-            colors = CardDefaults.cardColors(
-                containerColor = containerColor.copy(alpha = cardOpacity)
-            ),
+            colors = CardDefaults.cardColors(containerColor = containerColor.copy(alpha = cardOpacity)),
             elevation = elevation,
             border = border,
             content = content
@@ -143,7 +138,7 @@ fun MD3Card(
 }
 
 /**
- * M3 大型卡片组件（用于主要内容区域）
+ * M3 大型卡片组件
  */
 @Composable
 fun MD3LargeCard(
@@ -154,18 +149,18 @@ fun MD3LargeCard(
     enableHaze: Boolean = false,
     cardOpacity: Float = 1f,
     content: @Composable ColumnScope.() -> Unit
-) {
-    MD3Card(
-        modifier = modifier,
-        variant = variant,
-        shape = MD3Shapes.CardLarge,
-        onClick = onClick,
-        hazeState = hazeState,
-        enableHaze = enableHaze,
-        cardOpacity = cardOpacity,
-        content = content
-    )
-}
+) = MD3Card(
+    modifier = modifier,
+    variant = variant,
+    shape = MD3Shapes.CardLarge,
+    onClick = onClick,
+    hazeState = hazeState,
+    enableHaze = enableHaze,
+    cardOpacity = cardOpacity,
+    content = content
+)
+
+// ==================== 列表项组件 ====================
 
 /**
  * M3 列表项组件
@@ -198,9 +193,8 @@ fun MD3ListItem(
             .fillMaxWidth()
             .clip(MD3Shapes.ListItem)
             .then(
-                if (onClick != null) {
-                    Modifier.clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-                } else Modifier
+                onClick?.let { Modifier.clickable(interactionSource = interactionSource, indication = null, onClick = it) }
+                    ?: Modifier
             ),
         color = backgroundColor,
         shape = MD3Shapes.ListItem
@@ -222,9 +216,9 @@ fun MD3ListItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (supporting != null) {
+                supporting?.let {
                     Text(
-                        supporting,
+                        it,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
@@ -232,14 +226,15 @@ fun MD3ListItem(
                     )
                 }
             }
-
             trailing?.invoke()
         }
     }
 }
 
+// ==================== 分段按钮组件 ====================
+
 /**
- * M3 分段按钮组（用于选择器）
+ * M3 分段按钮组
  */
 @Composable
 fun MD3SegmentedButtonRow(
@@ -272,32 +267,22 @@ fun MD3SegmentedButtonItem(
     label: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "SegmentedButtonScale"
-    )
 
     val containerColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer
-        else Color.Transparent,
+        targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
         animationSpec = tween(200),
-        label = "SegmentedButtonColor"
+        label = "ContainerColor"
     )
 
     val contentColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.onSecondaryContainer
         else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = tween(200),
-        label = "SegmentedButtonContentColor"
+        label = "ContentColor"
     )
 
     Surface(
-        modifier = modifier
-            .scale(scale)
-            .clip(MD3Shapes.Full),
+        modifier = modifier.pressScale(interactionSource).clip(MD3Shapes.Full),
         color = containerColor,
         shape = MD3Shapes.Full,
         onClick = onClick,
@@ -308,29 +293,114 @@ fun MD3SegmentedButtonItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(MD3Spacing.Small)
         ) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(MD3Sizes.IconMedium)
-                )
+            icon?.let {
+                Icon(imageVector = it, contentDescription = null, tint = contentColor, modifier = Modifier.size(MD3Sizes.IconMedium))
             }
-            if (label != null) {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = contentColor,
-                    maxLines = 1
-                )
+            label?.let {
+                Text(it, style = MaterialTheme.typography.labelLarge, color = contentColor, maxLines = 1)
             }
         }
     }
 }
 
+// ==================== 按钮组件 ====================
+
+enum class MD3ButtonVariant { Filled, Tonal, Outlined, Text }
+
 /**
- * M3 主控制按钮（用于主要操作）
+ * M3 统一按钮组件
  */
+@Composable
+fun MD3Button(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    variant: MD3ButtonVariant = MD3ButtonVariant.Filled,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    text: String? = null
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val shape = MD3Shapes.Button
+
+    val iconContent: @Composable (() -> Unit)? = icon?.let {
+        {
+            Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(MD3Sizes.IconMedium))
+        }
+    }
+
+    val textContent: @Composable (() -> Unit)? = text?.let {
+        { Text(it, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium) }
+    }
+
+    when (variant) {
+        MD3ButtonVariant.Filled -> Button(
+            onClick = onClick,
+            modifier = modifier.pressScale(interactionSource),
+            enabled = enabled,
+            shape = shape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = MD3Elevation.Level1,
+                pressedElevation = MD3Elevation.Level2
+            ),
+            interactionSource = interactionSource
+        ) {
+            iconContent?.invoke()
+            if (icon != null && text != null) Spacer(Modifier.width(MD3Spacing.Small))
+            textContent?.invoke()
+        }
+
+        MD3ButtonVariant.Tonal -> {
+            val tonalInteractionSource = remember { MutableInteractionSource() }
+            androidx.compose.material3.FilledTonalButton(
+                onClick = onClick,
+                modifier = modifier.pressScale(tonalInteractionSource),
+                enabled = enabled,
+                shape = shape,
+                interactionSource = tonalInteractionSource
+            ) {
+                iconContent?.invoke()
+                if (icon != null && text != null) Spacer(Modifier.width(MD3Spacing.Small))
+                textContent?.invoke()
+            }
+        }
+
+        MD3ButtonVariant.Outlined -> {
+            val outlinedInteractionSource = remember { MutableInteractionSource() }
+            OutlinedButton(
+                onClick = onClick,
+                modifier = modifier.pressScale(outlinedInteractionSource),
+                enabled = enabled,
+                shape = shape,
+                interactionSource = outlinedInteractionSource
+            ) {
+                iconContent?.invoke()
+                if (icon != null && text != null) Spacer(Modifier.width(MD3Spacing.Small))
+                textContent?.invoke()
+            }
+        }
+
+        MD3ButtonVariant.Text -> {
+            val textInteractionSource = remember { MutableInteractionSource() }
+            TextButton(
+                onClick = onClick,
+                modifier = modifier.pressScale(textInteractionSource),
+                enabled = enabled,
+                shape = shape,
+                interactionSource = textInteractionSource
+            ) {
+                textContent?.invoke()
+            }
+        }
+    }
+}
+
+// 向后兼容的类型别名
 @Composable
 fun MD3PrimaryButton(
     onClick: () -> Unit,
@@ -338,54 +408,8 @@ fun MD3PrimaryButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     text: String? = null
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+) = MD3Button(onClick, modifier, MD3ButtonVariant.Filled, enabled, icon, text)
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "PrimaryButtonScale"
-    )
-
-    Button(
-        onClick = onClick,
-        modifier = modifier.scale(scale),
-        enabled = enabled,
-        shape = MD3Shapes.Button,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = MD3Elevation.Level1,
-            pressedElevation = MD3Elevation.Level2
-        ),
-        interactionSource = interactionSource
-    ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(MD3Sizes.IconMedium)
-            )
-            if (text != null) Spacer(Modifier.width(MD3Spacing.Small))
-        }
-        if (text != null) {
-            Text(
-                text,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
-
-/**
- * M3 次要按钮（Tonal样式）
- */
 @Composable
 fun MD3TonalButton(
     onClick: () -> Unit,
@@ -393,40 +417,8 @@ fun MD3TonalButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     text: String? = null
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+) = MD3Button(onClick, modifier, MD3ButtonVariant.Tonal, enabled, icon, text)
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "TonalButtonScale"
-    )
-
-    FilledTonalButton(
-        onClick = onClick,
-        modifier = modifier.scale(scale),
-        enabled = enabled,
-        shape = MD3Shapes.Button,
-        interactionSource = interactionSource
-    ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(MD3Sizes.IconMedium)
-            )
-            if (text != null) Spacer(Modifier.width(MD3Spacing.Small))
-        }
-        if (text != null) {
-            Text(text, style = MaterialTheme.typography.labelLarge)
-        }
-    }
-}
-
-/**
- * M3 轮廓按钮
- */
 @Composable
 fun MD3OutlinedButton(
     onClick: () -> Unit,
@@ -434,70 +426,76 @@ fun MD3OutlinedButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     text: String? = null
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+) = MD3Button(onClick, modifier, MD3ButtonVariant.Outlined, enabled, icon, text)
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "OutlinedButtonScale"
-    )
-
-    OutlinedButton(
-        onClick = onClick,
-        modifier = modifier.scale(scale),
-        enabled = enabled,
-        shape = MD3Shapes.Button,
-        interactionSource = interactionSource
-    ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(MD3Sizes.IconMedium)
-            )
-            if (text != null) Spacer(Modifier.width(MD3Spacing.Small))
-        }
-        if (text != null) {
-            Text(text, style = MaterialTheme.typography.labelLarge)
-        }
-    }
-}
-
-/**
- * M3 文本按钮
- */
 @Composable
 fun MD3TextButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     text: String
+) = MD3Button(onClick, modifier, MD3ButtonVariant.Text, enabled, text = text)
+
+// ==================== FAB 组件 ====================
+
+enum class MD3FabSize { Small, Normal, Large }
+
+/**
+ * M3 统一 FAB 组件
+ */
+@Composable
+fun MD3FloatingActionButton(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    size: MD3FabSize = MD3FabSize.Normal,
+    text: String? = null,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val fabSize = when (size) {
+        MD3FabSize.Small -> MD3Sizes.FABSizeSmall
+        MD3FabSize.Normal -> MD3Sizes.FABSize
+        MD3FabSize.Large -> MD3Sizes.FABSizeLarge
+    }
+    val iconSize = if (size == MD3FabSize.Small) MD3Sizes.IconMedium else MD3Sizes.IconLarge
+    val pressedScale = if (size == MD3FabSize.Small) 0.9f else 0.95f
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "TextButtonScale"
-    )
-
-    TextButton(
-        onClick = onClick,
-        modifier = modifier.scale(scale),
-        enabled = enabled,
-        shape = MD3Shapes.Button,
-        interactionSource = interactionSource
-    ) {
-        Text(text, style = MaterialTheme.typography.labelLarge)
+    if (text != null && size != MD3FabSize.Small) {
+        androidx.compose.material3.ExtendedFloatingActionButton(
+            onClick = onClick,
+            modifier = modifier.pressScale(interactionSource, pressedScale),
+            icon = { Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(iconSize)) },
+            text = { Text(text, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium) },
+            shape = MD3Shapes.FAB,
+            containerColor = containerColor,
+            contentColor = contentColor,
+            elevation = FloatingActionButtonDefaults.elevation(
+                defaultElevation = MD3Elevation.Level3,
+                pressedElevation = MD3Elevation.Level4
+            ),
+            interactionSource = interactionSource
+        )
+    } else {
+        FloatingActionButton(
+            onClick = onClick,
+            modifier = modifier.size(fabSize).pressScale(interactionSource, pressedScale),
+            shape = if (size == MD3FabSize.Small) CircleShape else MD3Shapes.FAB,
+            containerColor = containerColor,
+            contentColor = contentColor,
+            elevation = FloatingActionButtonDefaults.elevation(
+                defaultElevation = MD3Elevation.Level3,
+                pressedElevation = MD3Elevation.Level4
+            ),
+            interactionSource = interactionSource
+        ) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(iconSize))
+        }
     }
 }
 
-/**
- * M3 大型FAB（用于主要操作）
- */
+// 向后兼容的类型别名
 @Composable
 fun MD3LargeFloatingActionButton(
     onClick: () -> Unit,
@@ -506,67 +504,8 @@ fun MD3LargeFloatingActionButton(
     text: String? = null,
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+) = MD3FloatingActionButton(onClick, icon, modifier, MD3FabSize.Large, text, containerColor, contentColor)
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "FABScale"
-    )
-
-    val elevation: FloatingActionButtonElevation = FloatingActionButtonDefaults.elevation(
-        defaultElevation = MD3Elevation.FAB,
-        pressedElevation = MD3Elevation.FABPressed
-    )
-
-    if (text != null) {
-        androidx.compose.material3.ExtendedFloatingActionButton(
-            onClick = onClick,
-            modifier = modifier.scale(scale),
-            icon = {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(MD3Sizes.IconLarge)
-                )
-            },
-            text = {
-                Text(
-                    text,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium
-                )
-            },
-            shape = MD3Shapes.FABExtended,
-            containerColor = containerColor,
-            contentColor = contentColor,
-            elevation = elevation,
-            interactionSource = interactionSource
-        )
-    } else {
-        FloatingActionButton(
-            onClick = onClick,
-            modifier = modifier.scale(scale),
-            shape = MD3Shapes.FAB,
-            containerColor = containerColor,
-            contentColor = contentColor,
-            elevation = elevation,
-            interactionSource = interactionSource
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(MD3Sizes.IconLarge)
-            )
-        }
-    }
-}
-
-/**
- * M3 小型FAB
- */
 @Composable
 fun MD3SmallFloatingActionButton(
     onClick: () -> Unit,
@@ -574,38 +513,14 @@ fun MD3SmallFloatingActionButton(
     icon: ImageVector,
     containerColor: Color = MaterialTheme.colorScheme.secondaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onSecondaryContainer
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+) = MD3FloatingActionButton(onClick, icon, modifier, MD3FabSize.Small, containerColor = containerColor, contentColor = contentColor)
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.9f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "SmallFABScale"
-    )
+// ==================== 状态指示器组件 ====================
 
-    FloatingActionButton(
-        onClick = onClick,
-        modifier = modifier.size(MD3Sizes.FABSizeSmall).scale(scale),
-        shape = CircleShape,
-        containerColor = containerColor,
-        contentColor = contentColor,
-        elevation = FloatingActionButtonDefaults.elevation(
-            defaultElevation = MD3Elevation.Level2,
-            pressedElevation = MD3Elevation.Level3
-        ),
-        interactionSource = interactionSource
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(MD3Sizes.IconMedium)
-        )
-    }
-}
+enum class MD3Status { Idle, Connecting, Active, Error }
 
 /**
- * M3 状态指示器（用于显示连接状态等）
+ * M3 状态指示器
  */
 @Composable
 fun MD3StatusIndicator(
@@ -613,53 +528,33 @@ fun MD3StatusIndicator(
     modifier: Modifier = Modifier,
     label: String? = null
 ) {
-    val containerColor = when (status) {
-        MD3Status.Idle -> MaterialTheme.colorScheme.surfaceVariant
-        MD3Status.Connecting -> MaterialTheme.colorScheme.tertiaryContainer
-        MD3Status.Active -> MaterialTheme.colorScheme.primaryContainer
-        MD3Status.Error -> MaterialTheme.colorScheme.errorContainer
+    val (containerColor, contentColor) = when (status) {
+        MD3Status.Idle -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+        MD3Status.Connecting -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        MD3Status.Active -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        MD3Status.Error -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
     }
 
-    val contentColor = when (status) {
-        MD3Status.Idle -> MaterialTheme.colorScheme.onSurfaceVariant
-        MD3Status.Connecting -> MaterialTheme.colorScheme.onTertiaryContainer
-        MD3Status.Active -> MaterialTheme.colorScheme.onPrimaryContainer
-        MD3Status.Error -> MaterialTheme.colorScheme.onErrorContainer
-    }
-
-    Surface(
-        modifier = modifier,
-        shape = MD3Shapes.Small,
-        color = containerColor
-    ) {
+    Surface(modifier = modifier, shape = MD3Shapes.Small, color = containerColor) {
         Row(
             modifier = Modifier.padding(horizontal = MD3Spacing.Medium, vertical = MD3Spacing.Small),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(MD3Spacing.Small)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(contentColor, CircleShape)
-            )
-            if (label != null) {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = contentColor,
-                    fontWeight = FontWeight.Medium
-                )
+            Box(modifier = Modifier.size(8.dp).background(contentColor, CircleShape))
+            label?.let {
+                Text(it, style = MaterialTheme.typography.labelMedium, color = contentColor, fontWeight = FontWeight.Medium)
             }
         }
     }
 }
 
-enum class MD3Status {
-    Idle, Connecting, Active, Error
-}
+// ==================== 信息卡片组件 ====================
+
+enum class MD3InfoType { Info, Success, Warning, Error }
 
 /**
- * M3 信息卡片（用于显示提示信息）
+ * M3 信息卡片
  */
 @Composable
 fun MD3InfoCard(
@@ -667,25 +562,14 @@ fun MD3InfoCard(
     modifier: Modifier = Modifier,
     type: MD3InfoType = MD3InfoType.Info
 ) {
-    val containerColor = when (type) {
-        MD3InfoType.Info -> MaterialTheme.colorScheme.primaryContainer
-        MD3InfoType.Success -> MaterialTheme.colorScheme.tertiaryContainer
-        MD3InfoType.Warning -> MaterialTheme.colorScheme.secondaryContainer
-        MD3InfoType.Error -> MaterialTheme.colorScheme.errorContainer
+    val (containerColor, contentColor) = when (type) {
+        MD3InfoType.Info -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        MD3InfoType.Success -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        MD3InfoType.Warning -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        MD3InfoType.Error -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
     }
 
-    val contentColor = when (type) {
-        MD3InfoType.Info -> MaterialTheme.colorScheme.onPrimaryContainer
-        MD3InfoType.Success -> MaterialTheme.colorScheme.onTertiaryContainer
-        MD3InfoType.Warning -> MaterialTheme.colorScheme.onSecondaryContainer
-        MD3InfoType.Error -> MaterialTheme.colorScheme.onErrorContainer
-    }
-
-    Surface(
-        modifier = modifier,
-        shape = MD3Shapes.Medium,
-        color = containerColor
-    ) {
+    Surface(modifier = modifier, shape = MD3Shapes.Medium, color = containerColor) {
         Text(
             message,
             modifier = Modifier.padding(MD3Spacing.ExtraLarge),
@@ -693,8 +577,4 @@ fun MD3InfoCard(
             color = contentColor
         )
     }
-}
-
-enum class MD3InfoType {
-    Info, Success, Warning, Error
 }
