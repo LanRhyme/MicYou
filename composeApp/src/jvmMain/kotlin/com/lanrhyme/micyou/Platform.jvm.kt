@@ -105,6 +105,14 @@ actual fun isDynamicColorSupported(): Boolean {
     return PlatformInfo.isWindows
 }
 
+actual fun getDynamicSeedColor(): Long? {
+    // 目前只为 Windows 提供动态种子色
+    if (!PlatformInfo.isWindows) {
+        return null
+    }
+    return WindowsAccentColorExtractor.getAccentColor()?.value?.toLong()
+}
+
 @Composable
 actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {
     // 目前只为 Windows 提供莫奈取色

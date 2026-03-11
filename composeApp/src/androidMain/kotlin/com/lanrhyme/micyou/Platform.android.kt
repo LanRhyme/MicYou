@@ -49,3 +49,8 @@ actual fun isDynamicColorSupported(): Boolean {
     return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 }
 
+actual fun getDynamicSeedColor(): Long? {
+    // Android 使用系统动态配色方案，不需要单独获取种子色
+    return null
+}
+

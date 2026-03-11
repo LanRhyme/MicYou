@@ -74,3 +74,11 @@ expect fun getDynamicColorScheme(isDark: Boolean): ColorScheme?
  */
 expect fun isDynamicColorSupported(): Boolean
 
+/**
+ * 获取动态种子色（用于启动时初始化）
+ * Windows: 返回系统强调色
+ * 其他平台: 返回 null
+ * @return 种子色的 ARGB 值，如果不支持或获取失败则返回 null
+ */
+expect fun getDynamicSeedColor(): Long?
+
