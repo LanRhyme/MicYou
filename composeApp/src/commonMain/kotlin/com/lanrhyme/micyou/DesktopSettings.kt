@@ -85,6 +85,51 @@ import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings
 
+/**
+ * 可复用的设置项容器组件
+ */
+@Composable
+private fun SettingsItemContainer(
+    modifier: Modifier = Modifier,
+    cardOpacity: Float = 1f,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+    ) {
+        content()
+    }
+}
+
+/**
+ * 可复用的设置项开关组件
+ */
+@Composable
+private fun SettingsSwitchItem(
+    headline: String,
+    supporting: String? = null,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    cardOpacity: Float = 1f
+) {
+    SettingsItemContainer(
+        cardOpacity = cardOpacity,
+        onClick = { onCheckedChange(!checked) }
+    ) {
+        ListItem(
+            headlineContent = { Text(headline) },
+            supportingContent = supporting?.let { { Text(it) } },
+            trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+    }
+}
+
 enum class SettingsSection {
     General,
     Appearance,

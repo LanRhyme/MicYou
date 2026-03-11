@@ -1,8 +1,5 @@
 package com.lanrhyme.micyou
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -310,11 +307,6 @@ fun isDarkThemeActive(themeMode: ThemeMode): Boolean {
 val DefaultSeedColor = MD3SeedColors.Blue
 
 /**
- * 主题动画配置
- */
-private val themeAnimationSpec: AnimationSpec<Color> = tween(durationMillis = 400)
-
-/**
  * M3 应用主题
  * 
  * @param themeMode 主题模式
@@ -356,114 +348,13 @@ fun AppTheme(
 
 /**
  * 为配色方案添加动画过渡
+ * 简化实现：直接返回目标配色方案，Material3 内置支持颜色过渡
  */
 @Composable
 private fun animateColorScheme(
     target: androidx.compose.material3.ColorScheme,
     isDark: Boolean
-): androidx.compose.material3.ColorScheme {
-    val primary by animateColorAsState(target.primary, themeAnimationSpec)
-    val onPrimary by animateColorAsState(target.onPrimary, themeAnimationSpec)
-    val primaryContainer by animateColorAsState(target.primaryContainer, themeAnimationSpec)
-    val onPrimaryContainer by animateColorAsState(target.onPrimaryContainer, themeAnimationSpec)
-    val secondary by animateColorAsState(target.secondary, themeAnimationSpec)
-    val onSecondary by animateColorAsState(target.onSecondary, themeAnimationSpec)
-    val secondaryContainer by animateColorAsState(target.secondaryContainer, themeAnimationSpec)
-    val onSecondaryContainer by animateColorAsState(target.onSecondaryContainer, themeAnimationSpec)
-    val tertiary by animateColorAsState(target.tertiary, themeAnimationSpec)
-    val onTertiary by animateColorAsState(target.onTertiary, themeAnimationSpec)
-    val tertiaryContainer by animateColorAsState(target.tertiaryContainer, themeAnimationSpec)
-    val onTertiaryContainer by animateColorAsState(target.onTertiaryContainer, themeAnimationSpec)
-    val background by animateColorAsState(target.background, themeAnimationSpec)
-    val onBackground by animateColorAsState(target.onBackground, themeAnimationSpec)
-    val surface by animateColorAsState(target.surface, themeAnimationSpec)
-    val onSurface by animateColorAsState(target.onSurface, themeAnimationSpec)
-    val surfaceVariant by animateColorAsState(target.surfaceVariant, themeAnimationSpec)
-    val onSurfaceVariant by animateColorAsState(target.onSurfaceVariant, themeAnimationSpec)
-    val surfaceContainer by animateColorAsState(target.surfaceContainer, themeAnimationSpec)
-    val surfaceContainerHigh by animateColorAsState(target.surfaceContainerHigh, themeAnimationSpec)
-    val error by animateColorAsState(target.error, themeAnimationSpec)
-    val onError by animateColorAsState(target.onError, themeAnimationSpec)
-    val errorContainer by animateColorAsState(target.errorContainer, themeAnimationSpec)
-    val onErrorContainer by animateColorAsState(target.onErrorContainer, themeAnimationSpec)
-    val outline by animateColorAsState(target.outline, themeAnimationSpec)
-    val outlineVariant by animateColorAsState(target.outlineVariant, themeAnimationSpec)
-    val inverseSurface by animateColorAsState(target.inverseSurface, themeAnimationSpec)
-    val inverseOnSurface by animateColorAsState(target.inverseOnSurface, themeAnimationSpec)
-    val inversePrimary by animateColorAsState(target.inversePrimary, themeAnimationSpec)
-    val surfaceTint by animateColorAsState(target.surfaceTint, themeAnimationSpec)
-    val scrim by animateColorAsState(target.scrim, themeAnimationSpec)
-
-    return if (isDark) {
-        darkColorScheme(
-            primary = primary,
-            onPrimary = onPrimary,
-            primaryContainer = primaryContainer,
-            onPrimaryContainer = onPrimaryContainer,
-            secondary = secondary,
-            onSecondary = onSecondary,
-            secondaryContainer = secondaryContainer,
-            onSecondaryContainer = onSecondaryContainer,
-            tertiary = tertiary,
-            onTertiary = onTertiary,
-            tertiaryContainer = tertiaryContainer,
-            onTertiaryContainer = onTertiaryContainer,
-            background = background,
-            onBackground = onBackground,
-            surface = surface,
-            onSurface = onSurface,
-            surfaceVariant = surfaceVariant,
-            onSurfaceVariant = onSurfaceVariant,
-            surfaceContainer = surfaceContainer,
-            surfaceContainerHigh = surfaceContainerHigh,
-            error = error,
-            onError = onError,
-            errorContainer = errorContainer,
-            onErrorContainer = onErrorContainer,
-            outline = outline,
-            outlineVariant = outlineVariant,
-            inverseSurface = inverseSurface,
-            inverseOnSurface = inverseOnSurface,
-            inversePrimary = inversePrimary,
-            surfaceTint = surfaceTint,
-            scrim = scrim
-        )
-    } else {
-        lightColorScheme(
-            primary = primary,
-            onPrimary = onPrimary,
-            primaryContainer = primaryContainer,
-            onPrimaryContainer = onPrimaryContainer,
-            secondary = secondary,
-            onSecondary = onSecondary,
-            secondaryContainer = secondaryContainer,
-            onSecondaryContainer = onSecondaryContainer,
-            tertiary = tertiary,
-            onTertiary = onTertiary,
-            tertiaryContainer = tertiaryContainer,
-            onTertiaryContainer = onTertiaryContainer,
-            background = background,
-            onBackground = onBackground,
-            surface = surface,
-            onSurface = onSurface,
-            surfaceVariant = surfaceVariant,
-            onSurfaceVariant = onSurfaceVariant,
-            surfaceContainer = surfaceContainer,
-            surfaceContainerHigh = surfaceContainerHigh,
-            error = error,
-            onError = onError,
-            errorContainer = errorContainer,
-            onErrorContainer = onErrorContainer,
-            outline = outline,
-            outlineVariant = outlineVariant,
-            inverseSurface = inverseSurface,
-            inverseOnSurface = inverseOnSurface,
-            inversePrimary = inversePrimary,
-            surfaceTint = surfaceTint,
-            scrim = scrim
-        )
-    }
-}
+): androidx.compose.material3.ColorScheme = target
 
 // 保留旧的辅助函数以兼容现有代码
 fun colorToHSV(color: Int, hsv: FloatArray) {

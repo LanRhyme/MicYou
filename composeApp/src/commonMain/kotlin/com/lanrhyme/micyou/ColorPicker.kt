@@ -50,12 +50,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.Measurable
-import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 
@@ -661,73 +657,5 @@ private fun CustomColorOption(
             },
             onDismiss = { showDialog = false }
         )
-    }
-}
-
-// FlowRow 实现（简化版）
-@Composable
-private fun FlowRow(
-    modifier: Modifier = Modifier,
-    horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
-    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
-    content: @Composable () -> Unit
-) {
-    Layout(
-        content = content,
-        modifier = modifier
-    ) { measurables: List<Measurable>, constraints: Constraints ->
-        val hGapPx = 12.dp.roundToPx()
-        val vGapPx = 12.dp.roundToPx()
-
-        val rows = mutableListOf<List<Placeable>>()
-        val rowWidths = mutableListOf<Int>()
-        val rowHeights = mutableListOf<Int>()
-
-        var currentRow = mutableListOf<Placeable>()
-        var currentRowWidth = 0
-        var currentRowHeight = 0
-
-        measurables.forEach { measurable ->
-            val placeable = measurable.measure(constraints)
-
-            if (currentRow.isNotEmpty() && currentRowWidth + hGapPx + placeable.width > constraints.maxWidth) {
-                rows.add(currentRow.toList())
-                rowWidths.add(currentRowWidth)
-                rowHeights.add(currentRowHeight)
-                currentRow.clear()
-                currentRowWidth = 0
-                currentRowHeight = 0
-            }
-
-            currentRow.add(placeable)
-            currentRowWidth += if (currentRow.size == 1) placeable.width else hGapPx + placeable.width
-            currentRowHeight = maxOf(currentRowHeight, placeable.height)
-        }
-
-        if (currentRow.isNotEmpty()) {
-            rows.add(currentRow.toList())
-            rowWidths.add(currentRowWidth)
-            rowHeights.add(currentRowHeight)
-        }
-
-        val totalHeight = rowHeights.sum() + maxOf(0, rowHeights.size - 1) * vGapPx
-
-        layout(constraints.maxWidth, totalHeight) {
-            var y = 0
-            rows.forEachIndexed { rowIndex, row ->
-                var x = when (horizontalArrangement) {
-                    Arrangement.Center -> (constraints.maxWidth - rowWidths[rowIndex]) / 2
-                    Arrangement.End -> constraints.maxWidth - rowWidths[rowIndex]
-                    else -> 0
-                }
-
-                row.forEach { placeable ->
-                    placeable.placeRelative(x, y)
-                    x += placeable.width + hGapPx
-                }
-
-                y += rowHeights[rowIndex] + vGapPx
-            }
-        }
     }
 }
