@@ -179,14 +179,7 @@ class MainViewModel : ViewModel() {
         val savedLanguage = try { AppLanguage.valueOf(savedLanguageName) } catch(e: Exception) { AppLanguage.System }
 
         val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
-
-        // 如果启用了动态取色，从系统获取种子色；否则使用保存的种子色
-        val savedSeedColor = if (savedUseDynamicColor) {
-            // 动态取色时，每次启动都重新获取系统种子色
-            getDynamicSeedColor() ?: settings.getLong("seed_color", 0xFF4285F4)
-        } else {
-            settings.getLong("seed_color", 0xFF4285F4)
-        }
+        val savedSeedColor = settings.getLong("seed_color", 0xFF4285F4)
 
         val savedBluetoothAddress = settings.getString("bluetooth_address", "")
         val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
@@ -768,17 +761,7 @@ class MainViewModel : ViewModel() {
 
     fun setUseDynamicColor(enable: Boolean) {
         settings.putBoolean("use_dynamic_color", enable)
-        // 当启用动态取色时，立即获取系统种子色并更新UI（不保存到设置）
-        if (enable) {
-            val dynamicSeedColor = getDynamicSeedColor()
-            if (dynamicSeedColor != null) {
-                _uiState.update { it.copy(useDynamicColor = enable, seedColor = dynamicSeedColor) }
-            } else {
-                _uiState.update { it.copy(useDynamicColor = enable) }
-            }
-        } else {
-            _uiState.update { it.copy(useDynamicColor = enable) }
-        }
+        _uiState.update { it.copy(useDynamicColor = enable) }
     }
 
     fun clearInstallMessage() {

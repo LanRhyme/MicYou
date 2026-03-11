@@ -10,15 +10,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 
 /**
- * Material Design 3 颜色工具
- * 
- * 使用 HCT (Hue, Chroma, Tone) 色彩空间的简化实现
- * M3 使用 Tone (色调) 来生成颜色变体，范围 0-100
+ * Material Design 3 颜色工具 - 简化实现
  */
 object MD3ColorUtils {
-    /**
-     * 将 ARGB 颜色转换为 HSL
-     */
     fun colorToHSL(color: Int): FloatArray {
         val r = ((color shr 16) and 0xFF) / 255f
         val g = ((color shr 8) and 0xFF) / 255f
@@ -26,81 +20,44 @@ object MD3ColorUtils {
 
         val max = maxOf(r, g, b)
         val min = minOf(r, g, b)
-        val delta = max - min
-
+        val l = (max + min) / 2f
         var h = 0f
         var s = 0f
-        val l = (max + min) / 2f
 
-        if (delta != 0f) {
+        if (max != min) {
+            val delta = max - min
             s = if (l > 0.5f) delta / (2f - max - min) else delta / (max + min)
-            when (max) {
-                r -> h = ((g - b) / delta + if (g < b) 6f else 0f) / 6f
-                g -> h = ((b - r) / delta + 2f) / 6f
-                b -> h = ((r - g) / delta + 4f) / 6f
-            }
+            h = when (max) {
+                r -> ((g - b) / delta + if (g < b) 6f else 0f)
+                g -> ((b - r) / delta + 2f)
+                else -> ((r - g) / delta + 4f)
+            } / 6f
         }
-
         return floatArrayOf(h * 360f, s, l)
     }
 
-    /**
-     * 将 HSL 转换为 ARGB 颜色
-     */
     fun hslToColor(h: Float, s: Float, l: Float): Int {
         val c = (1f - kotlin.math.abs(2f * l - 1f)) * s
         val x = c * (1f - kotlin.math.abs((h / 60f) % 2f - 1f))
         val m = l - c / 2f
-
         val (r, g, b) = when ((h / 60f).toInt() % 6) {
-            0 -> Triple(c, x, 0f)
-            1 -> Triple(x, c, 0f)
-            2 -> Triple(0f, c, x)
-            3 -> Triple(0f, x, c)
-            4 -> Triple(x, 0f, c)
-            else -> Triple(c, 0f, x)
+            0 -> Triple(c, x, 0f); 1 -> Triple(x, c, 0f); 2 -> Triple(0f, c, x)
+            3 -> Triple(0f, x, c); 4 -> Triple(x, 0f, c); else -> Triple(c, 0f, x)
         }
-
-        return (0xFF shl 24) or
-                (((r + m) * 255f).toInt() shl 16) or
-                (((g + m) * 255f).toInt() shl 8) or
-                ((b + m) * 255f).toInt()
+        return (0xFF shl 24) or (((r + m) * 255f).toInt() shl 16) or
+                (((g + m) * 255f).toInt() shl 8) or ((b + m) * 255f).toInt()
     }
 
-    /**
-     * 从种子颜色生成指定色调的颜色
-     * M3 使用 Tone (0-100) 来控制亮度
-     */
     fun tone(seedColor: Color, tone: Int, chromaMultiplier: Float = 1f): Color {
         val hsl = colorToHSL(seedColor.toArgb())
-        val h = hsl[0]
-        // 降低饱和度以获得更柔和的颜色
-        val s = (hsl[1] * chromaMultiplier).coerceIn(0f, 1f)
-        // 将 tone (0-100) 转换为 lightness (0-1)
-        val l = tone / 100f
-
-        return Color(hslToColor(h, s, l))
+        return Color(hslToColor(hsl[0], (hsl[1] * chromaMultiplier).coerceIn(0f, 1f), tone / 100f))
     }
 
-    /**
-     * 生成中性色（低饱和度）
-     */
-    fun neutralTone(tone: Int): Color {
-        // 中性色使用非常低的饱和度
-        val l = tone / 100f
-        return Color(hslToColor(0f, 0f, l))
-    }
+    fun neutralTone(tone: Int) = Color(hslToColor(0f, 0f, tone / 100f))
 
-    /**
-     * 生成中性变体色（略带色调）
-     */
     fun neutralVariantTone(seedColor: Color, tone: Int): Color {
-        val hsl = colorToHSL(seedColor.toArgb())
-        val h = hsl[0]
-        // 非常低的饱和度，但保留一点色调
-        val s = 0.04f
-        val l = tone / 100f
-        return Color(hslToColor(h, s, l))
+        val h = colorToHSL(seedColor.toArgb())[0]
+        return Color(hslToColor(h, 0.04f, tone / 100f))
     }
 }
 
@@ -308,11 +265,6 @@ val DefaultSeedColor = MD3SeedColors.Blue
 
 /**
  * M3 应用主题
- * 
- * @param themeMode 主题模式
- * @param seedColor 种子颜色，用于生成配色方案
- * @param useDynamicColor 是否使用动态颜色（Android 12+）
- * @param oledPureBlack 是否使用 OLED 纯黑背景
  */
 @Composable
 fun AppTheme(
@@ -323,38 +275,12 @@ fun AppTheme(
     content: @Composable () -> Unit
 ) {
     val isDark = isDarkThemeActive(themeMode)
-
-    // 动态颜色（仅 Android 支持）
     val dynamicScheme = if (useDynamicColor) getDynamicColorScheme(isDark) else null
-
-    // 基础配色方案
     val baseColorScheme = dynamicScheme ?: generateMD3ColorScheme(seedColor, isDark)
+    val targetColorScheme = if (isDark && oledPureBlack) baseColorScheme.withOledDarkBackground() else baseColorScheme
 
-    // OLED 纯黑背景
-    val targetColorScheme = if (isDark && oledPureBlack) {
-        baseColorScheme.withOledDarkBackground()
-    } else {
-        baseColorScheme
-    }
-
-    // 为主题颜色添加动画过渡
-    val animatedColorScheme = animateColorScheme(targetColorScheme, isDark)
-
-    MaterialTheme(
-        colorScheme = animatedColorScheme,
-        content = content
-    )
+    MaterialTheme(colorScheme = targetColorScheme, content = content)
 }
-
-/**
- * 为配色方案添加动画过渡
- * 简化实现：直接返回目标配色方案，Material3 内置支持颜色过渡
- */
-@Composable
-private fun animateColorScheme(
-    target: androidx.compose.material3.ColorScheme,
-    isDark: Boolean
-): androidx.compose.material3.ColorScheme = target
 
 // 保留旧的辅助函数以兼容现有代码
 fun colorToHSV(color: Int, hsv: FloatArray) {

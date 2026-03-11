@@ -125,6 +125,42 @@ private fun SettingsSwitchItem(
             headlineContent = { Text(headline) },
             supportingContent = supporting?.let { { Text(it) } },
             trailingContent = { Switch(checked = checked, onCheckedChange = onCheckedChange) },
+            modifier = Modifier.clickable { onCheckedChange(!checked) },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+    }
+}
+
+/**
+ * 可复用的设置项下拉选择组件
+ */
+@Composable
+private fun <T> SettingsDropdownItem(
+    headline: String,
+    selected: T,
+    options: List<T>,
+    labelProvider: (T) -> String,
+    onSelect: (T) -> Unit,
+    cardOpacity: Float = 1f
+) {
+    var expanded by remember { mutableStateOf(false) }
+    SettingsItemContainer(cardOpacity = cardOpacity) {
+        ListItem(
+            headlineContent = { Text(headline) },
+            trailingContent = {
+                Box {
+                    TextButton(onClick = { expanded = true }) { Text(labelProvider(selected)) }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, shape = MaterialTheme.shapes.medium) {
+                        options.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(labelProvider(option)) },
+                                onClick = { onSelect(option); expanded = false },
+                                trailingIcon = { if (selected == option) Icon(Icons.Default.Check, contentDescription = null) }
+                            )
+                        }
+                    }
+                }
+            },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }
@@ -351,235 +387,85 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
         when (section) {
             SettingsSection.General -> {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                    ) {
-                        ListItem(
-                            headlineContent = { Text(strings.languageLabel) },
-                            trailingContent = {
-                                var expanded by remember { mutableStateOf(false) }
-                                Box {
-                                    TextButton(onClick = { expanded = true }) { 
-                                        Text(state.language.label) 
-                                    }
-                                    DropdownMenu(
-                                        expanded = expanded,
-                                        onDismissRequest = { expanded = false },
-                                        shape = MaterialTheme.shapes.medium
-                                    ) {
-                                        AppLanguage.entries.forEach { lang ->
-                                            DropdownMenuItem(
-                                                text = { Text(lang.label) },
-                                                onClick = {
-                                                    viewModel.setLanguage(lang)
-                                                    expanded = false
-                                                },
-                                                trailingIcon = {
-                                                    if (state.language == lang) {
-                                                        Icon(Icons.Default.Check, contentDescription = null)
-                                                    }
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                        )
-                    }
+                    SettingsDropdownItem(
+                        headline = strings.languageLabel,
+                        selected = state.language,
+                        options = AppLanguage.entries.toList(),
+                        labelProvider = { it.label },
+                        onSelect = { viewModel.setLanguage(it) },
+                        cardOpacity = cardOpacity
+                    )
 
                     if (platform.type == PlatformType.Android) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.enableStreamingNotificationLabel) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = state.enableStreamingNotification,
-                                        onCheckedChange = { viewModel.setEnableStreamingNotification(it) }
-                                    )
-                                },
-                                modifier = Modifier.clickable { viewModel.setEnableStreamingNotification(!state.enableStreamingNotification) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
+                        SettingsSwitchItem(
+                            headline = strings.enableStreamingNotificationLabel,
+                            checked = state.enableStreamingNotification,
+                            onCheckedChange = { viewModel.setEnableStreamingNotification(it) },
+                            cardOpacity = cardOpacity
+                        )
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.keepScreenOnLabel) },
-                                supportingContent = { Text(strings.keepScreenOnDesc) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = state.keepScreenOn,
-                                        onCheckedChange = { viewModel.setKeepScreenOn(it) }
-                                    )
-                                },
-                                modifier = Modifier.clickable { viewModel.setKeepScreenOn(!state.keepScreenOn) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
+                        SettingsSwitchItem(
+                            headline = strings.keepScreenOnLabel,
+                            supporting = strings.keepScreenOnDesc,
+                            checked = state.keepScreenOn,
+                            onCheckedChange = { viewModel.setKeepScreenOn(it) },
+                            cardOpacity = cardOpacity
+                        )
                     }
 
                     if (platform.type == PlatformType.Desktop) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.autoStartLabel) },
-                                supportingContent = { Text(strings.autoStartDesc) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = state.autoStart,
-                                        onCheckedChange = { viewModel.setAutoStart(it) }
-                                    )
-                                },
-                                modifier = Modifier.clickable { viewModel.setAutoStart(!state.autoStart) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.closeActionLabel) },
-                                trailingContent = {
-                                    var expanded by remember { mutableStateOf(false) }
-                                    Box {
-                                        TextButton(onClick = { expanded = true }) {
-                                            Text(when (state.closeAction) {
-                                                CloseAction.Prompt -> strings.closeActionPrompt
-                                                CloseAction.Minimize -> strings.closeActionMinimize
-                                                CloseAction.Exit -> strings.closeActionExit
-                                            })
-                                        }
-                                        DropdownMenu(
-                                            expanded = expanded,
-                                            onDismissRequest = { expanded = false },
-                                            shape = MaterialTheme.shapes.medium
-                                        ) {
-                                            CloseAction.entries.forEach { action ->
-                                                DropdownMenuItem(
-                                                    text = {
-                                                        Text(when (action) {
-                                                            CloseAction.Prompt -> strings.closeActionPrompt
-                                                            CloseAction.Minimize -> strings.closeActionMinimize
-                                                            CloseAction.Exit -> strings.closeActionExit
-                                                        })
-                                                    },
-                                                    onClick = {
-                                                        viewModel.setCloseAction(action)
-                                                        expanded = false
-                                                    },
-                                                    trailingIcon = {
-                                                        if (state.closeAction == action) {
-                                                            Icon(Icons.Default.Check, contentDescription = null)
-                                                        }
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.pocketModeLabel) },
-                                supportingContent = { Text(strings.pocketModeDesc) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = state.pocketMode,
-                                        onCheckedChange = { viewModel.setPocketMode(it) }
-                                    )
-                                },
-                                modifier = Modifier.clickable { viewModel.setPocketMode(!state.pocketMode) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.useSystemTitleBarLabel) },
-                                supportingContent = { Text(strings.useSystemTitleBarDesc) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = state.useSystemTitleBar,
-                                        onCheckedChange = { viewModel.setUseSystemTitleBar(it) }
-                                    )
-                                },
-                                modifier = Modifier.clickable { viewModel.setUseSystemTitleBar(!state.useSystemTitleBar) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.floatingWindowLabel) },
-                                supportingContent = { Text(strings.floatingWindowDesc) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = state.floatingWindowEnabled,
-                                        onCheckedChange = { viewModel.setFloatingWindowEnabled(it) }
-                                    )
-                                },
-                                modifier = Modifier.clickable { viewModel.setFloatingWindowEnabled(!state.floatingWindowEnabled) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
+                        SettingsSwitchItem(
+                            headline = strings.autoStartLabel,
+                            supporting = strings.autoStartDesc,
+                            checked = state.autoStart,
+                            onCheckedChange = { viewModel.setAutoStart(it) },
+                            cardOpacity = cardOpacity
+                        )
+                        SettingsDropdownItem(
+                            headline = strings.closeActionLabel,
+                            selected = state.closeAction,
+                            options = CloseAction.entries.toList(),
+                            labelProvider = { action ->
+                                when (action) {
+                                    CloseAction.Prompt -> strings.closeActionPrompt
+                                    CloseAction.Minimize -> strings.closeActionMinimize
+                                    CloseAction.Exit -> strings.closeActionExit
+                                }
+                            },
+                            onSelect = { viewModel.setCloseAction(it) },
+                            cardOpacity = cardOpacity
+                        )
+                        SettingsSwitchItem(
+                            headline = strings.pocketModeLabel,
+                            supporting = strings.pocketModeDesc,
+                            checked = state.pocketMode,
+                            onCheckedChange = { viewModel.setPocketMode(it) },
+                            cardOpacity = cardOpacity
+                        )
+                        SettingsSwitchItem(
+                            headline = strings.useSystemTitleBarLabel,
+                            supporting = strings.useSystemTitleBarDesc,
+                            checked = state.useSystemTitleBar,
+                            onCheckedChange = { viewModel.setUseSystemTitleBar(it) },
+                            cardOpacity = cardOpacity
+                        )
+                        SettingsSwitchItem(
+                            headline = strings.floatingWindowLabel,
+                            supporting = strings.floatingWindowDesc,
+                            checked = state.floatingWindowEnabled,
+                            onCheckedChange = { viewModel.setFloatingWindowEnabled(it) },
+                            cardOpacity = cardOpacity
+                        )
                     }
 
                     // Auto check update toggle (all platforms)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                    ) {
-                        ListItem(
-                            headlineContent = { Text(strings.autoCheckUpdateLabel) },
-                            supportingContent = { Text(strings.autoCheckUpdateDesc) },
-                            trailingContent = {
-                                Switch(
-                                    checked = state.autoCheckUpdate,
-                                    onCheckedChange = { viewModel.setAutoCheckUpdate(it) }
-                                )
-                            },
-                            modifier = Modifier.clickable { viewModel.setAutoCheckUpdate(!state.autoCheckUpdate) },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                        )
-                    }
+                    SettingsSwitchItem(
+                        headline = strings.autoCheckUpdateLabel,
+                        supporting = strings.autoCheckUpdateDesc,
+                        checked = state.autoCheckUpdate,
+                        onCheckedChange = { viewModel.setAutoCheckUpdate(it) },
+                        cardOpacity = cardOpacity
+                    )
                 }
             }
             SettingsSection.Appearance -> {

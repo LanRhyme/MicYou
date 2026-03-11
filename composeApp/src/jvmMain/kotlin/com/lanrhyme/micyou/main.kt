@@ -8,7 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -97,15 +96,9 @@ fun main() {
             exitProcess(0)
         }
 
-        val language by viewModel.uiState.collectAsState().let { state ->
-            derivedStateOf { state.value.language }
-        }
-        val strings = getStrings(language)
-
-        val streamState by viewModel.uiState.collectAsState().let { state ->
-            derivedStateOf { state.value.streamState }
-        }
-        val isStreaming = streamState == StreamState.Streaming || streamState == StreamState.Connecting
+        val uiState by viewModel.uiState.collectAsState()
+        val strings = getStrings(uiState.language)
+        val isStreaming = uiState.streamState == StreamState.Streaming || uiState.streamState == StreamState.Connecting
 
         val icon = painterResource(Res.drawable.app_icon)
         
@@ -132,85 +125,54 @@ fun main() {
             }
         }
 
-        val pocketMode by viewModel.uiState.collectAsState().let { state ->
-            derivedStateOf { state.value.pocketMode }
-        }
-
-        val useSystemTitleBar by viewModel.uiState.collectAsState().let { state ->
-            derivedStateOf { state.value.useSystemTitleBar }
-        }
-
         val windowState = rememberWindowState(
-            width = if (pocketMode) 600.dp else 850.dp,
-            height = if (pocketMode) 250.dp else 650.dp,
+            width = if (uiState.pocketMode) 600.dp else 850.dp,
+            height = if (uiState.pocketMode) 250.dp else 650.dp,
             position = WindowPosition(Alignment.Center)
         )
 
-        LaunchedEffect(pocketMode) {
+        LaunchedEffect(uiState.pocketMode) {
             windowState.size = androidx.compose.ui.unit.DpSize(
-                if (pocketMode) 600.dp else 850.dp,
-                if (pocketMode) 250.dp else 650.dp
+                if (uiState.pocketMode) 600.dp else 850.dp,
+                if (uiState.pocketMode) 250.dp else 650.dp
             )
         }
 
         if (isVisible) {
-            key(useSystemTitleBar) {
+            key(uiState.useSystemTitleBar) {
             Window(
-                onCloseRequest = {
-                    viewModel.handleCloseRequest(
-                        onExit = exitApp,
-                        onHide = { isVisible = false }
-                    )
-                },
+                onCloseRequest = { viewModel.handleCloseRequest(onExit = exitApp, onHide = { isVisible = false }) },
                 state = windowState,
                 title = strings.appName,
                 icon = icon,
-                undecorated = !useSystemTitleBar,
-                transparent = !useSystemTitleBar,
+                undecorated = !uiState.useSystemTitleBar,
+                transparent = !uiState.useSystemTitleBar,
                 resizable = false
             ) {
                 val windowContent: @Composable () -> Unit = {
-                    // Apple Silicon Mac cannot use BlueCove without Rosetta 2
                     val isBluetoothDisabled = PlatformInfo.isMacOS && PlatformInfo.isArm64
-
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .then(if (!useSystemTitleBar) Modifier.padding(8.dp) else Modifier)
+                            .then(if (!uiState.useSystemTitleBar) Modifier.padding(8.dp) else Modifier)
                     ) {
                         App(
                             viewModel = viewModel,
                             onMinimize = { windowState.isMinimized = true },
-                        onClose = {
-                            viewModel.handleCloseRequest(
-                                onExit = exitApp,
-                                onHide = { isVisible = false }
-                            )
-                        },
-                        onExitApp = exitApp,
-                        onHideApp = { isVisible = false },
-                        onOpenSettings = { showSettingsWindow = true },
-                        isBluetoothDisabled = isBluetoothDisabled
-                    )
+                            onClose = { viewModel.handleCloseRequest(onExit = exitApp, onHide = { isVisible = false }) },
+                            onExitApp = exitApp,
+                            onHideApp = { isVisible = false },
+                            onOpenSettings = { showSettingsWindow = true },
+                            isBluetoothDisabled = isBluetoothDisabled
+                        )
                     }
                 }
-
-                if (!useSystemTitleBar) {
-                    WindowDraggableArea {
-                        windowContent()
-                    }
-                } else {
-                    windowContent()
-                }
+                if (!uiState.useSystemTitleBar) WindowDraggableArea { windowContent() } else windowContent()
             }
             }
         }
 
-        val showCloseConfirmDialog by viewModel.uiState.collectAsState().let { state ->
-            derivedStateOf { state.value.showCloseConfirmDialog }
-        }
-
-        if (showCloseConfirmDialog) {
+        if (uiState.showCloseConfirmDialog) {
             val closeConfirmState = rememberWindowState(
                 width = 500.dp,
                 height = 250.dp,
@@ -226,41 +188,14 @@ fun main() {
                 transparent = true,
                 resizable = false
             ) {
-                val themeMode by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.themeMode }
-                }
-                val seedColor by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.seedColor }
-                }
-                val oledPureBlack by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.oledPureBlack }
-                }
-                val rememberCloseAction by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.rememberCloseAction }
-                }
-                val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
-
+                val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
                 CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(themeMode = themeMode, seedColor = seedColorObj, oledPureBlack = oledPureBlack) {
+                    AppTheme(themeMode = uiState.themeMode, seedColor = seedColorObj, oledPureBlack = uiState.oledPureBlack) {
                         CloseConfirmDialog(
                             onDismiss = { viewModel.setShowCloseConfirmDialog(false) },
-                            onMinimize = {
-                                viewModel.confirmCloseAction(
-                                    CloseAction.Minimize,
-                                    rememberCloseAction,
-                                    onExit = exitApp,
-                                    onHide = { isVisible = false }
-                                )
-                            },
-                            onExit = {
-                                viewModel.confirmCloseAction(
-                                    CloseAction.Exit,
-                                    rememberCloseAction,
-                                    onExit = exitApp,
-                                    onHide = { isVisible = false }
-                                )
-                            },
-                            rememberCloseAction = rememberCloseAction,
+                            onMinimize = { viewModel.confirmCloseAction(CloseAction.Minimize, uiState.rememberCloseAction, onExit = exitApp, onHide = { isVisible = false }) },
+                            onExit = { viewModel.confirmCloseAction(CloseAction.Exit, uiState.rememberCloseAction, onExit = exitApp, onHide = { isVisible = false }) },
+                            rememberCloseAction = uiState.rememberCloseAction,
                             onRememberChange = { viewModel.setRememberCloseAction(it) }
                         )
                     }
@@ -278,45 +213,17 @@ fun main() {
                 undecorated = false,
                 resizable = true
             ) {
-                val themeMode by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.themeMode }
-                }
-                val seedColor by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.seedColor }
-                }
-                val useDynamicColor by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.useDynamicColor }
-                }
-                val oledPureBlack by viewModel.uiState.collectAsState().let { state ->
-                    derivedStateOf { state.value.oledPureBlack }
-                }
-                val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
-
+                val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
                 CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(
-                        themeMode = themeMode,
-                        seedColor = seedColorObj,
-                        useDynamicColor = useDynamicColor,
-                        oledPureBlack = oledPureBlack
-                    ) {
-                        DesktopSettings(
-                            viewModel = viewModel,
-                            onClose = { showSettingsWindow = false }
-                        )
+                    AppTheme(themeMode = uiState.themeMode, seedColor = seedColorObj, useDynamicColor = uiState.useDynamicColor, oledPureBlack = uiState.oledPureBlack) {
+                        DesktopSettings(viewModel = viewModel, onClose = { showSettingsWindow = false })
                     }
                 }
             }
         }
 
-        val floatingWindowEnabled by viewModel.uiState.collectAsState().let { state ->
-            derivedStateOf { state.value.floatingWindowEnabled }
-        }
-
-        if (floatingWindowEnabled) {
-            FloatingMicWindowContainer(
-                viewModel = viewModel,
-                strings = strings
-            )
+        if (uiState.floatingWindowEnabled) {
+            FloatingMicWindowContainer(viewModel = viewModel, strings = strings)
         }
     }
 }
