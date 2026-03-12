@@ -249,7 +249,6 @@ fun isDarkThemeActive(themeMode: ThemeMode): Boolean {
 val DefaultSeedColor = MD3SeedColors.Blue
 
 // M3 应用主题
- */
 @Composable
 fun AppTheme(
     themeMode: ThemeMode = ThemeMode.System,
