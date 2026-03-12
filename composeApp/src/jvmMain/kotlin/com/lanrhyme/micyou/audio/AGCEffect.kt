@@ -2,14 +2,11 @@ package com.lanrhyme.micyou.audio
 
 import kotlin.math.sqrt
 
-/**
- * 自动增益控制 (AGC) 效果器。
- * 调整音频音量以保持一致的输出水平。
- */
+// 自动增益控制 (AGC) 效果器，调整音频音量以保持一致的输出水平
 class AGCEffect : AudioEffect {
-    /** 是否启用 AGC */
+    // 是否启用 AGC
     var enableAGC: Boolean = false
-    /** 目标音量水平 (RMS) */
+    // 目标音量水平 (RMS)
     var agcTargetLevel: Int = 32000
 
     private var agcEnvelope: Float = 0f

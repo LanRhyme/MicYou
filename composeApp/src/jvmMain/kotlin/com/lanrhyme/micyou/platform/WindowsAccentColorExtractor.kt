@@ -3,11 +3,7 @@ package com.lanrhyme.micyou.platform
 import androidx.compose.ui.graphics.Color
 import com.lanrhyme.micyou.Logger
 
-/**
- * Windows 系统主题色提取器
- * 参考 Flutter dynamic_color 库实现
- * https://github.com/material-foundation/flutter-packages/tree/main/packages/dynamic_color
- */
+// Windows 系统主题色提取器
 object WindowsAccentColorExtractor {
 
     // Windows 10+ 主题色注册表路径
@@ -21,10 +17,7 @@ object WindowsAccentColorExtractor {
     // Pre-compiled regex for registry value extraction
     private val REG_DWORD_REGEX = Regex("REG_DWORD\\s+0x([0-9a-fA-F]+)", RegexOption.IGNORE_CASE)
 
-    /**
-     * 获取 Windows 系统主题色
-     * @return 系统主题色，如果无法获取则返回 null
-     */
+    // 获取 Windows 系统主题色
     fun getAccentColor(): Color? {
         return try {
             // Windows 10+: 优先使用 AccentColorMenu
@@ -42,12 +35,7 @@ object WindowsAccentColorExtractor {
         }
     }
 
-    /**
-     * 从注册表查询颜色值
-     * @param registryPath 注册表路径
-     * @param valueName 值名称
-     * @param convertAbgrToArgb 是否需要从 ABGR 转换为 ARGB
-     */
+    // 从注册表查询颜色值
     private fun queryRegistryColor(registryPath: String, valueName: String, convertAbgrToArgb: Boolean): Color? {
         return try {
             val process = ProcessBuilder("reg", "query", registryPath, "/v", valueName)
@@ -84,18 +72,14 @@ object WindowsAccentColorExtractor {
         }
     }
 
-    /**
-     * ABGR 转 ARGB
-     */
+    // ABGR 转 ARGB
     private fun abgrToArgb(abgr: Long): Long {
         return (abgr and 0xFF00FF00) or
                 ((abgr and 0xFF) shl 16) or
                 ((abgr and 0xFF0000) shr 16)
     }
 
-    /**
-     * 从 ARGB 值创建 Color 对象
-     */
+    // 从 ARGB 值创建 Color 对象
     private fun argbToColor(argb: Long): Color {
         val r = ((argb shr 16) and 0xFF).toInt()
         val g = ((argb shr 8) and 0xFF).toInt()

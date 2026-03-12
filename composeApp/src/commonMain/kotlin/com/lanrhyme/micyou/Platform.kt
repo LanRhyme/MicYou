@@ -68,17 +68,9 @@ interface LoggerImpl {
 @Composable
 expect fun getDynamicColorScheme(isDark: Boolean): ColorScheme?
 
-/**
- * 检查当前平台是否支持动态取色
- * Android (API 31+) 和 Windows 支持
- */
+// 检查当前平台是否支持动态取色
 expect fun isDynamicColorSupported(): Boolean
 
-/**
- * 获取动态种子色（用于启动时初始化）
- * Windows: 返回系统强调色
- * 其他平台: 返回 null
- * @return 种子色的 ARGB 值，如果不支持或获取失败则返回 null
- */
+// 获取动态种子色（用于启动时初始化）
 expect fun getDynamicSeedColor(): Long?
 

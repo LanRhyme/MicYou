@@ -2,12 +2,9 @@ package com.lanrhyme.micyou.audio
 
 import kotlin.math.pow
 
-/**
- * 放大器效果器。
- * 简单的线性音量放大，支持 dB 输入。
- */
+// 放大器效果器，简单的线性音量放大，支持 dB 输入
 class AmplifierEffect : AudioEffect {
-    /** 增益值 (dB)，0 = 原始音量 */
+    // 增益值 (dB)，0 = 原始音量
     var gainDb: Float = 0.0f
 
     override fun process(input: ShortArray, channelCount: Int): ShortArray {

@@ -2,16 +2,13 @@ package com.lanrhyme.micyou.audio
 
 import kotlin.math.sqrt
 
-/**
- * 语音活动检测 (VAD) 效果器。
- * 当未检测到语音时，将音频静音。
- */
+// 语音活动检测 (VAD) 效果器，当未检测到语音时将音频静音
 class VADEffect : AudioEffect {
-    /** 是否启用 VAD */
+    // 是否启用 VAD
     var enableVAD: Boolean = false
-    /** 灵敏度阈值 (0-100) */
+    // 灵敏度阈值 (0-100)
     var vadThreshold: Int = 10
-    /** 当前帧包含语音的概率 (由降噪模块提供) */
+    // 当前帧包含语音的概率 (由降噪模块提供)
     var speechProbability: Float? = null
 
     override fun process(input: ShortArray, channelCount: Int): ShortArray {

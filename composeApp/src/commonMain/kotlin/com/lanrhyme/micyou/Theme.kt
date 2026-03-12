@@ -9,9 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 
-/**
- * Material Design 3 颜色工具 - 简化实现
- */
+//  Material Design 3 颜色工具 - 简化实现
 object MD3ColorUtils {
     fun colorToHSL(color: Int): FloatArray {
         val r = ((color shr 16) and 0xFF) / 255f
@@ -61,10 +59,7 @@ object MD3ColorUtils {
     }
 }
 
-/**
- * M3 预设种子颜色
- * 这些颜色经过优化，可以生成和谐的配色方案
- */
+// M3 预设种子颜色
 object MD3SeedColors {
     val Blue = Color(0xFF4285F4)           // Google Blue (默认)
     val Purple = Color(0xFF6750A4)         // Material Purple
@@ -83,11 +78,7 @@ object MD3SeedColors {
     )
 }
 
-/**
- * 生成 M3 标准配色方案
- * 
- * 使用 Tone-based 颜色生成，符合 Material Design 3 规范
- */
+// 生成 M3 标准配色方案
 fun generateMD3ColorScheme(seedColor: Color, isDark: Boolean): androidx.compose.material3.ColorScheme {
     return if (isDark) {
         generateDarkColorScheme(seedColor)
@@ -208,9 +199,7 @@ private fun generateDarkColorScheme(seed: Color): androidx.compose.material3.Col
     )
 }
 
-/**
- * 生成第三颜色的色相（偏移60度）
- */
+// 生成第三颜色的色相（偏移60度）
 private fun tertiaryHue(seed: Color): Color {
     val hsl = MD3ColorUtils.colorToHSL(seed.toArgb())
     val newHue = (hsl[0] + 60f) % 360f
@@ -219,9 +208,7 @@ private fun tertiaryHue(seed: Color): Color {
     return Color(MD3ColorUtils.hslToColor(newHue, s, l))
 }
 
-/**
- * 应用 OLED 纯黑背景
- */
+// 应用 OLED 纯黑背景
 private fun androidx.compose.material3.ColorScheme.withOledDarkBackground(): androidx.compose.material3.ColorScheme {
     val pureBlack = Color(0xFF000000)
     val lowSurface = Color(0xFF121212)
@@ -258,13 +245,10 @@ fun isDarkThemeActive(themeMode: ThemeMode): Boolean {
     }
 }
 
-/**
- * 默认种子颜色 - Google Blue
- */
+// 默认种子颜色 - Google Blue
 val DefaultSeedColor = MD3SeedColors.Blue
 
-/**
- * M3 应用主题
+// M3 应用主题
  */
 @Composable
 fun AppTheme(
