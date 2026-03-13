@@ -41,6 +41,7 @@
   "sampleRateLabel": "Sample Rate",
   "channelCountLabel": "Channels",
   "audioFormatLabel": "Audio Format",
+  "audioSourceLabel": "Audio Source",
   "enableNsLabel": "Noise Suppression",
   "nsTypeLabel": "Algorithm",
   "nsAlgorithmHelpTitle": "Noise Reduction Algorithms",
