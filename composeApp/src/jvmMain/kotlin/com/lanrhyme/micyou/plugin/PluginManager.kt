@@ -22,6 +22,19 @@ class PluginManager(private val pluginsDir: File) {
         pluginsDir.mkdirs()
         cleanupTempDirectories()
         scanPlugins()
+        loadEnabledPlugins()
+    }
+
+    private fun loadEnabledPlugins() {
+        Logger.i("PluginManager", "Loading enabled plugins...")
+        _plugins.value.filter { it.isEnabled }.forEach { pluginInfo ->
+            try {
+                enablePlugin(pluginInfo.manifest.id)
+                Logger.i("PluginManager", "Auto-loaded plugin: ${pluginInfo.manifest.id}")
+            } catch (e: Exception) {
+                Logger.e("PluginManager", "Failed to auto-load plugin: ${pluginInfo.manifest.id}", e)
+            }
+        }
     }
 
     private fun cleanupTempDirectories() {
@@ -289,7 +302,7 @@ class PluginManager(private val pluginsDir: File) {
 
     private fun isPluginEnabled(pluginId: String): Boolean {
         val prefs = Preferences.userRoot().node("micyou/plugins")
-        return prefs.getBoolean("${pluginId}_enabled", false)
+        return prefs.getBoolean("${pluginId}_enabled", true)
     }
 
     private fun setPluginEnabled(pluginId: String, enabled: Boolean) {
