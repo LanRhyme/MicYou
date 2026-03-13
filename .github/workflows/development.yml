@@ -161,7 +161,15 @@ jobs:
           ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.rpm
 
   build-macos:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-latest
+          - arch: arm64
+            runner: macos-latest
     steps:
     - uses: actions/checkout@v4
     - name: Read Version
@@ -174,7 +182,7 @@ jobs:
       with:
         java-version: '21'
         distribution: 'temurin'
-        architecture: arm64
+        architecture: ${{ matrix.arch }}
         cache: gradle
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
@@ -185,7 +193,7 @@ jobs:
         mkdir -p ci-artifacts
         DMG_FILE=$(ls composeApp/build/compose/binaries/main/dmg/*.dmg 2>/dev/null | head -n 1)
         if [ -f "$DMG_FILE" ]; then
-          cp "$DMG_FILE" "ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}.dmg"
+          cp "$DMG_FILE" "ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg"
         else
           echo "DMG package not found, check build output."
           exit 1
@@ -193,8 +201,8 @@ jobs:
     - name: Upload macOS Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: MicYou-macOS-${{ steps.version.outputs.version }}
-        path: ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}.dmg
+        name: MicYou-macOS-${{ matrix.arch }}-${{ steps.version.outputs.version }}
+        path: ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg
 
   # ----------------- Windows 无 JRE 打包任务 -----------------
   build-windows-no-jre:
@@ -272,7 +280,15 @@ jobs:
 
   # ----------------- macOS 无 JRE 打包任务 -----------------
   build-macos-no-jre:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-latest
+          - arch: arm64
+            runner: macos-latest
     steps:
     - uses: actions/checkout@v4
     - name: Read Version
@@ -285,6 +301,7 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        architecture: ${{ matrix.arch }}
         cache: gradle
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
@@ -296,7 +313,7 @@ jobs:
         # 查找 tar.gz 或 tgz 文件
         TAR_FILE=$(ls composeApp/build/distributions/no-jre/*.tar.gz composeApp/build/distributions/no-jre/*.tgz 2>/dev/null | head -n 1)
         if [ -f "$TAR_FILE" ]; then
-          cp "$TAR_FILE" "ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}.tar.gz"
+          cp "$TAR_FILE" "ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz"
         else
           echo "TAR.GZ package not found, check build output."
           ls -la composeApp/build/distributions/no-jre/ 2>/dev/null || echo "Directory not found"
@@ -305,5 +322,5 @@ jobs:
     - name: Upload macOS No-JRE Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}
-        path: ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}.tar.gz
+        name: MicYou-macOS-NoJRE-${{ matrix.arch }}-${{ steps.version.outputs.version }}
+        path: ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz
