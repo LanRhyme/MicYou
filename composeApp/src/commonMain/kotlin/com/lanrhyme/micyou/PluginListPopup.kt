@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -34,21 +33,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.lanrhyme.micyou.plugin.PluginInfo
-import com.lanrhyme.micyou.plugin.PluginUIProvider
 
 @Composable
 fun PluginListPopup(
     plugins: List<PluginInfo>,
     onDismiss: () -> Unit,
     onPluginClick: (PluginInfo) -> Unit,
+    onOpenPluginWindow: (String) -> Unit,
     onOpenSettings: () -> Unit,
-    getPluginUIProvider: (String) -> PluginUIProvider? = { null }
+    viewModel: MainViewModel
 ) {
     val strings = LocalAppStrings.current
     val enabledPlugins = plugins.filter { it.isEnabled }
-    var selectedPlugin by remember { mutableStateOf<PluginInfo?>(null) }
-    var showPluginDialog by remember { mutableStateOf(false) }
-    
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -60,43 +57,35 @@ fun PluginListPopup(
             Column(
                 modifier = Modifier.padding(16.dp)
             ) {
+                // 标题栏
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Extension,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            strings.pluginsSection,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    
+                    Text(
+                        strings.pluginsSection,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                     TextButton(onClick = onOpenSettings) {
                         Text(strings.settingsTitle)
                     }
                 }
-                
-                Spacer(Modifier.height(12.dp))
-                
+
+                Spacer(Modifier.height(16.dp))
+
                 if (enabledPlugins.isEmpty()) {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
                             Icons.Default.Extension,
                             contentDescription = null,
                             modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
@@ -111,14 +100,14 @@ fun PluginListPopup(
                         modifier = Modifier.height((enabledPlugins.size * 72 + 16).coerceAtMost(300).dp)
                     ) {
                         items(enabledPlugins, key = { it.manifest.id }) { plugin ->
-                            val uiProvider = getPluginUIProvider(plugin.manifest.id)
+                            val uiProvider = viewModel.getPluginUIProvider(plugin.manifest.id) as? com.lanrhyme.micyou.plugin.PluginUIProvider
                             PluginPopupItem(
                                 pluginInfo = plugin,
-                                hasUI = uiProvider?.hasMainWindow == true || uiProvider?.hasDialog == true,
-                                onClick = { 
-                                    if (uiProvider != null && (uiProvider.hasMainWindow || uiProvider.hasDialog)) {
-                                        selectedPlugin = plugin
-                                        showPluginDialog = true
+                                hasUI = uiProvider?.hasMainWindow == true,
+                                onClick = {
+                                    if (uiProvider?.hasMainWindow == true) {
+                                        // 打开独立窗口
+                                        onOpenPluginWindow(plugin.manifest.id)
                                     } else {
                                         onPluginClick(plugin)
                                     }
@@ -128,20 +117,6 @@ fun PluginListPopup(
                     }
                 }
             }
-        }
-    }
-    
-    if (showPluginDialog && selectedPlugin != null) {
-        val uiProvider = getPluginUIProvider(selectedPlugin!!.manifest.id)
-        if (uiProvider != null) {
-            PluginDialog(
-                pluginInfo = selectedPlugin!!,
-                uiProvider = uiProvider,
-                onDismiss = { 
-                    showPluginDialog = false
-                    selectedPlugin = null
-                }
-            )
         }
     }
 }
@@ -170,9 +145,9 @@ private fun PluginPopupItem(
                 modifier = Modifier.size(32.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            
+
             Spacer(Modifier.width(12.dp))
-            
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     pluginInfo.manifest.name,
@@ -189,7 +164,7 @@ private fun PluginPopupItem(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            
+
             if (hasUI) {
                 IconButton(onClick = onClick, modifier = Modifier.size(36.dp)) {
                     Icon(
@@ -198,78 +173,6 @@ private fun PluginPopupItem(
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PluginDialog(
-    pluginInfo: PluginInfo,
-    uiProvider: PluginUIProvider,
-    onDismiss: () -> Unit
-) {
-    if (uiProvider.hasDialog) {
-        Dialog(onDismissRequest = onDismiss) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Extension,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            pluginInfo.manifest.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    uiProvider.DialogContent(onDismiss = onDismiss)
-                }
-            }
-        }
-    } else if (uiProvider.hasMainWindow) {
-        Dialog(onDismissRequest = onDismiss) {
-            Card(
-                modifier = Modifier.fillMaxWidth().height(400.dp),
-                shape = MaterialTheme.shapes.large,
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                )
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Extension,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            pluginInfo.manifest.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    uiProvider.MainWindow(onClose = onDismiss)
                 }
             }
         }

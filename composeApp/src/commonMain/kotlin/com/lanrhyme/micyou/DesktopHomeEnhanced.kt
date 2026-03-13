@@ -108,7 +108,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lanrhyme.micyou.animation.EasingFunctions
-import com.lanrhyme.micyou.plugin.PluginUIProvider
+
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -138,6 +138,7 @@ fun DesktopHomeEnhanced(
     var visible by remember { mutableStateOf(false) }
     var cardVisible by remember { mutableStateOf(false) }
     var showPluginPopup by remember { mutableStateOf(false) }
+    var activePluginWindow by remember { mutableStateOf<String?>(null) }
     
     val hazeState = if (state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground) {
         rememberHazeState()
@@ -267,24 +268,35 @@ fun DesktopHomeEnhanced(
                     delayMillis = 400
                 )
             }
-        }
-    }
-    
-    if (showPluginPopup) {
-        PluginListPopup(
-            plugins = state.plugins,
-            onDismiss = { showPluginPopup = false },
-            onPluginClick = { plugin ->
-                showPluginPopup = false
-            },
-            onOpenSettings = {
-                showPluginPopup = false
-                onOpenSettings()
-            },
-            getPluginUIProvider = { pluginId ->
-                viewModel.getPluginUIProvider(pluginId) as? PluginUIProvider
+            
+            // 显示插件窗口
+            activePluginWindow?.let { pluginId ->
+                OpenPluginWindow(
+                    pluginId = pluginId,
+                    viewModel = viewModel,
+                    onClose = { activePluginWindow = null }
+                )
             }
-        )
+            
+            if (showPluginPopup) {
+                PluginListPopup(
+                    plugins = state.plugins,
+                    onDismiss = { showPluginPopup = false },
+                    onPluginClick = { plugin ->
+                        showPluginPopup = false
+                    },
+                    onOpenPluginWindow = { pluginId ->
+                        activePluginWindow = pluginId
+                        showPluginPopup = false
+                    },
+                    onOpenSettings = {
+                        showPluginPopup = false
+                        onOpenSettings()
+                    },
+                    viewModel = viewModel
+                )
+            }
+        }
     }
 }
 

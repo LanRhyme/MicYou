@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -279,11 +278,11 @@ private fun PluginItem(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     // 打开窗口按钮（仅当插件有窗口且已启用时显示）
                     if (onOpenWindow != null && pluginInfo.isEnabled && pluginInfo.isLoaded) {
-                        Button(
+                        TextButton(
                             onClick = onOpenWindow,
                             modifier = Modifier.height(32.dp)
                         ) {
-                            Text("打开", style = MaterialTheme.typography.labelMedium)
+                            Text("打开窗口", style = MaterialTheme.typography.labelMedium)
                         }
                     }
                     
@@ -324,18 +323,15 @@ private fun PluginItem(
                     }
                 }
                 
+                Spacer(Modifier.weight(1f))
+                
                 // 配置按钮（仅当插件有设置且已启用时显示）
                 if (onOpenSettings != null && pluginInfo.isEnabled && pluginInfo.isLoaded) {
-                    IconButton(
+                    TextButton(
                         onClick = onOpenSettings,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.height(32.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Text("配置", style = MaterialTheme.typography.labelMedium)
                     }
                 }
                 

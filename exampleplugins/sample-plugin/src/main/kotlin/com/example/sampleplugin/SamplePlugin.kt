@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 import com.lanrhyme.micyou.plugin.*
 import androidx.compose.ui.unit.Dp
 
-class SamplePlugin : Plugin, PluginUIProvider {
+class SamplePlugin : Plugin, PluginUIProvider, PluginSettingsProvider {
 
     private var context: PluginContext? = null
     private var counter: Int = 0
@@ -234,6 +234,210 @@ class SamplePlugin : Plugin, PluginUIProvider {
                     }
                 }
             )
+        }
+    }
+
+    @Composable
+    override fun SettingsContent() {
+        // 从存储中读取配置
+        var enableNotifications by remember { 
+            mutableStateOf(context?.getBoolean("enableNotifications", true) ?: true) 
+        }
+        var maxItems by remember { 
+            mutableStateOf(context?.getInt("maxItems", 10) ?: 10) 
+        }
+        var theme by remember { 
+            mutableStateOf(context?.getString("theme", "system") ?: "system") 
+        }
+        var apiEndpoint by remember { 
+            mutableStateOf(context?.getString("apiEndpoint", "https://api.example.com") ?: "https://api.example.com") 
+        }
+        var refreshInterval by remember { 
+            mutableStateOf(context?.getFloat("refreshInterval", 5.0f) ?: 5.0f) 
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 通知设置
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "通知设置",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("启用通知")
+                        Switch(
+                            checked = enableNotifications,
+                            onCheckedChange = { 
+                                enableNotifications = it
+                                context?.putBoolean("enableNotifications", it)
+                            }
+                        )
+                    }
+                    
+                    Text(
+                        "开启后，插件将定期发送通知提醒",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // 显示设置
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "显示设置",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    
+                    // 最大项目数
+                    Text("最大显示项目数: $maxItems")
+                    Slider(
+                        value = maxItems.toFloat(),
+                        onValueChange = { 
+                            maxItems = it.toInt()
+                            context?.putInt("maxItems", maxItems)
+                        },
+                        valueRange = 1f..50f,
+                        steps = 49
+                    )
+                    
+                    Divider()
+                    
+                    // 主题选择
+                    Text("主题模式")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = theme == "light",
+                            onClick = { 
+                                theme = "light"
+                                context?.putString("theme", theme)
+                            },
+                            label = { Text("浅色") }
+                        )
+                        FilterChip(
+                            selected = theme == "dark",
+                            onClick = { 
+                                theme = "dark"
+                                context?.putString("theme", theme)
+                            },
+                            label = { Text("深色") }
+                        )
+                        FilterChip(
+                            selected = theme == "system",
+                            onClick = { 
+                                theme = "system"
+                                context?.putString("theme", theme)
+                            },
+                            label = { Text("跟随系统") }
+                        )
+                    }
+                }
+            }
+
+            // 网络设置
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "网络设置",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    
+                    OutlinedTextField(
+                        value = apiEndpoint,
+                        onValueChange = { apiEndpoint = it },
+                        label = { Text("API 地址") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    Button(
+                        onClick = { context?.putString("apiEndpoint", apiEndpoint) },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("保存地址")
+                    }
+                    
+                    Divider()
+                    
+                    Text("刷新间隔: ${refreshInterval.toInt()} 秒")
+                    Slider(
+                        value = refreshInterval,
+                        onValueChange = { 
+                            refreshInterval = it
+                            context?.putFloat("refreshInterval", it)
+                        },
+                        valueRange = 1f..60f,
+                        steps = 59
+                    )
+                }
+            }
+
+            // 关于
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "关于",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text("版本: ${manifest.version}")
+                    Text("插件 ID: ${manifest.id}")
+                    
+                    TextButton(
+                        onClick = {
+                            // 重置所有设置
+                            enableNotifications = true
+                            maxItems = 10
+                            theme = "system"
+                            apiEndpoint = "https://api.example.com"
+                            refreshInterval = 5.0f
+                            
+                            context?.putBoolean("enableNotifications", true)
+                            context?.putInt("maxItems", 10)
+                            context?.putString("theme", "system")
+                            context?.putString("apiEndpoint", "https://api.example.com")
+                            context?.putFloat("refreshInterval", 5.0f)
+                        },
+                        modifier = Modifier.align(Alignment.Start)
+                    ) {
+                        Text("恢复默认设置")
+                    }
+                }
+            }
         }
     }
 

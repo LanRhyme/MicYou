@@ -1079,6 +1079,7 @@ private fun StatusControlPanel(
 ) {
     var contentVisible by remember { mutableStateOf(false) }
     var showPluginPopup by remember { mutableStateOf(false) }
+    var activePluginWindow by remember { mutableStateOf<String?>(null) }
     
     LaunchedEffect(Unit) {
         delay(300)
@@ -1319,23 +1320,34 @@ private fun StatusControlPanel(
                 }
             }
         }
-    }
-    
-    if (showPluginPopup) {
-        PluginListPopup(
-            plugins = state.plugins,
-            onDismiss = { showPluginPopup = false },
-            onPluginClick = { plugin ->
-                showPluginPopup = false
-            },
-            onOpenSettings = {
-                showPluginPopup = false
-                onOpenSettings()
-            },
-            getPluginUIProvider = { pluginId ->
-                viewModel.getPluginUIProvider(pluginId) as? com.lanrhyme.micyou.plugin.PluginUIProvider
-            }
-        )
+        
+        // 显示插件窗口
+        activePluginWindow?.let { pluginId ->
+            OpenPluginWindow(
+                pluginId = pluginId,
+                viewModel = viewModel,
+                onClose = { activePluginWindow = null }
+            )
+        }
+        
+        if (showPluginPopup) {
+            PluginListPopup(
+                plugins = state.plugins,
+                onDismiss = { showPluginPopup = false },
+                onPluginClick = { plugin ->
+                    showPluginPopup = false
+                },
+                onOpenPluginWindow = { pluginId ->
+                    activePluginWindow = pluginId
+                    showPluginPopup = false
+                },
+                onOpenSettings = {
+                    showPluginPopup = false
+                    onOpenSettings()
+                },
+                viewModel = viewModel
+            )
+        }
     }
 }
 

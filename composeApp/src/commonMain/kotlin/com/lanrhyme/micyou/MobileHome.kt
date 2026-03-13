@@ -653,6 +653,7 @@ private fun MobileBottomBar(
     hazeState: HazeState? = null
 ) {
     var showPluginPopup by remember { mutableStateOf(false) }
+    var activePluginWindow by remember { mutableStateOf<String?>(null) }
     
     HazeSurface(
         shape = MaterialTheme.shapes.medium,
@@ -740,6 +741,15 @@ private fun MobileBottomBar(
         }
     }
     
+    // 显示插件窗口
+    activePluginWindow?.let { pluginId ->
+        OpenPluginWindow(
+            pluginId = pluginId,
+            viewModel = viewModel,
+            onClose = { activePluginWindow = null }
+        )
+    }
+
     if (showPluginPopup) {
         PluginListPopup(
             plugins = state.plugins,
@@ -747,12 +757,14 @@ private fun MobileBottomBar(
             onPluginClick = { plugin ->
                 showPluginPopup = false
             },
+            onOpenPluginWindow = { pluginId ->
+                activePluginWindow = pluginId
+                showPluginPopup = false
+            },
             onOpenSettings = {
                 showPluginPopup = false
             },
-            getPluginUIProvider = { pluginId ->
-                viewModel.getPluginUIProvider(pluginId) as? com.lanrhyme.micyou.plugin.PluginUIProvider
-            }
+            viewModel = viewModel
         )
     }
 }
