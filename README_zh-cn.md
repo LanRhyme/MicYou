@@ -45,7 +45,7 @@
   <img src="https://img.shields.io/badge/%E7%88%B1%E5%8F%91%E7%94%B5-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="爱发电"></a>
 </p>
 
-MicYou 是一款强大的工具，能够将您的 Android 设备转变为 PC 的高质量无线麦克风。它采用 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建。
+MicYou 是一款强大的工具，能够将您的 Android 设备转变为 PC 的高质量麦克风。它采用 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建。
 
 本项目基于 [AndroidMic](https://github.com/teamclouday/AndroidMic) 开发而成。
 
