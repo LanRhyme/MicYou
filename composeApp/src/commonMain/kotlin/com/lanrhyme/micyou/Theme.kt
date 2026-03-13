@@ -279,4 +279,4 @@ fun hsvToColor(hsv: FloatArray): Int {
 
 fun generateColorScheme(seed: Color, isDark: Boolean): androidx.compose.material3.ColorScheme {
     return generateMD3ColorScheme(seed, isDark)
-}
+} 

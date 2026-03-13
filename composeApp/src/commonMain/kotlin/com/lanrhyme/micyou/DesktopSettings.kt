@@ -501,46 +501,22 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
 
                     // 动态取色选项：Android 和 Windows 支持
                     if (platform.type == PlatformType.Android || isDynamicColorSupported()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(strings.useDynamicColorLabel) },
-                                supportingContent = { Text(strings.useDynamicColorDesc) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = state.useDynamicColor,
-                                        onCheckedChange = { viewModel.setUseDynamicColor(it) }
-                                    )
-                                },
-                                modifier = Modifier.clickable { viewModel.setUseDynamicColor(!state.useDynamicColor) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
-                    ) {
-                        ListItem(
-                            headlineContent = { Text(strings.oledPureBlackLabel) },
-                            supportingContent = { Text(strings.oledPureBlackDesc) },
-                            trailingContent = {
-                                Switch(
-                                    checked = state.oledPureBlack,
-                                    onCheckedChange = { viewModel.setOledPureBlack(it) }
-                                )
-                            },
-                            modifier = Modifier.clickable { viewModel.setOledPureBlack(!state.oledPureBlack) },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        SettingsSwitchItem(
+                            headline = strings.useDynamicColorLabel,
+                            supporting = strings.useDynamicColorDesc,
+                            checked = state.useDynamicColor,
+                            onCheckedChange = { viewModel.setUseDynamicColor(it) },
+                            cardOpacity = cardOpacity
                         )
                     }
+
+                    SettingsSwitchItem(
+                        headline = strings.oledPureBlackLabel,
+                        supporting = strings.oledPureBlackDesc,
+                        checked = state.oledPureBlack,
+                        onCheckedChange = { viewModel.setOledPureBlack(it) },
+                        cardOpacity = cardOpacity
+                    )
 
                     Box(
                         modifier = Modifier
