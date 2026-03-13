@@ -285,7 +285,15 @@ jobs:
 
   # ----------------- macOS 无 JRE 打包任务 -----------------
   build-macos-no-jre:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-latest
+          - arch: arm64
+            runner: macos-latest
     steps:
     - uses: actions/checkout@v4
     - name: Read Version
@@ -298,6 +306,7 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        architecture: ${{ matrix.arch }}
         cache: gradle
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
@@ -309,7 +318,7 @@ jobs:
         # 查找 tar.gz 或 tgz 文件
         TAR_FILE=$(ls composeApp/build/distributions/no-jre/*.tar.gz composeApp/build/distributions/no-jre/*.tgz 2>/dev/null | head -n 1)
         if [ -f "$TAR_FILE" ]; then
-          cp "$TAR_FILE" "ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}.tar.gz"
+          cp "$TAR_FILE" "ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz"
         else
           echo "TAR.GZ package not found, check build output."
           ls -la composeApp/build/distributions/no-jre/ 2>/dev/null || echo "Directory not found"
@@ -318,8 +327,8 @@ jobs:
     - name: Upload macOS No-JRE Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}
-        path: ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}.tar.gz
+        name: MicYou-macOS-NoJRE-${{ matrix.arch }}-${{ steps.version.outputs.version }}
+        path: ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz
 
   release:
     needs: [build-android, build-windows, build-linux, build-macos, build-windows-no-jre, build-linux-no-jre, build-macos-no-jre]
