@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lanrhyme.micyou.plugin.PluginInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -108,8 +109,9 @@ data class AppUiState(
     
     // System Title Bar (Desktop only)
     val useSystemTitleBar: Boolean = false,
-    // First Launch Dialog
-    val showFirstLaunchDialog: Boolean = false
+    val showFirstLaunchDialog: Boolean = false,
+    
+    val plugins: List<PluginInfo> = emptyList()
 )
 
 enum class CloseAction(val label: String) {
@@ -125,8 +127,16 @@ class MainViewModel : ViewModel() {
     val audioLevels = audioEngine.audioLevels
     private val settings = SettingsFactory.getSettings()
     private val updateChecker = UpdateChecker()
+    private val pluginManager: PluginManagerProvider? = createPluginManager(getPluginsDirPath())
 
     init {
+        pluginManager?.let { pm ->
+            viewModelScope.launch {
+                pm.plugins.collect { pluginList ->
+                    _uiState.update { it.copy(plugins = pluginList) }
+                }
+            }
+        }
         // Load settings
         val savedModeName = settings.getString("connection_mode", ConnectionMode.Wifi.name)
         val savedMode = when (savedModeName) {
@@ -824,6 +834,32 @@ class MainViewModel : ViewModel() {
     fun pickBackgroundImage() {
         BackgroundImagePicker.pickImage { path ->
             path?.let { setBackgroundImage(it) }
+        }
+    }
+    
+    fun importPlugin(filePath: String, onResult: (Result<PluginInfo>) -> Unit) {
+        viewModelScope.launch {
+            val result = pluginManager?.importPlugin(filePath) 
+                ?: Result.failure(Exception("Plugins not supported on this platform"))
+            onResult(result)
+        }
+    }
+    
+    fun enablePlugin(pluginId: String) {
+        viewModelScope.launch {
+            pluginManager?.enablePlugin(pluginId)
+        }
+    }
+    
+    fun disablePlugin(pluginId: String) {
+        viewModelScope.launch {
+            pluginManager?.disablePlugin(pluginId)
+        }
+    }
+    
+    fun deletePlugin(pluginId: String) {
+        viewModelScope.launch {
+            pluginManager?.deletePlugin(pluginId)
         }
     }
 }

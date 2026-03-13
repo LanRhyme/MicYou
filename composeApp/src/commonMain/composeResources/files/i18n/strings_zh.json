@@ -179,5 +179,22 @@
   "firstLaunchTitle": "欢迎使用 MicYou",
   "firstLaunchMessage": "您似乎是第一次使用 MicYou。本应用可以将您的 Android 设备通过 Wi-Fi、蓝牙或 USB 变成电脑的高质量麦克风。",
   "firstLaunchGuideButton": "让我看看使用指南",
-  "firstLaunchGotItButton": "我很清楚怎么使用"
+  "firstLaunchGotItButton": "我很清楚怎么使用",
+  "pluginsSection": "插件",
+  "importPlugin": "导入插件",
+  "noPluginsInstalled": "暂无已安装的插件",
+  "deletePlugin": "删除插件",
+  "deletePluginConfirm": "确定要删除插件 \"%s\" 吗？",
+  "delete": "删除",
+  "cancel": "取消",
+  "ok": "确定",
+  "pluginPlatformWarningTitle": "平台不兼容",
+  "pluginPlatformWarning": "插件 \"%s\" 是为 %s 平台设计的，可能在当前设备上无法正常工作。",
+  "pluginImportTitle": "导入插件",
+  "pluginImportSelectFile": "选择插件文件",
+  "pluginImporting": "正在导入插件...",
+  "pluginImportSuccess": "插件导入成功",
+  "pluginImportFailed": "插件导入失败: %s",
+  "pluginEnabled": "插件已启用",
+  "pluginDisabled": "插件已禁用"
 }

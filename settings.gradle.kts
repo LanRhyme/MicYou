@@ -39,3 +39,4 @@ plugins {
 }
 
 include(":composeApp")
+include(":plugin-api")

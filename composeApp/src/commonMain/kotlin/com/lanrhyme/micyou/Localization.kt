@@ -160,6 +160,25 @@ data class AppStrings(
     val firstLaunchGuideButton: String = "View Usage Guide",
     val firstLaunchGotItButton: String = "I know how to use it",
 
+    // Plugins
+    val pluginsSection: String = "Plugins",
+    val importPlugin: String = "Import Plugin",
+    val noPluginsInstalled: String = "No plugins installed",
+    val deletePlugin: String = "Delete Plugin",
+    val deletePluginConfirm: String = "Are you sure you want to delete \"%s\"?",
+    val delete: String = "Delete",
+    val cancel: String = "Cancel",
+    val ok: String = "OK",
+    val pluginPlatformWarningTitle: String = "Platform Incompatible",
+    val pluginPlatformWarning: String = "Plugin \"%s\" is designed for %s platform and may not work correctly on your current device.",
+    val pluginImportTitle: String = "Import Plugin",
+    val pluginImportSelectFile: String = "Select Plugin File",
+    val pluginImporting: String = "Importing plugin...",
+    val pluginImportSuccess: String = "Plugin imported successfully",
+    val pluginImportFailed: String = "Failed to import plugin: %s",
+    val pluginEnabled: String = "Plugin enabled",
+    val pluginDisabled: String = "Plugin disabled",
+
     // BlackHole (macOS virtual audio)
     val blackHoleInstalled: String = "BlackHole is installed, please configure in System Settings",
     val blackHoleNotInstalled: String = "Please install BlackHole virtual audio driver manually",

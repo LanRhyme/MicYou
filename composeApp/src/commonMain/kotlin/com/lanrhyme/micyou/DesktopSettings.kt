@@ -77,6 +77,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.delay
 import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Mic
@@ -170,6 +171,7 @@ enum class SettingsSection {
     General,
     Appearance,
     Audio,
+    Plugins,
     About
 }
 
@@ -258,6 +260,7 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit) {
                         SettingsSection.General -> Icons.Rounded.Settings
                         SettingsSection.Appearance -> Icons.Rounded.Palette
                         SettingsSection.Audio -> Icons.Rounded.Mic
+                        SettingsSection.Plugins -> Icons.Rounded.Extension
                         SettingsSection.About -> Icons.Rounded.Info
                     }
                     val isSelected = currentSection == section
@@ -1059,6 +1062,9 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     }
                 }
             }
+            SettingsSection.Plugins -> {
+                PluginSettingsContent(viewModel, cardOpacity)
+            }
             SettingsSection.About -> {
                 val uriHandler = LocalUriHandler.current
                 var showLicenseDialog by remember { mutableStateOf(false) }
@@ -1240,6 +1246,7 @@ fun SettingsSection.getLabel(strings: AppStrings): String {
         SettingsSection.General -> strings.generalSection
         SettingsSection.Appearance -> strings.appearanceSection
         SettingsSection.Audio -> strings.audioSection
+        SettingsSection.Plugins -> strings.pluginsSection
         SettingsSection.About -> strings.aboutSection
     }
 }
