@@ -43,7 +43,7 @@
 
 <p align="center">
 <a href="https://afdian.com/a/LanRhyme" target="_blank" rel="noopener noreferrer">
-  <img src="https://img.shields.io/badge/愛發電-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="爱发电"></a>
+  <img src="https://img.shields.io/badge/愛發電-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="愛發電"></a>
 </p>
 
 MicYou 是一款強大的工具，能夠將您的 Android 裝置轉變為 PC 的高品質麥克風。它採用 Kotlin Multiplatform 與 Jetpack Compose/Material 3 構建。

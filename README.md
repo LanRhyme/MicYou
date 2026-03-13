@@ -43,7 +43,7 @@
 
 <p align="center">
 <a href="https://afdian.com/a/LanRhyme" target="_blank" rel="noopener noreferrer">
-  <img src="https://img.shields.io/badge/afdian-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="爱发电"></a>
+  <img src="https://img.shields.io/badge/afdian-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="afdian"></a>
 </p>
 
 MicYou is a powerful tool that turns your Android device into a high-quality microphone for your PC. Built with Kotlin Multiplatform and Jetpack Compose/Material 3.
