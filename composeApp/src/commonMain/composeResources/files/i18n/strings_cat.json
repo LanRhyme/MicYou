@@ -41,6 +41,7 @@
   "sampleRateLabel": "采样率喵~",
   "channelCountLabel": "声道数喵~",
   "audioFormatLabel": "音频格式喵~",
+  "audioSourceLabel": "Audio Source",
   "enableNsLabel": "降噪喵~ 🔇",
   "nsTypeLabel": "算法选择喵~",
   "nsAlgorithmHelpTitle": "降噪算法说明喵~ (・∀・)",
