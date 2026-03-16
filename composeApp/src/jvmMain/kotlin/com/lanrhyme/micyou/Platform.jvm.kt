@@ -2,7 +2,6 @@ package com.lanrhyme.micyou
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import com.lanrhyme.micyou.platform.FirewallManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.WindowsAccentColorExtractor
@@ -120,8 +119,8 @@ actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {
         return null
     }
 
-    // 使用 remember 缓存提取的颜色（应用生命周期内只提取一次）
-    val seedColor = remember { WindowsAccentColorExtractor.getAccentColor() }
+    // 每次都重新获取颜色，确保启动时能获取最新的系统主题色
+    val seedColor = WindowsAccentColorExtractor.getAccentColor()
 
     // 如果无法获取系统主题色，返回 null 使用默认主题
     val color = seedColor ?: return null
