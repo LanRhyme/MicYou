@@ -520,6 +520,8 @@ private fun NavigationItem(
             color = textColor
         )
         
+        Spacer(modifier = Modifier.weight(1f))
+
         // 选中指示器
         androidx.compose.animation.AnimatedVisibility(
             visible = isSelected,
@@ -535,7 +537,6 @@ private fun NavigationItem(
                 animationSpec = tween(150)
             ) + fadeOut(tween(100))
         ) {
-            Spacer(modifier = Modifier.weight(1f))
             Box(
                 modifier = Modifier
                     .size(8.dp)
