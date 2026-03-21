@@ -1,11 +1,11 @@
 {
   "id": "com.example.sample-plugin",
   "name": "Sample Plugin",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "author": "MicYou Team",
-  "description": "A sample plugin demonstrating the MicYou Plugin API. Shows how to implement plugin lifecycle, UI components, and settings.",
-  "tags": ["utility", "demo"],
-  "platform": "desktop",
+  "description": "A sample plugin demonstrating the MicYou Plugin API.",
+  "tags": ["demo"],
+  "platform": "both",
   "minApiVersion": "1.0.0",
   "mainClass": "com.example.sampleplugin.SamplePlugin"
 }
