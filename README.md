@@ -1,14 +1,11 @@
-# MicYou
-
-<p align="center">
+<div align="center">
+  
+  <h1>MicYou</h1>
+  
   <img src="./img/app_icon.png" width="128" height="128" />
-</p>
 
-<p align="center">
   <a href="./README_zh-cn.md">简体中文</a> | <a href="./README_zh-tw.md">繁體中文</a> | <b>English</b>
-</p>
 
-<p align="center">
   <a href="https://github.com/LanRhyme/MicYou/blob/master/LICENSE">
     <img alt="LICENSE" src="https://img.shields.io/badge/license-GPLv3-green"></a>
   <a href="https://github.com/LanRhyme/MicYou/stargazers">
@@ -23,34 +20,27 @@
     <img alt="QQ" src="https://img.shields.io/badge/QQ%E7%BE%A4-995452107-12B7F5?style=flat&logo=qq&logoColor=white"><a>
   <a href="https://t.me/MicYouChannel">
     <img alt="TG" src="https://img.shields.io/badge/Telegram-@MicYouChannel-2CA5E0?style=flat&logo=telegram&logoColor=white"></a>
-</p>
 
-<h6 align="center">Built with</h6>
+  <h6>Built with</h6>
 
-<p align="center">
   <img alt="Kotlin" src="https://img.shields.io/badge/kotlin-%237F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white" />
   <img alt="Jetpack Compose" src="https://img.shields.io/badge/Jetpack_Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white">
-</p>
 
-<h6 align="center">Supported Platforms</h6>
+  <h6>Supported Platforms</h6>
 
-<p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
   <img alt="Windows" src="https://custom-icon-badges.demolab.com/badge/Windows-0078D6?&style=for-the-badge&logo=windows11&logoColor=white" />
   <img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" />
   <img alt="macOS" src="https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=apple&logoColor=F0F0F0" />
-</p>
 
-<h6 align="center">Support Me</h6>
+  <h6>Support Me</h6>
 
-<p align="center">
-<a href="https://afdian.com/a/LanRhyme" target="_blank" rel="noopener noreferrer">
-  <img src="https://img.shields.io/badge/afdian-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="afdian"></a>
-</p>
+  <a href="https://afdian.com/a/LanRhyme" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/badge/afdian-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="afdian"></a>
 
-MicYou is a powerful tool that turns your Android device into a high-quality microphone for your PC. Built with Kotlin Multiplatform and Jetpack Compose/Material 3.
+  MicYou is a powerful tool that turns your Android device into a high-quality microphone for your PC. Built with Kotlin Multiplatform and Jetpack Compose/Material 3.
 
-Based on the [AndroidMic](https://github.com/teamclouday/AndroidMic) project.
+</div>
 
 ## Features
 
