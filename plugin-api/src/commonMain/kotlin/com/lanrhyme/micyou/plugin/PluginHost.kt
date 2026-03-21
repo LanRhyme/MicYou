@@ -58,6 +58,14 @@ interface PluginHost {
     fun registerAudioEffect(effect: AudioEffectProvider, priority: Int = 100)
     fun unregisterAudioEffect(effect: AudioEffectProvider)
     
+    fun createDataChannel(
+        id: String,
+        config: DataChannelConfig = DataChannelConfig()
+    ): PluginDataChannel
+    
+    fun getDataChannel(id: String): PluginDataChannel?
+    fun closeDataChannel(id: String)
+    
     fun showSnackbar(message: String)
     fun showNotification(title: String, message: String)
     

@@ -26,6 +26,8 @@ class PluginHostImpl(
     private val _isMuted = MutableStateFlow(false)
     private val _connectionInfo = MutableStateFlow<ConnectionInfo?>(null)
     
+    private val dataChannelProvider = PluginDataChannelProviderImpl()
+    
     init {
         scope.launch {
             audioEngine.streamState.collect { state ->
@@ -112,6 +114,18 @@ class PluginHostImpl(
     
     override fun unregisterAudioEffect(effect: AudioEffectProvider) {
         registeredEffects.remove(effect.id)
+    }
+    
+    override fun createDataChannel(id: String, config: DataChannelConfig): PluginDataChannel {
+        return dataChannelProvider.createChannel(id, config)
+    }
+    
+    override fun getDataChannel(id: String): PluginDataChannel? {
+        return dataChannelProvider.getChannel(id)
+    }
+    
+    override fun closeDataChannel(id: String) {
+        dataChannelProvider.closeChannel(id)
     }
     
     override fun showSnackbar(message: String) {

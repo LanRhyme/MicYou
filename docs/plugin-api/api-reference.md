@@ -8,6 +8,7 @@
 - [PluginManifest](#pluginmanifest)
 - [PluginContext](#plugincontext)
 - [PluginHost](#pluginhost)
+- [PluginDataChannel](#plugindatachannel)
 - [PluginInfo](#plugininfo)
 - [PluginPlatform](#pluginplatform)
 - [PluginUIProvider](#pluginuiprovider)
@@ -201,6 +202,11 @@ interface PluginHost {
     fun registerAudioEffect(effect: AudioEffectProvider, priority: Int = 100)
     fun unregisterAudioEffect(effect: AudioEffectProvider)
     
+    // 数据通道
+    fun createDataChannel(id: String, config: DataChannelConfig = DataChannelConfig()): PluginDataChannel
+    fun getDataChannel(id: String): PluginDataChannel?
+    fun closeDataChannel(id: String)
+    
     // UI 反馈
     fun showSnackbar(message: String)
     fun showNotification(title: String, message: String)
@@ -266,6 +272,28 @@ fun unregisterAudioEffect(effect: AudioEffectProvider)
 
 注册/注销自定义音频效果器。优先级数值越小，越先执行。
 
+#### createDataChannel / getDataChannel / closeDataChannel
+
+```kotlin
+fun createDataChannel(id: String, config: DataChannelConfig = DataChannelConfig()): PluginDataChannel
+fun getDataChannel(id: String): PluginDataChannel?
+fun closeDataChannel(id: String)
+```
+
+创建/获取/关闭自定义网络数据通道。
+
+**参数：**
+- `id` - 通道唯一标识符
+- `config` - 通道配置
+
+**示例：**
+```kotlin
+val channel = context.host.createDataChannel("my-channel")
+channel.connect("192.168.1.100", 8080)
+// ... 使用通道
+context.host.closeDataChannel("my-channel")
+```
+
 #### showSnackbar / showNotification
 
 ```kotlin
@@ -274,6 +302,137 @@ fun showNotification(title: String, message: String)
 ```
 
 显示 UI 反馈。
+
+---
+
+## PluginDataChannel
+
+自定义网络数据通道接口，允许插件建立独立的网络连接。
+
+```kotlin
+enum class DataChannelMode {
+    Tcp, Udp
+}
+
+data class DataChannelConfig(
+    val mode: DataChannelMode = DataChannelMode.Tcp,
+    val port: Int = 0,
+    val bufferSize: Int = 8192
+)
+
+interface PluginDataChannel {
+    val id: String
+    val config: DataChannelConfig
+    val isConnected: Flow<Boolean>
+    val localPort: Int
+    
+    suspend fun connect(host: String, port: Int): Result<Unit>
+    suspend fun bind(port: Int = 0): Result<Unit>
+    suspend fun send(data: ByteArray): Result<Unit>
+    fun receive(): Flow<ByteArray>
+    suspend fun close()
+}
+```
+
+### DataChannelMode
+
+| 模式 | 说明 |
+|------|------|
+| `Tcp` | TCP 连接，可靠传输 |
+| `Udp` | UDP 连接，低延迟 |
+
+### DataChannelConfig
+
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `mode` | `DataChannelMode` | `Tcp` | 连接模式 |
+| `port` | `Int` | `0` | 本地端口（0 表示自动分配） |
+| `bufferSize` | `Int` | `8192` | 接收缓冲区大小 |
+
+### PluginDataChannel 方法
+
+#### connect
+
+```kotlin
+suspend fun connect(host: String, port: Int): Result<Unit>
+```
+
+作为客户端连接到远程主机。
+
+**参数：**
+- `host` - 远程主机地址
+- `port` - 远程端口
+
+**返回：** `Result<Unit>` 表示连接结果
+
+#### bind
+
+```kotlin
+suspend fun bind(port: Int = 0): Result<Unit>
+```
+
+绑定本地端口，作为服务端监听连接。
+
+**参数：**
+- `port` - 本地端口，0 表示自动分配
+
+**返回：** `Result<Unit>` 表示绑定结果
+
+#### send
+
+```kotlin
+suspend fun send(data: ByteArray): Result<Unit>
+```
+
+发送数据。
+
+#### receive
+
+```kotlin
+fun receive(): Flow<ByteArray>
+```
+
+接收数据流。
+
+#### close
+
+```kotlin
+suspend fun close()
+```
+
+关闭通道。
+
+### 使用示例
+
+```kotlin
+class CameraStreamPlugin : Plugin {
+    private lateinit var channel: PluginDataChannel
+    
+    override fun onEnable() {
+        channel = context.host.createDataChannel("camera-stream", 
+            DataChannelConfig(mode = DataChannelMode.Udp)
+        )
+        
+        scope.launch {
+            channel.connect("192.168.1.100", 9000)
+                .onSuccess {
+                    while (true) {
+                        val frame = captureCameraFrame()
+                        channel.send(frame)
+                        delay(33) // ~30fps
+                    }
+                }
+                .onFailure { e ->
+                    context.logError("Connection failed: ${e.message}")
+                }
+        }
+    }
+    
+    override fun onDisable() {
+        context.host.closeDataChannel("camera-stream")
+    }
+}
+```
 
 ---
 
