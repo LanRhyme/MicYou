@@ -852,6 +852,15 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         onCheckedChange = { viewModel.setAutoCheckUpdate(it) },
                         cardOpacity = cardOpacity
                     )
+
+                    // Mirror download toggle (all platforms)
+                    SettingsSwitchItem(
+                        headline = strings.useMirrorDownloadLabel,
+                        supporting = strings.useMirrorDownloadDesc,
+                        checked = state.useMirrorDownload,
+                        onCheckedChange = { viewModel.setUseMirrorDownload(it) },
+                        cardOpacity = cardOpacity
+                    )
                 }
             }
             SettingsSection.Appearance -> {

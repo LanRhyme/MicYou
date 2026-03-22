@@ -99,6 +99,7 @@ data class AppUiState(
     val updateTotalBytes: Long = 0,
     val updateErrorMessage: String? = null,
     val autoCheckUpdate: Boolean = true,
+    val useMirrorDownload: Boolean = false,
     val pocketMode: Boolean = true,
     val visualizerStyle: VisualizerStyle = VisualizerStyle.VolumeRing,
     
@@ -273,6 +274,7 @@ class MainViewModel : ViewModel() {
         
         val savedFloatingWindowEnabled = settings.getBoolean("floating_window_enabled", false)
         val savedAutoCheckUpdate = settings.getBoolean("auto_check_update", true)
+        val savedUseMirrorDownload = settings.getBoolean("use_mirror_download", false)
         val savedUseSystemTitleBar = settings.getBoolean("use_system_title_bar", false)
         
         val hasLaunchedBefore = settings.getBoolean("has_launched_before", false)
@@ -323,6 +325,7 @@ class MainViewModel : ViewModel() {
                 ),
                 floatingWindowEnabled = savedFloatingWindowEnabled,
                 autoCheckUpdate = savedAutoCheckUpdate,
+                useMirrorDownload = savedUseMirrorDownload,
                 useSystemTitleBar = savedUseSystemTitleBar,
                 showFirstLaunchDialog = shouldShowFirstLaunchDialog
             ) 
@@ -444,7 +447,8 @@ class MainViewModel : ViewModel() {
 
         viewModelScope.launch {
             val targetPath = getUpdateDownloadPath(asset.name)
-            val result = updateChecker.downloadUpdate(asset.browserDownloadUrl, targetPath)
+            val useMirror = _uiState.value.useMirrorDownload
+            val result = updateChecker.downloadUpdate(asset.browserDownloadUrl, targetPath, useMirror)
 
             result.onSuccess { filePath ->
                 _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloaded) }
@@ -475,7 +479,12 @@ class MainViewModel : ViewModel() {
         _uiState.update { it.copy(autoCheckUpdate = enabled) }
         settings.putBoolean("auto_check_update", enabled)
     }
-    
+
+    fun setUseMirrorDownload(enabled: Boolean) {
+        _uiState.update { it.copy(useMirrorDownload = enabled) }
+        settings.putBoolean("use_mirror_download", enabled)
+    }
+
     private fun updateAudioEngineConfig() {
         val s = _uiState.value
         audioEngine.updateConfig(
