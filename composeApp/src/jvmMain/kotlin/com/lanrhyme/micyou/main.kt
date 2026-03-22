@@ -162,7 +162,7 @@ fun main() {
                             onClose = { viewModel.handleCloseRequest(onExit = exitApp, onHide = { isVisible = false }) },
                             onExitApp = exitApp,
                             onHideApp = { isVisible = false },
-                            onOpenSettings = { showSettingsWindow = true },
+                            onOpenSettings = { if (uiState.pocketMode) showSettingsWindow = true },
                             isBluetoothDisabled = isBluetoothDisabled
                         )
                     }
@@ -203,7 +203,7 @@ fun main() {
             }
         }
 
-        if (showSettingsWindow) {
+        if (showSettingsWindow && uiState.pocketMode) {
             val settingsWindowState = rememberWindowState(width = 800.dp, height = 600.dp, position = WindowPosition(Alignment.Center))
             Window(
                 onCloseRequest = { showSettingsWindow = false },

@@ -17,6 +17,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -139,6 +141,7 @@ fun DesktopHomeEnhanced(
     var cardVisible by remember { mutableStateOf(false) }
     var showPluginPopup by remember { mutableStateOf(false) }
     var activePluginWindow by remember { mutableStateOf<String?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
     
     val hazeState = if (state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground) {
         rememberHazeState()
@@ -259,7 +262,7 @@ fun DesktopHomeEnhanced(
                 BottomBar(
                     state = state,
                     viewModel = viewModel,
-                    onOpenSettings = onOpenSettings,
+                    onOpenSettings = { showSettings = true },
                     onShowPluginPopup = { showPluginPopup = true },
                     strings = strings,
                     cardOpacity = state.backgroundSettings.cardOpacity,
@@ -291,10 +294,27 @@ fun DesktopHomeEnhanced(
                     },
                     onOpenSettings = {
                         showPluginPopup = false
-                        onOpenSettings()
+                        showSettings = true
                     },
                     viewModel = viewModel
                 )
+            }
+
+            // Settings page overlay
+            AnimatedVisibility(
+                visible = showSettings,
+                enter = slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(360, easing = EasingFunctions.EaseOutExpo)
+                ) + fadeIn(animationSpec = tween(240)),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(300, easing = EasingFunctions.EaseInOutExpo)
+                ) + fadeOut(animationSpec = tween(200))
+            ) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    DesktopSettings(viewModel = viewModel, onClose = { showSettings = false })
+                }
             }
         }
     }
