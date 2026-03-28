@@ -15,6 +15,7 @@ class UlunasProcessor(
     private val hopLength: Int = 480
 ) {
     private val window: FloatArray = hanningWindow(frameSize)
+    private val olaGainCompensation: Float = calculateOlaGainCompensation()
     private val previous: FloatArray = FloatArray(hopLength)
     
     private val fft: FloatFFT_1D = FloatFFT_1D(frameSize.toLong())
@@ -41,6 +42,28 @@ class UlunasProcessor(
         return FloatArray(size) { i ->
             sqrt(0.5 - 0.5 * cos(2.0 * PI * i / (size - 1))).toFloat()
         }
+    }
+    
+    /**
+     * 计算 OLA (Overlap-Add) 增益补偿因子。
+     * 
+     * 当使用 sqrt-Hanning 窗进行分析和合成时（双重加窗），
+     * 在 50% 重叠的情况下，窗函数平方的和不等于 1.0，
+     * 这会导致音量衰减。此函数计算补偿因子以恢复原始音量。
+     */
+    private fun calculateOlaGainCompensation(): Float {
+        // 计算窗函数平方在重叠区域的和
+        var sumSquared = 0.0f
+        for (i in 0 until hopLength) {
+            // 在 50% 重叠时，每个样本会被两个窗口覆盖
+            // 位置 i 被当前帧的 window[i] 和前一帧的 window[i + hopLength] 覆盖
+            val w1 = window[i]
+            val w2 = window[i + hopLength]
+            sumSquared += w1 * w1 + w2 * w2
+        }
+        val avgGain = sumSquared / hopLength
+        // 返回补偿因子：1 / sqrt(avgGain) 用于补偿双重加窗的衰减
+        return if (avgGain > 0.001f) 1.0f / sqrt(avgGain) else 1.0f
     }
     
     private fun initModel(modelPath: String) {
@@ -244,9 +267,9 @@ class UlunasProcessor(
             olaAccumulator[i] += fftBuffer[i]
         }
         
-        // 提取输出帧 (前半部分)
+        // 提取输出帧 (前半部分)，并应用 OLA 增益补偿
         for (i in 0 until hopLength) {
-            outputFrame[i] = olaAccumulator[i]
+            outputFrame[i] = olaAccumulator[i] * olaGainCompensation
         }
         
         // 移位：后半部分移到前面
