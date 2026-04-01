@@ -146,6 +146,7 @@ fun PluginSettingsContent(
                                     PluginPlatform.MOBILE -> isMobile
                                     PluginPlatform.DESKTOP -> !isMobile
                                     PluginPlatform.BOTH -> true
+                                    else -> false
                                 }
                                 
                                 if (!compatible) {
@@ -209,6 +210,7 @@ fun PluginSettingsContent(
                         PluginPlatform.MOBILE -> "Mobile"
                         PluginPlatform.DESKTOP -> "Desktop"
                         PluginPlatform.BOTH -> "Both"
+                        else -> "Unknown"
                     }
                 ))
             },
@@ -237,6 +239,7 @@ private fun PluginItem(
         PluginPlatform.MOBILE -> isMobile
         PluginPlatform.DESKTOP -> !isMobile
         PluginPlatform.BOTH -> true
+        else -> false
     }
     
     Card(

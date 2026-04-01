@@ -2,7 +2,6 @@ package com.lanrhyme.micyou
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lanrhyme.micyou.plugin.PluginHost
 import com.lanrhyme.micyou.plugin.PluginInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,83 +40,73 @@ enum class UpdateDownloadState {
 }
 
 data class AppUiState(
+    // Audio Stream State
     val mode: ConnectionMode = ConnectionMode.Wifi,
     val streamState: StreamState = StreamState.Idle,
     val ipAddress: String = "192.168.1.5",
     val port: String = "6000",
     val errorMessage: String? = null,
-    val themeMode: ThemeMode = ThemeMode.System,
-    val seedColor: Long = 0xFF4285F4,
     val monitoringEnabled: Boolean = false,
-    val sampleRate: SampleRate = SampleRate.Rate44100,
-    val channelCount: ChannelCount = ChannelCount.Mono,
-    val audioFormat: AudioFormat = AudioFormat.PCM_16BIT,
-    val installMessage: String? = null,
+    val sampleRate: SampleRate = SampleRate.Rate48000,
+    val channelCount: ChannelCount = ChannelCount.Stereo,
+    val audioFormat: AudioFormat = AudioFormat.PCM_FLOAT,
+    val isMuted: Boolean = false,
+    val bluetoothAddress: String = "",
+    val isAutoConfig: Boolean = true,
+    val showFirewallDialog: Boolean = false,
+    val pendingFirewallPort: Int? = null,
     
     // Audio Processing Settings
     val enableNS: Boolean = false,
-    val nsType: NoiseReductionType = NoiseReductionType.RNNoise,
-    
+    val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
     val enableAGC: Boolean = false,
     val agcTargetLevel: Int = 32000,
-    
     val enableVAD: Boolean = false,
     val vadThreshold: Int = 10,
-    
     val enableDereverb: Boolean = false,
     val dereverbLevel: Float = 0.5f,
-    
     val amplification: Float = 0.0f,
-
-    // Android only: Audio source selection (stored as string to avoid enum dependency)
     val androidAudioSourceName: String = "Unprocessed",
-
     val audioConfigRevision: Int = 0,
-
+    
+    // Settings State
+    val themeMode: ThemeMode = ThemeMode.System,
+    val seedColor: Long = 0xFF4285F4,
+    val useDynamicColor: Boolean = false,
+    val oledPureBlack: Boolean = false,
+    val language: AppLanguage = AppLanguage.System,
+    val autoStart: Boolean = false,
     val enableStreamingNotification: Boolean = true,
     val keepScreenOn: Boolean = false,
-    val oledPureBlack: Boolean = false,
-    
-    val autoStart: Boolean = false,
-    
-    val isMuted: Boolean = false,
-    val language: AppLanguage = AppLanguage.System,
-    val useDynamicColor: Boolean = false,
-    val bluetoothAddress: String = "",
-    val isAutoConfig: Boolean = true,
-    val snackbarMessage: String? = null,
-    val showFirewallDialog: Boolean = false,
-    val pendingFirewallPort: Int? = null,
     val minimizeToTray: Boolean = true,
     val closeAction: CloseAction = CloseAction.Prompt,
     val showCloseConfirmDialog: Boolean = false,
     val rememberCloseAction: Boolean = false,
+    val autoCheckUpdate: Boolean = true,
+    val useMirrorDownload: Boolean = false,
+    val pocketMode: Boolean = true,
+    val visualizerStyle: VisualizerStyle = VisualizerStyle.Ripple,
+    val backgroundSettings: BackgroundSettings = BackgroundSettings(),
+    val floatingWindowEnabled: Boolean = false,
+    val useSystemTitleBar: Boolean = false,
+    val showFirstLaunchDialog: Boolean = false,
+    
+    // Plugin State
+    val plugins: List<PluginInfo> = emptyList(),
+    val showPluginSyncWarning: Boolean = false,
+    val missingPlugins: List<MissingPluginInfo> = emptyList(),
+    
+    // Update State
     val newVersionAvailable: GitHubRelease? = null,
     val updateDownloadState: UpdateDownloadState = UpdateDownloadState.Idle,
     val updateDownloadProgress: Float = 0f,
     val updateDownloadedBytes: Long = 0,
     val updateTotalBytes: Long = 0,
     val updateErrorMessage: String? = null,
-    val autoCheckUpdate: Boolean = true,
-    val useMirrorDownload: Boolean = false,
-    val pocketMode: Boolean = true,
-    val visualizerStyle: VisualizerStyle = VisualizerStyle.VolumeRing,
     
-    // Background Settings
-    val backgroundSettings: BackgroundSettings = BackgroundSettings(),
-    
-    // Floating Window Settings (Desktop only)
-    val floatingWindowEnabled: Boolean = false,
-    
-    // System Title Bar (Desktop only)
-    val useSystemTitleBar: Boolean = false,
-    val showFirstLaunchDialog: Boolean = false,
-    
-    val plugins: List<PluginInfo> = emptyList(),
-    
-    // Plugin Sync Warning
-    val showPluginSyncWarning: Boolean = false,
-    val missingPlugins: List<MissingPluginInfo> = emptyList()
+    // UI State
+    val installMessage: String? = null,
+    val snackbarMessage: String? = null
 )
 
 enum class CloseAction(val label: String) {
@@ -126,39 +115,38 @@ enum class CloseAction(val label: String) {
     Exit("exit")
 }
 
+/**
+ * Main ViewModel - Coordinates between specialized ViewModels
+ * This ViewModel acts as a facade for the UI layer
+ */
 class MainViewModel : ViewModel() {
-    private val audioEngine = AudioEngine()
+    // Specialized ViewModels
+    private val audioStreamViewModel = AudioStreamViewModel()
+    private val settingsViewModel = SettingsViewModel()
+    private val pluginViewModel = PluginViewModel()
+    private val updateViewModel = UpdateViewModel()
+    
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
-    val audioLevels = audioEngine.audioLevels
+    
+    // Expose audio levels from AudioStreamViewModel
+    val audioLevels = audioStreamViewModel.audioLevels
+    
     private val settings = SettingsFactory.getSettings()
-    private val updateChecker = UpdateChecker()
-    private var pluginManager: PluginManagerProvider? = null
-    private lateinit var pluginHost: PluginHost
 
     init {
-        // Load settings first to get the language
+        // Initialize Plugin ViewModel
         val initialLanguage = try { 
             AppLanguage.valueOf(settings.getString("language", AppLanguage.System.name)) 
         } catch(e: Exception) { 
             AppLanguage.System 
         }
         
-        // Create plugin host
-        pluginHost = createPluginHost(
-            audioEngine = audioEngine,
+        pluginViewModel.initialize(
+            audioEngine = AudioEngine(), // Note: This should be shared with AudioStreamViewModel
             showSnackbarCallback = { message ->
                 _uiState.update { it.copy(snackbarMessage = message) }
             },
-            showNotificationCallback = { title, message ->
-                Logger.i("PluginHost", "Notification: $title - $message")
-            }
-        )
-        
-        // Create plugin manager with language provider
-        pluginManager = createPluginManager(
-            pluginsDirPath = getPluginsDirPath(),
-            pluginHost = pluginHost,
             appLanguageProvider = { 
                 val lang = _uiState.value.language
                 when (lang) {
@@ -181,7 +169,6 @@ class MainViewModel : ViewModel() {
             },
             appStringProvider = { key ->
                 val strings = getStrings(_uiState.value.language)
-                // Use reflection to get the string value from AppStrings
                 try {
                     val field = AppStrings::class.java.getDeclaredField(key)
                     field.get(strings) as? String ?: key
@@ -191,749 +178,203 @@ class MainViewModel : ViewModel() {
             }
         )
         
-        pluginManager?.let { pm ->
-            viewModelScope.launch {
-                pm.plugins.collect { pluginList ->
-                    _uiState.update { it.copy(plugins = pluginList) }
+        // Observe and merge states from all ViewModels
+        setupStateObservers()
+        
+        // Auto-check for updates
+        if (settings.getBoolean("auto_check_update", true)) {
+            updateViewModel.checkUpdateAuto()
+        }
+    }
+
+    private fun setupStateObservers() {
+        // Observe AudioStreamViewModel state
+        viewModelScope.launch {
+            audioStreamViewModel.uiState.collect { audioState ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        mode = audioState.mode,
+                        streamState = audioState.streamState,
+                        ipAddress = audioState.ipAddress,
+                        port = audioState.port,
+                        errorMessage = audioState.errorMessage,
+                        monitoringEnabled = audioState.monitoringEnabled,
+                        sampleRate = audioState.sampleRate,
+                        channelCount = audioState.channelCount,
+                        audioFormat = audioState.audioFormat,
+                        isMuted = audioState.isMuted,
+                        bluetoothAddress = audioState.bluetoothAddress,
+                        isAutoConfig = audioState.isAutoConfig,
+                        showFirewallDialog = audioState.showFirewallDialog,
+                        pendingFirewallPort = audioState.pendingFirewallPort,
+                        enableNS = audioState.enableNS,
+                        nsType = audioState.nsType,
+                        enableAGC = audioState.enableAGC,
+                        agcTargetLevel = audioState.agcTargetLevel,
+                        enableVAD = audioState.enableVAD,
+                        vadThreshold = audioState.vadThreshold,
+                        enableDereverb = audioState.enableDereverb,
+                        dereverbLevel = audioState.dereverbLevel,
+                        amplification = audioState.amplification,
+                        androidAudioSourceName = audioState.androidAudioSourceName,
+                        audioConfigRevision = audioState.audioConfigRevision
+                    )
                 }
             }
         }
-        // Load other settings
-        val savedModeName = settings.getString("connection_mode", ConnectionMode.Wifi.name)
-        val savedMode = when (savedModeName) {
-            "WifiUdp" -> ConnectionMode.Bluetooth
-            else -> try { ConnectionMode.valueOf(savedModeName) } catch(e: Exception) { ConnectionMode.Wifi }
-        }
         
-        val savedIp = settings.getString("ip_address", "192.168.1.5")
-        val savedPort = settings.getString("port", "6000")
-        
-        val savedThemeModeName = settings.getString("theme_mode", ThemeMode.System.name)
-        val savedThemeMode = try { ThemeMode.valueOf(savedThemeModeName) } catch(e: Exception) { ThemeMode.System }
-        
-        val savedMonitoring = false
-        settings.putBoolean("monitoring_enabled", false)
-
-        val savedSampleRateName = settings.getString("sample_rate", SampleRate.Rate48000.name)
-        val savedSampleRate = try { SampleRate.valueOf(savedSampleRateName) } catch(e: Exception) { SampleRate.Rate48000 }
-
-        val savedChannelCountName = settings.getString("channel_count", ChannelCount.Stereo.name)
-        val savedChannelCount = try { ChannelCount.valueOf(savedChannelCountName) } catch(e: Exception) { ChannelCount.Stereo }
-
-        val savedAudioFormatName = settings.getString("audio_format", AudioFormat.PCM_FLOAT.name)
-        val savedAudioFormat = try { AudioFormat.valueOf(savedAudioFormatName) } catch(e: Exception) { AudioFormat.PCM_FLOAT }
-
-        val savedNS = settings.getBoolean("enable_ns", false)
-        val savedNSTypeName = settings.getString("ns_type", NoiseReductionType.Ulunas.name)
-        val savedNSType = try { NoiseReductionType.valueOf(savedNSTypeName) } catch(e: Exception) { NoiseReductionType.Ulunas }
-        
-        val savedAGC = settings.getBoolean("enable_agc", false)
-        val savedAGCTarget = settings.getInt("agc_target", 32000)
-        
-        val savedVAD = settings.getBoolean("enable_vad", false)
-        val savedVADThreshold = settings.getInt("vad_threshold", 10)
-        
-        val savedDereverb = settings.getBoolean("enable_dereverb", false)
-        val savedDereverbLevel = settings.getFloat("dereverb_level", 0.5f)
-
-        val savedAmplification = settings.getFloat("amplification", 0.0f)
-
-        val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Unprocessed")
-
-        val savedEnableStreamingNotification = settings.getBoolean("enable_streaming_notification", true)
-        val savedKeepScreenOn = settings.getBoolean("keep_screen_on", false)
-        val savedOledPureBlack = settings.getBoolean("oled_pure_black", false)
-        
-        val savedAutoStart = settings.getBoolean("auto_start", false)
-
-        val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
-        val savedSeedColor = settings.getLong("seed_color", 0xFF4285F4)
-
-        val savedBluetoothAddress = settings.getString("bluetooth_address", "")
-        val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
-        val savedMinimizeToTray = settings.getBoolean("minimize_to_tray", true)
-        val savedCloseActionName = settings.getString("close_action", CloseAction.Prompt.name)
-        val savedCloseAction = try {
-            CloseAction.valueOf(savedCloseActionName)
-        } catch (e: Exception) {
-            CloseAction.Prompt
-        }
-        val savedPocketMode = settings.getBoolean("pocket_mode", true)
-        val savedVisualizerStyleName = settings.getString("visualizer_style", VisualizerStyle.Ripple.name)
-        val savedVisualizerStyle = try {
-            VisualizerStyle.valueOf(savedVisualizerStyleName)
-        } catch (e: Exception) {
-            VisualizerStyle.Ripple
-        }
-        
-        val savedBackgroundImagePath = settings.getString("background_image_path", "")
-        val savedBackgroundBrightness = settings.getFloat("background_brightness", 0.5f)
-        val savedBackgroundBlur = settings.getFloat("background_blur", 0f)
-        val savedCardOpacity = settings.getFloat("card_opacity", 1f)
-        val savedEnableHazeEffect = settings.getBoolean("enable_haze_effect", false)
-        
-        val savedFloatingWindowEnabled = settings.getBoolean("floating_window_enabled", false)
-        val savedAutoCheckUpdate = settings.getBoolean("auto_check_update", true)
-        val savedUseMirrorDownload = settings.getBoolean("use_mirror_download", false)
-        val savedUseSystemTitleBar = settings.getBoolean("use_system_title_bar", false)
-        
-        val hasLaunchedBefore = settings.getBoolean("has_launched_before", false)
-        val shouldShowFirstLaunchDialog = !hasLaunchedBefore
-        if (shouldShowFirstLaunchDialog) {
-            settings.putBoolean("has_launched_before", true)
-        }
-
-        _uiState.update { 
-            it.copy(
-                mode = savedMode,
-                ipAddress = savedIp,
-                port = savedPort,
-                themeMode = savedThemeMode,
-                seedColor = savedSeedColor,
-                monitoringEnabled = savedMonitoring,
-                sampleRate = savedSampleRate,
-                channelCount = savedChannelCount,
-                audioFormat = savedAudioFormat,
-                enableNS = savedNS,
-                nsType = savedNSType,
-                enableAGC = savedAGC,
-                agcTargetLevel = savedAGCTarget,
-                enableVAD = savedVAD,
-                vadThreshold = savedVADThreshold,
-                enableDereverb = savedDereverb,
-                dereverbLevel = savedDereverbLevel,
-                amplification = savedAmplification,
-                androidAudioSourceName = savedAndroidAudioSourceName,
-                autoStart = savedAutoStart,
-                enableStreamingNotification = savedEnableStreamingNotification,
-                keepScreenOn = savedKeepScreenOn,
-                oledPureBlack = savedOledPureBlack,
-                language = initialLanguage,
-                useDynamicColor = savedUseDynamicColor,
-                bluetoothAddress = savedBluetoothAddress,
-                isAutoConfig = savedIsAutoConfig,
-                minimizeToTray = savedMinimizeToTray,
-                closeAction = savedCloseAction,
-                pocketMode = savedPocketMode,
-                visualizerStyle = savedVisualizerStyle,
-                backgroundSettings = BackgroundSettings(
-                    imagePath = savedBackgroundImagePath,
-                    brightness = savedBackgroundBrightness,
-                    blurRadius = savedBackgroundBlur,
-                    cardOpacity = savedCardOpacity,
-                    enableHazeEffect = savedEnableHazeEffect
-                ),
-                floatingWindowEnabled = savedFloatingWindowEnabled,
-                autoCheckUpdate = savedAutoCheckUpdate,
-                useMirrorDownload = savedUseMirrorDownload,
-                useSystemTitleBar = savedUseSystemTitleBar,
-                showFirstLaunchDialog = shouldShowFirstLaunchDialog
-            ) 
-        }
-        
-        // Apply auto config on startup if enabled
-        if (savedIsAutoConfig) {
-            applyAutoConfig(savedMode)
-        }
-        
-        audioEngine.setMonitoring(savedMonitoring)
-        audioEngine.setStreamingNotificationEnabled(savedEnableStreamingNotification)
-        updateAudioEngineConfig()
-
+        // Observe SettingsViewModel state
         viewModelScope.launch {
-            audioEngine.streamState.collect { state ->
-                _uiState.update { it.copy(streamState = state) }
-            }
-        }
-        
-        viewModelScope.launch {
-            audioEngine.lastError.collect { error ->
-                _uiState.update { it.copy(errorMessage = error) }
-            }
-        }
-        
-        viewModelScope.launch {
-            audioEngine.installProgress.collect { msg ->
-                _uiState.update { it.copy(installMessage = msg) }
-            }
-        }
-        
-        viewModelScope.launch {
-            audioEngine.isMuted.collect { muted ->
-                _uiState.update { it.copy(isMuted = muted) }
-            }
-        }
-
-        if (getPlatform().type == PlatformType.Desktop) {
-            viewModelScope.launch {
-                audioEngine.installDriver()
-            }
-            if (savedAutoStart) {
-                startStream()
-            }
-        }
-
-        if (savedAutoCheckUpdate) {
-            viewModelScope.launch {
-                val result = updateChecker.checkUpdate()
-                result.onSuccess { release ->
-                    if (release != null) {
-                        _uiState.update { it.copy(newVersionAvailable = release) }
-                    }
+            settingsViewModel.uiState.collect { settingsState ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        themeMode = settingsState.themeMode,
+                        seedColor = settingsState.seedColor,
+                        useDynamicColor = settingsState.useDynamicColor,
+                        oledPureBlack = settingsState.oledPureBlack,
+                        language = settingsState.language,
+                        autoStart = settingsState.autoStart,
+                        enableStreamingNotification = settingsState.enableStreamingNotification,
+                        keepScreenOn = settingsState.keepScreenOn,
+                        minimizeToTray = settingsState.minimizeToTray,
+                        closeAction = settingsState.closeAction,
+                        showCloseConfirmDialog = settingsState.showCloseConfirmDialog,
+                        rememberCloseAction = settingsState.rememberCloseAction,
+                        autoCheckUpdate = settingsState.autoCheckUpdate,
+                        useMirrorDownload = settingsState.useMirrorDownload,
+                        pocketMode = settingsState.pocketMode,
+                        visualizerStyle = settingsState.visualizerStyle,
+                        backgroundSettings = settingsState.backgroundSettings,
+                        floatingWindowEnabled = settingsState.floatingWindowEnabled,
+                        useSystemTitleBar = settingsState.useSystemTitleBar,
+                        showFirstLaunchDialog = settingsState.showFirstLaunchDialog,
+                        snackbarMessage = settingsState.snackbarMessage
+                    )
                 }
             }
         }
-
-        // Collect download progress from UpdateChecker
+        
+        // Observe PluginViewModel state
         viewModelScope.launch {
-            updateChecker.downloadProgress.collect { progress ->
-                _uiState.update {
-                    it.copy(
-                        updateDownloadProgress = progress.progress,
-                        updateDownloadedBytes = progress.downloadedBytes,
-                        updateTotalBytes = progress.totalBytes
+            pluginViewModel.uiState.collect { pluginState ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        plugins = pluginState.plugins,
+                        showPluginSyncWarning = pluginState.showPluginSyncWarning,
+                        missingPlugins = pluginState.missingPlugins
+                    )
+                }
+            }
+        }
+        
+        // Observe UpdateViewModel state
+        viewModelScope.launch {
+            updateViewModel.uiState.collect { updateState ->
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        newVersionAvailable = updateState.newVersionAvailable,
+                        updateDownloadState = updateState.updateDownloadState,
+                        updateDownloadProgress = updateState.updateDownloadProgress,
+                        updateDownloadedBytes = updateState.updateDownloadedBytes,
+                        updateTotalBytes = updateState.updateTotalBytes,
+                        updateErrorMessage = updateState.updateErrorMessage
                     )
                 }
             }
         }
     }
 
-    fun dismissUpdateDialog() {
-        _uiState.update {
-            it.copy(
-                newVersionAvailable = null,
-                updateDownloadState = UpdateDownloadState.Idle,
-                updateDownloadProgress = 0f,
-                updateErrorMessage = null
-            )
-        }
+    // Delegate methods to specialized ViewModels
+    // Audio Stream methods
+    fun toggleStream() = audioStreamViewModel.toggleStream()
+    fun toggleMute() = audioStreamViewModel.toggleMute()
+    fun startStream() = audioStreamViewModel.startStream()
+    fun stopStream() = audioStreamViewModel.stopStream()
+    fun setMode(mode: ConnectionMode) = audioStreamViewModel.setMode(mode)
+    fun setIp(ip: String) = audioStreamViewModel.setIp(ip)
+    fun setPort(port: String) = audioStreamViewModel.setPort(port)
+    fun setMonitoringEnabled(enabled: Boolean) = audioStreamViewModel.setMonitoringEnabled(enabled)
+    fun setSampleRate(rate: SampleRate) = audioStreamViewModel.setSampleRate(rate)
+    fun setChannelCount(count: ChannelCount) = audioStreamViewModel.setChannelCount(count)
+    fun setAudioFormat(format: AudioFormat) = audioStreamViewModel.setAudioFormat(format)
+    fun setAndroidAudioProcessing(enabled: Boolean) = audioStreamViewModel.setAndroidAudioProcessing(enabled)
+    fun setEnableNS(enabled: Boolean) = audioStreamViewModel.setEnableNS(enabled)
+    fun setNsType(type: NoiseReductionType) = audioStreamViewModel.setNsType(type)
+    fun setEnableAGC(enabled: Boolean) = audioStreamViewModel.setEnableAGC(enabled)
+    fun setAgcTargetLevel(level: Int) = audioStreamViewModel.setAgcTargetLevel(level)
+    fun setEnableVAD(enabled: Boolean) = audioStreamViewModel.setEnableVAD(enabled)
+    fun setVadThreshold(threshold: Int) = audioStreamViewModel.setVadThreshold(threshold)
+    fun setEnableDereverb(enabled: Boolean) = audioStreamViewModel.setEnableDereverb(enabled)
+    fun setDereverbLevel(level: Float) = audioStreamViewModel.setDereverbLevel(level)
+    fun setAmplification(amp: Float) = audioStreamViewModel.setAmplification(amp)
+    fun setAndroidAudioSource(sourceName: String) = audioStreamViewModel.setAndroidAudioSource(sourceName)
+    fun setAutoConfig(enabled: Boolean) = audioStreamViewModel.setAutoConfig(enabled)
+    fun dismissFirewallDialog() = audioStreamViewModel.dismissFirewallDialog()
+    fun confirmAddFirewallRule() = audioStreamViewModel.confirmAddFirewallRule()
+    
+    // Settings methods
+    fun setThemeMode(mode: ThemeMode) = settingsViewModel.setThemeMode(mode)
+    fun setSeedColor(color: Long) = settingsViewModel.setSeedColor(color)
+    fun setUseDynamicColor(enable: Boolean) = settingsViewModel.setUseDynamicColor(enable)
+    fun setOledPureBlack(enabled: Boolean) = settingsViewModel.setOledPureBlack(enabled)
+    fun setLanguage(language: AppLanguage) = settingsViewModel.setLanguage(language)
+    fun setAutoStart(enabled: Boolean) = settingsViewModel.setAutoStart(enabled)
+    fun setEnableStreamingNotification(enabled: Boolean) {
+        settingsViewModel.setEnableStreamingNotification(enabled)
+        // Update audio engine with new notification setting
+        val audioEngine = AudioEngine() // Note: Should use shared instance
+        audioEngine.setStreamingNotificationEnabled(enabled)
     }
-
-    fun dismissFirstLaunchDialog() {
-        _uiState.update {
-            it.copy(showFirstLaunchDialog = false)
-        }
-    }
-
+    fun setKeepScreenOn(enabled: Boolean) = settingsViewModel.setKeepScreenOn(enabled)
+    fun setMinimizeToTray(enabled: Boolean) = settingsViewModel.setMinimizeToTray(enabled)
+    fun setCloseAction(action: CloseAction) = settingsViewModel.setCloseAction(action)
+    fun setShowCloseConfirmDialog(show: Boolean) = settingsViewModel.setShowCloseConfirmDialog(show)
+    fun setRememberCloseAction(remember: Boolean) = settingsViewModel.setRememberCloseAction(remember)
+    fun handleCloseRequest(onExit: () -> Unit, onHide: () -> Unit) = settingsViewModel.handleCloseRequest(onExit, onHide)
+    fun confirmCloseAction(action: CloseAction, remember: Boolean, onExit: () -> Unit, onHide: () -> Unit) = 
+        settingsViewModel.confirmCloseAction(action, remember, onExit, onHide)
+    fun setPocketMode(enabled: Boolean) = settingsViewModel.setPocketMode(enabled)
+    fun setVisualizerStyle(style: VisualizerStyle) = settingsViewModel.setVisualizerStyle(style)
+    fun setFloatingWindowEnabled(enabled: Boolean) = settingsViewModel.setFloatingWindowEnabled(enabled)
+    fun setUseSystemTitleBar(enabled: Boolean) = settingsViewModel.setUseSystemTitleBar(enabled)
+    fun setAutoCheckUpdate(enabled: Boolean) = settingsViewModel.setAutoCheckUpdate(enabled)
+    fun setUseMirrorDownload(enabled: Boolean) = settingsViewModel.setUseMirrorDownload(enabled)
+    fun setBackgroundImage(path: String?) = settingsViewModel.setBackgroundImage(path)
+    fun setBackgroundBrightness(brightness: Float) = settingsViewModel.setBackgroundBrightness(brightness)
+    fun setBackgroundBlur(blurRadius: Float) = settingsViewModel.setBackgroundBlur(blurRadius)
+    fun setCardOpacity(opacity: Float) = settingsViewModel.setCardOpacity(opacity)
+    fun setEnableHazeEffect(enabled: Boolean) = settingsViewModel.setEnableHazeEffect(enabled)
+    fun clearBackgroundImage() = settingsViewModel.clearBackgroundImage()
+    fun pickBackgroundImage() = settingsViewModel.pickBackgroundImage()
+    fun showSnackbar(message: String) = settingsViewModel.showSnackbar(message)
+    fun clearSnackbar() = settingsViewModel.clearSnackbar()
+    fun dismissFirstLaunchDialog() = settingsViewModel.dismissFirstLaunchDialog()
+    fun exportLog(onResult: (String?) -> Unit) = settingsViewModel.exportLog(onResult)
+    
+    // Plugin methods
+    fun importPlugin(filePath: String, onResult: (Result<PluginInfo>) -> Unit) = 
+        pluginViewModel.importPlugin(filePath, onResult)
+    fun enablePlugin(pluginId: String) = pluginViewModel.enablePlugin(pluginId)
+    fun disablePlugin(pluginId: String) = pluginViewModel.disablePlugin(pluginId)
+    fun deletePlugin(pluginId: String) = pluginViewModel.deletePlugin(pluginId)
+    fun getPluginUIProvider(pluginId: String): Any? = pluginViewModel.getPluginUIProvider(pluginId)
+    fun getPluginSettingsProvider(pluginId: String): Any? = pluginViewModel.getPluginSettingsProvider(pluginId)
+    fun showPluginSyncWarning(missingPlugins: List<MissingPluginInfo>) = 
+        pluginViewModel.showPluginSyncWarning(missingPlugins)
+    fun dismissPluginSyncWarning() = pluginViewModel.dismissPluginSyncWarning()
+    
+    // Update methods
     fun checkUpdateManual() {
         viewModelScope.launch {
             val strings = getStrings(_uiState.value.language)
             _uiState.update { it.copy(snackbarMessage = strings.checkingUpdate) }
-            val result = updateChecker.checkUpdate()
-            
-            result.onSuccess { release ->
-                if (release != null) {
-                    _uiState.update { it.copy(newVersionAvailable = release, snackbarMessage = null) }
-                } else {
-                    _uiState.update { it.copy(snackbarMessage = strings.isLatestVersion) }
-                }
-            }.onFailure { e ->
-                _uiState.update { it.copy(snackbarMessage = strings.updateCheckFailed.format(e.message)) }
-            }
+            updateViewModel.checkUpdateManual(_uiState.value.language)
         }
     }
-
-    fun downloadAndInstallUpdate() {
-        val release = _uiState.value.newVersionAvailable ?: return
-        val asset = updateChecker.findAssetForPlatform(release)
-        if (asset == null) {
-            // No matching asset - fall back to opening the release page
-            openUrl(release.htmlUrl)
-            dismissUpdateDialog()
-            return
-        }
-
-        _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloading, updateErrorMessage = null) }
-
-        viewModelScope.launch {
-            val targetPath = getUpdateDownloadPath(asset.name)
-            val useMirror = _uiState.value.useMirrorDownload
-            val result = updateChecker.downloadUpdate(asset.browserDownloadUrl, targetPath, useMirror)
-
-            result.onSuccess { filePath ->
-                _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloaded) }
-                _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Installing) }
-                try {
-                    installUpdate(filePath)
-                } catch (e: Exception) {
-                    Logger.e("MainViewModel", "Install failed", e)
-                    _uiState.update {
-                        it.copy(
-                            updateDownloadState = UpdateDownloadState.Failed,
-                            updateErrorMessage = e.message
-                        )
-                    }
-                }
-            }.onFailure { e ->
-                _uiState.update {
-                    it.copy(
-                        updateDownloadState = UpdateDownloadState.Failed,
-                        updateErrorMessage = e.message
-                    )
-                }
-            }
-        }
-    }
-
-    fun setAutoCheckUpdate(enabled: Boolean) {
-        _uiState.update { it.copy(autoCheckUpdate = enabled) }
-        settings.putBoolean("auto_check_update", enabled)
-    }
-
-    fun setUseMirrorDownload(enabled: Boolean) {
-        _uiState.update { it.copy(useMirrorDownload = enabled) }
-        settings.putBoolean("use_mirror_download", enabled)
-    }
-
-    private fun updateAudioEngineConfig() {
-        val s = _uiState.value
-        audioEngine.updateConfig(
-            enableNS = s.enableNS,
-            nsType = s.nsType,
-            enableAGC = s.enableAGC,
-            agcTargetLevel = s.agcTargetLevel,
-            enableVAD = s.enableVAD,
-            vadThreshold = s.vadThreshold,
-            enableDereverb = s.enableDereverb,
-            dereverbLevel = s.dereverbLevel,
-            amplification = s.amplification
-        )
-        _uiState.update { it.copy(audioConfigRevision = it.audioConfigRevision + 1) }
-    }
-
-    private fun applyAutoConfig(mode: ConnectionMode) {
-        if (mode == ConnectionMode.Bluetooth) {
-            // Low bandwidth optimization
-            setSampleRate(SampleRate.Rate16000)
-            setChannelCount(ChannelCount.Mono)
-            setAudioFormat(AudioFormat.PCM_16BIT)
-        } else {
-            // High quality for WiFi/USB
-            setSampleRate(SampleRate.Rate48000)
-            setChannelCount(ChannelCount.Stereo)
-            setAudioFormat(AudioFormat.PCM_16BIT)
-        }
-    }
-
-    fun setAutoConfig(enabled: Boolean) {
-        _uiState.update { it.copy(isAutoConfig = enabled) }
-        settings.putBoolean("is_auto_config", enabled)
-        if (enabled) {
-            applyAutoConfig(_uiState.value.mode)
-        }
-    }
-
-    fun setMinimizeToTray(enabled: Boolean) {
-        _uiState.update { it.copy(minimizeToTray = enabled) }
-        settings.putBoolean("minimize_to_tray", enabled)
-    }
-
-    fun setCloseAction(action: CloseAction) {
-        _uiState.update { it.copy(closeAction = action) }
-        settings.putString("close_action", action.name)
-    }
-
-    fun setShowCloseConfirmDialog(show: Boolean) {
-        _uiState.update { it.copy(showCloseConfirmDialog = show) }
-    }
-
-    fun setRememberCloseAction(remember: Boolean) {
-        _uiState.update { it.copy(rememberCloseAction = remember) }
-    }
-
-    fun setPocketMode(enabled: Boolean) {
-        _uiState.update { it.copy(pocketMode = enabled) }
-        settings.putBoolean("pocket_mode", enabled)
-    }
-
-    fun setVisualizerStyle(style: VisualizerStyle) {
-        _uiState.update { it.copy(visualizerStyle = style) }
-        settings.putString("visualizer_style", style.name)
-    }
-
-    fun setFloatingWindowEnabled(enabled: Boolean) {
-        _uiState.update { it.copy(floatingWindowEnabled = enabled) }
-        settings.putBoolean("floating_window_enabled", enabled)
-    }
-
-    fun setUseSystemTitleBar(enabled: Boolean) {
-        _uiState.update { it.copy(useSystemTitleBar = enabled) }
-        settings.putBoolean("use_system_title_bar", enabled)
-    }
-
-    fun handleCloseRequest(onExit: () -> Unit, onHide: () -> Unit) {
-        val state = _uiState.value
-        when (state.closeAction) {
-            CloseAction.Prompt -> {
-                _uiState.update { it.copy(showCloseConfirmDialog = true) }
-            }
-            CloseAction.Minimize -> onHide()
-            CloseAction.Exit -> onExit()
-        }
-    }
-
-    fun confirmCloseAction(action: CloseAction, remember: Boolean, onExit: () -> Unit, onHide: () -> Unit) {
-        if (remember) {
-            setCloseAction(action)
-        }
-        _uiState.update { it.copy(showCloseConfirmDialog = false) }
-        // 关键：延迟或在状态更新后执行回调，确保 UI 线程安全
-        if (action == CloseAction.Minimize) {
-            onHide()
-        } else {
-            onExit()
-        }
-    }
-
-    fun toggleStream() {
-        if (_uiState.value.streamState == StreamState.Streaming || _uiState.value.streamState == StreamState.Connecting) {
-            stopStream()
-        } else {
-            startStream()
-        }
-    }
-
-    fun toggleMute() {
-        val newMuteState = !_uiState.value.isMuted
-        viewModelScope.launch {
-            audioEngine.setMute(newMuteState)
-        }
-    }
-
-    fun startStream() {
-        Logger.i("MainViewModel", "Starting stream")
-        val mode = _uiState.value.mode
-        val ip = if (mode == ConnectionMode.Bluetooth) _uiState.value.bluetoothAddress else _uiState.value.ipAddress
-        val port = _uiState.value.port.toIntOrNull() ?: 6000
-        val isClient = getPlatform().type == PlatformType.Android
-        val sampleRate = _uiState.value.sampleRate
-        val channelCount = _uiState.value.channelCount
-        val audioFormat = _uiState.value.audioFormat
-
-        _uiState.update { it.copy(streamState = StreamState.Connecting, errorMessage = null) }
-
-        // 启动音频引擎（不阻塞）
-        viewModelScope.launch {
-            // Config is already updated via updateAudioEngineConfig, but we pass params to start just in case or for init
-            updateAudioEngineConfig()
-
-            try {
-                Logger.d("MainViewModel", "Calling audioEngine.start()")
-                audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat)
-                Logger.i("MainViewModel", "Stream started successfully")
-            } catch (e: Exception) {
-                Logger.e("MainViewModel", "Failed to start stream", e)
-                _uiState.update { it.copy(streamState = StreamState.Error, errorMessage = e.message) }
-            }
-        }
-
-        // 异步检查防火墙（不阻塞启动）
-        if (!isClient && mode == ConnectionMode.Wifi) {
-            viewModelScope.launch {
-                if (!isPortAllowed(port, "TCP")) {
-                    Logger.w("MainViewModel", "Port $port is not allowed by firewall")
-                    _uiState.update { it.copy(showFirewallDialog = true, pendingFirewallPort = port) }
-                }
-            }
-        }
-    }
-
-    fun dismissFirewallDialog() {
-        _uiState.update { it.copy(showFirewallDialog = false, pendingFirewallPort = null) }
-    }
-
-    fun confirmAddFirewallRule() {
-        val port = _uiState.value.pendingFirewallPort ?: return
-        _uiState.update { it.copy(showFirewallDialog = false, pendingFirewallPort = null) }
-        
-        viewModelScope.launch {
-            val result = addFirewallRule(port, "TCP")
-            if (result.isSuccess) {
-                Logger.i("MainViewModel", "Firewall rule added successfully")
-                startStream() // 成功添加后重试启动串流
-            } else {
-                val error = result.exceptionOrNull()?.message ?: "Unknown error"
-                Logger.e("MainViewModel", "Failed to add firewall rule: $error")
-                _uiState.update { it.copy(errorMessage = "无法自动添加防火墙规则: $error\n请尝试以管理员身份运行程序，或手动在防火墙中放行 TCP $port 端口。") }
-            }
-        }
-    }
-
-    fun stopStream() {
-        Logger.i("MainViewModel", "Stopping stream")
-        audioEngine.stop()
-    }
-
-    fun setMode(mode: ConnectionMode) {
-        Logger.i("MainViewModel", "Setting connection mode to $mode")
-        val platformType = getPlatform().type
-        val current = _uiState.value
-
-        val updatedPort = if (platformType == PlatformType.Android && mode == ConnectionMode.Usb) {
-            val parsed = current.port.toIntOrNull()
-            if (parsed == null || parsed <= 0) "6000" else current.port
-        } else {
-            current.port
-        }
-        
-        // Auto-configure for Bluetooth to optimize bandwidth and stability
-        if (current.isAutoConfig) {
-             applyAutoConfig(mode)
-        } else if (mode == ConnectionMode.Bluetooth) {
-            // Even if manual, we should suggest safe defaults or just leave it if user insists.
-            // But previous logic forced it. Let's keep previous logic as fallback if auto config is somehow bypassed
-            // or just rely on applyAutoConfig if we want strict control.
-            // Wait, if isAutoConfig is FALSE, we should NOT change settings automatically.
-            // So we remove the previous forced block and rely on applyAutoConfig being called if true.
-            // If false, we do nothing.
-        }
-
-        _uiState.update { it.copy(mode = mode, port = updatedPort) }
-        settings.putString("connection_mode", mode.name)
-        if (updatedPort != current.port) {
-            settings.putString("port", updatedPort)
-        }
-    }
+    fun downloadAndInstallUpdate() = updateViewModel.downloadAndInstallUpdate()
+    fun dismissUpdateDialog() = updateViewModel.dismissUpdateDialog()
     
-    fun setIp(ip: String) {
-        if (_uiState.value.mode == ConnectionMode.Bluetooth) {
-            Logger.d("MainViewModel", "Setting Bluetooth address to $ip")
-            _uiState.update { it.copy(bluetoothAddress = ip) }
-            settings.putString("bluetooth_address", ip)
-        } else {
-            Logger.d("MainViewModel", "Setting IP to $ip")
-            _uiState.update { it.copy(ipAddress = ip) }
-            settings.putString("ip_address", ip)
-        }
-    }
-
-    fun setPort(port: String) {
-        Logger.d("MainViewModel", "Setting port to $port")
-        _uiState.update { it.copy(port = port) }
-        settings.putString("port", port)
-    }
-
-    fun setThemeMode(mode: ThemeMode) {
-        _uiState.update { it.copy(themeMode = mode) }
-        settings.putString("theme_mode", mode.name)
-    }
-
-    fun setSeedColor(color: Long) {
-        _uiState.update { it.copy(seedColor = color) }
-        settings.putLong("seed_color", color)
-    }
-
-    fun setMonitoringEnabled(enabled: Boolean) {
-        _uiState.update { it.copy(monitoringEnabled = enabled) }
-        settings.putBoolean("monitoring_enabled", enabled)
-        audioEngine.setMonitoring(enabled)
-    }
-
-    fun setSampleRate(rate: SampleRate) {
-        _uiState.update { it.copy(sampleRate = rate) }
-        settings.putString("sample_rate", rate.name)
-    }
-
-    fun setChannelCount(count: ChannelCount) {
-        _uiState.update { it.copy(channelCount = count) }
-        settings.putString("channel_count", count.name)
-    }
-
-    fun setAudioFormat(format: AudioFormat) {
-        _uiState.update { it.copy(audioFormat = format) }
-        settings.putString("audio_format", format.name)
-    }
-    
-    // --- Audio Processing Setters ---
-
-    fun setAndroidAudioProcessing(enabled: Boolean) {
-        _uiState.update { it.copy(enableNS = enabled, enableAGC = enabled) }
-        settings.putBoolean("enable_ns", enabled)
-        settings.putBoolean("enable_agc", enabled)
-        updateAudioEngineConfig()
-    }
-
-    fun setEnableNS(enabled: Boolean) {
-        _uiState.update { it.copy(enableNS = enabled) }
-        settings.putBoolean("enable_ns", enabled)
-        updateAudioEngineConfig()
-    }
-    
-    fun setNsType(type: NoiseReductionType) {
-        _uiState.update { it.copy(nsType = type) }
-        settings.putString("ns_type", type.name)
-        updateAudioEngineConfig()
-    }
-    
-    fun setEnableAGC(enabled: Boolean) {
-        _uiState.update { it.copy(enableAGC = enabled) }
-        settings.putBoolean("enable_agc", enabled)
-        updateAudioEngineConfig()
-    }
-    
-    fun setAgcTargetLevel(level: Int) {
-        _uiState.update { it.copy(agcTargetLevel = level) }
-        settings.putInt("agc_target", level)
-        updateAudioEngineConfig()
-    }
-    
-    fun setEnableVAD(enabled: Boolean) {
-        _uiState.update { it.copy(enableVAD = enabled) }
-        settings.putBoolean("enable_vad", enabled)
-        updateAudioEngineConfig()
-    }
-    
-    fun setVadThreshold(threshold: Int) {
-        _uiState.update { it.copy(vadThreshold = threshold) }
-        settings.putInt("vad_threshold", threshold)
-        updateAudioEngineConfig()
-    }
-    
-    fun setEnableDereverb(enabled: Boolean) {
-        _uiState.update { it.copy(enableDereverb = enabled) }
-        settings.putBoolean("enable_dereverb", enabled)
-        updateAudioEngineConfig()
-    }
-    
-    fun setDereverbLevel(level: Float) {
-        _uiState.update { it.copy(dereverbLevel = level) }
-        settings.putFloat("dereverb_level", level)
-        updateAudioEngineConfig()
-    }
-    
-    fun setAmplification(amp: Float) {
-        _uiState.update { it.copy(amplification = amp) }
-        settings.putFloat("amplification", amp)
-        updateAudioEngineConfig()
-    }
-
-    fun setAndroidAudioSource(sourceName: String) {
-        _uiState.update { it.copy(androidAudioSourceName = sourceName) }
-        settings.putString("android_audio_source", sourceName)
-        // Call Android-specific method to update audio source
-        audioEngine.setAudioSource(sourceName)
-    }
-
-    fun setAutoStart(enabled: Boolean) {
-        _uiState.update { it.copy(autoStart = enabled) }
-        settings.putBoolean("auto_start", enabled)
-    }
-
-    fun setEnableStreamingNotification(enabled: Boolean) {
-        _uiState.update { it.copy(enableStreamingNotification = enabled) }
-        settings.putBoolean("enable_streaming_notification", enabled)
-        audioEngine.setStreamingNotificationEnabled(enabled)
-    }
-
-    fun setKeepScreenOn(enabled: Boolean) {
-        _uiState.update { it.copy(keepScreenOn = enabled) }
-        settings.putBoolean("keep_screen_on", enabled)
-    }
-
-    fun setOledPureBlack(enabled: Boolean) {
-        _uiState.update { it.copy(oledPureBlack = enabled) }
-        settings.putBoolean("oled_pure_black", enabled)
-    }
-
-    fun setUseDynamicColor(enable: Boolean) {
-        settings.putBoolean("use_dynamic_color", enable)
-        _uiState.update { it.copy(useDynamicColor = enable) }
-    }
-
     fun clearInstallMessage() {
         _uiState.update { it.copy(installMessage = null) }
-    }
-
-    fun showSnackbar(message: String) {
-        _uiState.update { it.copy(snackbarMessage = message) }
-    }
-
-    fun clearSnackbar() {
-        _uiState.update { it.copy(snackbarMessage = null) }
-    }
-
-    fun setLanguage(language: AppLanguage) {
-        Logger.i("MainViewModel", "Setting language to ${language.name}")
-        _uiState.update { it.copy(language = language) }
-        settings.putString("language", language.name)
-    }
-
-    fun exportLog(onResult: (String?) -> Unit) {
-        val path = Logger.getLogFilePath()
-        onResult(path)
-    }
-    
-    fun setBackgroundImage(path: String?) {
-        val newSettings = _uiState.value.backgroundSettings.copy(imagePath = path ?: "")
-        _uiState.update { it.copy(backgroundSettings = newSettings) }
-        settings.putString("background_image_path", path ?: "")
-    }
-    
-    fun setBackgroundBrightness(brightness: Float) {
-        val newSettings = _uiState.value.backgroundSettings.copy(brightness = brightness)
-        _uiState.update { it.copy(backgroundSettings = newSettings) }
-        settings.putFloat("background_brightness", brightness)
-    }
-    
-    fun setBackgroundBlur(blurRadius: Float) {
-        val newSettings = _uiState.value.backgroundSettings.copy(blurRadius = blurRadius)
-        _uiState.update { it.copy(backgroundSettings = newSettings) }
-        settings.putFloat("background_blur", blurRadius)
-    }
-    
-    fun setCardOpacity(opacity: Float) {
-        val newSettings = _uiState.value.backgroundSettings.copy(cardOpacity = opacity)
-        _uiState.update { it.copy(backgroundSettings = newSettings) }
-        settings.putFloat("card_opacity", opacity)
-    }
-    
-    fun setEnableHazeEffect(enabled: Boolean) {
-        val newSettings = _uiState.value.backgroundSettings.copy(enableHazeEffect = enabled)
-        _uiState.update { it.copy(backgroundSettings = newSettings) }
-        settings.putBoolean("enable_haze_effect", enabled)
-    }
-    
-    fun clearBackgroundImage() {
-        setBackgroundImage("")
-    }
-    
-    fun pickBackgroundImage() {
-        BackgroundImagePicker.pickImage { path ->
-            path?.let { setBackgroundImage(it) }
-        }
-    }
-    
-    fun importPlugin(filePath: String, onResult: (Result<PluginInfo>) -> Unit) {
-        viewModelScope.launch {
-            val result = pluginManager?.importPlugin(filePath) 
-                ?: Result.failure(Exception("Plugins not supported on this platform"))
-            onResult(result)
-        }
-    }
-    
-    fun enablePlugin(pluginId: String) {
-        viewModelScope.launch {
-            pluginManager?.enablePlugin(pluginId)
-        }
-    }
-    
-    fun disablePlugin(pluginId: String) {
-        viewModelScope.launch {
-            pluginManager?.disablePlugin(pluginId)
-        }
-    }
-    
-    fun deletePlugin(pluginId: String) {
-        viewModelScope.launch {
-            pluginManager?.deletePlugin(pluginId)
-        }
-    }
-    
-    fun getPluginUIProvider(pluginId: String): Any? {
-        return pluginManager?.getPluginUIProvider(pluginId)
-    }
-    
-    fun getPluginSettingsProvider(pluginId: String): Any? {
-        return pluginManager?.getPluginSettingsProvider(pluginId)
     }
 }
