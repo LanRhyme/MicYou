@@ -10,6 +10,7 @@ class AudioOutputManager {
     private var outputLine: SourceDataLine? = null
     private var monitorLoopbackProcess: Process? = null
     private var monitorLine: SourceDataLine? = null
+    private var pwCatProcess: Process? = null
     private var isUsingVirtualDevice = false
     private var isMonitoring = false
     private var currentSampleRate = 0
@@ -93,22 +94,32 @@ class AudioOutputManager {
     }
     
     private fun initPulseAudio(audioFormat: AudioFormat): Boolean {
+        val sinkName = PipeWireManager.virtualSinkName
+        
         try {
-            val pulseMixer = AudioSystem.getMixerInfo().find { 
-                it.name.contains("pulse", ignoreCase = true) 
-            }
+            val process = ProcessBuilder(
+                "pw-cat",
+                "--playback",
+                "--target=$sinkName",
+                "--rate=${audioFormat.sampleRate.toInt()}",
+                "--channels=${audioFormat.channels}",
+                "--format=s16",
+                "-"
+            ).redirectErrorStream(false).start()
             
-            if (pulseMixer != null) {
-                val mixer = AudioSystem.getMixer(pulseMixer)
-                if (mixer.isLineSupported(DataLine.Info(SourceDataLine::class.java, audioFormat))) {
-                    outputLine = mixer.getLine(DataLine.Info(SourceDataLine::class.java, audioFormat)) as SourceDataLine
-                    isUsingVirtualDevice = true
-                    Logger.i("AudioOutputManager", "Using the PulseAudio mixer")
-                    return openAndStartLine(audioFormat)
-                }
+            Thread.sleep(200)
+            
+            if (process.isAlive) {
+                pwCatProcess = process
+                isUsingVirtualDevice = true
+                Logger.i("AudioOutputManager", "Using pw-cat to write to virtual sink: $sinkName")
+                return true
+            } else {
+                val output = process.errorStream.bufferedReader().readText()
+                Logger.e("AudioOutputManager", "pw-cat failed to start: $output")
             }
         } catch (e: Exception) {
-            Logger.w("AudioOutputManager", "PulseAudio method failed: \${e.message}")
+            Logger.w("AudioOutputManager", "pw-cat method failed: ${e.message}")
         }
         
         return false
@@ -231,7 +242,12 @@ class AudioOutputManager {
         }
         
         try {
-            outputLine?.write(buffer, offset, length)
+            pwCatProcess?.let { process ->
+                if (process.isAlive) {
+                    process.outputStream.write(buffer, offset, length)
+                    process.outputStream.flush()
+                }
+            } ?: outputLine?.write(buffer, offset, length)
         } catch (e: Exception) {
             Logger.e("AudioOutputManager", "Failed to write audio data", e)
         }
@@ -244,6 +260,9 @@ class AudioOutputManager {
     }
     
     fun getQueuedDurationMs(): Long {
+        if (pwCatProcess != null) {
+            return 0L
+        }
         val line = outputLine ?: return 0L
         val bytesPerSecond = (line.format.sampleRate.toInt() * line.format.channels * 2).coerceAtLeast(1)
         val queuedBytes = (line.bufferSize - line.available()).coerceAtLeast(0)
@@ -251,6 +270,7 @@ class AudioOutputManager {
     }
     
     fun flush() {
+        pwCatProcess?.outputStream?.flush()
         outputLine?.flush()
         monitorLine?.flush()
     }
@@ -349,6 +369,19 @@ class AudioOutputManager {
         Logger.d("AudioOutputManager", "Release audio output resources")
         
         stopMonitorLoopback()
+        
+        pwCatProcess?.let { process ->
+            try {
+                if (process.isAlive) {
+                    process.outputStream.close()
+                    process.destroy()
+                    Logger.d("AudioOutputManager", "pw-cat process terminated")
+                }
+            } catch (e: Exception) {
+                Logger.e("AudioOutputManager", "Error terminating pw-cat process", e)
+            }
+        }
+        pwCatProcess = null
         
         try {
             outputLine?.drain()

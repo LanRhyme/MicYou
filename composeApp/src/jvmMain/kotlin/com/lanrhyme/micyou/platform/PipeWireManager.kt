@@ -96,7 +96,8 @@ object PipeWireManager {
                 "node.name=$SINK_NAME",
                 "media.class=Audio/Sink",
                 "object.linger=true",
-                "audio.position=[FL FR]"
+                "audio.position=[FL FR]",
+                "monitor.mode=disabled"
             ).redirectErrorStream(true).start()
             
             val output = process.inputStream.bufferedReader().readText()
