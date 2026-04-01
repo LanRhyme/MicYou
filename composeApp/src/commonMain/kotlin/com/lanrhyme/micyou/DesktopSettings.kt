@@ -98,6 +98,10 @@ import androidx.compose.ui.window.Dialog
 import com.lanrhyme.micyou.animation.EasingFunctions
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.rounded.InstallDesktop
+import androidx.compose.material.icons.rounded.Delete
 
 /**
  * 可复用的设置项容器组件
@@ -851,6 +855,13 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             onCheckedChange = { viewModel.setFloatingWindowEnabled(it) },
                             cardOpacity = cardOpacity
                         )
+
+                        if (platform.isWindows) {
+                            VBCableSettingsSection(
+                                cardOpacity = cardOpacity,
+                                strings = strings
+                            )
+                        }
                     }
 
                     // Auto check update toggle (all platforms)
@@ -1750,3 +1761,116 @@ private fun AlgorithmInfoItem(
         )
     }
 }
+
+@Composable
+fun VBCableSettingsSection(
+    cardOpacity: Float,
+    strings: AppStrings
+) {
+    var isVBCableInstalled by remember { mutableStateOf(false) }
+    var installing by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    
+    val progressFlow = getVBCableInstallProgress()
+    val progress by progressFlow.collectAsState(initial = null)
+    
+    LaunchedEffect(Unit) {
+        isVBCableInstalled = isVirtualDeviceInstalled()
+    }
+    
+    LaunchedEffect(progress) {
+        if (progress != null) {
+            installing = true
+            statusMessage = progress
+        } else {
+            if (installing) {
+                isVBCableInstalled = isVirtualDeviceInstalled()
+                installing = false
+                statusMessage = null
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    strings.vbcableSettingsLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (!installing) {
+                    Text(
+                        if (isVBCableInstalled) strings.vbcableInstalled else strings.vbcableNotInstalled,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (isVBCableInstalled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            if (statusMessage != null) {
+                Text(
+                    statusMessage!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = { 
+                        installing = true
+                        statusMessage = strings.vbcableInstalling
+                        kotlinx.coroutines.GlobalScope.launch {
+                            installVBCable()
+                        }
+                    },
+                    enabled = !installing && !isVBCableInstalled,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Rounded.InstallDesktop,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(strings.vbcableInstall)
+                }
+                
+                OutlinedButton(
+                    onClick = { 
+                        installing = true
+                        statusMessage = strings.vbcableUninstalling
+                        kotlinx.coroutines.GlobalScope.launch {
+                            uninstallVirtualDevice()
+                        }
+                    },
+                    enabled = !installing && isVBCableInstalled,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Rounded.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(strings.vbcableUninstall)
+                }
+            }
+        }
+    }
+}
+
+expect fun isVirtualDeviceInstalled(): Boolean
+expect suspend fun uninstallVirtualDevice()

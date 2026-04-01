@@ -85,6 +85,23 @@ object VBCableManager {
         val setupInBase = File(baseDir, INSTALLER_NAME)
         if (setupInBase.exists()) return setupInBase
         
+        val resourcePath = "/$INSTALLER_NAME"
+        val resourceUrl = VBCableManager::class.java.getResource(resourcePath)
+        if (resourceUrl != null) {
+            val tempFile = File(System.getProperty("java.io.tmpdir"), INSTALLER_NAME)
+            if (!tempFile.exists()) {
+                tempFile.outputStream().use { output ->
+                    VBCableManager::class.java.getResourceAsStream(resourcePath)?.use { input ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+            if (tempFile.exists()) {
+                Logger.i("VBCableManager", "Found VB-Cable installer in resources: ${tempFile.absolutePath}")
+                return tempFile
+            }
+        }
+        
         return null
     }
 
@@ -438,7 +455,72 @@ object VBCableManager {
         } ?: Logger.w("VBCableManager", "No original speaker saved to restore")
     }
 
-    fun uninstall() {
-        Logger.w("VBCableManager", "Uninstall functionality not fully implemented. Please uninstall from Control Panel.")
+    suspend fun uninstall(progressCallback: (String?) -> Unit) = withContext(Dispatchers.IO) {
+        if (!PlatformInfo.isWindows) {
+            Logger.w("VBCableManager", "Uninstall not supported on this platform")
+            return@withContext
+        }
+
+        if (!isInstalled()) {
+            Logger.i("VBCableManager", "VB-Cable not installed, nothing to uninstall")
+            progressCallback("VB-Cable not installed")
+            delay(1500)
+            progressCallback(null)
+            return@withContext
+        }
+
+        progressCallback("Uninstalling VB-Cable driver...")
+
+        val installerFile = getVBCableSetupPath()
+        if (installerFile == null || !installerFile.exists()) {
+            Logger.e("VBCableManager", "Installer not found for uninstallation")
+            progressCallback("Installer not found, please uninstall from Control Panel")
+            delay(3000)
+            progressCallback(null)
+            return@withContext
+        }
+
+        try {
+            Logger.i("VBCableManager", "Uninstalling VB-Cable driver...")
+            
+            val processBuilder = ProcessBuilder(
+                installerFile.absolutePath, "-u", "-h"
+            )
+            processBuilder.redirectErrorStream(true)
+            val process = processBuilder.start()
+            
+            process.waitFor(60, TimeUnit.SECONDS)
+            
+            var uninstalled = false
+            var waited = 0
+            val maxWait = 30
+            
+            while (waited < maxWait) {
+                delay(2000)
+                waited += 2
+                
+                if (!isInstalled()) {
+                    uninstalled = true
+                    Logger.i("VBCableManager", "VB-Cable uninstall verified")
+                    break
+                } else {
+                    Logger.i("VBCableManager", "Waiting for uninstall... (${waited}s)")
+                }
+            }
+            
+            if (uninstalled) {
+                initialized = false
+                settings.putBoolean(KEY_CONFIGURED, false)
+                progressCallback("Uninstall completed")
+            } else {
+                progressCallback("Uninstall may require manual removal from Control Panel")
+            }
+        } catch (e: Exception) {
+            Logger.e("VBCableManager", "Uninstall error: ${e.message}", e)
+            progressCallback("Uninstall error: ${e.message}")
+        } finally {
+            delay(3000)
+            progressCallback(null)
+        }
     }
 }

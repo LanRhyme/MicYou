@@ -218,6 +218,18 @@ data class AppStrings(
     val installDeviceCreated: String = "Virtual device created, configuring...",
     val installDeviceFailed: String = "Virtual device creation failed, check system permissions and audio service",
     
+    // VB Cable Settings
+    val vbcableSettingsLabel: String = "VB-Cable 驱动",
+    val vbcableInstall: String = "安装 VB-Cable",
+    val vbcableUninstall: String = "卸载 VB-Cable",
+    val vbcableInstalled: String = "已安装",
+    val vbcableNotInstalled: String = "未安装",
+    val vbcableInstalling: String = "正在安装 VB-Cable...",
+    val vbcableUninstalling: String = "正在卸载 VB-Cable...",
+    val vbcableNeedsAdmin: String = "需要管理员权限，请以管理员身份运行应用",
+    val vbcableUninstallComplete: String = "卸载完成",
+    val vbcableUninstallFailed: String = "卸载失败，请从控制面板手动卸载",
+    
     // Visualizer Settings
     val visualizerStyleLabel: String = "Visualizer Style",
     val visualizerStyleVolumeRing: String = "Volume Ring",

@@ -193,5 +193,15 @@
   "visualizerStyleRipple": "漣漪",
   "visualizerStyleVolumeRing": "音量環",
   "visualizerStyleWave": "波浪",
-  "waitAdb": "等待 ADB 連線..."
+  "waitAdb": "等待 ADB 連線...",
+  "vbcableSettingsLabel": "VB-Cable 驅動程式",
+  "vbcableInstall": "安裝 VB-Cable",
+  "vbcableUninstall": "解除安裝 VB-Cable",
+  "vbcableInstalled": "已安裝",
+  "vbcableNotInstalled": "未安裝",
+  "vbcableInstalling": "正在安裝 VB-Cable...",
+  "vbcableUninstalling": "正在解除安裝 VB-Cable...",
+  "vbcableNeedsAdmin": "需要系統管理員權限，請以系統管理員身份執行應用程式",
+  "vbcableUninstallComplete": "解除安裝完成",
+  "vbcableUninstallFailed": "解除安裝失敗，請從控制台手動解除安裝"
 }

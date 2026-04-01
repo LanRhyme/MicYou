@@ -5,9 +5,11 @@ import com.lanrhyme.micyou.platform.PipeWireManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.VBCableManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 object VirtualAudioDeviceManager {
@@ -150,8 +152,23 @@ object VirtualAudioDeviceManager {
 
     fun uninstallVBCable() {
         when (PlatformInfo.currentOS) {
-            PlatformInfo.OS.WINDOWS -> VBCableManager.uninstall()
+            PlatformInfo.OS.WINDOWS -> kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                VBCableManager.uninstall { progress -> _installProgress.value = progress }
+            }
             else -> Logger.w("VirtualAudioDeviceManager", "Uninstall not supported on current platform")
+        }
+    }
+    
+    suspend fun uninstallVirtualDevice() = withContext(Dispatchers.IO) {
+        when (PlatformInfo.currentOS) {
+            PlatformInfo.OS.WINDOWS -> {
+                VBCableManager.uninstall { progress -> _installProgress.value = progress }
+            }
+            else -> {
+                _installProgress.value = "Uninstall not supported on this platform"
+                delay(2000)
+                _installProgress.value = null
+            }
         }
     }
     

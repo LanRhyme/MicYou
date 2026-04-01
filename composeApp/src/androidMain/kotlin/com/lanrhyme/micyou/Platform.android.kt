@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 class AndroidPlatform : Platform {
     override val name: String = "Android ${Build.VERSION.SDK_INT}"
     override val type: PlatformType = PlatformType.Android
+    override val isWindows: Boolean = false
     override val ipAddress: String = "Client"
     override val ipAddresses: List<String> = listOf("Client")
 }
@@ -21,6 +22,18 @@ actual fun getPlatform(): Platform = AndroidPlatform()
 actual fun uninstallVBCable() {
     // No-op on Android
 }
+
+actual suspend fun installVBCable() {
+    // No-op on Android
+}
+
+actual fun getVBCableInstallProgress(): kotlinx.coroutines.flow.Flow<String?> {
+    return kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+}
+
+actual fun isVirtualDeviceInstalled(): Boolean = false
+
+actual suspend fun uninstallVirtualDevice() { }
 
 actual fun getAppVersion(): String = BuildConfig.VERSION_NAME
 
