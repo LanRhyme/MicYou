@@ -626,6 +626,14 @@ fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit, hazeState: HazeS
     val strings = LocalAppStrings.current
     val state by viewModel.uiState.collectAsState()
     val cardOpacity = state.backgroundSettings.cardOpacity
+    val isDarkTheme = isDarkThemeActive(state.themeMode)
+    
+    // 根据主题模式选择毛玻璃颜色：浅色模式用浅色，深色模式用深色
+    val hazeContainerColor = if (isDarkTheme) {
+        MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.85f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.85f)
+    }
     
     // 页面进入动画
     var visible by remember { mutableStateOf(false) }
@@ -652,9 +660,30 @@ fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit, hazeState: HazeS
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = if (state.backgroundSettings.hasCustomBackground) {
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                        if (isDarkTheme) {
+                            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.7f)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                        }
                     } else {
-                        MaterialTheme.colorScheme.surface.copy(alpha = cardOpacity)
+                        if (isDarkTheme) {
+                            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = cardOpacity)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = cardOpacity)
+                        }
+                    },
+                    scrolledContainerColor = if (state.backgroundSettings.hasCustomBackground) {
+                        if (isDarkTheme) {
+                            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.7f)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                        }
+                    } else {
+                        if (isDarkTheme) {
+                            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = cardOpacity)
+                        } else {
+                            MaterialTheme.colorScheme.surface.copy(alpha = cardOpacity)
+                        }
                     }
                 )
             )
@@ -708,7 +737,8 @@ fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit, hazeState: HazeS
                             enabled = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f)
+                            color = hazeContainerColor,
+                            hazeColor = hazeContainerColor
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
@@ -725,10 +755,10 @@ fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit, hazeState: HazeS
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity)
+                                containerColor = hazeContainerColor
                             ),
                             shape = RoundedCornerShape(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(

@@ -231,7 +231,11 @@ fun MobileHome(viewModel: MainViewModel) {
                     animationSpec = tween(300, easing = EasingFunctions.EaseInOutExpo)
                 ) + fadeOut(animationSpec = tween(200))
             ) {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    shadowElevation = 0.dp,
+                    tonalElevation = 0.dp
+                ) {
                     DesktopSettings(viewModel = viewModel, onClose = { showSettings = false })
                 }
             }
@@ -955,7 +959,6 @@ private fun MobileMainButton(
             },
             interactionSource = interactionSource,
             containerColor = buttonColor,
-            contentColor = Color.White,
             modifier = Modifier.size(buttonSize),
             shape = CircleShape,
             elevation = FloatingActionButtonDefaults.elevation(
