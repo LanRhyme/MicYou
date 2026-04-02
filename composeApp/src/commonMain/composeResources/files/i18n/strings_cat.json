@@ -192,5 +192,15 @@
   "visualizerStyleRipple": "波纹喵~",
   "visualizerStyleVolumeRing": "音量环喵~",
   "visualizerStyleWave": "波浪喵~",
-  "waitAdb": "等待 ADB 连接喵... (・_・)"
+  "waitAdb": "等待 ADB 连接喵... (・_・)",
+  "vbcableSettingsLabel": "VB-Cable Driver",
+  "vbcableInstall": "Install VB-Cable",
+  "vbcableUninstall": "Uninstall VB-Cable",
+  "vbcableInstalled": "Installed",
+  "vbcableNotInstalled": "Not Installed",
+  "vbcableInstalling": "Installing VB-Cable...",
+  "vbcableUninstalling": "Uninstalling VB-Cable...",
+  "vbcableNeedsAdmin": "Administrator privileges required, please run the application as administrator",
+  "vbcableUninstallComplete": "Uninstallation complete",
+  "vbcableUninstallFailed": "Uninstallation failed, please uninstall manually from Control Panel"
 }
