@@ -31,6 +31,10 @@ actual fun getVBCableInstallProgress(): kotlinx.coroutines.flow.Flow<String?> {
     return kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 }
 
+actual fun resetVBCableInstallState() {
+    // No-op on Android
+}
+
 actual fun isVirtualDeviceInstalled(): Boolean = false
 
 actual suspend fun uninstallVirtualDevice() { }

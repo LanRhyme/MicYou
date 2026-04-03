@@ -63,6 +63,14 @@ object VBCableManager {
         settings.putBoolean(KEY_CONFIGURED, true)
     }
 
+    fun resetInstallState() {
+        initialized = false
+        settings.putBoolean(KEY_CONFIGURED, false)
+        settings.putString(KEY_ORIGINAL_SPEAKER, "")
+        originalSpeaker = null
+        Logger.i("VBCableManager", "Install state reset")
+    }
+
     private fun getSoundVolumeViewPath(): File? {
         val baseDir = File(System.getProperty("user.dir"))
         
@@ -250,6 +258,47 @@ object VBCableManager {
         setDeviceFormat("VB-Audio Virtual Cable\\Device\\CABLE Output\\Capture", 16, 48000, 1)
     }
 
+    /**
+     * Check if the current process is running with administrator privileges.
+     * This is a pure utility function with no side effects.
+     * @return true if running as administrator, false otherwise
+     */
+    private fun isAdmin(): Boolean {
+        return try {
+            val process = ProcessBuilder("net", "session").redirectErrorStream(true).start()
+            val exitCode = process.waitFor()
+            exitCode == 0
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun readProcessOutput(process: Process): String {
+        return try {
+            process.inputStream.bufferedReader().readText().trim()
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    /**
+     * Check administrator privileges and handle user feedback.
+     * This is a business logic function that wraps isAdmin() with logging and progress callbacks.
+     * @param operation The operation name for logging (e.g., "Installation", "Uninstallation")
+     * @param progressCallback Callback to report progress to the user
+     * @return true if has admin privileges, false otherwise
+     */
+    private suspend fun checkAdminPrivileges(operation: String, progressCallback: (String?) -> Unit): Boolean {
+        if (!isAdmin()) {
+            Logger.e("VBCableManager", "$operation requires administrator privileges")
+            progressCallback(strings.vbcableNeedsAdmin)
+            delay(3000)
+            progressCallback(null)
+            return false
+        }
+        return true
+    }
+
     suspend fun install(progressCallback: (String?) -> Unit) = withContext(Dispatchers.IO) {
         if (initialized) {
             Logger.i("VBCableManager", "VB-Cable already configured, skipping")
@@ -266,6 +315,10 @@ object VBCableManager {
             progressCallback(strings.installConfigComplete)
             delay(1000)
             progressCallback(null)
+            return@withContext
+        }
+
+        if (!checkAdminPrivileges("Installation", progressCallback)) {
             return@withContext
         }
         
@@ -294,7 +347,7 @@ object VBCableManager {
             return@withContext
         }
 
-        Logger.i("VBCableManager", "Installing VB-Cable...")
+        Logger.i("VBCableManager", "Installing VB-Cable from: ${installerFile.absolutePath}")
         progressCallback(strings.installInstalling)
         
         try {
@@ -310,7 +363,13 @@ object VBCableManager {
             processBuilder.redirectErrorStream(true)
             val process = processBuilder.start()
             
-            process.waitFor(60, TimeUnit.SECONDS)
+            val processOutput = readProcessOutput(process)
+            val exitCode = process.waitFor()
+            
+            Logger.i("VBCableManager", "Installer exit code: $exitCode")
+            if (processOutput.isNotBlank()) {
+                Logger.i("VBCableManager", "Installer output: $processOutput")
+            }
             
             Logger.i("VBCableManager", "Waiting for device initialization...")
             progressCallback("Waiting for device initialization...")
@@ -338,7 +397,9 @@ object VBCableManager {
                     installerFile.absolutePath, "-i", "-h"
                 ).redirectErrorStream(true).start()
                 
-                retryProcess.waitFor(60, TimeUnit.SECONDS)
+                val retryOutput = readProcessOutput(retryProcess)
+                val retryExitCode = retryProcess.waitFor()
+                Logger.i("VBCableManager", "Retry exit code: $retryExitCode, output: $retryOutput")
                 
                 waited = 0
                 while (waited < maxWait) {
@@ -366,23 +427,16 @@ object VBCableManager {
                 settings.putBoolean(KEY_CONFIGURED, true)
                 progressCallback(strings.installConfigComplete)
             } else {
+                Logger.e("VBCableManager", "Installation failed - device not detected after waiting")
+                resetInstallState()
                 progressCallback(strings.installNotCompleted)
             }
         } catch (e: Exception) {
             Logger.e("VBCableManager", "Installation error: ${e.message}", e)
             
-            val errorMsg = e.message ?: ""
-            val needsAdmin = errorMsg.contains("elevation", ignoreCase = true) ||
-                            errorMsg.contains("administrator", ignoreCase = true) ||
-                            errorMsg.contains("权限", ignoreCase = true) ||
-                            errorMsg.contains("提升", ignoreCase = true) ||
-                            errorMsg.contains("admin", ignoreCase = true)
+            resetInstallState()
             
-            if (needsAdmin) {
-                progressCallback(strings.vbcableNeedsAdmin)
-            } else {
-                progressCallback(strings.installError.replace("%s", e.message ?: "Unknown error"))
-            }
+            progressCallback(strings.installError.replace("%s", e.message ?: "Unknown error"))
         } finally {
             delay(2000)
             progressCallback(null)
@@ -481,6 +535,10 @@ object VBCableManager {
             return@withContext
         }
 
+        if (!checkAdminPrivileges("Uninstallation", progressCallback)) {
+            return@withContext
+        }
+
         progressCallback("Uninstalling VB-Cable driver...")
 
         val installerFile = getVBCableSetupPath()
@@ -493,7 +551,7 @@ object VBCableManager {
         }
 
         try {
-            Logger.i("VBCableManager", "Uninstalling VB-Cable driver...")
+            Logger.i("VBCableManager", "Uninstalling VB-Cable driver from: ${installerFile.absolutePath}")
             
             val processBuilder = ProcessBuilder(
                 installerFile.absolutePath, "-u", "-h"
@@ -501,7 +559,13 @@ object VBCableManager {
             processBuilder.redirectErrorStream(true)
             val process = processBuilder.start()
             
-            process.waitFor(60, TimeUnit.SECONDS)
+            val processOutput = readProcessOutput(process)
+            val exitCode = process.waitFor()
+            
+            Logger.i("VBCableManager", "Uninstaller exit code: $exitCode")
+            if (processOutput.isNotBlank()) {
+                Logger.i("VBCableManager", "Uninstaller output: $processOutput")
+            }
             
             var uninstalled = false
             var waited = 0
@@ -523,8 +587,11 @@ object VBCableManager {
             if (uninstalled) {
                 initialized = false
                 settings.putBoolean(KEY_CONFIGURED, false)
+                settings.putString(KEY_ORIGINAL_SPEAKER, "")
+                originalSpeaker = null
                 progressCallback("Uninstall completed")
             } else {
+                Logger.e("VBCableManager", "Uninstall failed - device still present")
                 progressCallback("Uninstall may require manual removal from Control Panel")
             }
         } catch (e: Exception) {

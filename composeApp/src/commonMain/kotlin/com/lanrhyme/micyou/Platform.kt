@@ -20,6 +20,7 @@ expect fun getPlatform(): Platform
 expect fun uninstallVBCable()
 expect suspend fun installVBCable()
 expect fun getVBCableInstallProgress(): kotlinx.coroutines.flow.Flow<String?>
+expect fun resetVBCableInstallState()
 
 expect fun getAppVersion(): String
 expect fun openUrl(url: String)
