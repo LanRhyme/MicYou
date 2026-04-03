@@ -70,7 +70,7 @@
   "enableHazeEffectLabel": "毛玻璃效果",
   "enableNsLabel": "降噪 (Noise Suppression)",
   "enableVadLabel": "语音活动检测 (VAD)",
-  "enableStreamingNotificationLabel": "流媒体通知",
+  "enableStreamingNotificationLabel": "串流通知",
   "exportLog": "导出日志",
   "exportLogDesc": "导出应用日志以供调试",
   "firewallConfirm": "尝试添加",

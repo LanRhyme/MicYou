@@ -23,7 +23,7 @@ data class SettingsUiState(
     val rememberCloseAction: Boolean = false,
     val autoCheckUpdate: Boolean = true,
     val useMirrorDownload: Boolean = false,
-    val pocketMode: Boolean = true,
+    val pocketMode: Boolean = false,
     val visualizerStyle: VisualizerStyle = VisualizerStyle.Ripple,
     val backgroundSettings: BackgroundSettings = BackgroundSettings(),
     val floatingWindowEnabled: Boolean = false,
@@ -67,7 +67,7 @@ class SettingsViewModel : ViewModel() {
             CloseAction.Prompt
         }
         
-        val savedPocketMode = settings.getBoolean("pocket_mode", true)
+        val savedPocketMode = settings.getBoolean("pocket_mode", false)
         val savedVisualizerStyleName = settings.getString("visualizer_style", VisualizerStyle.Ripple.name)
         val savedVisualizerStyle = try {
             VisualizerStyle.valueOf(savedVisualizerStyleName)

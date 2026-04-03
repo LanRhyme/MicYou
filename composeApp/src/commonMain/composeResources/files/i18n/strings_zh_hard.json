@@ -193,5 +193,15 @@
   "visualizerStyleRipple": "波纹",
   "visualizerStyleVolumeRing": "音量环",
   "visualizerStyleWave": "波浪",
-  "waitAdb": "等待为了安卓调试桥接联系..."
+  "waitAdb": "等待为了安卓调试桥接联系...",
+  "vbcableSettingsLabel": "VB-电缆 驱动器件项",
+  "vbcableInstall": "安装 VB-电缆",
+  "vbcableUninstall": "解除安装 VB-电缆",
+  "vbcableInstalled": "已经安装了",
+  "vbcableNotInstalled": "没有安装",
+  "vbcableInstalling": "正在安装 VB-电缆...",
+  "vbcableUninstalling": "正在解除安装 VB-电缆...",
+  "vbcableNeedsAdmin": "需要管理者权限，请以管理者身份运行应用程序",
+  "vbcableUninstallComplete": "解除安装完成了",
+  "vbcableUninstallFailed": "解除安装失败了，请从控制面板手动解除安装"
 }
