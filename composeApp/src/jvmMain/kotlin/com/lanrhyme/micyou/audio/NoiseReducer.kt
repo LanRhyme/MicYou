@@ -24,7 +24,26 @@ class NoiseReducer(
     private var ulunasProcessorRight: UlunasProcessor? = null
     private var ulunasFrameLeft: FloatArray = FloatArray(0)
     private var ulunasFrameRight: FloatArray = FloatArray(0)
-    private var ulunasModelPath: String? = null
+    
+    // 使用伴生对象缓存模型路径，避免重复创建临时目录
+    companion object {
+        private var cachedModelPath: String? = null
+        private var tempModelDir: java.nio.file.Path? = null
+        
+        @Synchronized
+        fun cleanupTempFiles() {
+            tempModelDir?.let { dir ->
+                try {
+                    dir.toFile().deleteRecursively()
+                    Logger.d("NoiseReducer", "Cleaned up temp model directory: $dir")
+                } catch (e: Exception) {
+                    Logger.w("NoiseReducer", "Failed to cleanup temp directory: ${e.message}")
+                }
+                tempModelDir = null
+                cachedModelPath = null
+            }
+        }
+    }
 
     var speechProbability: Float? = null
         private set
@@ -160,21 +179,27 @@ class NoiseReducer(
     }
     
     private fun getUlnasModelPath(): String {
-        ulunasModelPath?.let { return it }
+        // 首先检查缓存的路径
+        cachedModelPath?.let { 
+            if (java.io.File(it).exists()) return it 
+        }
         
         System.getProperty("micyou.ulunas.model.path")?.let {
             Logger.i("NoiseReducer", "Using system property Ulunas model path: $it")
-            ulunasModelPath = it
+            cachedModelPath = it
             return it
         }
 
-        val tempDir = Files.createTempDirectory("micyou")
-        Logger.d("NoiseReducer", "Created temp directory: ${tempDir}")
-        val modelFile = tempDir.resolve("ulunas.onnx").toFile()
+        // 尝试使用用户主目录下的固定位置，而不是临时目录
+        val userDir = java.io.File(System.getProperty("user.home"), ".micyou")
+        if (!userDir.exists()) {
+            userDir.mkdirs()
+        }
+        val modelFile = java.io.File(userDir, "ulunas.onnx")
 
         if (modelFile.exists() && modelFile.length() > 0) {
-            Logger.i("NoiseReducer", "Found existing model in temp: ${modelFile.absolutePath}, size: ${modelFile.length()}")
-            ulunasModelPath = modelFile.absolutePath
+            Logger.i("NoiseReducer", "Found existing model in user dir: ${modelFile.absolutePath}, size: ${modelFile.length()}")
+            cachedModelPath = modelFile.absolutePath
             return modelFile.absolutePath
         }
 
@@ -190,8 +215,7 @@ class NoiseReducer(
         }
 
         Logger.i("NoiseReducer", "Copied model to: ${modelFile.absolutePath}, size: ${modelFile.length()}")
-        modelFile.deleteOnExit()
-        ulunasModelPath = modelFile.absolutePath
+        cachedModelPath = modelFile.absolutePath
         return modelFile.absolutePath
     }
 

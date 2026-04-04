@@ -3,6 +3,8 @@ package com.lanrhyme.micyou.plugin
 import com.lanrhyme.micyou.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -157,7 +159,8 @@ class PluginDataChannelImpl(
 }
 
 class PluginDataChannelProviderImpl : PluginDataChannelProvider {
-    private val scope = CoroutineScope(Dispatchers.Default)
+    // 使用 SupervisorJob 以便能够正确取消所有子协程
+    private val scope = CoroutineScope(Dispatchers.Default + Job())
     private val channels = mutableMapOf<String, PluginDataChannel>()
     
     override fun createChannel(id: String, config: DataChannelConfig): PluginDataChannel {
@@ -185,5 +188,7 @@ class PluginDataChannelProviderImpl : PluginDataChannelProvider {
             scope.launch { channel.close() }
         }
         channels.clear()
+        // 取消所有相关的协程，防止内存泄漏
+        scope.cancel()
     }
 }

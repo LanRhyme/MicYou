@@ -1,5 +1,6 @@
 package com.lanrhyme.micyou.audio
 
+import java.nio.ByteBuffer
 import kotlin.math.abs
 
 class ResamplerEffect : AudioEffect {
@@ -8,22 +9,53 @@ class ResamplerEffect : AudioEffect {
     private var resamplePosFrames: Double = 0.0
     private var resamplePrevFrame: ShortArray = ShortArray(0)
     private var scratchResampledShorts: ShortArray = ShortArray(0)
+    private val lock = Any()
     
-    // 播放比率控制
     var playbackRatioIntegral: Double = 0.0
         private set
 
-    override fun process(input: ShortArray, channelCount: Int): ShortArray {
-        if (abs(playbackRatio - 1.0) < 0.00005) {
-            return input
+    data class ProcessResult(val buffer: ShortArray, val validLength: Int)
+    
+    fun processWithLength(input: ShortArray, channelCount: Int): ProcessResult {
+        synchronized(lock) {
+            if (abs(playbackRatio - 1.0) < 0.00005) {
+                return ProcessResult(input, input.size)
+            }
+            
+            val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
+            return ProcessResult(scratchResampledShorts.copyOf(processedShortCount), processedShortCount)
         }
-        
-        val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
-        
-        // 如果计数与输入大小匹配，可能是重采样不足或透传
-        // 但为了安全和 API 一致性，我们返回 scratch 缓冲区的有效部分
-        return scratchResampledShorts.copyOf(processedShortCount)
     }
+    
+    override fun process(input: ShortArray, channelCount: Int): ShortArray {
+        synchronized(lock) {
+            if (abs(playbackRatio - 1.0) < 0.00005) {
+                lastProcessLength = input.size
+                return input
+            }
+            
+            val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
+            lastProcessLength = processedShortCount
+            
+            return scratchResampledShorts.copyOf(processedShortCount)
+        }
+    }
+    
+    fun processToByteBuffer(input: ShortArray, channelCount: Int, output: ByteBuffer): Int {
+        synchronized(lock) {
+            if (abs(playbackRatio - 1.0) < 0.00005) {
+                output.asShortBuffer().put(input)
+                return input.size
+            }
+            
+            val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
+            output.asShortBuffer().put(scratchResampledShorts, 0, processedShortCount)
+            return processedShortCount
+        }
+    }
+    
+    var lastProcessLength: Int = 0
+        private set
     
     fun updatePlaybackRatio(queuedMs: Long): Double {
         val targetMs = 80.0
@@ -84,6 +116,15 @@ class ResamplerEffect : AudioEffect {
             val frac = pos - base.toDouble()
 
             val outBase = outFrames * channelCount
+            
+            // 检查是否需要扩容，预先分配足够空间避免频繁扩容
+            val required = (outFrames + 1) * channelCount
+            if (required > scratchResampledShorts.size) {
+                // 预分配更大的空间（按预估大小的1.5倍），避免循环内频繁扩容
+                val newSize = ((estimatedOutFrames * channelCount * 1.5).toInt()).coerceAtLeast(required)
+                scratchResampledShorts = ShortArray(newSize)
+            }
+            
             for (c in 0 until channelCount) {
                 val s0 = sample(base, c)
                 val s1 = sample(base + 1, c)
@@ -93,11 +134,6 @@ class ResamplerEffect : AudioEffect {
 
             outFrames++
             pos += ratio
-
-            val required = (outFrames + 1) * channelCount
-            if (required > scratchResampledShorts.size) {
-                scratchResampledShorts = scratchResampledShorts.copyOf((scratchResampledShorts.size * 2).coerceAtLeast(required))
-            }
         }
 
         val lastFrameOffset = (inputFrames - 1) * channelCount

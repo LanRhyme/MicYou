@@ -4,10 +4,6 @@ import com.lanrhyme.micyou.NoiseReductionType
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-/**
- * 编排音频处理管道。
- * 管理音频效果器链并处理格式转换。
- */
 class AudioProcessorPipeline {
     private val noiseReducer = NoiseReducer()
     private val dereverbEffect = DereverbEffect()
@@ -16,9 +12,9 @@ class AudioProcessorPipeline {
     private val vadEffect = VADEffect()
     private val resamplerEffect = ResamplerEffect()
 
-    // 临时缓冲区
     private var scratchShorts: ShortArray = ShortArray(0)
     private var scratchResultBuffer: ByteArray = ByteArray(0)
+    private var scratchResultByteBuffer: ByteBuffer? = null
 
     fun updateConfig(
         enableNS: Boolean,
@@ -46,51 +42,46 @@ class AudioProcessorPipeline {
         amplifierEffect.gainDb = amplification
     }
 
-    /**
-     * 通过管道处理音频缓冲区。
-     * 
-     * @param inputBuffer 来自网络的原始音频字节。
-     * @param audioFormat 音频格式 ID (例如 PCM_16BIT, PCM_FLOAT)。
-     * @param channelCount 声道数。
-     * @param queuedDurationMs 输出缓冲区中当前排队的音频时长（用于重采样控制）。
-     * @return 准备输出的处理后音频字节，如果输入无效则返回 null。
-     */
     fun process(
         inputBuffer: ByteArray,
         audioFormat: Int,
         channelCount: Int,
         queuedDurationMs: Long
     ): ByteArray? {
-        // 1. 将字节转换为 Short
         val shorts = convertToShorts(inputBuffer, audioFormat)
         if (shorts == null || shorts.isEmpty()) return null
 
         var processed = shorts
 
-        // 2. 按顺序应用效果
-
-        // 放大器 (前置增益)
         processed = amplifierEffect.process(processed, channelCount)
-
-        // 降噪
         processed = noiseReducer.process(processed, channelCount)
-
-        // 去混响
         processed = dereverbEffect.process(processed, channelCount)
-
-        // 自动增益控制 (AGC)
         processed = agcEffect.process(processed, channelCount)
-
-        // 语音活动检测 (VAD) (使用降噪模块的语音概率)
+        
         vadEffect.speechProbability = noiseReducer.speechProbability
         processed = vadEffect.process(processed, channelCount)
         
-        // 重采样器 (播放速度控制)
         resamplerEffect.updatePlaybackRatio(queuedDurationMs)
-        processed = resamplerEffect.process(processed, channelCount)
+        
+        val maxOutputShorts = ((processed.size / playbackRatioLowerBound) + 16).toInt()
+        val neededBytes = maxOutputShorts * 2
+        ensureOutputBufferCapacity(neededBytes)
+        
+        val outputBuffer = scratchResultByteBuffer!!
+        outputBuffer.clear()
+        
+        val processedShortCount = resamplerEffect.processToByteBuffer(processed, channelCount, outputBuffer)
+        
+        return scratchResultBuffer.copyOf(processedShortCount * 2)
+    }
+    
+    private val playbackRatioLowerBound: Double get() = 0.97
 
-        // 3. 将 Short 转换回字节
-        return convertToBytes(processed)
+    private fun ensureOutputBufferCapacity(neededBytes: Int) {
+        if (scratchResultBuffer.size < neededBytes) {
+            scratchResultBuffer = ByteArray(neededBytes)
+            scratchResultByteBuffer = ByteBuffer.wrap(scratchResultBuffer).order(ByteOrder.LITTLE_ENDIAN)
+        }
     }
 
     private fun convertToShorts(buffer: ByteArray, format: Int): ShortArray? {
@@ -139,16 +130,6 @@ class AudioProcessorPipeline {
         return shorts
     }
 
-    private fun convertToBytes(shorts: ShortArray): ByteArray {
-        val neededBytes = shorts.size * 2
-        if (scratchResultBuffer.size != neededBytes) {
-            scratchResultBuffer = ByteArray(neededBytes)
-        }
-        val resultBuffer = scratchResultBuffer
-        ByteBuffer.wrap(resultBuffer).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(shorts)
-        return resultBuffer
-    }
-
     fun release() {
         noiseReducer.release()
         dereverbEffect.release()
@@ -158,9 +139,6 @@ class AudioProcessorPipeline {
         resamplerEffect.release()
     }
 
-    /**
-     * 重置管道状态以适应新连接。
-     */
     fun reset() {
         noiseReducer.reset()
         dereverbEffect.reset()

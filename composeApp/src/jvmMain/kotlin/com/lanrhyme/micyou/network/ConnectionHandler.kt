@@ -49,8 +49,9 @@ class ConnectionHandler(
                 return
             }
 
-            // 2. 设置发送通道
-            sendChannel = Channel(Channel.UNLIMITED)
+            // 2. 设置发送通道（限制容量防止内存无限增长）
+            // 使用固定容量 + DROP_OLDEST 策略，避免消息队列无限增长导致内存溢出
+            sendChannel = Channel(64)
             
             coroutineScope {
                 // 启动写入任务

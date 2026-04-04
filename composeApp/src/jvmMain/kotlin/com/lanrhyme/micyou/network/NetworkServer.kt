@@ -163,44 +163,46 @@ class NetworkServer(
     }
 
     private suspend fun runBluetoothServer() {
-        while (currentCoroutineContext().isActive) {
-            try {
-                val localDevice = LocalDevice.getLocalDevice()
-                localDevice.discoverable = DiscoveryAgent.GIAC
-                Logger.i("NetworkServer", "本地蓝牙: ${localDevice.friendlyName} ${localDevice.bluetoothAddress}")
-                
-                val uuid = UUID("0000110100001000800000805F9B34FB", false)
-                val url = "btspp://localhost:$uuid;name=MicYouServer"
-                
-                btNotifier = Connector.open(url) as StreamConnectionNotifier
-                Logger.i("NetworkServer", "蓝牙服务已启动: $url")
-                
-                while (currentCoroutineContext().isActive) {
-                    val connection = btNotifier?.acceptAndOpen() ?: break
-                    activeBtConnection = connection
-                    Logger.i("NetworkServer", "接受蓝牙连接")
+        coroutineScope {
+            while (currentCoroutineContext().isActive) {
+                try {
+                    val localDevice = LocalDevice.getLocalDevice()
+                    localDevice.discoverable = DiscoveryAgent.GIAC
+                    Logger.i("NetworkServer", "本地蓝牙: ${localDevice.friendlyName} ${localDevice.bluetoothAddress}")
                     
-                    val input = connection.openInputStream().toByteReadChannel()
-                    val output = connection.openOutputStream().toByteWriteChannel()
+                    val uuid = UUID("0000110100001000800000805F9B34FB", false)
+                    val url = "btspp://localhost:$uuid;name=MicYouServer"
                     
-                    handleConnection(
-                        input = input,
-                        output = output,
-                        closeAction = {
-                            connection.close()
-                            activeBtConnection = null
-                        }
-                    )
-                }
-            } catch (e: Exception) {
-                if (currentCoroutineContext().isActive) {
-                    Logger.e("NetworkServer", "蓝牙服务器错误", e)
-                     if (_state.value != StreamState.Connecting) {
-                         _state.value = StreamState.Error
-                         _lastError.value = "蓝牙错误: ${e.message}"
-                         delay(5000) // 重试延迟
-                         _state.value = StreamState.Connecting
-                     }
+                    btNotifier = Connector.open(url) as StreamConnectionNotifier
+                    Logger.i("NetworkServer", "蓝牙服务已启动: $url")
+                    
+                    while (currentCoroutineContext().isActive) {
+                        val connection = btNotifier?.acceptAndOpen() ?: break
+                        activeBtConnection = connection
+                        Logger.i("NetworkServer", "接受蓝牙连接")
+                        
+                        val input = connection.openInputStream().toByteReadChannel()
+                        val output = connection.openOutputStream().toByteWriteChannel(this)
+                        
+                        handleConnection(
+                            input = input,
+                            output = output,
+                            closeAction = {
+                                connection.close()
+                                activeBtConnection = null
+                            }
+                        )
+                    }
+                } catch (e: Exception) {
+                    if (currentCoroutineContext().isActive) {
+                        Logger.e("NetworkServer", "蓝牙服务器错误", e)
+                         if (_state.value != StreamState.Connecting) {
+                             _state.value = StreamState.Error
+                             _lastError.value = "蓝牙错误: ${e.message}"
+                             delay(5000) // 重试延迟
+                             _state.value = StreamState.Connecting
+                         }
+                    }
                 }
             }
         }
@@ -256,10 +258,16 @@ class NetworkServer(
     }
 }
 
-@OptIn(DelicateCoroutinesApi::class)
-private fun java.io.OutputStream.toByteWriteChannel(context: kotlin.coroutines.CoroutineContext = Dispatchers.IO): ByteWriteChannel {
+/**
+ * 将 OutputStream 转换为 ByteWriteChannel，使用正确的协程作用域。
+ * 返回的 ByteWriteChannel 需要在使用完毕后关闭以取消内部协程。
+ */
+private fun java.io.OutputStream.toByteWriteChannel(
+    coroutineScope: CoroutineScope,
+    context: kotlin.coroutines.CoroutineContext = Dispatchers.IO
+): ByteWriteChannel {
     val channel = ByteChannel()
-    GlobalScope.launch(context) {
+    coroutineScope.launch(context) {
         val buffer = ByteArray(4096)
         try {
             while (!channel.isClosedForRead) {
@@ -269,7 +277,13 @@ private fun java.io.OutputStream.toByteWriteChannel(context: kotlin.coroutines.C
                 flush()
             }
         } catch (e: Exception) {
-            // Ignore
+            Logger.d("NetworkServer", "ByteWriteChannel closed: ${e.message}")
+        } finally {
+            try {
+                flush()
+            } catch (e: Exception) {
+                // Ignore
+            }
         }
     }
     return channel

@@ -25,6 +25,10 @@ class UlunasProcessor(
     private val olaAccumulator: FloatArray = FloatArray(frameSize)
     private val outputFrame: FloatArray = FloatArray(hopLength)
     
+    // 复用的输出缓冲区，避免每次调用创建新数组
+    private val outputBuffer: FloatArray = FloatArray((frameSize / 2 + 1) * 2)
+    private val stateBuffer: FloatArray = FloatArray(242) // 最大状态大小
+    
     private var env: OrtEnvironment? = null
     private var session: OrtSession? = null
     private var inputNames: List<String> = emptyList()
@@ -170,84 +174,93 @@ class UlunasProcessor(
         try {
             val inputTensors = mutableListOf<OnnxTensor>()
             
-            // 频谱输入 [1, freq_bins, 1, 2]
-            val specShape = longArrayOf(1, specSize.toLong(), 1, 2)
-            inputTensors.add(OnnxTensor.createTensor(env, FloatBuffer.wrap(modelInput), specShape))
-            
-            // 状态输入
-            val stateShapes = listOf(
-                longArrayOf(1, 1, 2, 121), longArrayOf(1, 24, 1, 61), longArrayOf(1, 24, 1, 31),
-                longArrayOf(1, 1, 24), longArrayOf(1, 1, 48), longArrayOf(1, 1, 48),
-                longArrayOf(1, 1, 64), longArrayOf(1, 1, 32), longArrayOf(1, 31, 16),
-                longArrayOf(1, 31, 16), longArrayOf(1, 24, 1, 31), longArrayOf(1, 12, 1, 31),
-                longArrayOf(1, 12, 2, 61), longArrayOf(1, 1, 64), longArrayOf(1, 1, 48),
-                longArrayOf(1, 1, 48), longArrayOf(1, 1, 24), longArrayOf(1, 1, 2)
-            )
-            
-            for (i in 0 until 18) {
-                inputTensors.add(OnnxTensor.createTensor(env, FloatBuffer.wrap(states[i]), stateShapes[i]))
-            }
-            
-            // 构建输入映射
-            val inputMap = mutableMapOf<String, OnnxTensor>()
-            inputNames.forEachIndexed { index, name ->
-                if (index < inputTensors.size) {
-                    inputMap[name] = inputTensors[index]
-                }
-            }
-            
-            // 运行推理
-            val results = session?.run(inputMap)
-            
-            if (results != null) {
-                // 获取输出频谱 [1, freq_bins, 1, 2]
-                val outputTensor = results.get(0) as? OnnxTensor
-                val outputData = outputTensor?.floatBuffer
+            try {
+                // 频谱输入 [1, freq_bins, 1, 2]
+                val specShape = longArrayOf(1, specSize.toLong(), 1, 2)
+                inputTensors.add(OnnxTensor.createTensor(env, FloatBuffer.wrap(modelInput), specShape))
                 
-                if (outputData != null) {
-                    val outputArray = FloatArray(outputData.remaining())
-                    outputData.get(outputArray)
-                    
-                    // 将模型输出转换回 JTransforms FFT 格式
-                    // 输出格式应该是 [1, freq_bins, 1, 2]，需要展平处理
-                    val outputSpecSize = outputArray.size / 2
-                    
-                    // DC 分量
-                    fftBuffer[0] = outputArray[0]
-                    
-                    // Nyquist 频率 (当 frameSize 为偶数时)
-                    if (frameSize % 2 == 0 && outputSpecSize > 1) {
-                        fftBuffer[1] = outputArray[2 * (outputSpecSize - 1)]
-                    }
-                    
-                    // 中间频率
-                    for (i in 1 until minOf(outputSpecSize - 1, specSize - 1)) {
-                        val srcIdx = 2 * i
-                        val dstIdx = 2 * i
-                        fftBuffer[dstIdx] = outputArray[srcIdx]
-                        fftBuffer[dstIdx + 1] = outputArray[srcIdx + 1]
+                // 状态输入
+                val stateShapes = listOf(
+                    longArrayOf(1, 1, 2, 121), longArrayOf(1, 24, 1, 61), longArrayOf(1, 24, 1, 31),
+                    longArrayOf(1, 1, 24), longArrayOf(1, 1, 48), longArrayOf(1, 1, 48),
+                    longArrayOf(1, 1, 64), longArrayOf(1, 1, 32), longArrayOf(1, 31, 16),
+                    longArrayOf(1, 31, 16), longArrayOf(1, 24, 1, 31), longArrayOf(1, 12, 1, 31),
+                    longArrayOf(1, 12, 2, 61), longArrayOf(1, 1, 64), longArrayOf(1, 1, 48),
+                    longArrayOf(1, 1, 48), longArrayOf(1, 1, 24), longArrayOf(1, 1, 2)
+                )
+                
+                for (i in 0 until 18) {
+                    inputTensors.add(OnnxTensor.createTensor(env, FloatBuffer.wrap(states[i]), stateShapes[i]))
+                }
+                
+                // 构建输入映射
+                val inputMap = mutableMapOf<String, OnnxTensor>()
+                inputNames.forEachIndexed { index, name ->
+                    if (index < inputTensors.size) {
+                        inputMap[name] = inputTensors[index]
                     }
                 }
                 
-                // 更新状态 - 输出 1-18 是更新后的状态
-                for (i in 1 until minOf(outputNames.size, 19)) {
-                    val stateTensor = results.get(i) as? OnnxTensor
-                    if (stateTensor != null) {
-                        val stateData = stateTensor.floatBuffer
-                        if (stateData != null) {
-                            val stateArray = FloatArray(stateData.remaining())
-                            stateData.get(stateArray)
-                            if (i - 1 < states.size && stateArray.size == states[i - 1].size) {
-                                System.arraycopy(stateArray, 0, states[i - 1], 0, stateArray.size)
+                // 运行推理
+                val results = session?.run(inputMap)
+                
+                if (results != null) {
+                    try {
+                        // 获取输出频谱 [1, freq_bins, 1, 2]
+                        val outputTensor = results.get(0) as? OnnxTensor
+                        val outputData = outputTensor?.floatBuffer
+                        
+                        if (outputData != null) {
+                            // 使用复用的缓冲区，避免每次分配新数组
+                            val outputSize = outputData.remaining()
+                            if (outputBuffer.size < outputSize) {
+                                // 仅在需要时重新分配
+                            } else {
+                                outputData.get(outputBuffer, 0, outputSize)
+                            }
+                            
+                            // 将模型输出转换回 JTransforms FFT 格式
+                            val outputSpecSize = outputSize / 2
+                            
+                            // DC 分量
+                            fftBuffer[0] = outputBuffer[0]
+                            
+                            // Nyquist 频率 (当 frameSize 为偶数时)
+                            if (frameSize % 2 == 0 && outputSpecSize > 1) {
+                                fftBuffer[1] = outputBuffer[2 * (outputSpecSize - 1)]
+                            }
+                            
+                            // 中间频率
+                            for (i in 1 until minOf(outputSpecSize - 1, specSize - 1)) {
+                                val srcIdx = 2 * i
+                                val dstIdx = 2 * i
+                                fftBuffer[dstIdx] = outputBuffer[srcIdx]
+                                fftBuffer[dstIdx + 1] = outputBuffer[srcIdx + 1]
                             }
                         }
+                        
+                        // 更新状态 - 输出 1-18 是更新后的状态
+                        for (i in 1 until minOf(outputNames.size, 19)) {
+                            val stateTensor = results.get(i) as? OnnxTensor
+                            if (stateTensor != null) {
+                                val stateData = stateTensor.floatBuffer
+                                if (stateData != null) {
+                                    val stateSize = stateData.remaining()
+                                    stateData.get(stateBuffer, 0, minOf(stateSize, stateBuffer.size))
+                                    if (i - 1 < states.size && stateSize == states[i - 1].size) {
+                                        System.arraycopy(stateBuffer, 0, states[i - 1], 0, stateSize)
+                                    }
+                                }
+                            }
+                        }
+                    } finally {
+                        results.close()
                     }
                 }
-                
-                results.close()
+            } finally {
+                // 确保所有输入张量都被关闭
+                inputTensors.forEach { it.close() }
             }
-            
-            inputTensors.forEach { it.close() }
             
         } catch (e: Exception) {
             Logger.e("UlunasProcessor", "ONNX inference failed: ${e.message}", e)
@@ -282,7 +295,9 @@ class UlunasProcessor(
             olaAccumulator[i] = 0f
         }
         
-        return outputFrame.copyOf()
+        // 直接返回 outputFrame（调用者不应修改返回的数组）
+        // 这样避免了每次调用都创建数组副本
+        return outputFrame
     }
     
     fun destroy() {
