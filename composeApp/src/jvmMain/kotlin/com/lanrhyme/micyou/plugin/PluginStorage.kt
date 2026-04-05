@@ -1,8 +1,8 @@
 package com.lanrhyme.micyou.plugin
 
 import com.lanrhyme.micyou.Logger
+import com.lanrhyme.micyou.util.FileSettings
 import java.io.File
-import java.util.prefs.Preferences
 
 class PluginStorage(
     override val pluginId: String,
@@ -12,7 +12,9 @@ class PluginStorage(
     private val appLanguageProvider: () -> String = { "en" },
     private val appStringProvider: ((String) -> String)? = null
 ) : PluginContext {
-    private val prefs = Preferences.userRoot().node("micyou/plugins/$pluginId")
+    private val pluginsDir = pluginInstallDir.parentFile
+    private val configFile = File(pluginsDir, "$pluginId.conf")
+    private val fileSettings = FileSettings(configFile)
 
     override val pluginDataDir: String get() = dataDir.absolutePath
 
@@ -28,14 +30,14 @@ class PluginStorage(
         }
     }
 
-    override fun getString(key: String, defaultValue: String): String = prefs.get(key, defaultValue)
-    override fun putString(key: String, value: String) = prefs.put(key, value)
-    override fun getBoolean(key: String, defaultValue: Boolean): Boolean = prefs.getBoolean(key, defaultValue)
-    override fun putBoolean(key: String, value: Boolean) = prefs.putBoolean(key, value)
-    override fun getInt(key: String, defaultValue: Int): Int = prefs.getInt(key, defaultValue)
-    override fun putInt(key: String, value: Int) = prefs.putInt(key, value)
-    override fun getFloat(key: String, defaultValue: Float): Float = prefs.getFloat(key, defaultValue)
-    override fun putFloat(key: String, value: Float) = prefs.putFloat(key, value)
+    override fun getString(key: String, defaultValue: String): String = fileSettings.getString(key, defaultValue)
+    override fun putString(key: String, value: String) = fileSettings.putString(key, value)
+    override fun getBoolean(key: String, defaultValue: Boolean): Boolean = fileSettings.getBoolean(key, defaultValue)
+    override fun putBoolean(key: String, value: Boolean) = fileSettings.putBoolean(key, value)
+    override fun getInt(key: String, defaultValue: Int): Int = fileSettings.getInt(key, defaultValue)
+    override fun putInt(key: String, value: Int) = fileSettings.putInt(key, value)
+    override fun getFloat(key: String, defaultValue: Float): Float = fileSettings.getFloat(key, defaultValue)
+    override fun putFloat(key: String, value: Float) = fileSettings.putFloat(key, value)
 
     override fun log(message: String) {
         Logger.i("Plugin-$pluginId", message)

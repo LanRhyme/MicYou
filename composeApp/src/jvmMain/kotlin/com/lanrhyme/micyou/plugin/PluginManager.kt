@@ -1,13 +1,13 @@
 package com.lanrhyme.micyou.plugin
 
 import com.lanrhyme.micyou.Logger
+import com.lanrhyme.micyou.util.FileSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.net.URLClassLoader
-import java.util.prefs.Preferences
 import java.util.zip.ZipFile
 
 class PluginManager(
@@ -304,14 +304,15 @@ class PluginManager(
         return _plugins.value.filter { it.manifest.platform == platform }
     }
 
+    private val pluginsConfigFile = File(pluginsDir.parentFile, "plugins.conf")
+    private val pluginsConfig: FileSettings by lazy { FileSettings(pluginsConfigFile) }
+
     private fun isPluginEnabled(pluginId: String): Boolean {
-        val prefs = Preferences.userRoot().node("micyou/plugins")
-        return prefs.getBoolean("${pluginId}_enabled", true)
+        return pluginsConfig.getBoolean("${pluginId}_enabled", true)
     }
 
     private fun setPluginEnabled(pluginId: String, enabled: Boolean) {
-        val prefs = Preferences.userRoot().node("micyou/plugins")
-        prefs.putBoolean("${pluginId}_enabled", enabled)
+        pluginsConfig.putBoolean("${pluginId}_enabled", enabled)
     }
 
     private fun findPluginManifest(dir: File): Pair<File, File>? {
