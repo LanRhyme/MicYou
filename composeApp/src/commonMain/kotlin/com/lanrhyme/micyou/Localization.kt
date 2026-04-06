@@ -16,6 +16,103 @@ enum class AppLanguage(val label: String, val code: String) {
 }
 
 @Serializable
+data class ErrorStrings(
+    // Error Dialog
+    val errorDialogTitle: String = "Connection Error",
+    val errorDialogDismiss: String = "Dismiss",
+    val errorDialogRetry: String = "Retry",
+    val errorDialogHelp: String = "View Help",
+    
+    // Error Titles
+    val errorNetworkTimeoutTitle: String = "Connection Timeout",
+    val errorNetworkUnreachableTitle: String = "Network Unreachable",
+    val errorPortInUseTitle: String = "Port Already in Use",
+    val errorConnectionRefusedTitle: String = "Connection Refused",
+    val errorFirewallBlockedTitle: String = "Firewall Blocked",
+    val errorPermissionDeniedTitle: String = "Permission Denied",
+    val errorAdminPrivilegeTitle: String = "Administrator Privilege Required",
+    val errorDeviceNotFoundTitle: String = "Device Not Found",
+    val errorBluetoothDisabledTitle: String = "Bluetooth Disabled",
+    val errorUsbConnectionFailedTitle: String = "USB Connection Failed",
+    val errorAdbCommandFailedTitle: String = "ADB Command Failed",
+    val errorHandshakeFailedTitle: String = "Handshake Failed",
+    val errorProtocolErrorTitle: String = "Protocol Error",
+    val errorVersionMismatchTitle: String = "Version Mismatch",
+    val errorAudioDeviceTitle: String = "Audio Device Error",
+    val errorAudioFormatTitle: String = "Audio Format Error",
+    val errorUnknownTitle: String = "Unknown Error",
+    
+    // Error Messages
+    val errorNetworkTimeoutMessage: String = "Connection timed out. Please check your network connection and target device status.",
+    val errorNetworkUnreachableMessage: String = "Cannot reach IP address: %s. Please verify the IP address and ensure both devices are on the same network.",
+    val errorPortInUseMessage: String = "Port %d is already in use by another application. Please choose a different port or close the conflicting application.",
+    val errorConnectionRefusedMessage: String = "Connection was refused. The target device may not be running MicYou or is not listening on the specified port.",
+    val errorConnectionRefusedWifiMessage: String = "Connection to %s was refused. Please ensure the desktop server is running and configured with the same port.",
+    val errorFirewallBlockedMessage: String = "Port %d is blocked by Windows Firewall. Please add a firewall rule or run the application as administrator.",
+    val errorPermissionDeniedMessage: String = "Insufficient permissions to perform this operation. Please run the application as administrator.",
+    val errorAdminPrivilegeMessage: String = "This operation requires administrator privileges. Please restart the application as administrator.",
+    val errorDeviceNotFoundMessage: String = "The specified Bluetooth device was not found. Please ensure the device is paired and Bluetooth is enabled.",
+    val errorBluetoothDisabledMessage: String = "Bluetooth is disabled on this device. Please enable Bluetooth in system settings.",
+    val errorUsbConnectionFailedMessage: String = "USB connection failed. Please check your USB cable and ensure USB debugging is enabled on your Android device.",
+    val errorAdbCommandFailedMessage: String = "ADB command execution failed. Please ensure ADB is installed and USB debugging is enabled.",
+    val errorHandshakeFailedMessage: String = "Handshake failed with the target device. This may indicate a version mismatch or protocol error.",
+    val errorProtocolErrorMessage: String = "A protocol error occurred during communication. Please restart both applications.",
+    val errorVersionMismatchMessage: String = "Version mismatch detected. Please ensure both devices are running the same version of MicYou.",
+    val errorAudioDeviceMessage: String = "Audio device error. Please check your audio device settings and restart the application.",
+    val errorAudioFormatMessage: String = "Unsupported audio format. Please try different audio settings or use auto-configuration.",
+    val errorUnknownMessage: String = "An unknown error occurred: %s",
+    
+    // Error Recovery Suggestions
+    val errorSuggestionCheckNetwork: String = "• Check your Wi-Fi or network connection",
+    val errorSuggestionCheckTargetRunning: String = "• Ensure the target device is running MicYou server",
+    val errorSuggestionTryDifferentPort: String = "• Try using a different port number",
+    val errorSuggestionChangePort: String = "• Change the port number in settings",
+    val errorSuggestionCheckOtherApps: String = "• Check if other applications are using this port",
+    val errorSuggestionCheckServerRunning: String = "• Verify the desktop server is running and ready",
+    val errorSuggestionCheckServerConfig: String = "• Check server configuration (port, firewall settings)",
+    val errorSuggestionCheckNetworkConnection: String = "• Verify network connection between devices",
+    val errorSuggestionVerifyIpAddress: String = "• Double-check the IP address",
+    val errorSuggestionCheckWifiConnected: String = "• Ensure both devices are connected to the same Wi-Fi network",
+    val errorSuggestionAddFirewallRule: String = "• Allow MicYou through Windows Firewall",
+    val errorSuggestionRunAsAdmin: String = "• Run the application as administrator",
+    val errorSuggestionCheckAntivirus: String = "• Check antivirus or security software settings",
+    val errorSuggestionEnableBluetooth: String = "• Enable Bluetooth in system settings",
+    val errorSuggestionPairDevice: String = "• Pair the Bluetooth device first",
+    val errorSuggestionCheckUsbCable: String = "• Check USB cable connection",
+    val errorSuggestionEnableUsbDebugging: String = "• Enable USB debugging in Android developer options",
+    val errorSuggestionRunAdbCommand: String = "• Run this command on PC: %s",
+    val errorSuggestionCheckAdbInstalled: String = "• Ensure ADB is installed on your computer",
+    val errorSuggestionRunAdbManually: String = "• Manually run: %s",
+    val errorSuggestionVersionMatch: String = "• Ensure both devices use the same MicYou version",
+    val errorSuggestionRestartApp: String = "• Restart the application",
+    val errorSuggestionCheckVersion: String = "• Check for updates on GitHub",
+    val errorSuggestionCheckAudioDevice: String = "• Check audio device permissions and availability",
+    val errorSuggestionChangeAudioConfig: String = "• Try different audio configuration settings",
+    val errorSuggestionUseDefaultConfig: String = "• Use default or auto configuration",
+    val errorSuggestionUpdateApp: String = "• Update to the latest version",
+    val errorSuggestionCheckLogs: String = "• Check application logs for detailed error information"
+)
+
+@Serializable
+data class UsbStrings(
+    val usbModeDialogTitle: String = "USB Connection Setup",
+    val usbModeDialogMessage: String = "USB connection requires ADB port forwarding. Please run the following command on your PC:",
+    val usbModeDialogCommand: String = "adb reverse tcp:%d tcp:%d",
+    val usbModeDialogNote: String = "Note: Make sure USB debugging is enabled on your Android device and ADB is installed on your PC.",
+    val usbModeDialogCopy: String = "Copy Command",
+    val usbModeDialogCopied: String = "Command copied!",
+    val usbModeDialogDismiss: String = "Dismiss",
+    val usbModeDialogHelp: String = "View Help",
+    
+    // USB Error Messages
+    val usbNotConnectedError: String = "USB device not connected. Please connect your Android device via USB cable.",
+    val usbAdbNotInstalledError: String = "ADB is not installed or not found in PATH. Please install Android SDK Platform Tools.",
+    val usbPortForwardingFailed: String = "ADB port forwarding failed. Please check if USB debugging is enabled.",
+    val usbConnectionTimeout: String = "USB connection timeout. Please verify the ADB command was executed successfully.",
+    val usbPermissionDenied: String = "USB debugging permission denied. Please accept the debugging request on your Android device."
+)
+
+@Serializable
 data class AppStrings(
     val appName: String = "MicYou",
     val ipLabel: String = "IP: ",
@@ -255,7 +352,13 @@ data class AppStrings(
     val vbcableNotInstalled: String = "Not Installed",
     val vbcableInstall: String = "Install",
     val vbcableInstalling: String = "Installing...",
-    val vbcableSettingsLabel: String = "VB-Cable"
+    val vbcableSettingsLabel: String = "VB-Cable",
+    
+    // Error Strings (nested)
+    val errors: ErrorStrings = ErrorStrings(),
+    
+    // USB Strings (nested)
+    val usb: UsbStrings = UsbStrings()
 )
 
 val LocalAppStrings = staticCompositionLocalOf { AppStrings() }

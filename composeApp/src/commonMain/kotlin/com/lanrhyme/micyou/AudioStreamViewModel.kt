@@ -24,6 +24,10 @@ data class AudioStreamUiState(
     val showFirewallDialog: Boolean = false,
     val pendingFirewallPort: Int? = null,
     
+    // Error Dialog State
+    val showErrorDialog: Boolean = false,
+    val errorDetails: ConnectionErrorDetails? = null,
+    
     // Audio Processing Settings
     val enableNS: Boolean = false,
     val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
@@ -205,7 +209,7 @@ class AudioStreamViewModel : ViewModel() {
         val channelCount = _uiState.value.channelCount
         val audioFormat = _uiState.value.audioFormat
 
-        _uiState.update { it.copy(streamState = StreamState.Connecting, errorMessage = null) }
+        _uiState.update { it.copy(streamState = StreamState.Connecting, errorMessage = null, showErrorDialog = false, errorDetails = null) }
 
         // 启动音频引擎（不阻塞）
         viewModelScope.launch {
@@ -217,7 +221,33 @@ class AudioStreamViewModel : ViewModel() {
                 Logger.i("AudioStreamViewModel", "Stream started successfully")
             } catch (e: Exception) {
                 Logger.e("AudioStreamViewModel", "Failed to start stream", e)
-                _uiState.update { it.copy(streamState = StreamState.Error, errorMessage = e.message) }
+                
+                // 分析错误并生成详细错误信息
+                val errorType = ConnectionErrorHelper.analyzeError(e, mode)
+                val savedLanguageName = settings.getString("language", AppLanguage.System.name)
+                val language = try { 
+                    AppLanguage.valueOf(savedLanguageName) 
+                } catch (ex: Exception) { 
+                    AppLanguage.System 
+                }
+                val strings = getStrings(language)
+                val errorDetails = ConnectionErrorHelper.generateErrorDetails(
+                    type = errorType,
+                    originalMessage = e.message ?: "Unknown error",
+                    errors = strings.errors,
+                    mode = mode,
+                    port = port,
+                    ip = ip
+                )
+                
+                _uiState.update { 
+                    it.copy(
+                        streamState = StreamState.Error, 
+                        errorMessage = errorDetails.localizedMessage,
+                        showErrorDialog = true,
+                        errorDetails = errorDetails
+                    ) 
+                }
             }
         }
 
@@ -379,6 +409,15 @@ class AudioStreamViewModel : ViewModel() {
 
     fun dismissFirewallDialog() {
         _uiState.update { it.copy(showFirewallDialog = false, pendingFirewallPort = null) }
+    }
+    
+    fun dismissErrorDialog() {
+        _uiState.update { it.copy(showErrorDialog = false) }
+    }
+    
+    fun retryAfterError() {
+        dismissErrorDialog()
+        startStream()
     }
 
     fun confirmAddFirewallRule() {

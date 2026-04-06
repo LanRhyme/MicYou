@@ -62,37 +62,48 @@ class NetworkServer(
         _state.value = StreamState.Connecting
         _lastError.value = null
 
-        coroutineScope {
-            serverJob = launch(Dispatchers.IO) {
-                try {
-                    if (mode == ConnectionMode.Bluetooth) {
-                        if (PlatformInfo.isLinux) {
-                            runLinuxBluetoothServer()
-                        } else {
-                            runBluetoothServer()
-                        }
+        // 使用 CompletableDeferred 确保绑定成功后才返回，同时捕获异常
+        val startupComplete = CompletableDeferred<Unit>()
+        
+        serverJob = CoroutineScope(Dispatchers.IO).launch {
+            try {
+                if (mode == ConnectionMode.Bluetooth) {
+                    if (PlatformInfo.isLinux) {
+                        runLinuxBluetoothServer(startupComplete)
                     } else {
-                        runTcpServer(port)
+                        runBluetoothServer(startupComplete)
                     }
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Logger.e("NetworkServer", "服务器致命错误", e)
-                    _state.value = StreamState.Error
-                    _lastError.value = "服务器错误: ${e.message}"
-                } finally {
-                    cleanup()
-                    if (_state.value != StreamState.Error) {
-                        _state.value = StreamState.Idle
-                    }
+                } else {
+                    runTcpServer(port, startupComplete)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("NetworkServer", "服务器致命错误", e)
+                _state.value = StreamState.Error
+                _lastError.value = "服务器错误: ${e.message}"
+                startupComplete.completeExceptionally(e)
+            } finally {
+                cleanup()
+                if (_state.value != StreamState.Error) {
+                    _state.value = StreamState.Idle
                 }
             }
+        }
+        
+        // 等待启动完成，失败时抛出异常
+        try {
+            startupComplete.await()
+        } catch (e: Exception) {
+            // 取消 serverJob
+            serverJob?.cancel()
+            throw e
         }
     }
 
     private var linuxBlueZServer: LinuxBlueZServer? = null
 
-    private suspend fun runLinuxBluetoothServer() {
+    private suspend fun runLinuxBluetoothServer(startupComplete: CompletableDeferred<Unit>? = null) {
         val server = LinuxBlueZServer(
             onAudioPacketReceived = onAudioPacketReceived,
             onMuteStateChanged = onMuteStateChanged
@@ -109,11 +120,17 @@ class NetworkServer(
             launch {
                 server.lastError.collect { error ->
                     _lastError.value = error
+                    // 如果有错误且启动还未完成，通知失败
+                    if (error != null && startupComplete?.isCompleted == false) {
+                        startupComplete.completeExceptionally(Exception(error))
+                    }
                 }
             }
         }
 
+        // 先启动 server，然后通知完成
         server.start()
+        startupComplete?.complete(Unit)
     }
 
     suspend fun stop() {
@@ -133,12 +150,15 @@ class NetworkServer(
         activeHandler?.sendPluginSync(plugins, platform)
     }
 
-    private suspend fun runTcpServer(port: Int) {
+    private suspend fun runTcpServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
         try {
             val manager = SelectorManager(Dispatchers.IO)
             selectorManager = manager
             serverSocket = aSocket(manager).tcp().bind("0.0.0.0", port = port)
             Logger.i("NetworkServer", "正在监听 TCP 端口 $port")
+            
+            // 通知启动成功
+            startupComplete?.complete(Unit)
             
             while (currentCoroutineContext().isActive) {
                 val socket = serverSocket?.accept() ?: break
@@ -155,53 +175,81 @@ class NetworkServer(
                 )
             }
         } catch (e: BindException) {
-            val msg = "端口 $port 已被占用。"
-            Logger.e("NetworkServer", msg)
+            val msg = "端口 $port 已被占用。请关闭占用该端口的应用程序，或在设置中更改端口号。"
+            Logger.e("NetworkServer", msg, e)
             _lastError.value = msg
             _state.value = StreamState.Error
+            throw Exception(msg, e)
+        } catch (e: java.net.SocketException) {
+            if (e.message?.contains("Permission denied", ignoreCase = true) == true) {
+                val msg = "权限不足：无法绑定端口 $port。请尝试以管理员身份运行应用程序。"
+                Logger.e("NetworkServer", msg, e)
+                _lastError.value = msg
+                _state.value = StreamState.Error
+                throw Exception(msg, e)
+            } else {
+                val msg = "套接字错误: ${e.message}"
+                Logger.e("NetworkServer", msg, e)
+                _lastError.value = msg
+                _state.value = StreamState.Error
+                throw Exception(msg, e)
+            }
+        } catch (e: Exception) {
+            val msg = "服务器错误: ${e.message}"
+            Logger.e("NetworkServer", msg, e)
+            _lastError.value = msg
+            _state.value = StreamState.Error
+            throw e
         }
     }
 
-    private suspend fun runBluetoothServer() {
+    private suspend fun runBluetoothServer(startupComplete: CompletableDeferred<Unit>? = null) {
         coroutineScope {
-            while (currentCoroutineContext().isActive) {
-                try {
-                    val localDevice = LocalDevice.getLocalDevice()
-                    localDevice.discoverable = DiscoveryAgent.GIAC
-                    Logger.i("NetworkServer", "本地蓝牙: ${localDevice.friendlyName} ${localDevice.bluetoothAddress}")
+            try {
+                val localDevice = LocalDevice.getLocalDevice()
+                localDevice.discoverable = DiscoveryAgent.GIAC
+                Logger.i("NetworkServer", "本地蓝牙: ${localDevice.friendlyName} ${localDevice.bluetoothAddress}")
+                
+                val uuid = UUID("0000110100001000800000805F9B34FB", false)
+                val url = "btspp://localhost:$uuid;name=MicYouServer"
+                
+                btNotifier = Connector.open(url) as StreamConnectionNotifier
+                Logger.i("NetworkServer", "蓝牙服务已启动: $url")
+                
+                // 通知启动成功
+                startupComplete?.complete(Unit)
+                
+                while (currentCoroutineContext().isActive) {
+                    val connection = btNotifier?.acceptAndOpen() ?: break
+                    activeBtConnection = connection
+                    Logger.i("NetworkServer", "接受蓝牙连接")
                     
-                    val uuid = UUID("0000110100001000800000805F9B34FB", false)
-                    val url = "btspp://localhost:$uuid;name=MicYouServer"
+                    val input = connection.openInputStream().toByteReadChannel()
+                    val output = connection.openOutputStream().toByteWriteChannel(this)
                     
-                    btNotifier = Connector.open(url) as StreamConnectionNotifier
-                    Logger.i("NetworkServer", "蓝牙服务已启动: $url")
-                    
-                    while (currentCoroutineContext().isActive) {
-                        val connection = btNotifier?.acceptAndOpen() ?: break
-                        activeBtConnection = connection
-                        Logger.i("NetworkServer", "接受蓝牙连接")
-                        
-                        val input = connection.openInputStream().toByteReadChannel()
-                        val output = connection.openOutputStream().toByteWriteChannel(this)
-                        
-                        handleConnection(
-                            input = input,
-                            output = output,
-                            closeAction = {
-                                connection.close()
-                                activeBtConnection = null
-                            }
-                        )
-                    }
-                } catch (e: Exception) {
-                    if (currentCoroutineContext().isActive) {
-                        Logger.e("NetworkServer", "蓝牙服务器错误", e)
-                         if (_state.value != StreamState.Connecting) {
-                             _state.value = StreamState.Error
-                             _lastError.value = "蓝牙错误: ${e.message}"
-                             delay(5000) // 重试延迟
-                             _state.value = StreamState.Connecting
-                         }
+                    handleConnection(
+                        input = input,
+                        output = output,
+                        closeAction = {
+                            connection.close()
+                            activeBtConnection = null
+                        }
+                    )
+                }
+            } catch (e: javax.bluetooth.BluetoothStateException) {
+                val msg = "蓝牙未启用或不可用: ${e.message}。请在系统设置中启用蓝牙功能。"
+                Logger.e("NetworkServer", msg, e)
+                _state.value = StreamState.Error
+                _lastError.value = msg
+                startupComplete?.completeExceptionally(Exception(msg, e))
+            } catch (e: Exception) {
+                if (currentCoroutineContext().isActive) {
+                    Logger.e("NetworkServer", "蓝牙服务器错误", e)
+                    if (_state.value != StreamState.Connecting) {
+                        _state.value = StreamState.Error
+                        _lastError.value = "蓝牙错误: ${e.message}"
+                        delay(5000) // 重试延迟
+                        _state.value = StreamState.Connecting
                     }
                 }
             }

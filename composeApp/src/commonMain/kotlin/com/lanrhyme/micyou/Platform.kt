@@ -19,6 +19,8 @@ expect fun getPlatform(): Platform
 expect fun getAppVersion(): String
 expect fun openUrl(url: String)
 
+expect fun copyToClipboard(text: String)
+
 expect suspend fun isPortAllowed(port: Int, protocol: String): Boolean
 expect suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit>
 

@@ -20,6 +20,7 @@ import io.ktor.utils.io.readInt
 import io.ktor.utils.io.reader
 import io.ktor.utils.io.writeFully
 import io.ktor.utils.io.writeInt
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -86,6 +87,9 @@ actual class AudioEngine actual constructor() {
     private val startStopMutex = Mutex()
     private val proto = ProtoBuf { }
     
+    // CompletableDeferred for connection status
+    private var connectionComplete: CompletableDeferred<Unit>? = null
+    
     // Channel for outgoing messages (Audio + Control)
     private var sendChannel: Channel<MessageWrapper>? = null
 
@@ -136,10 +140,14 @@ actual class AudioEngine actual constructor() {
         savedAudioFormat = audioFormat
         isRunning = true
 
+        // Create CompletableDeferred to track connection status
+        connectionComplete = CompletableDeferred()
+        
         val jobToJoin = startStopMutex.withLock {
             val currentJob = job
             if (currentJob != null && !currentJob.isCompleted) {
                 Logger.w("AudioEngine", "AudioEngine already running, ignoring start request")
+                connectionComplete?.complete(Unit)  // Mark as complete since already running
                 null
             } else {
                 _state.value = StreamState.Connecting
@@ -294,6 +302,9 @@ actual class AudioEngine actual constructor() {
                         recorder.startRecording()
                         _state.value = StreamState.Streaming
                         _lastError.value = null
+                        
+                        // Notify connection success
+                        connectionComplete?.complete(Unit)
 
                         if (enableStreamingNotification) {
                             val context = ContextHelper.getContext()
@@ -423,7 +434,7 @@ actual class AudioEngine actual constructor() {
                                 }
                             }
                         }
-                    } catch (e: kotlinx.coroutines.CancellationException) {
+} catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
                         if (isActive && !isNormalDisconnect(e)) {
@@ -432,7 +443,7 @@ actual class AudioEngine actual constructor() {
                             
                             val errorMsg = when {
                                 e is java.net.ConnectException && e.message?.contains("Connection refused", ignoreCase = true) == true -> 
-                                    "连接被拒绝: 请确保电脑端已开启并处于“连接中”状态，且防火墙已放行 TCP $port 端口。"
+                                    "连接被拒绝: 请确保电脑端已开启并处于连接中状态，且防火墙已放行 TCP $port 端口。"
                                 e is java.net.SocketTimeoutException -> 
                                     "连接超时: 请检查网络连接或 IP 地址是否正确。"
                                 e is java.net.NoRouteToHostException ->
@@ -440,6 +451,9 @@ actual class AudioEngine actual constructor() {
                                 else -> "连接断开: ${e.message}"
                             }
                             _lastError.value = errorMsg
+                            
+                            // Notify connection failure
+                            connectionComplete?.completeExceptionally(Exception(errorMsg, e))
                         }
                     } finally {
                         Logger.d("AudioEngine", "Cleaning up resources")
@@ -471,7 +485,15 @@ actual class AudioEngine actual constructor() {
                 }.also { job = it }
             }
         }
-        jobToJoin?.join()
+        
+        // Wait for connection to complete or fail
+        try {
+            connectionComplete?.await()
+        } catch (e: Exception) {
+            // Cancel job on failure
+            job?.cancel()
+            throw e
+        }
     }
     
     actual fun stop() {

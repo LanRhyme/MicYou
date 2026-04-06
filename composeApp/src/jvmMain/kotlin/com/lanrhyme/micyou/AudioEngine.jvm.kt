@@ -171,7 +171,7 @@ actual class AudioEngine actual constructor() {
                 Logger.e("AudioEngine", errorMsg)
                 _lastError.value = errorMsg
                 _state.value = StreamState.Error
-                return
+                throw Exception(errorMsg)
             }
         }
         
@@ -181,12 +181,14 @@ actual class AudioEngine actual constructor() {
                 Logger.w("AudioEngine", "AudioEngine 已在运行，忽略启动请求")
                 null
             } else {
-                CoroutineScope(Dispatchers.IO).launch {
-                    networkServer.start(port, mode)
-                }.also { job = it }
+                // 直接调用 networkServer.start()，不 launch 新协程
+                // NetworkServer 内部会管理自己的协程
+                networkServer.start(port, mode)
+                Logger.i("AudioEngine", "NetworkServer started successfully")
+                null  // 不返回 job，因为我们直接等待了
             }
         }
-        jobToJoin?.join()
+        // jobToJoin 为 null，因为我们已经等待完成
     }
 
     private suspend fun processReceivedPacket(audioPacket: AudioPacketMessage) {

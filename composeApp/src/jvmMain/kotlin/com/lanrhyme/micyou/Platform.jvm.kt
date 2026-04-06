@@ -81,6 +81,17 @@ actual fun openUrl(url: String) {
     }
 }
 
+actual fun copyToClipboard(text: String) {
+    try {
+        val clipboard = java.awt.Toolkit.getDefaultToolkit().systemClipboard
+        val stringSelection = java.awt.datatransfer.StringSelection(text)
+        clipboard.setContents(stringSelection, null)
+        Logger.d("Platform", "Copied to clipboard: ${text.take(50)}...")
+    } catch (e: Exception) {
+        Logger.e("Platform", "Failed to copy to clipboard", e)
+    }
+}
+
 actual suspend fun isPortAllowed(port: Int, protocol: String): Boolean =
     withContext(Dispatchers.IO) {
         FirewallManager.isPortAllowed(port)

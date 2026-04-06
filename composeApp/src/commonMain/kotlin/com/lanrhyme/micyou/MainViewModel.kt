@@ -57,6 +57,10 @@ data class AppUiState(
     val showFirewallDialog: Boolean = false,
     val pendingFirewallPort: Int? = null,
     
+    // Error Dialog State
+    val showErrorDialog: Boolean = false,
+    val errorDetails: ConnectionErrorDetails? = null,
+    
     // Audio Processing Settings
     val enableNS: Boolean = false,
     val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
@@ -223,6 +227,8 @@ class MainViewModel : ViewModel() {
                     isAutoConfig = audioState.isAutoConfig,
                     showFirewallDialog = audioState.showFirewallDialog,
                     pendingFirewallPort = audioState.pendingFirewallPort,
+                    showErrorDialog = audioState.showErrorDialog,
+                    errorDetails = audioState.errorDetails,
                     enableNS = audioState.enableNS,
                     nsType = audioState.nsType,
                     enableAGC = audioState.enableAGC,
@@ -298,6 +304,8 @@ class MainViewModel : ViewModel() {
     fun setAutoConfig(enabled: Boolean) = audioStreamViewModel.setAutoConfig(enabled)
     fun dismissFirewallDialog() = audioStreamViewModel.dismissFirewallDialog()
     fun confirmAddFirewallRule() = audioStreamViewModel.confirmAddFirewallRule()
+    fun dismissErrorDialog() = audioStreamViewModel.dismissErrorDialog()
+    fun retryAfterError() = audioStreamViewModel.retryAfterError()
     
     // Settings methods
     fun setThemeMode(mode: ThemeMode) = settingsViewModel.setThemeMode(mode)

@@ -29,6 +29,15 @@ actual fun openUrl(url: String) {
     }
 }
 
+actual fun copyToClipboard(text: String) {
+    ContextHelper.getContext()?.let { context ->
+        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = android.content.ClipData.newPlainText("MicYou", text)
+        clipboard.setPrimaryClip(clip)
+        Logger.d("Platform", "Copied to clipboard: ${text.take(50)}...")
+    }
+}
+
 actual suspend fun isPortAllowed(port: Int, protocol: String): Boolean = true
 actual suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit> = Result.success(Unit)
 

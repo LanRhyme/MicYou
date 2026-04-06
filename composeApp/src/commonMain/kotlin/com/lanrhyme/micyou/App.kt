@@ -1,7 +1,9 @@
 package com.lanrhyme.micyou
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.AlertDialog
@@ -228,8 +230,116 @@ fun App(
                     confirmButton = { }
                 )
             }
+            
+            // Connection Error Dialog
+            val errorDetailsValue = uiState.errorDetails
+            if (uiState.showErrorDialog && errorDetailsValue != null) {
+                ConnectionErrorDialog(
+                    errorDetails = errorDetailsValue,
+                    onDismiss = { finalViewModel.dismissErrorDialog() },
+                    onRetry = { finalViewModel.retryAfterError() }
+                )
+            }
         }
     }
+}
+
+/**
+ * 连接错误对话框组件
+ * 显示详细的错误信息和恢复建议
+ */
+@Composable
+private fun ConnectionErrorDialog(
+    errorDetails: ConnectionErrorDetails,
+    onDismiss: () -> Unit,
+    onRetry: () -> Unit
+) {
+    val strings = LocalAppStrings.current
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { 
+            Text(
+                text = errorDetails.localizedTitle,
+                style = MaterialTheme.typography.titleMedium
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // 错误消息
+                Text(
+                    text = errorDetails.localizedMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                
+                // 恢复建议
+                if (errorDetails.recoverySuggestions.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Suggestions:",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    )
+                    
+                    errorDetails.recoverySuggestions.forEach { suggestion ->
+                        Text(
+                            text = suggestion,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+                        )
+                    }
+                }
+                
+                // 原始错误（可选，用于调试）
+                if (errorDetails.type == ConnectionErrorType.UnknownError) {
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "Technical details: ${errorDetails.originalMessage}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (errorDetails.showHelpButton && errorDetails.helpUrl != null) {
+                    TextButton(onClick = {
+                        openUrl(errorDetails.helpUrl)
+                        onDismiss()
+                    }) {
+                        Text(strings.errors.errorDialogHelp)
+                    }
+                }
+                
+                if (errorDetails.showRetryButton) {
+                    TextButton(onClick = onRetry) {
+                        Text(strings.errors.errorDialogRetry)
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(strings.errors.errorDialogDismiss)
+            }
+        }
+    )
 }
 
 private fun formatBytes(bytes: Long): String {
