@@ -101,6 +101,12 @@ class ResamplerEffect : AudioEffect {
         if (scratchResampledShorts.size < neededShorts) {
             scratchResampledShorts = ShortArray(neededShorts)
         }
+        
+        val maxPossibleOutFrames = ((effectiveFrames - pos) / ratio + 2).toInt()
+        val safeBufferSize = maxOf(estimatedOutFrames, maxPossibleOutFrames) * channelCount
+        if (scratchResampledShorts.size < safeBufferSize) {
+            scratchResampledShorts = ShortArray(safeBufferSize)
+        }
 
         fun sample(frameIndex: Int, channel: Int): Int {
             return if (frameIndex == 0) {
@@ -116,14 +122,6 @@ class ResamplerEffect : AudioEffect {
             val frac = pos - base.toDouble()
 
             val outBase = outFrames * channelCount
-            
-            // 检查是否需要扩容，预先分配足够空间避免频繁扩容
-            val required = (outFrames + 1) * channelCount
-            if (required > scratchResampledShorts.size) {
-                // 预分配更大的空间（按预估大小的1.5倍），避免循环内频繁扩容
-                val newSize = ((estimatedOutFrames * channelCount * 1.5).toInt()).coerceAtLeast(required)
-                scratchResampledShorts = ShortArray(newSize)
-            }
             
             for (c in 0 until channelCount) {
                 val s0 = sample(base, c)

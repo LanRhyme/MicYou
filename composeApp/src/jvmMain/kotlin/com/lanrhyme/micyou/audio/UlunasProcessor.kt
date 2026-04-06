@@ -25,9 +25,8 @@ class UlunasProcessor(
     private val olaAccumulator: FloatArray = FloatArray(frameSize)
     private val outputFrame: FloatArray = FloatArray(hopLength)
     
-    // 复用的输出缓冲区，避免每次调用创建新数组
-    private val outputBuffer: FloatArray = FloatArray((frameSize / 2 + 1) * 2)
-    private val stateBuffer: FloatArray = FloatArray(242) // 最大状态大小
+    private var outputBuffer: FloatArray = FloatArray((frameSize / 2 + 1) * 2)
+    private val stateBuffer: FloatArray = FloatArray(242)
     
     private var env: OrtEnvironment? = null
     private var session: OrtSession? = null
@@ -211,13 +210,11 @@ class UlunasProcessor(
                         val outputData = outputTensor?.floatBuffer
                         
                         if (outputData != null) {
-                            // 使用复用的缓冲区，避免每次分配新数组
                             val outputSize = outputData.remaining()
                             if (outputBuffer.size < outputSize) {
-                                // 仅在需要时重新分配
-                            } else {
-                                outputData.get(outputBuffer, 0, outputSize)
+                                outputBuffer = FloatArray(outputSize)
                             }
+                            outputData.get(outputBuffer, 0, outputSize)
                             
                             // 将模型输出转换回 JTransforms FFT 格式
                             val outputSpecSize = outputSize / 2
