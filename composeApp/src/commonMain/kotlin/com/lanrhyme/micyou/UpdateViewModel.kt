@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class UpdateUiState(
-    val newVersionAvailable: GitHubRelease? = null,
+    val updateInfo: UpdateInfo? = null,
     val updateDownloadState: UpdateDownloadState = UpdateDownloadState.Idle,
     val updateDownloadProgress: Float = 0f,
     val updateDownloadedBytes: Long = 0,
@@ -40,13 +40,14 @@ class UpdateViewModel : ViewModel() {
 
     fun checkUpdateManual(language: AppLanguage) {
         viewModelScope.launch {
-            val strings = getStrings(language)
-            // Note: snackbar message should be handled by the calling ViewModel
-            val result = updateChecker.checkUpdate()
-            
-            result.onSuccess { release ->
-                if (release != null) {
-                    _uiState.update { it.copy(newVersionAvailable = release) }
+            val cdk = settings.getString("mirror_cdk", "")
+            val result = updateChecker.checkUpdate(cdk)
+
+            result.onSuccess { info ->
+                if (info != null && !info.isLatest) {
+                    _uiState.update {
+                        it.copy(updateInfo = info)
+                    }
                 }
             }
         }
@@ -56,31 +57,54 @@ class UpdateViewModel : ViewModel() {
         val autoCheckUpdate = settings.getBoolean("auto_check_update", true)
         if (autoCheckUpdate) {
             viewModelScope.launch {
-                val result = updateChecker.checkUpdate()
-                result.onSuccess { release ->
-                    if (release != null) {
-                        _uiState.update { it.copy(newVersionAvailable = release) }
+                val cdk = settings.getString("mirror_cdk", "")
+                val result = updateChecker.checkUpdate(cdk)
+                result.onSuccess { info ->
+                    if (info != null && !info.isLatest) {
+                        _uiState.update {
+                            it.copy(updateInfo = info)
+                        }
                     }
                 }
             }
         }
     }
 
-    fun downloadAndInstallUpdate() {
-        val release = _uiState.value.newVersionAvailable ?: return
-        val asset = updateChecker.findAssetForPlatform(release)
-        if (asset == null) {
-            // No matching asset - fall back to opening the release page
-            openUrl(release.htmlUrl)
-            dismissUpdateDialog()
-            return
-        }
+    fun downloadAndInstallUpdate(useMirror: Boolean) {
+        val info = _uiState.value.updateInfo ?: return
 
         _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloading, updateErrorMessage = null) }
 
         viewModelScope.launch {
-            val targetPath = getUpdateDownloadPath(asset.name)
-            val result = updateChecker.downloadUpdate(asset.browserDownloadUrl, targetPath)
+            val downloadUrl: String?
+            val targetPath: String?
+
+            if (useMirror && info.mirrorUrl != null) {
+                // Use MirrorChyan download
+                val fileName = "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}.exe"
+                downloadUrl = info.mirrorUrl
+                targetPath = getUpdateDownloadPath(fileName)
+            } else if (info.githubRelease != null) {
+                // Use GitHub download
+                val asset = updateChecker.findAssetForPlatform(info.githubRelease)
+                if (asset == null) {
+                    openUrl(info.githubRelease.htmlUrl)
+                    dismissUpdateDialog()
+                    return@launch
+                }
+                downloadUrl = asset.browserDownloadUrl
+                targetPath = getUpdateDownloadPath(asset.name)
+            } else {
+                _uiState.update {
+                    it.copy(
+                        updateDownloadState = UpdateDownloadState.Failed,
+                        updateErrorMessage = "No download source available"
+                    )
+                }
+                return@launch
+            }
+
+            val result = updateChecker.downloadUpdate(downloadUrl, targetPath)
 
             result.onSuccess { filePath ->
                 _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloaded) }
@@ -110,11 +134,21 @@ class UpdateViewModel : ViewModel() {
     fun dismissUpdateDialog() {
         _uiState.update {
             it.copy(
-                newVersionAvailable = null,
+                updateInfo = null,
                 updateDownloadState = UpdateDownloadState.Idle,
                 updateDownloadProgress = 0f,
                 updateErrorMessage = null
             )
         }
+    }
+
+    fun openGitHubRelease() {
+        val info = _uiState.value.updateInfo
+        if (info?.githubRelease != null) {
+            openUrl(info.githubRelease.htmlUrl)
+        } else {
+            openUrl("https://github.com/LanRhyme/MicYou/releases/latest")
+        }
+        dismissUpdateDialog()
     }
 }

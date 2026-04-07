@@ -253,6 +253,17 @@ data class AppStrings(
     val autoCheckUpdateLabel: String = "Auto Check for Updates",
     val autoCheckUpdateDesc: String = "Automatically check for new versions on app launch",
 
+    // MirrorChyan
+    val mirrorCdkLabel: String = "MirrorChyan CDK",
+    val mirrorCdkDesc: String = "Use MirrorChyan mirror for faster update downloads",
+    val mirrorCdkPlaceholder: String = "Enter CDK...",
+    val mirrorDownloadLabel: String = "Mirror Download",
+    val mirrorDownloadDesc: String = "Use MirrorChyan mirror for faster downloads",
+    val githubDownloadLabel: String = "GitHub Download",
+    val mirrorCdkExpiredWarning: String = "CDK expiring soon",
+    val mirrorCdkExpiredTime: String = "Expires: %s",
+    val mirrorCdkGetLink: String = "No CDK? Get one from MirrorChyan",
+
     // First launch dialog
     val firstLaunchTitle: String = "Welcome to MicYou",
     val firstLaunchMessage: String = "You seem to be using MicYou for the first time. This app turns your Android device into a high-quality microphone for your computer via Wi-Fi, Bluetooth, or USB.",

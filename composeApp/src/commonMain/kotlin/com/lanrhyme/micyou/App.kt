@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.RadioButton
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.AlertDialog
@@ -12,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,7 +38,7 @@ fun App(
     val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
     val strings = getStrings(uiState.language)
 
-    val newVersionAvailable = uiState.newVersionAvailable
+    val updateInfo = uiState.updateInfo
     val pocketMode = uiState.pocketMode
     val useSystemTitleBar = uiState.useSystemTitleBar
     val showFirstLaunchDialog = uiState.showFirstLaunchDialog
@@ -83,15 +85,17 @@ fun App(
             }
 
             // Update Dialog
-            if (newVersionAvailable != null) {
+            if (updateInfo != null) {
                 val downloadState = uiState.updateDownloadState
                 val downloadProgress = uiState.updateDownloadProgress
                 val downloadedBytes = uiState.updateDownloadedBytes
                 val totalBytes = uiState.updateTotalBytes
                 val updateError = uiState.updateErrorMessage
+                val useMirrorDownload = uiState.useMirrorDownload
                 val isDownloading = downloadState == UpdateDownloadState.Downloading
                 val isInstalling = downloadState == UpdateDownloadState.Installing
                 val isFailed = downloadState == UpdateDownloadState.Failed
+                var selectedMirror by remember { mutableStateOf(useMirrorDownload && updateInfo.mirrorUrl != null) }
 
                 AlertDialog(
                     onDismissRequest = {
@@ -119,21 +123,63 @@ fun App(
                                     fontSize = 12.sp
                                 )
                             } else {
-                                Text(strings.updateMessage.replace("%s", newVersionAvailable.tagName))
+                                Text(strings.updateMessage.replace("%s", updateInfo.versionName))
+
+                                // Show download source selection if Mirror is available
+                                if (updateInfo.mirrorUrl != null) {
+                                    Spacer(Modifier.height(16.dp))
+                                    Text(strings.mirrorDownloadLabel, fontSize = 14.sp)
+                                    Spacer(Modifier.height(8.dp))
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        RadioButton(
+                                            selected = selectedMirror,
+                                            onClick = { selectedMirror = true }
+                                        )
+                                        Text(strings.mirrorDownloadLabel, modifier = Modifier.padding(start = 4.dp))
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        RadioButton(
+                                            selected = !selectedMirror,
+                                            onClick = { selectedMirror = false }
+                                        )
+                                        Text(strings.githubDownloadLabel, modifier = Modifier.padding(start = 4.dp))
+                                    }
+
+                                    // Show CDK expiration warning if applicable
+                                    updateInfo.cdkExpiredTime?.let { expiredTime ->
+                                        val now = System.currentTimeMillis() / 1000
+                                        val daysLeft = (expiredTime - now) / (24 * 60 * 60)
+                                        if (daysLeft in 1..7) {
+                                            Spacer(Modifier.height(8.dp))
+                                            Text(
+                                                strings.mirrorCdkExpiredWarning,
+                                                color = MaterialTheme.colorScheme.error,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     },
                     confirmButton = {
                         if (isFailed) {
                             TextButton(onClick = {
-                                openUrl(newVersionAvailable.htmlUrl)
-                                finalViewModel.dismissUpdateDialog()
+                                finalViewModel.openGitHubRelease()
                             }) {
                                 Text(strings.updateGoToGitHub)
                             }
                         } else if (!isDownloading && !isInstalling) {
                             TextButton(onClick = {
-                                finalViewModel.downloadAndInstallUpdate()
+                                finalViewModel.downloadAndInstallUpdate(selectedMirror)
                             }) {
                                 Text(strings.updateNow)
                             }

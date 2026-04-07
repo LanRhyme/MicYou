@@ -85,3 +85,28 @@ actual fun installUpdate(filePath: String) {
         Logger.e("UpdateInstaller", "Failed to install update", e)
     }
 }
+
+actual fun getMirrorOs(): String {
+    return when {
+        PlatformInfo.isWindows -> "windows"
+        PlatformInfo.isMacOS -> "darwin"
+        PlatformInfo.isLinux -> "linux"
+        else -> ""
+    }
+}
+
+actual fun getMirrorArch(): String {
+    return when {
+        PlatformInfo.isArm64 -> "arm64"
+        else -> "amd64"
+    }
+}
+
+actual fun getPlatformName(): String {
+    return when {
+        PlatformInfo.isWindows -> "Windows"
+        PlatformInfo.isMacOS -> "macOS"
+        PlatformInfo.isLinux -> "Linux"
+        else -> "Unknown"
+    }
+}

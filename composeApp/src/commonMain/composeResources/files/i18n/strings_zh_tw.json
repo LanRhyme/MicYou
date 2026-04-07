@@ -192,6 +192,15 @@
   "visualizerStyleVolumeRing": "音量環",
   "visualizerStyleWave": "波浪",
   "waitAdb": "等待 ADB 連線...",
+  "mirrorCdkLabel": "Mirror醬 CDK",
+  "mirrorCdkDesc": "使用 Mirror醬 鏡像下載更新，速度更快",
+  "mirrorCdkPlaceholder": "輸入 CDK...",
+  "mirrorDownloadLabel": "鏡像下載",
+  "mirrorDownloadDesc": "使用 Mirror醬 鏡像下載更新，速度更快",
+  "githubDownloadLabel": "GitHub 下載",
+  "mirrorCdkExpiredWarning": "CDK 即將過期",
+  "mirrorCdkExpiredTime": "過期時間: %s",
+  "mirrorCdkGetLink": "沒有 CDK？去 Mirror醬 取得",
   
   "errors": {
     "errorDialogTitle": "連線錯誤",

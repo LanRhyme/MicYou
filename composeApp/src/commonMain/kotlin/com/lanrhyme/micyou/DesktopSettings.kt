@@ -68,6 +68,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHostState
@@ -932,6 +933,15 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         cardOpacity = cardOpacity
                     )
 
+                    // Mirror download toggle
+                    SettingsSwitchItem(
+                        headline = strings.mirrorDownloadLabel,
+                        supporting = strings.mirrorDownloadDesc,
+                        checked = state.useMirrorDownload,
+                        onCheckedChange = { viewModel.setUseMirrorDownload(it) },
+                        cardOpacity = cardOpacity
+                    )
+
                     // VB-Cable management (Windows only)
                     if (isWindowsPlatform()) {
                         VBCableManagementSection(cardOpacity, viewModel)
@@ -1746,6 +1756,16 @@ fun VBCableManagementSection(
             }
         }
     }
+
+    // Mirror CDK Dialog
+    if (state.showMirrorCdkDialog) {
+        MirrorCdkDialog(
+            cdk = state.mirrorCdk,
+            onDismiss = { viewModel.dismissMirrorCdkDialog() },
+            onConfirm = { cdk -> viewModel.confirmMirrorCdk(cdk) },
+            strings = strings
+        )
+    }
 }
 
 fun SettingsSection.getLabel(strings: AppStrings): String {
@@ -1756,6 +1776,72 @@ fun SettingsSection.getLabel(strings: AppStrings): String {
         SettingsSection.Plugins -> strings.pluginsSection
         SettingsSection.About -> strings.aboutSection
     }
+}
+
+@Composable
+private fun MirrorCdkDialog(
+    cdk: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+    strings: AppStrings
+) {
+    val uriHandler = LocalUriHandler.current
+    var inputCdk by remember { mutableStateOf(cdk) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(strings.mirrorCdkLabel) },
+        text = {
+            Column {
+                Text(
+                    text = strings.mirrorCdkDesc,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = inputCdk,
+                    onValueChange = { inputCdk = it },
+                    placeholder = { Text(strings.mirrorCdkPlaceholder) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    Text(
+                        text = strings.mirrorCdkGetLink,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier.clickable {
+                            val lang = strings.languageLabel
+                            val url = if (lang.contains("中文") || lang.contains("简体") || lang.contains("繁體") || lang.contains("粤语")) {
+                                "https://mirrorchyan.com/zh/get-start"
+                            } else {
+                                "https://mirrorchyan.com/en/get-start"
+                            }
+                            uriHandler.openUri(url)
+                        }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(inputCdk) },
+                enabled = inputCdk.isNotBlank()
+            ) {
+                Text(strings.ok)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(strings.cancel)
+            }
+        }
+    )
 }
 
 /**
