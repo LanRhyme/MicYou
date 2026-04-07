@@ -374,7 +374,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger MirrorChyanUploading
-        # if: ${{ github.repository_owner == 'MicYou' }}
+        if: ${{ github.repository_owner == 'MicYou' }}
         shell: bash
         run: |
           gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_release.yml -f tag=${{ steps.tag.outputs.tag_name }}
