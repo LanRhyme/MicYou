@@ -178,8 +178,6 @@
   "updateTitle": "发现新版本喵~ ✨",
   "useDynamicColorDesc": "用系统主题色做应用主题喵~",
   "useDynamicColorLabel": "开启动态取色喵~ 🌈",
-  "useMirrorDownloadDesc": "从镜像服务器下载更新喵~（国内速度更快）(๑•̀ㅂ•́)و✧",
-  "useMirrorDownloadLabel": "用镜像下载喵~",
   "useSystemTitleBarDesc": "使用系统原生窗口装饰替代自定义标题栏喵~",
   "useSystemTitleBarLabel": "系统标题栏喵~",
   "usbAdbReverseHint": "在电脑端执行喵:",

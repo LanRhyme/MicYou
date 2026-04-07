@@ -252,8 +252,6 @@ data class AppStrings(
     val updateGoToGitHub: String = "Go to GitHub",
     val autoCheckUpdateLabel: String = "Auto Check for Updates",
     val autoCheckUpdateDesc: String = "Automatically check for new versions on app launch",
-    val useMirrorDownloadLabel: String = "Use Mirror Download",
-    val useMirrorDownloadDesc: String = "Download updates from mirror server (faster in China)",
 
     // First launch dialog
     val firstLaunchTitle: String = "Welcome to MicYou",

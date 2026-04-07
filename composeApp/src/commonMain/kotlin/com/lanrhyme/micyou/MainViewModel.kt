@@ -88,7 +88,6 @@ data class AppUiState(
     val showCloseConfirmDialog: Boolean = false,
     val rememberCloseAction: Boolean = false,
     val autoCheckUpdate: Boolean = true,
-    val useMirrorDownload: Boolean = false,
     val pocketMode: Boolean = true,
     val visualizerStyle: VisualizerStyle = VisualizerStyle.VolumeRing,
     val backgroundSettings: BackgroundSettings = BackgroundSettings(),
@@ -253,7 +252,6 @@ class MainViewModel : ViewModel() {
                     showCloseConfirmDialog = settingsState.showCloseConfirmDialog,
                     rememberCloseAction = settingsState.rememberCloseAction,
                     autoCheckUpdate = settingsState.autoCheckUpdate,
-                    useMirrorDownload = settingsState.useMirrorDownload,
                     pocketMode = settingsState.pocketMode,
                     visualizerStyle = settingsState.visualizerStyle,
                     backgroundSettings = settingsState.backgroundSettings,
@@ -331,7 +329,6 @@ class MainViewModel : ViewModel() {
     fun setFloatingWindowEnabled(enabled: Boolean) = settingsViewModel.setFloatingWindowEnabled(enabled)
     fun setUseSystemTitleBar(enabled: Boolean) = settingsViewModel.setUseSystemTitleBar(enabled)
     fun setAutoCheckUpdate(enabled: Boolean) = settingsViewModel.setAutoCheckUpdate(enabled)
-    fun setUseMirrorDownload(enabled: Boolean) = settingsViewModel.setUseMirrorDownload(enabled)
     fun setBackgroundImage(path: String?) = settingsViewModel.setBackgroundImage(path)
     fun setBackgroundBrightness(brightness: Float) = settingsViewModel.setBackgroundBrightness(brightness)
     fun setBackgroundBlur(blurRadius: Float) = settingsViewModel.setBackgroundBlur(blurRadius)

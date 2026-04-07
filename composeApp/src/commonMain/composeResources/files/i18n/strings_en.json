@@ -177,8 +177,6 @@
   "updateTitle": "New Version Available",
   "useDynamicColorDesc": "Use system accent color for app theme",
   "useDynamicColorLabel": "Enable Dynamic Color",
-  "useMirrorDownloadDesc": "Download updates from mirror server (faster in China)",
-  "useMirrorDownloadLabel": "Use Mirror Download",
   "useSystemTitleBarDesc": "Use native system window decorations instead of custom title bar",
   "useSystemTitleBarLabel": "System Title Bar",
   "usbAdbReverseHint": "Run on PC:",

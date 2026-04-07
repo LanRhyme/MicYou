@@ -80,8 +80,7 @@ class UpdateViewModel : ViewModel() {
 
         viewModelScope.launch {
             val targetPath = getUpdateDownloadPath(asset.name)
-            val useMirror = settings.getBoolean("use_mirror_download", false)
-            val result = updateChecker.downloadUpdate(asset.browserDownloadUrl, targetPath, useMirror)
+            val result = updateChecker.downloadUpdate(asset.browserDownloadUrl, targetPath)
 
             result.onSuccess { filePath ->
                 _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloaded) }

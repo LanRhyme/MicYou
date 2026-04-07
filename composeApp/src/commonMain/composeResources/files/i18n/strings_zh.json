@@ -178,8 +178,6 @@
   "updateTitle": "发现新版本",
   "useDynamicColorDesc": "使用系统主题色作为应用主题",
   "useDynamicColorLabel": "开启动态取色",
-  "useMirrorDownloadDesc": "从镜像服务器下载更新（国内速度更快）",
-  "useMirrorDownloadLabel": "使用镜像下载",
   "useSystemTitleBarDesc": "使用系统原生窗口装饰替代自定义标题栏",
   "useSystemTitleBarLabel": "系统标题栏",
   "usbAdbReverseHint": "在电脑端执行：",

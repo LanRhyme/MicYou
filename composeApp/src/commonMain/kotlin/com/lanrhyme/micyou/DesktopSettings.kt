@@ -932,15 +932,6 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         cardOpacity = cardOpacity
                     )
 
-                    // Mirror download toggle (all platforms)
-                    SettingsSwitchItem(
-                        headline = strings.useMirrorDownloadLabel,
-                        supporting = strings.useMirrorDownloadDesc,
-                        checked = state.useMirrorDownload,
-                        onCheckedChange = { viewModel.setUseMirrorDownload(it) },
-                        cardOpacity = cardOpacity
-                    )
-
                     // VB-Cable management (Windows only)
                     if (isWindowsPlatform()) {
                         VBCableManagementSection(cardOpacity, viewModel)

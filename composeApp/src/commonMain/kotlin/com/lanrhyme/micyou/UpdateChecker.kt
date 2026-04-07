@@ -52,18 +52,6 @@ class UpdateChecker {
     private val _downloadProgress = MutableStateFlow(DownloadProgress())
     val downloadProgress: StateFlow<DownloadProgress> = _downloadProgress.asStateFlow()
 
-    companion object {
-        private const val MIRROR_BASE_URL = "https://atomgit.com/gh_mirrors/mi/MicYou/releases/download/"
-    }
-
-    fun getMirrorDownloadUrl(githubUrl: String): String {
-        // Convert GitHub URL to mirror URL
-        // GitHub: https://github.com/LanRhyme/MicYou/releases/download/{tag}/{filename}
-        // Mirror: https://atomgit.com/gh_mirrors/mi/MicYou/releases/download/{tag}/{filename}
-        val releasesPath = githubUrl.substringAfter("releases/download/")
-        return "$MIRROR_BASE_URL$releasesPath"
-    }
-
     suspend fun checkUpdate(): Result<GitHubRelease?> {
         val currentVersion = getAppVersion()
         if (currentVersion == "dev") return Result.success(null)
@@ -95,12 +83,11 @@ class UpdateChecker {
         }
     }
 
-    suspend fun downloadUpdate(downloadUrl: String, targetPath: String, useMirror: Boolean = false): Result<String> {
+    suspend fun downloadUpdate(downloadUrl: String, targetPath: String): Result<String> {
         _downloadProgress.value = DownloadProgress()
-        val actualUrl = if (useMirror) getMirrorDownloadUrl(downloadUrl) else downloadUrl
-        Logger.i("UpdateChecker", "Downloading from: $actualUrl (mirror: $useMirror)")
+        Logger.i("UpdateChecker", "Downloading from: $downloadUrl")
         return try {
-            downloadClient.prepareGet(actualUrl) {
+            downloadClient.prepareGet(downloadUrl) {
                 header(HttpHeaders.UserAgent, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
             }.execute { response ->
                 val totalBytes = response.contentLength() ?: 0L
