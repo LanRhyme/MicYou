@@ -1,0 +1,50 @@
+name: mirrorchyan_release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        default: ''
+        required: false
+#   release:
+#     types: [released]
+
+jobs:
+  mirrorchyan:
+    runs-on: macos-latest
+    # if: ${{ github.repository_owner == 'LanRhyme' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: win
+            arch: x64
+            filename: 'MicYou-Win-*-installer.exe'
+          - os: macos
+            arch: x64
+            filename: 'MicYou-macOS-*-x64.dmg'
+          - os: macos
+            arch: arm64
+            filename: 'MicYou-macOS-*-arm64.dmg'
+          - os: linux
+            arch: x64
+            filename: 'MicYou-Linux-*.deb'
+          - os: android
+            arch: ''
+            filename: 'MicYou-Android-*.apk'
+
+    steps:
+      - uses: MirrorChyan/uploading-action@v1
+        with:
+          filetype: latest-release
+          filename: ${{ matrix.filename }}
+          mirrorchyan_rid: MicYou
+          tag: ${{ inputs.tag }}
+
+          os: ${{ matrix.os }}
+          arch: ${{ matrix.arch }}
+
+          owner: LanRhyme
+          repo: MicYou
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          upload_token: ${{ secrets.MirrorChyanUploadToken }}
