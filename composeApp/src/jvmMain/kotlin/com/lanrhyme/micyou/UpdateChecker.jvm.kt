@@ -46,10 +46,14 @@ actual fun installUpdate(filePath: String) {
             PlatformInfo.isWindows && filePath.endsWith(".exe") -> {
                 Logger.i("UpdateInstaller", "Launching Windows installer: $filePath")
                 ProcessBuilder(filePath).start()
+                Logger.i("UpdateInstaller", "Installer launched, exiting application")
+                System.exit(0)
             }
             PlatformInfo.isMacOS && filePath.endsWith(".dmg") -> {
                 Logger.i("UpdateInstaller", "Opening macOS DMG: $filePath")
                 ProcessBuilder("open", filePath).start()
+                Logger.i("UpdateInstaller", "DMG opened, exiting application")
+                System.exit(0)
             }
             PlatformInfo.isLinux && filePath.endsWith(".deb") -> {
                 Logger.i("UpdateInstaller", "Opening Linux deb package: $filePath")
@@ -59,6 +63,8 @@ actual fun installUpdate(filePath: String) {
                 } catch (e: Exception) {
                     ProcessBuilder("sudo", "dpkg", "-i", filePath).start()
                 }
+                Logger.i("UpdateInstaller", "Package installer launched, exiting application")
+                System.exit(0)
             }
             PlatformInfo.isLinux && filePath.endsWith(".rpm") -> {
                 Logger.i("UpdateInstaller", "Opening Linux rpm package: $filePath")
@@ -67,6 +73,8 @@ actual fun installUpdate(filePath: String) {
                 } catch (e: Exception) {
                     ProcessBuilder("sudo", "rpm", "-i", filePath).start()
                 }
+                Logger.i("UpdateInstaller", "Package installer launched, exiting application")
+                System.exit(0)
             }
             else -> {
                 Logger.w("UpdateInstaller", "Unknown file type, opening with default handler: $filePath")
