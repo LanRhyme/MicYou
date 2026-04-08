@@ -25,7 +25,6 @@ object JvmSettings : Settings {
             System.getProperty("user.home", ""),
             System.getProperty("os.name", ""),
             System.getProperty("os.arch", ""),
-            appDir.absolutePath,
             "mirror_cdk_v1"
         ).joinToString("|")
         MessageDigest.getInstance("SHA-256").digest(seed.toByteArray(Charsets.UTF_8))

@@ -96,10 +96,13 @@ class UpdateViewModel : ViewModel() {
 
     private fun resolveDownloadTarget(info: UpdateInfo, useMirror: Boolean): DownloadTarget? {
         if (useMirror && info.mirrorUrl != null) {
-            val fileName = info.mirrorUrl
+            val fileNameFromUrl = info.mirrorUrl
                 .substringAfterLast("/")
                 .substringBefore("?")
-                .ifBlank { "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}" }
+
+            val fileName = fileNameFromUrl
+                .takeIf { it.isNotBlank() && it.contains(".") }
+                ?: getDefaultMirrorFileName(info)
 
             return DownloadTarget(
                 downloadUrl = info.mirrorUrl,
@@ -127,6 +130,17 @@ class UpdateViewModel : ViewModel() {
                 updateErrorMessage = errorMessage
             )
         }
+    }
+
+    private fun getDefaultMirrorFileName(info: UpdateInfo): String {
+        val extension = when (getMirrorOs()) {
+            "windows" -> ".exe"
+            "darwin" -> ".dmg"
+            "linux" -> ".deb"
+            "android" -> ".apk"
+            else -> ""
+        }
+        return "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}$extension"
     }
 
     fun dismissUpdateDialog() {
