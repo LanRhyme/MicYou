@@ -96,13 +96,12 @@ class UpdateViewModel : ViewModel() {
 
     private fun resolveDownloadTarget(info: UpdateInfo, useMirror: Boolean): DownloadTarget? {
         if (useMirror && info.mirrorUrl != null) {
-            val fileNameFromUrl = info.mirrorUrl
-                .substringAfterLast("/")
-                .substringBefore("?")
+            val fileNameFromUrl = extractMirrorFileName(info.mirrorUrl)
+            val extension = extractFileExtension(fileNameFromUrl)
+                ?: extractFileExtensionFromMirrorUrl(info.mirrorUrl)
 
             val fileName = fileNameFromUrl
-                .takeIf { it.isNotBlank() && it.contains(".") }
-                ?: getDefaultMirrorFileName(info)
+                ?: buildFallbackMirrorFileName(info, extension)
 
             return DownloadTarget(
                 downloadUrl = info.mirrorUrl,
@@ -132,15 +131,51 @@ class UpdateViewModel : ViewModel() {
         }
     }
 
-    private fun getDefaultMirrorFileName(info: UpdateInfo): String {
-        val extension = when (getMirrorOs()) {
-            "windows" -> ".exe"
-            "darwin" -> ".dmg"
-            "linux" -> ".deb"
-            "android" -> ".apk"
-            else -> ""
-        }
-        return "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}$extension"
+    private fun extractMirrorFileName(url: String): String? {
+        val pathFileName = url
+            .substringBefore("?")
+            .substringAfterLast("/")
+            .trim()
+
+        return pathFileName.takeIf { it.isNotBlank() }
+    }
+
+    private fun extractFileExtension(fileName: String?): String? {
+        val ext = fileName
+            ?.substringAfterLast(".", "")
+            ?.trim()
+            ?.trimStart('.')
+            ?.lowercase()
+
+        return ext?.takeIf { it.isNotBlank() }
+    }
+
+    private fun extractFileExtensionFromMirrorUrl(url: String): String? {
+        val query = url.substringAfter("?", "")
+        if (query.isBlank()) return null
+
+        val filenameFromQuery = query
+            .split("&")
+            .asSequence()
+            .mapNotNull { segment ->
+                val parts = segment.split("=", limit = 2)
+                if (parts.size != 2) return@mapNotNull null
+                val key = parts[0].lowercase()
+                if (key != "filename" && key != "file" && key != "name") return@mapNotNull null
+                parts[1].substringAfterLast('/').trim()
+            }
+            .firstOrNull()
+
+        return extractFileExtension(filenameFromQuery)
+    }
+
+    private fun buildFallbackMirrorFileName(info: UpdateInfo, extension: String?): String {
+        val extSuffix = extension
+            ?.takeIf { it.isNotBlank() }
+            ?.let { ".${it}" }
+            .orEmpty()
+
+        return "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}$extSuffix"
     }
 
     fun dismissUpdateDialog() {
