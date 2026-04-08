@@ -118,12 +118,15 @@ class UpdateChecker {
             val arch = getMirrorArch()
             val userAgent = "MicYou_${getPlatformName()}"
 
-            val response = client.get("$MIRROR_API_BASE/resources/$MIRROR_RID/latest") {
-                parameter("current_version", "v$currentVersion")
-                parameter("cdk", cdk)
-                parameter("user_agent", userAgent)
-                parameter("os", os)
-                parameter("arch", arch)
+            val baseUrl = "$MIRROR_API_BASE/resources/$MIRROR_RID/latest"
+            val url = if (os == "android") {
+                "$baseUrl?os=$os&cdk=$cdk"
+            } else {
+                "$baseUrl?os=$os&arch=$arch&cdk=$cdk"
+            }
+
+            val response = client.get(url) {
+                header(HttpHeaders.UserAgent, userAgent)
             }
 
             if (!response.status.isSuccess()) {
