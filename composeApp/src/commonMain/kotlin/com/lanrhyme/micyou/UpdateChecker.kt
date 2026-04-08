@@ -290,3 +290,6 @@ expect fun getMirrorArch(): String
 
 // Platform-specific: get platform name for user_agent
 expect fun getPlatformName(): String
+
+// Platform-specific: Check if the app is a portable version
+expect fun isPortableApp(): Boolean

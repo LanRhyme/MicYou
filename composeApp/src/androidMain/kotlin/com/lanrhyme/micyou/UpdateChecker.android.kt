@@ -75,3 +75,5 @@ actual fun getMirrorArch(): String {
 actual fun getPlatformName(): String {
     return "Android"
 }
+
+actual fun isPortableApp(): Boolean = false

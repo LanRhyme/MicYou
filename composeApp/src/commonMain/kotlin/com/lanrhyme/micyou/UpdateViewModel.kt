@@ -48,6 +48,11 @@ class UpdateViewModel : ViewModel() {
 
     fun downloadAndInstallUpdate(useMirror: Boolean) {
         val info = _uiState.value.updateInfo ?: return
+        if (isPortableApp()) {
+            openGitHubRelease()
+            return
+        }
+
         val target = resolveDownloadTarget(info, useMirror) ?: return failDownload("No download source available")
 
         _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloading, updateErrorMessage = null) }

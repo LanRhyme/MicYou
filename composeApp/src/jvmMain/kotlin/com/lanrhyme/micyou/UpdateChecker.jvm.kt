@@ -38,3 +38,13 @@ actual fun installUpdate(filePath: String) {
 actual fun getMirrorOs() = when { PlatformInfo.isWindows -> "windows"; PlatformInfo.isMacOS -> "darwin"; PlatformInfo.isLinux -> "linux"; else -> "" }
 actual fun getMirrorArch() = if (PlatformInfo.isArm64) "arm64" else "amd64"
 actual fun getPlatformName() = when { PlatformInfo.isWindows -> "Windows"; PlatformInfo.isMacOS -> "macOS"; PlatformInfo.isLinux -> "Linux"; else -> "Unknown" }
+
+actual fun isPortableApp(): Boolean {
+    val appBaseDir = File(System.getProperty("compose.application.resources.dir", System.getProperty("user.dir"))).parentFile?.parentFile ?: File(System.getProperty("user.dir"))
+    return when {
+        PlatformInfo.isWindows -> !File(appBaseDir, "Uninstall.exe").exists() && !File(System.getProperty("user.dir"), "Uninstall.exe").exists()
+        PlatformInfo.isLinux -> !appBaseDir.absolutePath.startsWith("/opt") && !appBaseDir.absolutePath.startsWith("/usr")
+        PlatformInfo.isMacOS -> !appBaseDir.absolutePath.startsWith("/Applications")
+        else -> false
+    }
+}
