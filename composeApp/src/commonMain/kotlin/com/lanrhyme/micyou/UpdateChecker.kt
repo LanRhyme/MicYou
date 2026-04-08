@@ -77,6 +77,9 @@ class UpdateChecker {
     companion object {
         const val MIRROR_RID = "MicYou"
         const val MIRROR_API_BASE = "https://mirrorchyan.com/api"
+        private const val GITHUB_RELEASE_API = "https://api.github.com/repos/LanRhyme/MicYou/releases/latest"
+        private const val GITHUB_RELEASE_WEB = "https://github.com/LanRhyme/MicYou/releases/latest"
+        private const val DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
 
     private val client = HttpClient {
@@ -97,19 +100,19 @@ class UpdateChecker {
         val currentVersion = getAppVersion()
         if (currentVersion == "dev") return Result.success(null)
 
-        // First try MirrorChyan if CDK is provided
-        if (cdk != null && cdk.isNotBlank()) {
-            val mirrorResult = checkUpdateViaMirror(currentVersion, cdk)
-            if (mirrorResult.isSuccess && mirrorResult.getOrNull()?.mirrorUrl != null) {
-                return mirrorResult
-            }
+        val mirrorInfo = cdk
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { mirrorCdk -> checkUpdateViaMirror(currentVersion, mirrorCdk).getOrNull() }
+
+        if (mirrorInfo?.mirrorUrl != null) {
+            return Result.success(mirrorInfo)
         }
 
-        // Fallback to GitHub
         return checkUpdateViaGitHub(currentVersion)
     }
 
-    suspend fun checkUpdateViaMirror(currentVersion: String, cdk: String): Result<UpdateInfo?> {
+    private suspend fun checkUpdateViaMirror(currentVersion: String, cdk: String): Result<UpdateInfo?> {
         return try {
             val os = getMirrorOs()
             val arch = getMirrorArch()
@@ -123,40 +126,21 @@ class UpdateChecker {
                 parameter("arch", arch)
             }
 
-            if (response.status.isSuccess()) {
-                val mirrorResponse: MirrorChyanResponse = response.body()
-
-                if (mirrorResponse.code == 0 && mirrorResponse.data != null) {
-                    val data = mirrorResponse.data
-                    val latestVersion = data.versionName.removePrefix("v")
-
-                    if (isNewerVersion(currentVersion, latestVersion)) {
-                        return Result.success(UpdateInfo(
-                            versionName = data.versionName,
-                            releaseNote = data.releaseNote,
-                            mirrorUrl = data.url,
-                            mirrorFilesize = data.filesize,
-                            mirrorSha256 = data.sha256,
-                            mirrorUpdateType = data.updateType,
-                            cdkExpiredTime = data.cdkExpiredTime,
-                            isLatest = false
-                        ))
-                    } else {
-                        return Result.success(UpdateInfo(
-                            versionName = data.versionName,
-                            releaseNote = data.releaseNote,
-                            cdkExpiredTime = data.cdkExpiredTime,
-                            isLatest = true
-                        ))
-                    }
-                }
-
-                // Handle error codes
-                Logger.w("UpdateChecker", "MirrorChyan error: code=${mirrorResponse.code}, msg=${mirrorResponse.msg}")
-                Result.failure(Exception(mirrorResponse.msg))
-            } else {
-                Result.failure(Exception("HTTP Error: ${response.status.value}"))
+            if (!response.status.isSuccess()) {
+                return Result.failure(Exception("HTTP Error: ${response.status.value}"))
             }
+
+            val mirrorResponse: MirrorChyanResponse = response.body()
+            val data = mirrorResponse.data
+
+            if (mirrorResponse.code != 0 || data == null) {
+                Logger.w("UpdateChecker", "MirrorChyan error: code=${mirrorResponse.code}, msg=${mirrorResponse.msg}")
+                return Result.failure(Exception(mirrorResponse.msg))
+            }
+
+            val latestVersion = data.versionName.removePrefix("v")
+            val isLatest = !isNewerVersion(currentVersion, latestVersion)
+            Result.success(data.toUpdateInfo(isLatest))
         } catch (e: Exception) {
             Logger.e("UpdateChecker", "MirrorChyan check failed", e)
             Result.failure(e)
@@ -165,8 +149,8 @@ class UpdateChecker {
 
     private suspend fun checkUpdateViaGitHub(currentVersion: String): Result<UpdateInfo?> {
         return try {
-            val apiResponse = client.get("https://api.github.com/repos/LanRhyme/MicYou/releases/latest") {
-                header(HttpHeaders.UserAgent, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+            val apiResponse = client.get(GITHUB_RELEASE_API) {
+                header(HttpHeaders.UserAgent, DEFAULT_USER_AGENT)
                 header(HttpHeaders.Accept, "application/vnd.github+json")
             }
 
@@ -174,12 +158,7 @@ class UpdateChecker {
                 val latestRelease: GitHubRelease = apiResponse.body()
                 val latestVersion = latestRelease.tagName.removePrefix("v")
                 if (isNewerVersion(currentVersion, latestVersion)) {
-                    return Result.success(UpdateInfo(
-                        versionName = latestRelease.tagName,
-                        releaseNote = latestRelease.body,
-                        githubRelease = latestRelease,
-                        isLatest = false
-                    ))
+                    return Result.success(latestRelease.toUpdateInfo())
                 }
                 return Result.success(null)
             }
@@ -198,8 +177,8 @@ class UpdateChecker {
 
     private suspend fun checkUpdateViaWebsiteFallback(currentVersion: String): Result<UpdateInfo?> {
         return try {
-            val response = client.get("https://github.com/LanRhyme/MicYou/releases/latest") {
-                header(HttpHeaders.UserAgent, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+            val response = client.get(GITHUB_RELEASE_WEB) {
+                header(HttpHeaders.UserAgent, DEFAULT_USER_AGENT)
             }
 
             val finalUrl = response.call.request.url.toString()
@@ -233,7 +212,7 @@ class UpdateChecker {
         Logger.i("UpdateChecker", "Downloading from: $downloadUrl")
         return try {
             downloadClient.prepareGet(downloadUrl) {
-                header(HttpHeaders.UserAgent, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+                header(HttpHeaders.UserAgent, DEFAULT_USER_AGENT)
             }.execute { response ->
                 val totalBytes = response.contentLength() ?: 0L
                 var downloadedBytes = 0L
@@ -263,6 +242,28 @@ class UpdateChecker {
 
     fun findAssetForPlatform(release: GitHubRelease): GitHubAsset? {
         return findPlatformAsset(release.assets)
+    }
+
+    private fun MirrorChyanData.toUpdateInfo(isLatest: Boolean): UpdateInfo {
+        return UpdateInfo(
+            versionName = versionName,
+            releaseNote = releaseNote,
+            mirrorUrl = if (isLatest) null else url,
+            mirrorFilesize = if (isLatest) null else filesize,
+            mirrorSha256 = if (isLatest) null else sha256,
+            mirrorUpdateType = if (isLatest) null else updateType,
+            cdkExpiredTime = cdkExpiredTime,
+            isLatest = isLatest
+        )
+    }
+
+    private fun GitHubRelease.toUpdateInfo(): UpdateInfo {
+        return UpdateInfo(
+            versionName = tagName,
+            releaseNote = body,
+            githubRelease = this,
+            isLatest = false
+        )
     }
 
     private fun isNewerVersion(current: String, latest: String): Boolean {

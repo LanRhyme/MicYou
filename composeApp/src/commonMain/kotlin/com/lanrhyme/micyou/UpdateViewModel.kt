@@ -38,96 +38,94 @@ class UpdateViewModel : ViewModel() {
         }
     }
 
-    fun checkUpdateManual(language: AppLanguage) {
+    fun checkUpdateManual() {
         viewModelScope.launch {
-            val cdk = settings.getString("mirror_cdk", "")
-            val result = updateChecker.checkUpdate(cdk)
-
-            result.onSuccess { info ->
-                if (info != null && !info.isLatest) {
-                    _uiState.update {
-                        it.copy(updateInfo = info)
-                    }
-                }
-            }
+            checkUpdateInternal()
         }
     }
 
     fun checkUpdateAuto() {
-        val autoCheckUpdate = settings.getBoolean("auto_check_update", true)
-        if (autoCheckUpdate) {
-            viewModelScope.launch {
-                val cdk = settings.getString("mirror_cdk", "")
-                val result = updateChecker.checkUpdate(cdk)
-                result.onSuccess { info ->
-                    if (info != null && !info.isLatest) {
-                        _uiState.update {
-                            it.copy(updateInfo = info)
-                        }
-                    }
-                }
-            }
+        if (!settings.getBoolean("auto_check_update", true)) {
+            return
+        }
+
+        viewModelScope.launch {
+            checkUpdateInternal()
         }
     }
 
     fun downloadAndInstallUpdate(useMirror: Boolean) {
         val info = _uiState.value.updateInfo ?: return
 
+        val downloadTarget = resolveDownloadTarget(info, useMirror) ?: run {
+            failDownload("No download source available")
+            return
+        }
+
         _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloading, updateErrorMessage = null) }
 
         viewModelScope.launch {
-            val downloadUrl: String?
-            val targetPath: String?
-
-            if (useMirror && info.mirrorUrl != null) {
-                // Use MirrorChyan download
-                val fileName = "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}.exe"
-                downloadUrl = info.mirrorUrl
-                targetPath = getUpdateDownloadPath(fileName)
-            } else if (info.githubRelease != null) {
-                // Use GitHub download
-                val asset = updateChecker.findAssetForPlatform(info.githubRelease)
-                if (asset == null) {
-                    openUrl(info.githubRelease.htmlUrl)
-                    dismissUpdateDialog()
-                    return@launch
-                }
-                downloadUrl = asset.browserDownloadUrl
-                targetPath = getUpdateDownloadPath(asset.name)
-            } else {
-                _uiState.update {
-                    it.copy(
-                        updateDownloadState = UpdateDownloadState.Failed,
-                        updateErrorMessage = "No download source available"
-                    )
-                }
-                return@launch
-            }
-
-            val result = updateChecker.downloadUpdate(downloadUrl, targetPath)
+            val result = updateChecker.downloadUpdate(downloadTarget.downloadUrl, downloadTarget.targetPath)
 
             result.onSuccess { filePath ->
-                _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloaded) }
                 _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Installing) }
                 try {
                     installUpdate(filePath)
                 } catch (e: Exception) {
                     Logger.e("UpdateViewModel", "Install failed", e)
-                    _uiState.update {
-                        it.copy(
-                            updateDownloadState = UpdateDownloadState.Failed,
-                            updateErrorMessage = e.message
-                        )
-                    }
+                    failDownload(e.message)
                 }
             }.onFailure { e ->
+                failDownload(e.message)
+            }
+        }
+    }
+
+    private suspend fun checkUpdateInternal() {
+        val cdk = settings.getString("mirror_cdk", "")
+        val result = updateChecker.checkUpdate(cdk)
+
+        result.onSuccess { info ->
+            if (info != null && !info.isLatest) {
                 _uiState.update {
-                    it.copy(
-                        updateDownloadState = UpdateDownloadState.Failed,
-                        updateErrorMessage = e.message
-                    )
+                    it.copy(updateInfo = info)
                 }
             }
+        }
+    }
+
+    private fun resolveDownloadTarget(info: UpdateInfo, useMirror: Boolean): DownloadTarget? {
+        if (useMirror && info.mirrorUrl != null) {
+            val fileName = info.mirrorUrl
+                .substringAfterLast("/")
+                .substringBefore("?")
+                .ifBlank { "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}" }
+
+            return DownloadTarget(
+                downloadUrl = info.mirrorUrl,
+                targetPath = getUpdateDownloadPath(fileName)
+            )
+        }
+
+        val release = info.githubRelease ?: return null
+        val asset = updateChecker.findAssetForPlatform(release) ?: run {
+            openUrl(release.htmlUrl)
+            dismissUpdateDialog()
+            return null
+        }
+
+        return DownloadTarget(
+            downloadUrl = asset.browserDownloadUrl,
+            targetPath = getUpdateDownloadPath(asset.name)
+        )
+    }
+
+    private fun failDownload(errorMessage: String?) {
+        _uiState.update {
+            it.copy(
+                updateDownloadState = UpdateDownloadState.Failed,
+                updateErrorMessage = errorMessage
+            )
         }
     }
 
@@ -152,3 +150,8 @@ class UpdateViewModel : ViewModel() {
         dismissUpdateDialog()
     }
 }
+
+private data class DownloadTarget(
+    val downloadUrl: String,
+    val targetPath: String
+)

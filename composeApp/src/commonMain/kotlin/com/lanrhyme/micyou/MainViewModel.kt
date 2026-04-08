@@ -399,7 +399,7 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             val strings = getStrings(_uiState.value.language)
             _uiState.update { it.copy(snackbarMessage = strings.checkingUpdate) }
-            updateViewModel.checkUpdateManual(_uiState.value.language)
+            updateViewModel.checkUpdateManual()
         }
     }
     fun downloadAndInstallUpdate(useMirror: Boolean = _uiState.value.useMirrorDownload) = updateViewModel.downloadAndInstallUpdate(useMirror)
