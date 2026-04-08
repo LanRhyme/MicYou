@@ -115,23 +115,13 @@ class UpdateChecker {
     private suspend fun checkUpdateViaMirror(currentVersion: String, cdk: String): Result<UpdateInfo?> {
         return try {
             val os = getMirrorOs()
-            val arch = getMirrorArch()
-            val userAgent = "MicYou_${getPlatformName()}"
-
-            val baseUrl = "$MIRROR_API_BASE/resources/$MIRROR_RID/latest"
-            val url = if (os == "android") {
-                "$baseUrl?os=$os&cdk=$cdk"
-            } else {
-                "$baseUrl?os=$os&arch=$arch&cdk=$cdk"
-            }
+            val url = "$MIRROR_API_BASE/resources/$MIRROR_RID/latest?os=$os&cdk=$cdk${if(os != "android") "&arch=${getMirrorArch()}" else ""}"
 
             val response = client.get(url) {
-                header(HttpHeaders.UserAgent, userAgent)
+                header(HttpHeaders.UserAgent, "MicYou_${getPlatformName()}")
             }
 
-            if (!response.status.isSuccess()) {
-                return Result.failure(Exception("HTTP Error: ${response.status.value}"))
-            }
+            if (!response.status.isSuccess()) return Result.failure(Exception("HTTP Error: ${response.status.value}"))
 
             val mirrorResponse: MirrorChyanResponse = response.body()
             val data = mirrorResponse.data
@@ -141,8 +131,7 @@ class UpdateChecker {
                 return Result.failure(Exception(mirrorResponse.msg))
             }
 
-            val latestVersion = data.versionName.removePrefix("v")
-            val isLatest = !isNewerVersion(currentVersion, latestVersion)
+            val isLatest = !isNewerVersion(currentVersion, data.versionName.removePrefix("v"))
             Result.success(data.toUpdateInfo(isLatest))
         } catch (e: Exception) {
             Logger.e("UpdateChecker", "MirrorChyan check failed", e)
@@ -270,19 +259,12 @@ class UpdateChecker {
     }
 
     private fun isNewerVersion(current: String, latest: String): Boolean {
-        fun parseParts(v: String) = v.split(".")
-            .map { it.substringBefore("-") }
-            .mapNotNull { it.toIntOrNull() }
-
-        val currentParts = parseParts(current.removePrefix("v"))
-        val latestParts = parseParts(latest.removePrefix("v"))
-
-        val size = maxOf(currentParts.size, latestParts.size)
-        for (i in 0 until size) {
-            val curr = currentParts.getOrNull(i) ?: 0
-            val late = latestParts.getOrNull(i) ?: 0
-            if (late > curr) return true
-            if (late < curr) return false
+        val c = current.removePrefix("v").split(".").map { it.substringBefore("-").toIntOrNull() ?: 0 }
+        val l = latest.removePrefix("v").split(".").map { it.substringBefore("-").toIntOrNull() ?: 0 }
+        for (i in 0 until maxOf(c.size, l.size)) {
+            val curr = c.getOrElse(i) { 0 }
+            val late = l.getOrElse(i) { 0 }
+            if (late != curr) return late > curr
         }
         return false
     }

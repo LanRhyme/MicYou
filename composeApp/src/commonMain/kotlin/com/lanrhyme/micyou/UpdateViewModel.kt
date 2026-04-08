@@ -39,87 +39,60 @@ class UpdateViewModel : ViewModel() {
     }
 
     fun checkUpdateManual() {
-        viewModelScope.launch {
-            checkUpdateInternal()
-        }
+        viewModelScope.launch { checkUpdateInternal() }
     }
 
     fun checkUpdateAuto() {
-        if (!settings.getBoolean("auto_check_update", true)) {
-            return
-        }
-
-        viewModelScope.launch {
-            checkUpdateInternal()
-        }
+        if (settings.getBoolean("auto_check_update", true)) checkUpdateManual()
     }
 
     fun downloadAndInstallUpdate(useMirror: Boolean) {
         val info = _uiState.value.updateInfo ?: return
-
-        val downloadTarget = resolveDownloadTarget(info, useMirror) ?: run {
-            failDownload("No download source available")
-            return
-        }
+        val target = resolveDownloadTarget(info, useMirror) ?: return failDownload("No download source available")
 
         _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloading, updateErrorMessage = null) }
 
         viewModelScope.launch {
-            val result = updateChecker.downloadUpdate(downloadTarget.downloadUrl, downloadTarget.targetPath)
-
-            result.onSuccess { filePath ->
-                _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Installing) }
-                try {
-                    installUpdate(filePath)
-                } catch (e: Exception) {
-                    Logger.e("UpdateViewModel", "Install failed", e)
-                    failDownload(e.message)
-                }
-            }.onFailure { e ->
-                failDownload(e.message)
-            }
+            updateChecker.downloadUpdate(target.downloadUrl, target.targetPath)
+                .onSuccess {
+                    _uiState.update { state -> state.copy(updateDownloadState = UpdateDownloadState.Installing) }
+                    try { installUpdate(it) } catch (e: Exception) {
+                        Logger.e("UpdateViewModel", "Install failed", e)
+                        failDownload(e.message)
+                    }
+                }.onFailure { failDownload(it.message) }
         }
     }
 
     private suspend fun checkUpdateInternal() {
         val cdk = settings.getString("mirror_cdk", "")
-        val result = updateChecker.checkUpdate(cdk)
-
-        result.onSuccess { info ->
-            if (info != null && !info.isLatest) {
-                _uiState.update {
-                    it.copy(updateInfo = info)
-                }
-            }
+        updateChecker.checkUpdate(cdk).onSuccess { info ->
+            if (info != null && !info.isLatest) _uiState.update { it.copy(updateInfo = info) }
         }
     }
 
     private fun resolveDownloadTarget(info: UpdateInfo, useMirror: Boolean): DownloadTarget? {
         if (useMirror && info.mirrorUrl != null) {
-            val fileNameFromUrl = extractMirrorFileName(info.mirrorUrl)
-            val extension = extractFileExtension(fileNameFromUrl)
-                ?: extractFileExtensionFromMirrorUrl(info.mirrorUrl)
+            val url = info.mirrorUrl
+            val qName = Regex("[?&](?:filename|file|name)=([^&]+)", RegexOption.IGNORE_CASE)
+                .find(url)?.groupValues?.get(1)?.substringAfterLast("/")
+            val pName = url.substringBefore("?").substringAfterLast("/").takeIf { it.contains(".") }
+            val name = pName ?: qName
+            val ext = name?.substringAfterLast(".", "")?.takeIf { it.isNotBlank() }?.let { ".$it" } ?: ""
+            val finalName = name ?: "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}$ext"
 
-            val fileName = fileNameFromUrl
-                ?: buildFallbackMirrorFileName(info, extension)
-
-            return DownloadTarget(
-                downloadUrl = info.mirrorUrl,
-                targetPath = getUpdateDownloadPath(fileName)
-            )
+            return DownloadTarget(url, getUpdateDownloadPath(finalName))
         }
 
-        val release = info.githubRelease ?: return null
-        val asset = updateChecker.findAssetForPlatform(release) ?: run {
-            openUrl(release.htmlUrl)
-            dismissUpdateDialog()
-            return null
+        return info.githubRelease?.let { release ->
+            updateChecker.findAssetForPlatform(release)?.let {
+                DownloadTarget(it.browserDownloadUrl, getUpdateDownloadPath(it.name))
+            } ?: run {
+                openUrl(release.htmlUrl)
+                dismissUpdateDialog()
+                null
+            }
         }
-
-        return DownloadTarget(
-            downloadUrl = asset.browserDownloadUrl,
-            targetPath = getUpdateDownloadPath(asset.name)
-        )
     }
 
     private fun failDownload(errorMessage: String?) {
@@ -129,53 +102,6 @@ class UpdateViewModel : ViewModel() {
                 updateErrorMessage = errorMessage
             )
         }
-    }
-
-    private fun extractMirrorFileName(url: String): String? {
-        val pathFileName = url
-            .substringBefore("?")
-            .substringAfterLast("/")
-            .trim()
-
-        return pathFileName.takeIf { it.isNotBlank() }
-    }
-
-    private fun extractFileExtension(fileName: String?): String? {
-        val ext = fileName
-            ?.substringAfterLast(".", "")
-            ?.trim()
-            ?.trimStart('.')
-            ?.lowercase()
-
-        return ext?.takeIf { it.isNotBlank() }
-    }
-
-    private fun extractFileExtensionFromMirrorUrl(url: String): String? {
-        val query = url.substringAfter("?", "")
-        if (query.isBlank()) return null
-
-        val filenameFromQuery = query
-            .split("&")
-            .asSequence()
-            .mapNotNull { segment ->
-                val parts = segment.split("=", limit = 2)
-                if (parts.size != 2) return@mapNotNull null
-                val key = parts[0].lowercase()
-                if (key != "filename" && key != "file" && key != "name") return@mapNotNull null
-                parts[1].substringAfterLast('/').trim()
-            }
-            .firstOrNull()
-
-        return extractFileExtension(filenameFromQuery)
-    }
-
-    private fun buildFallbackMirrorFileName(info: UpdateInfo, extension: String?): String {
-        val extSuffix = extension
-            ?.takeIf { it.isNotBlank() }
-            ?.let { ".${it}" }
-            .orEmpty()
-
-        return "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}$extSuffix"
     }
 
     fun dismissUpdateDialog() {
