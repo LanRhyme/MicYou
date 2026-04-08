@@ -42,10 +42,10 @@ actual fun installUpdate(filePath: String) {
             PlatformInfo.isWindows && filePath.endsWith(".exe") -> ProcessBuilder(filePath)
             PlatformInfo.isMacOS && filePath.endsWith(".dmg") -> ProcessBuilder("open", filePath)
             PlatformInfo.isLinux && filePath.endsWith(".deb") -> {
-                if (runCatching { ProcessBuilder("xdg-open", filePath).start() }.isSuccess) null else ProcessBuilder("sudo", "dpkg", "-i", filePath)
+                if (runCatching { ProcessBuilder("xdg-open", filePath).start() }.isSuccess) null else ProcessBuilder("pkexec", "dpkg", "-i", filePath)
             }
             PlatformInfo.isLinux && filePath.endsWith(".rpm") -> {
-                if (runCatching { ProcessBuilder("xdg-open", filePath).start() }.isSuccess) null else ProcessBuilder("sudo", "rpm", "-i", filePath)
+                if (runCatching { ProcessBuilder("xdg-open", filePath).start() }.isSuccess) null else ProcessBuilder("pkexec", "rpm", "-i", filePath)
             }
             else -> {
                 openUrl(filePath)
