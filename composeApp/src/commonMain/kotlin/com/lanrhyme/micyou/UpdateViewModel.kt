@@ -72,26 +72,29 @@ class UpdateViewModel : ViewModel() {
     }
 
     private fun resolveDownloadTarget(info: UpdateInfo, useMirror: Boolean): DownloadTarget? {
+        val asset = info.githubRelease?.let { updateChecker.findAssetForPlatform(it) }
+
         if (useMirror && info.mirrorUrl != null) {
             val url = info.mirrorUrl
-            val qName = Regex("[?&](?:filename|file|name)=([^&]+)", RegexOption.IGNORE_CASE)
-                .find(url)?.groupValues?.get(1)?.substringAfterLast("/")
+            val qName = Regex("(?i)[?&](?:filename|file|name)=([^&]+)").find(url)?.groupValues?.get(1)?.substringAfterLast("/")
             val pName = url.substringBefore("?").substringAfterLast("/").takeIf { it.contains(".") }
-            val name = pName ?: qName
-            val ext = name?.substringAfterLast(".", "")?.takeIf { it.isNotBlank() }?.let { ".$it" } ?: ""
-            val finalName = name ?: "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}$ext"
+            
+            val ext = qName?.substringAfterLast(".", "")?.takeIf { it.isNotBlank() }
+                ?: pName?.substringAfterLast(".", "")?.takeIf { it.isNotBlank() }
+                ?: asset?.name?.substringAfterLast(".", "")?.takeIf { it.isNotBlank() }
+                ?: when (getMirrorOs()) { "windows" -> "exe"; "darwin" -> "dmg"; else -> "deb" }
+                
+            val name = pName ?: qName?.takeIf { it.contains(".") } ?: "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}.$ext"
 
-            return DownloadTarget(url, getUpdateDownloadPath(finalName))
+            return DownloadTarget(url, getUpdateDownloadPath(name))
         }
 
-        return info.githubRelease?.let { release ->
-            updateChecker.findAssetForPlatform(release)?.let {
-                DownloadTarget(it.browserDownloadUrl, getUpdateDownloadPath(it.name))
-            } ?: run {
-                openUrl(release.htmlUrl)
-                dismissUpdateDialog()
-                null
-            }
+        return asset?.let {
+            DownloadTarget(it.browserDownloadUrl, getUpdateDownloadPath(it.name))
+        } ?: run {
+            info.githubRelease?.htmlUrl?.let { openUrl(it) }
+            dismissUpdateDialog()
+            null
         }
     }
 
