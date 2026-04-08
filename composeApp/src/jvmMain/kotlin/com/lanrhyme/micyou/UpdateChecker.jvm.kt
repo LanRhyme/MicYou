@@ -35,52 +35,30 @@ actual fun getUpdateDownloadPath(fileName: String): String {
 }
 
 actual fun installUpdate(filePath: String) {
-    val file = File(filePath)
-    if (!file.exists()) {
-        Logger.e("UpdateInstaller", "Update file not found: $filePath")
-        return
-    }
+    if (!File(filePath).exists()) return Logger.e("UpdateInstaller", "Update file not found: $filePath")
 
     try {
-        when {
-            PlatformInfo.isWindows && filePath.endsWith(".exe") -> {
-                Logger.i("UpdateInstaller", "Launching Windows installer: $filePath")
-                ProcessBuilder(filePath).start()
-                Logger.i("UpdateInstaller", "Installer launched, exiting application")
-                System.exit(0)
-            }
-            PlatformInfo.isMacOS && filePath.endsWith(".dmg") -> {
-                Logger.i("UpdateInstaller", "Opening macOS DMG: $filePath")
-                ProcessBuilder("open", filePath).start()
-                Logger.i("UpdateInstaller", "DMG opened, exiting application")
-                System.exit(0)
-            }
+        val launcher = when {
+            PlatformInfo.isWindows && filePath.endsWith(".exe") -> ProcessBuilder(filePath)
+            PlatformInfo.isMacOS && filePath.endsWith(".dmg") -> ProcessBuilder("open", filePath)
             PlatformInfo.isLinux && filePath.endsWith(".deb") -> {
-                Logger.i("UpdateInstaller", "Opening Linux deb package: $filePath")
-                // Try xdg-open first, fallback to dpkg
-                try {
-                    ProcessBuilder("xdg-open", filePath).start()
-                } catch (e: Exception) {
-                    ProcessBuilder("sudo", "dpkg", "-i", filePath).start()
-                }
-                Logger.i("UpdateInstaller", "Package installer launched, exiting application")
-                System.exit(0)
+                if (runCatching { ProcessBuilder("xdg-open", filePath).start() }.isSuccess) null else ProcessBuilder("sudo", "dpkg", "-i", filePath)
             }
             PlatformInfo.isLinux && filePath.endsWith(".rpm") -> {
-                Logger.i("UpdateInstaller", "Opening Linux rpm package: $filePath")
-                try {
-                    ProcessBuilder("xdg-open", filePath).start()
-                } catch (e: Exception) {
-                    ProcessBuilder("sudo", "rpm", "-i", filePath).start()
-                }
-                Logger.i("UpdateInstaller", "Package installer launched, exiting application")
-                System.exit(0)
+                if (runCatching { ProcessBuilder("xdg-open", filePath).start() }.isSuccess) null else ProcessBuilder("sudo", "rpm", "-i", filePath)
             }
             else -> {
-                Logger.w("UpdateInstaller", "Unknown file type, opening with default handler: $filePath")
                 openUrl(filePath)
+                return Logger.w("UpdateInstaller", "Unknown file type, opened with default: $filePath")
             }
         }
+        
+        Logger.i("UpdateInstaller", "Launching installer: $filePath")
+        launcher?.start()
+        
+        Logger.i("UpdateInstaller", "Installer launched. Delaying 1.5s for safe handoff...")
+        Thread.sleep(1500)
+        System.exit(0)
     } catch (e: Exception) {
         Logger.e("UpdateInstaller", "Failed to install update", e)
     }
