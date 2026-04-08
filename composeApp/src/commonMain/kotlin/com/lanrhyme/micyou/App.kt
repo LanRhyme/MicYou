@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.RadioButton
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.AlertDialog
@@ -13,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -95,7 +93,6 @@ fun App(
                 val isDownloading = downloadState == UpdateDownloadState.Downloading
                 val isInstalling = downloadState == UpdateDownloadState.Installing
                 val isFailed = downloadState == UpdateDownloadState.Failed
-                var selectedMirror by remember { mutableStateOf(useMirrorDownload && updateInfo.mirrorUrl != null) }
 
                 AlertDialog(
                     onDismissRequest = {
@@ -125,35 +122,8 @@ fun App(
                             } else {
                                 Text(strings.updateMessage.replace("%s", updateInfo.versionName))
 
-                                // Show download source selection if Mirror is available
-                                if (updateInfo.mirrorUrl != null) {
-                                    Spacer(Modifier.height(16.dp))
-                                    Text(strings.mirrorDownloadLabel, fontSize = 14.sp)
-                                    Spacer(Modifier.height(8.dp))
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        RadioButton(
-                                            selected = selectedMirror,
-                                            onClick = { selectedMirror = true }
-                                        )
-                                        Text(strings.mirrorDownloadLabel, modifier = Modifier.padding(start = 4.dp))
-                                    }
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        RadioButton(
-                                            selected = !selectedMirror,
-                                            onClick = { selectedMirror = false }
-                                        )
-                                        Text(strings.githubDownloadLabel, modifier = Modifier.padding(start = 4.dp))
-                                    }
-
-                                    // Show CDK expiration warning if applicable
+                                // Mirror source follows settings automatically. Keep only the expiration hint.
+                                if (useMirrorDownload && updateInfo.mirrorUrl != null) {
                                     updateInfo.cdkExpiredTime?.let { expiredTime ->
                                         val now = System.currentTimeMillis() / 1000
                                         val daysLeft = (expiredTime - now) / (24 * 60 * 60)
@@ -179,7 +149,7 @@ fun App(
                             }
                         } else if (!isDownloading && !isInstalling) {
                             TextButton(onClick = {
-                                finalViewModel.downloadAndInstallUpdate(selectedMirror)
+                                finalViewModel.downloadAndInstallUpdate()
                             }) {
                                 Text(strings.updateNow)
                             }
