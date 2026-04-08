@@ -40,6 +40,16 @@ actual fun getMirrorArch() = if (PlatformInfo.isArm64) "arm64" else "amd64"
 actual fun getPlatformName() = when { PlatformInfo.isWindows -> "Windows"; PlatformInfo.isMacOS -> "macOS"; PlatformInfo.isLinux -> "Linux"; else -> "Unknown" }
 
 actual fun isPortableApp(): Boolean {
+    val userDir = File(System.getProperty("user.dir"))
+    val classPath = System.getProperty("java.class.path") ?: ""
+    val isDebug = File(userDir, "gradlew").exists() ||
+            File(userDir, "gradlew.bat").exists() ||
+            userDir.parentFile?.let { File(it, "gradlew").exists() } == true ||
+            classPath.contains(".gradle") ||
+            classPath.contains("build${File.separator}classes")
+
+    if (isDebug) return false
+
     val appBaseDir = File(System.getProperty("compose.application.resources.dir", System.getProperty("user.dir"))).parentFile?.parentFile ?: File(System.getProperty("user.dir"))
     return when {
         PlatformInfo.isWindows -> !File(appBaseDir, "Uninstall.exe").exists() && !File(System.getProperty("user.dir"), "Uninstall.exe").exists()
