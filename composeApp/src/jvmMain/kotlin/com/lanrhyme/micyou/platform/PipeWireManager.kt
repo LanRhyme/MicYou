@@ -171,18 +171,24 @@ object PipeWireManager {
 
             // 检查进程最终状态
             val isProcessAlive = process.isAlive
-            val exitValue = if (!isProcessAlive) {
-                try {
-                    process.exitValue()
-                } catch (e: IllegalThreadStateException) {
-                    -1 // 无法获取退出值，视为失败
-                }
+
+            // 判断成功条件：
+            // 1. 进程仍在运行 → 视为成功启动
+            // 2. 进程已终止且 exitValue == 0 → 正常退出
+            val success = if (isProcessAlive) {
+                true  // 进程运行中，成功
             } else {
-                0 // 进程仍在运行，视为成功
+                // 进程已终止，检查退出值
+                try {
+                    process.exitValue() == 0
+                } catch (e: IllegalThreadStateException) {
+                    false // 无法获取退出值，视为失败
+                }
             }
 
-            if (isProcessAlive || exitValue == 0) {
-                Logger.i("PipeWireManager", "Loopback created successfully (pid: ${process.pid()}, waited ${waited}ms, exitValue=$exitValue)")
+            if (success) {
+                val statusInfo = if (isProcessAlive) "running" else "exited(0)"
+                Logger.i("PipeWireManager", "Loopback created successfully (pid: ${process.pid()}, waited ${waited}ms, status=$statusInfo)")
                 true
             } else {
                 val output = process.inputStream.bufferedReader().readText()
