@@ -122,6 +122,12 @@ android {
         buildConfig = true
     }
     
+    val hasReleaseSigning =
+        !System.getenv("ANDROID_KEYSTORE_PATH").isNullOrEmpty() &&
+        !System.getenv("ANDROID_KEYSTORE_PASSWORD").isNullOrEmpty() &&
+        !System.getenv("ANDROID_KEY_ALIAS").isNullOrEmpty() &&
+        !System.getenv("ANDROID_KEY_PASSWORD").isNullOrEmpty()
+
     signingConfigs {
         create("release") {
             val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
@@ -145,8 +151,16 @@ android {
     }
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
