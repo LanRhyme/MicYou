@@ -23,11 +23,11 @@ data class AudioStreamUiState(
     val isAutoConfig: Boolean = true,
     val showFirewallDialog: Boolean = false,
     val pendingFirewallPort: Int? = null,
-    
+
     // Error Dialog State
     val showErrorDialog: Boolean = false,
     val errorDetails: ConnectionErrorDetails? = null,
-    
+
     // Audio Processing Settings
     val enableNS: Boolean = false,
     val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
@@ -39,7 +39,14 @@ data class AudioStreamUiState(
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
     val androidAudioSourceName: String = "Unprocessed",
-    val audioConfigRevision: Int = 0
+    val audioConfigRevision: Int = 0,
+
+    // Performance Settings
+    val performanceMode: String = "Default",
+    val performanceConfig: PerformanceConfig = PerformanceConfig.DEFAULT,
+
+    // Preset Settings
+    val currentPresetId: String = "default"
 )
 
 class AudioStreamViewModel : ViewModel() {
@@ -47,8 +54,23 @@ class AudioStreamViewModel : ViewModel() {
     val audioEngine: AudioEngine get() = _audioEngine
     private val _uiState = MutableStateFlow(AudioStreamUiState())
     val uiState: StateFlow<AudioStreamUiState> = _uiState.asStateFlow()
+
+    // 音频电平相关
     val audioLevels = _audioEngine.audioLevels
+    val audioLevelData = _audioEngine.audioLevelData
+    val audioMetrics = _audioEngine.audioMetrics
+
+    // 音频历史记录（用于可视化）
+    private val audioLevelHistory = AudioLevelHistory(maxDurationSeconds = 10)
+    private val _levelHistory = MutableStateFlow<List<AudioLevelHistory.AudioLevelSample>>(emptyList())
+    val levelHistory: StateFlow<List<AudioLevelHistory.AudioLevelSample>> = _levelHistory.asStateFlow()
+
     private val settings = SettingsFactory.getSettings()
+
+    // 预设管理器
+    private val presetManager = PresetManager(settings)
+    val presets: StateFlow<List<AudioPreset>> = presetManager.presets
+    val currentPresetIdFlow: StateFlow<String> = presetManager.currentPresetId
 
     init {
         loadSettings()
@@ -132,18 +154,31 @@ class AudioStreamViewModel : ViewModel() {
         viewModelScope.launch {
             _audioEngine.streamState.collect { state ->
                 _uiState.update { it.copy(streamState = state) }
+                // 当停止时清空历史记录
+                if (state == StreamState.Idle) {
+                    audioLevelHistory.clear()
+                    _levelHistory.value = emptyList()
+                }
             }
         }
-        
+
         viewModelScope.launch {
             _audioEngine.lastError.collect { error ->
                 _uiState.update { it.copy(errorMessage = error) }
             }
         }
-        
+
         viewModelScope.launch {
             _audioEngine.isMuted.collect { muted ->
                 _uiState.update { it.copy(isMuted = muted) }
+            }
+        }
+
+        // 监听音频电平数据并更新历史记录
+        viewModelScope.launch {
+            _audioEngine.audioLevelData.collect { levelData ->
+                audioLevelHistory.addSample(levelData)
+                _levelHistory.value = audioLevelHistory.getSamples()
             }
         }
 
@@ -504,6 +539,107 @@ class AudioStreamViewModel : ViewModel() {
                 _uiState.update { it.copy(errorMessage = "无法自动添加防火墙规则: $error\n请尝试以管理员身份运行程序，或手动在防火墙中放行 TCP $port 端口。") }
             }
         }
+    }
+
+    // ==================== 预设管理方法 ====================
+
+    /**
+     * 应用指定预设
+     */
+    fun applyPreset(presetId: String) {
+        presetManager.applyPreset(presetId) { presetSettings ->
+            // 应用音频处理参数
+            setEnableNS(presetSettings.enableNS)
+            setNsType(presetSettings.nsType)
+            setEnableAGC(presetSettings.enableAGC)
+            setAgcTargetLevel(presetSettings.agcTargetLevel)
+            setEnableVAD(presetSettings.enableVAD)
+            setVadThreshold(presetSettings.vadThreshold)
+            setEnableDereverb(presetSettings.enableDereverb)
+            setDereverbLevel(presetSettings.dereverbLevel)
+            setAmplification(presetSettings.amplification)
+
+            // 可选：应用音频格式参数
+            presetSettings.sampleRate?.let { setSampleRate(it) }
+            presetSettings.channelCount?.let { setChannelCount(it) }
+            presetSettings.audioFormat?.let { setAudioFormat(it) }
+        }
+
+        _uiState.update { it.copy(currentPresetId = presetId) }
+    }
+
+    /**
+     * 保存当前配置为自定义预设
+     */
+    fun saveCurrentAsPreset(name: String) {
+        val s = _uiState.value
+        val presetSettings = AudioPresetSettings(
+            enableNS = s.enableNS,
+            nsType = s.nsType,
+            enableAGC = s.enableAGC,
+            agcTargetLevel = s.agcTargetLevel,
+            enableVAD = s.enableVAD,
+            vadThreshold = s.vadThreshold,
+            enableDereverb = s.enableDereverb,
+            dereverbLevel = s.dereverbLevel,
+            amplification = s.amplification,
+            sampleRate = s.sampleRate,
+            channelCount = s.channelCount,
+            audioFormat = s.audioFormat
+        )
+        presetManager.saveCustomPreset(name, presetSettings)
+    }
+
+    /**
+     * 删除自定义预设
+     */
+    fun deletePreset(presetId: String) {
+        presetManager.deleteCustomPreset(presetId)
+    }
+
+    // ==================== 性能配置方法 ====================
+
+    /**
+     * 设置性能模式
+     */
+    fun setPerformanceMode(mode: String) {
+        val config = PerformanceConfig.fromMode(mode)
+
+        _uiState.update { it.copy(
+            performanceConfig = config,
+            performanceMode = mode
+        ) }
+
+        settings.putString("performance_mode", mode)
+        _audioEngine.updatePerformanceConfig(config)
+    }
+
+    /**
+     * 设置缓冲区大小倍数
+     */
+    fun setBufferSizeMultiplier(multiplier: Float) {
+        val config = PerformanceConfig.withBufferSizeMultiplier(multiplier)
+
+        _uiState.update { it.copy(
+            performanceConfig = config
+        ) }
+
+        settings.putFloat("buffer_size_multiplier", multiplier)
+        _audioEngine.updatePerformanceConfig(config)
+    }
+
+    /**
+     * 获取峰值电平（最近N秒内）
+     */
+    fun getPeakLevel(seconds: Int = 3): Float {
+        return audioLevelHistory.getPeakInRange(seconds)
+    }
+
+    /**
+     * 获取平均 RMS（最近N秒内）
+     */
+    fun getAverageRms(seconds: Int = 3): Float {
+        return audioLevelHistory.getAverageRms(seconds)
     }
 
     override fun onCleared() {

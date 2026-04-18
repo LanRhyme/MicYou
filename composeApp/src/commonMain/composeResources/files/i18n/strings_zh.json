@@ -309,7 +309,26 @@
     "errorSuggestionUpdateApp": "• 更新到最新版本",
     "errorSuggestionCheckLogs": "• 查看应用日志获取详细错误信息"
   },
-  
+
+  "audioEnhanced": {
+    "presetLabel": "音频预设",
+    "presetDefault": "默认",
+    "presetMeeting": "会议",
+    "presetRecording": "录音",
+    "presetLiveStream": "直播",
+    "saveAsPreset": "保存为预设",
+    "presetNameLabel": "预设名称",
+    "presetSaved": "预设保存成功",
+    "performanceLabel": "性能模式",
+    "performanceDefault": "默认",
+    "performanceLowLatency": "低延迟",
+    "performanceHighQuality": "高质量",
+    "bitrateLabel": "比特率",
+    "latencyLabel": "延迟",
+    "rmsLabel": "RMS",
+    "peakLabel": "峰值"
+  },
+
   "usb": {
     "usbModeDialogTitle": "USB 连接设置",
     "usbModeDialogMessage": "USB 连接需要 ADB 端口转发。请在电脑上运行以下命令：",

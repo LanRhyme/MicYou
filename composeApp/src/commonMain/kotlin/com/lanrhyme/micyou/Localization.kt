@@ -16,6 +16,31 @@ enum class AppLanguage(val label: String, val code: String) {
 }
 
 @Serializable
+data class AudioEnhancedStrings(
+    // Audio Presets
+    val presetLabel: String = "Audio Preset",
+    val presetDefault: String = "Default",
+    val presetMeeting: String = "Meeting",
+    val presetRecording: String = "Recording",
+    val presetLiveStream: String = "Live Stream",
+    val saveAsPreset: String = "Save as Preset",
+    val presetNameLabel: String = "Preset Name",
+    val presetSaved: String = "Preset saved successfully",
+
+    // Performance Settings
+    val performanceLabel: String = "Performance Mode",
+    val performanceDefault: String = "Default",
+    val performanceLowLatency: String = "Low Latency",
+    val performanceHighQuality: String = "High Quality",
+
+    // Audio Metrics
+    val bitrateLabel: String = "Bitrate",
+    val latencyLabel: String = "Latency",
+    val rmsLabel: String = "RMS",
+    val peakLabel: String = "Peak"
+)
+
+@Serializable
 data class ErrorStrings(
     // Error Dialog
     val errorDialogTitle: String = "Connection Error",
@@ -391,10 +416,13 @@ data class AppStrings(
     val vbcableInstall: String = "Install",
     val vbcableInstalling: String = "Installing...",
     val vbcableSettingsLabel: String = "VB-Cable",
-    
+
     // Error Strings (nested)
     val errors: ErrorStrings = ErrorStrings(),
-    
+
+    // Audio Enhanced Strings (nested)
+    val audioEnhanced: AudioEnhancedStrings = AudioEnhancedStrings(),
+
     // USB Strings (nested)
     val usb: UsbStrings = UsbStrings()
 )

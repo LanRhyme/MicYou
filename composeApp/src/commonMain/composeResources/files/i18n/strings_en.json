@@ -305,6 +305,24 @@
     "errorSuggestionUpdateApp": "• Update to the latest version",
     "errorSuggestionCheckLogs": "• Check application logs for detailed error information"
   },
+  "audioEnhanced": {
+    "presetLabel": "Audio Preset",
+    "presetDefault": "Default",
+    "presetMeeting": "Meeting",
+    "presetRecording": "Recording",
+    "presetLiveStream": "Live Stream",
+    "saveAsPreset": "Save as Preset",
+    "presetNameLabel": "Preset Name",
+    "presetSaved": "Preset saved successfully",
+    "performanceLabel": "Performance Mode",
+    "performanceDefault": "Default",
+    "performanceLowLatency": "Low Latency",
+    "performanceHighQuality": "High Quality",
+    "bitrateLabel": "Bitrate",
+    "latencyLabel": "Latency",
+    "rmsLabel": "RMS",
+    "peakLabel": "Peak"
+  },
   "usb": {
     "usbModeDialogTitle": "USB Connection Setup",
     "usbModeDialogMessage": "USB connection requires ADB port forwarding. Please run the following command on your PC:",

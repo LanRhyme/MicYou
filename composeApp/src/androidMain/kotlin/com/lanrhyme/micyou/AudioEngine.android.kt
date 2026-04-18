@@ -120,9 +120,13 @@ actual class AudioEngine actual constructor() {
     fun currentStreamState(): StreamState = _state.value
     private val _audioLevels = MutableStateFlow(0f)
     actual val audioLevels: Flow<Float> = _audioLevels
+    private val _audioLevelData = MutableStateFlow(AudioLevelData.SILENT)
+    actual val audioLevelData: Flow<AudioLevelData> = _audioLevelData
+    private val _audioMetrics = MutableStateFlow<AudioMetrics?>(null)
+    actual val audioMetrics: Flow<AudioMetrics?> = _audioMetrics
     private val _lastError = MutableStateFlow<String?>(null)
     actual val lastError: Flow<String?> = _lastError
-    
+
     private val _isMuted = MutableStateFlow(false)
     actual val isMuted: Flow<Boolean> = _isMuted
 
@@ -468,9 +472,10 @@ actual class AudioEngine actual constructor() {
                             }
 
                             if (readBytes > 0) {
-                                // 计算电平
-                                val rms = calculateRMS(audioData, audioFormat)
-                                _audioLevels.value = rms
+                                // 计算电平数据
+                                val levelData = calculateAudioLevelData(audioData, audioFormat)
+                                _audioLevels.value = levelData.rms
+                                _audioLevelData.value = levelData
 
                                 if (!_isMuted.value) {
                                     // 创建数据包
@@ -690,21 +695,28 @@ actual class AudioEngine actual constructor() {
      * 注意：JVM 端有独立的 calculateRMS 实现，只处理 16-bit 格式，
      * 因为 AudioProcessorPipeline 已将所有格式统一转换。
      */
-    private fun calculateRMS(buffer: ByteArray, format: com.lanrhyme.micyou.AudioFormat): Float {
+    /**
+     * 计算音频电平数据（RMS、峰值、dB）
+     */
+    private fun calculateAudioLevelData(buffer: ByteArray, format: com.lanrhyme.micyou.AudioFormat): AudioLevelData {
+        if (buffer.isEmpty()) return AudioLevelData.SILENT
+
         var sum = 0.0
+        var maxSample = 0.0
         var sampleCount = 0
 
         when (format) {
             com.lanrhyme.micyou.AudioFormat.PCM_FLOAT -> {
                 sampleCount = buffer.size / 4
                 for (i in 0 until sampleCount) {
-                     val byteIndex = i * 4
-                     val bits = (buffer[byteIndex].toInt() and 0xFF) or
-                                ((buffer[byteIndex + 1].toInt() and 0xFF) shl 8) or
-                                ((buffer[byteIndex + 2].toInt() and 0xFF) shl 16) or
-                                ((buffer[byteIndex + 3].toInt() and 0xFF) shl 24)
-                     val sample = Float.fromBits(bits)
-                     sum += sample * sample
+                    val byteIndex = i * 4
+                    val bits = (buffer[byteIndex].toInt() and 0xFF) or
+                               ((buffer[byteIndex + 1].toInt() and 0xFF) shl 8) or
+                               ((buffer[byteIndex + 2].toInt() and 0xFF) shl 16) or
+                               ((buffer[byteIndex + 3].toInt() and 0xFF) shl 24)
+                    val sample = Float.fromBits(bits)
+                    sum += sample * sample
+                    maxSample = maxOf(maxSample, kotlin.math.abs(sample.toDouble()))
                 }
             }
             com.lanrhyme.micyou.AudioFormat.PCM_8BIT -> {
@@ -713,9 +725,10 @@ actual class AudioEngine actual constructor() {
                     val sample = (buffer[i].toInt() and 0xFF) - 128
                     val normalized = sample / 128.0
                     sum += normalized * normalized
+                    maxSample = maxOf(maxSample, kotlin.math.abs(normalized))
                 }
             }
-            else -> { // 16-bit
+            else -> { // 16-bit (including PCM_16BIT and PCM_24BIT which is downscaled)
                 sampleCount = buffer.size / 2
                 for (i in 0 until sampleCount) {
                     val byteIndex = i * 2
@@ -723,9 +736,23 @@ actual class AudioEngine actual constructor() {
                                  ((buffer[byteIndex + 1].toInt()) shl 8)
                     val normalized = sample / 32768.0
                     sum += normalized * normalized
+                    maxSample = maxOf(maxSample, kotlin.math.abs(normalized))
                 }
             }
         }
-        return if (sampleCount > 0) Math.sqrt(sum / sampleCount).toFloat() else 0f
+
+        if (sampleCount == 0) return AudioLevelData.SILENT
+
+        val rms = Math.sqrt(sum / sampleCount).toFloat().coerceIn(0f, 1f)
+        val peak = maxSample.toFloat().coerceIn(0f, 1f)
+
+        return AudioLevelData.fromRmsAndPeak(rms, peak)
+    }
+
+    /**
+     * 更新性能配置（Android 端暂不支持动态调整）
+     */
+    actual fun updatePerformanceConfig(config: PerformanceConfig) {
+        Logger.d("AudioEngine", "Android 端不支持动态性能配置调整")
     }
 }

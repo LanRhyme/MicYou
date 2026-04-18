@@ -278,6 +278,24 @@
     "errorSuggestionUpdateApp": "• 更新到最新版本",
     "errorSuggestionCheckLogs": "• 检视应用程式日志以取得详细错误资讯"
   },
+  "audioEnhanced": {
+    "presetLabel": "音频预设配置项",
+    "presetDefault": "默认设置",
+    "presetMeeting": "会议模式",
+    "presetRecording": "录音模式",
+    "presetLiveStream": "直播模式",
+    "saveAsPreset": "保存为预设配置",
+    "presetNameLabel": "预设配置名称",
+    "presetSaved": "预设配置保存成功",
+    "performanceLabel": "效能模式",
+    "performanceDefault": "默认设置",
+    "performanceLowLatency": "低延迟模式",
+    "performanceHighQuality": "高质量模式",
+    "bitrateLabel": "位元传输率",
+    "latencyLabel": "延迟时间",
+    "rmsLabel": "均方根值",
+    "peakLabel": "峰值数值"
+  },
   "usb": {
     "usbModeDialogTitle": "通用串行总线式连线设定项目",
     "usbModeDialogMessage": "通用串行总线式连线需要安卓调试桥接港口转发。请在电脑上执行以下指令：",

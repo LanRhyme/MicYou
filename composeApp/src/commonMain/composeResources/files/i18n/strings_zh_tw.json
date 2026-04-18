@@ -306,6 +306,24 @@
     "errorSuggestionUpdateApp": "• 更新到最新版本",
     "errorSuggestionCheckLogs": "• 檢視應用程式日誌以取得詳細錯誤資訊"
   },
+  "audioEnhanced": {
+    "presetLabel": "音訊預設",
+    "presetDefault": "預設",
+    "presetMeeting": "會議",
+    "presetRecording": "錄音",
+    "presetLiveStream": "直播",
+    "saveAsPreset": "儲存為預設",
+    "presetNameLabel": "預設名稱",
+    "presetSaved": "預設儲存成功",
+    "performanceLabel": "效能模式",
+    "performanceDefault": "預設",
+    "performanceLowLatency": "低延遲",
+    "performanceHighQuality": "高品質",
+    "bitrateLabel": "位元率",
+    "latencyLabel": "延遲",
+    "rmsLabel": "RMS",
+    "peakLabel": "峰值"
+  },
   "usb": {
     "usbModeDialogTitle": "USB 連線設定",
     "usbModeDialogMessage": "USB 連線需要 ADB 連接埠轉送。請在電腦上執行以下指令：",

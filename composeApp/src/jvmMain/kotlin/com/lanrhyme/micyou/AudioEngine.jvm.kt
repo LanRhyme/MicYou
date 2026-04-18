@@ -19,9 +19,13 @@ actual class AudioEngine actual constructor() {
     actual val streamState: Flow<StreamState> = _state
     private val _audioLevels = MutableStateFlow(0f)
     actual val audioLevels: Flow<Float> = _audioLevels
+    private val _audioLevelData = MutableStateFlow(AudioLevelData.SILENT)
+    actual val audioLevelData: Flow<AudioLevelData> = _audioLevelData
+    private val _audioMetrics = MutableStateFlow<AudioMetrics?>(null)
+    actual val audioMetrics: Flow<AudioMetrics?> = _audioMetrics
     private val _lastError = MutableStateFlow<String?>(null)
     actual val lastError: Flow<String?> = _lastError
-    
+
     private val _isMuted = MutableStateFlow(false)
     actual val isMuted: Flow<Boolean> = _isMuted
     
@@ -33,9 +37,14 @@ actual class AudioEngine actual constructor() {
     private var audioProcessingJob: Job? = null
     private var stopJob: Job? = null // 用于跟踪停止操作，防止竞态条件
     private val startStopMutex = Mutex()
-    
+
     private val audioOutputManager = AudioOutputManager()
     private val audioPipeline = AudioProcessorPipeline()
+
+    // 当前音频参数（用于计算比特率）
+    private var currentSampleRate: Int = 0
+    private var currentChannelCount: Int = 0
+    private var currentAudioFormatValue: Int = 0
     
     private val audioPacketChannel = Channel<AudioPacketMessage>(
         capacity = Constants.AUDIO_PACKET_CHANNEL_CAPACITY,
@@ -90,7 +99,12 @@ actual class AudioEngine actual constructor() {
                     }
 
                     val queuedMs = audioOutputManager.getQueuedDurationMs()
-                    
+
+                    // 保存当前音频参数用于计算比特率
+                    currentSampleRate = audioPacket.sampleRate
+                    currentChannelCount = audioPacket.channelCount
+                    currentAudioFormatValue = audioPacket.audioFormat
+
                     val processedBuffer = audioPipeline.process(
                         inputBuffer = audioPacket.buffer,
                         audioFormat = audioPacket.audioFormat,
@@ -101,8 +115,12 @@ actual class AudioEngine actual constructor() {
                     if (processedBuffer != null) {
                         audioOutputManager.write(processedBuffer, 0, processedBuffer.size)
 
-                        val rms = calculateRMS(processedBuffer)
-                        _audioLevels.value = rms
+                        val levelData = calculateAudioLevelData(processedBuffer)
+                        _audioLevels.value = levelData.rms
+                        _audioLevelData.value = levelData
+
+                        // 更新音频指标
+                        updateAudioMetrics(queuedMs)
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -252,12 +270,15 @@ actual class AudioEngine actual constructor() {
     }
     
     /**
-     * 计算 16-bit PCM 音频数据的 RMS 电平值。
+     * 计算 16-bit PCM 音频数据的电平数据。
+     * 返回 RMS、峰值和分贝值。
      * 注意：此方法只处理 16-bit 格式，因为 AudioProcessorPipeline 已将所有格式转换为 16-bit。
-     * Android 端有独立的 calculateRMS 实现支持多种格式。
      */
-    private fun calculateRMS(buffer: ByteArray): Float {
+    private fun calculateAudioLevelData(buffer: ByteArray): AudioLevelData {
+        if (buffer.isEmpty()) return AudioLevelData.SILENT
+
         var sum = 0.0
+        var maxSample = 0.0
         var count = 0
         var i = 0
         while (i + 1 < buffer.size) {
@@ -265,10 +286,46 @@ actual class AudioEngine actual constructor() {
             val hi = buffer[i + 1].toInt()
             val sample = (hi shl 8) or lo
             val normalized = sample / 32768.0
+
             sum += normalized * normalized
+            maxSample = maxOf(maxSample, kotlin.math.abs(normalized))
             count++
             i += 2
         }
-        return if (count > 0) sqrt(sum / count.toDouble()).toFloat() else 0f
+
+        if (count == 0) return AudioLevelData.SILENT
+
+        val rms = sqrt(sum / count).toFloat().coerceIn(0f, 1f)
+        val peak = maxSample.toFloat().coerceIn(0f, 1f)
+
+        return AudioLevelData.fromRmsAndPeak(rms, peak)
+    }
+
+    /**
+     * 更新音频指标（比特率、延迟）
+     */
+    private fun updateAudioMetrics(latencyMs: Long) {
+        if (currentSampleRate <= 0 || currentChannelCount <= 0) return
+
+        val bitsPerSample = when (currentAudioFormatValue) {
+            4, 32 -> 32  // PCM_FLOAT
+            6, 24 -> 24  // PCM_24BIT
+            3, 8 -> 8    // PCM_8BIT
+            else -> 16   // PCM_16BIT
+        }
+
+        val bitrate = AudioMetrics.calculateBitrate(currentSampleRate, currentChannelCount, bitsPerSample)
+        _audioMetrics.value = AudioMetrics(
+            bitrate = bitrate,
+            latencyMs = latencyMs
+        )
+    }
+
+    /**
+     * 更新性能配置
+     */
+    actual fun updatePerformanceConfig(config: PerformanceConfig) {
+        audioPipeline.updatePerformanceConfig(config)
+        Logger.d("AudioEngine", "性能配置已更新: shortsCapacity=${config.initialShortsCapacity}, growthFactor=${config.bufferGrowthFactor}")
     }
 }

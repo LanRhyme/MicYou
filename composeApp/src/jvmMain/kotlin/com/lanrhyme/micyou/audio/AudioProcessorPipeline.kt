@@ -1,6 +1,8 @@
 package com.lanrhyme.micyou.audio
 
 import com.lanrhyme.micyou.NoiseReductionType
+import com.lanrhyme.micyou.PerformanceConfig
+import com.lanrhyme.micyou.Logger
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -16,20 +18,17 @@ class AudioProcessorPipeline {
     private val vadEffect = VADEffect()
     private val resamplerEffect = ResamplerEffect()
 
-    // 预分配的缓冲区 - 使用更大的初始容量避免频繁扩容
-    private var scratchShorts: ShortArray = ShortArray(INITIAL_SHORTS_CAPACITY)
-    private var scratchResultBuffer: ByteArray = ByteArray(INITIAL_BYTES_CAPACITY)
+    // 可配置的性能参数
+    private var config: PerformanceConfig = PerformanceConfig.DEFAULT
+
+    // 预分配的缓冲区 - 使用可配置的初始容量
+    private var scratchShorts: ShortArray = ShortArray(config.initialShortsCapacity)
+    private var scratchResultBuffer: ByteArray = ByteArray(config.initialBytesCapacity)
     private var scratchResultByteBuffer: ByteBuffer = ByteBuffer.wrap(scratchResultBuffer).order(ByteOrder.LITTLE_ENDIAN)
 
-    companion object {
-        // 初始缓冲区容量 - 基于典型音频帧大小计算
-        // 48000Hz, 16bit, 2ch, 100ms ≈ 19200 bytes, 9600 shorts
-        private const val INITIAL_SHORTS_CAPACITY = 16384
-        private const val INITIAL_BYTES_CAPACITY = 32768
-        // 缓冲区增长因子
-        private const val GROWTH_FACTOR = 1.5
-    }
-
+    /**
+     * 更新音频处理配置
+     */
     fun updateConfig(
         enableNS: Boolean,
         nsType: NoiseReductionType,
@@ -100,29 +99,41 @@ class AudioProcessorPipeline {
         if (scratchResultBuffer.size >= neededBytes) return
 
         // 只有当需要更大容量时才扩容
-        // 使用增长因子预分配更多空间，避免频繁扩容
-        val newSize = (neededBytes * GROWTH_FACTOR).toInt().coerceAtLeast(neededBytes)
+        // 使用配置的增长因子预分配更多空间，避免频繁扩容
+        val newSize = (neededBytes * config.bufferGrowthFactor).toInt().coerceAtLeast(neededBytes)
         scratchResultBuffer = ByteArray(newSize)
         scratchResultByteBuffer = ByteBuffer.wrap(scratchResultBuffer).order(ByteOrder.LITTLE_ENDIAN)
     }
 
     private fun convertToShorts(buffer: ByteArray, format: Int): ShortArray? {
         val shortsSize = when (format) {
-            4, 32 -> buffer.size / 4
-            3, 8 -> buffer.size
-            else -> buffer.size / 2
+            4, 32 -> buffer.size / 4  // PCM_FLOAT
+            6, 24 -> buffer.size / 3  // PCM_24BIT (新增)
+            3, 8 -> buffer.size       // PCM_8BIT
+            else -> buffer.size / 2   // PCM_16BIT
         }
         if (shortsSize <= 0) return null
 
         // 快速检查：如果当前缓冲区容量足够，直接使用
         if (scratchShorts.size < shortsSize) {
-            // 使用增长因子扩容
-            val newSize = (shortsSize * GROWTH_FACTOR).toInt().coerceAtLeast(shortsSize)
+            // 使用配置的增长因子扩容
+            val newSize = (shortsSize * config.bufferGrowthFactor).toInt().coerceAtLeast(shortsSize)
             scratchShorts = ShortArray(newSize)
         }
         val shorts = scratchShorts
-        
+
         when (format) {
+            6, 24 -> { // PCM_24BIT (24-bit Little Endian, signed)
+                for (i in 0 until shortsSize) {
+                    val byteIndex = i * 3
+                    // 24-bit Little Endian: LSB first
+                    val sample24 = (buffer[byteIndex].toInt() and 0xFF) or
+                                   ((buffer[byteIndex + 1].toInt() and 0xFF) shl 8) or
+                                   ((buffer[byteIndex + 2].toInt()) shl 16)
+                    // 将 24-bit 值缩放到 16-bit 范围（右移 8 位）
+                    shorts[i] = (sample24 shr 8).toShort()
+                }
+            }
             4, 32 -> { // PCM_FLOAT (32-bit float)
                 for (i in 0 until shortsSize) {
                     val byteIndex = i * 4
@@ -171,5 +182,24 @@ class AudioProcessorPipeline {
         vadEffect.reset()
         amplifierEffect.reset()
         resamplerEffect.reset()
+    }
+
+    /**
+     * 更新性能配置
+     * 在运行时调整缓冲区策略
+     */
+    fun updatePerformanceConfig(newConfig: PerformanceConfig) {
+        config = newConfig
+
+        // 仅在新配置需要更大容量时扩容
+        if (newConfig.initialShortsCapacity > scratchShorts.size) {
+            scratchShorts = ShortArray(newConfig.initialShortsCapacity)
+        }
+        if (newConfig.initialBytesCapacity > scratchResultBuffer.size) {
+            scratchResultBuffer = ByteArray(newConfig.initialBytesCapacity)
+            scratchResultByteBuffer = ByteBuffer.wrap(scratchResultBuffer).order(ByteOrder.LITTLE_ENDIAN)
+        }
+
+        Logger.d("AudioProcessorPipeline", "性能配置已更新: shorts=${scratchShorts.size}, bytes=${scratchResultBuffer.size}, growthFactor=${newConfig.bufferGrowthFactor}")
     }
 }
