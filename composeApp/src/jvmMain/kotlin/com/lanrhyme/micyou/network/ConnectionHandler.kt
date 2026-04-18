@@ -150,15 +150,16 @@ class ConnectionHandler(
 
             val length = input.readInt()
 
-            // 严格的包大小验证，防止恶意数据包攻击和 DoS
+            // 包大小验证：保持稳健性，跳过异常包而不是断开连接
+            // 2MB 限制防止内存溢出，但不会因为单个异常包就断开整个连接
             if (length > Constants.MAX_PACKET_SIZE) {
-                Logger.e("ConnectionHandler", "Packet size too large: $length bytes (max: ${Constants.MAX_PACKET_SIZE}), closing connection")
-                throw IOException("Packet size too large: $length bytes")
+                Logger.w("ConnectionHandler", "Packet size too large: $length bytes (max: ${Constants.MAX_PACKET_SIZE}), skipping packet")
+                continue
             }
 
             if (length < 0) {
-                Logger.e("ConnectionHandler", "Invalid negative packet length: $length, possible malicious packet")
-                throw IOException("Invalid packet length: $length")
+                Logger.w("ConnectionHandler", "Invalid negative packet length: $length, skipping packet")
+                continue
             }
 
             if (length == 0) {

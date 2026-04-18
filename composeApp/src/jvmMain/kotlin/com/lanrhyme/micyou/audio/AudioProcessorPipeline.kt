@@ -163,7 +163,9 @@ class AudioProcessorPipeline {
                 }
             }
         }
-        return shorts
+        // 重要：只返回实际填充的数据大小，而不是整个预分配缓冲区
+        // 这样后续处理才能正确处理实际数据量，避免旧数据混入产生噪音
+        return shorts.copyOf(shortsSize)
     }
 
     fun release() {

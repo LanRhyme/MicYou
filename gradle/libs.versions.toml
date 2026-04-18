@@ -20,7 +20,7 @@ material3 = "1.8.0"
 ktor = "3.4.0"
 kotlinx-serialization = "1.8.1"
 composenativetray = "1.1.0"
-onnxruntime = "1.21.0"
+onnxruntime = "1.14.0"
 jtransforms = "3.2"
 window = "1.5.1"
 

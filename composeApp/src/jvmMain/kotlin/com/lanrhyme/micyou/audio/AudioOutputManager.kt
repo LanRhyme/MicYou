@@ -206,7 +206,7 @@ class AudioOutputManager {
     
     private fun initDefault(audioFormat: AudioFormat, lineInfo: DataLine.Info): Boolean {
         Logger.d("AudioOutputManager", "Try using the default audio device")
-        
+
         if (PlatformInfo.isWindows) {
             val cableMixer = findVBCableMixer(lineInfo)
             if (cableMixer != null) {
@@ -218,6 +218,9 @@ class AudioOutputManager {
                 } catch (e: Exception) {
                     Logger.e("AudioOutputManager", "Failed to initialize VB-CABLE", e)
                 }
+            } else {
+                // Windows上没有找到VB-CABLE，给出明确警告
+                Logger.w("AudioOutputManager", "VB-CABLE not found on Windows. Audio will be muted for privacy. Please install VB-CABLE from https://vb-audio.com/Cable/ to enable audio transmission.")
             }
         }
         

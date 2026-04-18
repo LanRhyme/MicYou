@@ -46,10 +46,9 @@ import kotlin.coroutines.coroutineContext
  * 此扩展函数应该仅在协程内部调用，以确保正确管理协程生命周期。
  * 使用 coroutineContext 而非 GlobalScope，避免协程泄漏。
  *
- * 包含异常处理和资源清理逻辑：
- * - 捕获 I/O 异常并记录日志
- * - 协程取消时正确关闭 OutputStream
- * - 确保 CancellationException 正确传播
+ * **重要**：此函数不会自动关闭 OutputStream，因为 OutputStream 的生命周期
+ * 应该由调用者管理（例如通过 closeConnection 回调）。在 finally 中关闭会导致
+ * 蓝牙/WiFi 连接提前断开，影响音频传输。
  *
  * @return ByteWriteChannel 用于写入数据
  */
@@ -75,14 +74,9 @@ suspend fun OutputStream.toByteWriteChannelSuspend(): ByteWriteChannel {
             throw e
         } catch (e: Exception) {
             Logger.e("ByteWriteChannel", "Unexpected error in write channel: ${e.message}", e)
-        } finally {
-            // 确保在协程结束时关闭 OutputStream
-            try {
-                outputStream.close()
-            } catch (e: Exception) {
-                Logger.w("ByteWriteChannel", "Error closing output stream: ${e.message}")
-            }
         }
+        // 注意：不在此处关闭 OutputStream，由调用者通过 closeConnection 回调管理
+        // 这与原始 toByteWriteChannel 的行为保持一致，避免蓝牙连接提前断开
     }.channel
 }
 
@@ -225,6 +219,15 @@ actual class AudioEngine actual constructor() {
                         }
                         
                         val minBufSize = AudioRecord.getMinBufferSize(androidSampleRate, androidChannelConfig, androidAudioFormat)
+
+                        // 检查 minBufSize 是否有效，某些设备可能不支持 PCM_FLOAT
+                        if (minBufSize <= 0 || minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
+                            val msg = "音频格式不支持: 设备不支持 ${audioFormat.label} (${androidAudioFormat}) 格式或当前采样率 ${androidSampleRate}Hz"
+                            Logger.e("AudioEngine", msg + ", minBufSize=$minBufSize")
+                            _state.value = StreamState.Error
+                            _lastError.value = msg
+                            return@launch
+                        }
 
                         try {
                             // 使用用户选择的音频源
