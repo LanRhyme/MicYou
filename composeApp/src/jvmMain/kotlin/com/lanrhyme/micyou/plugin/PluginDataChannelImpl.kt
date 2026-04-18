@@ -4,7 +4,8 @@ import com.lanrhyme.micyou.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -159,36 +160,54 @@ class PluginDataChannelImpl(
 }
 
 class PluginDataChannelProviderImpl : PluginDataChannelProvider {
-    // 使用 SupervisorJob 以便能够正确取消所有子协程
-    private val scope = CoroutineScope(Dispatchers.Default + Job())
+    // 使用 SupervisorJob 确保单个 channel 的失败不会影响其他 channel
+    // 每次需要使用时检查 scope 是否有效，无效时重新创建
+    private var scopeJob: Job = SupervisorJob()
+    private var scope: CoroutineScope = CoroutineScope(Dispatchers.Default + scopeJob)
     private val channels = mutableMapOf<String, PluginDataChannel>()
-    
+
+    /**
+     * 获取有效的 scope，如果之前的 scope 已被取消则重新创建
+     */
+    private fun getValidScope(): CoroutineScope {
+        if (!scopeJob.isActive) {
+            scopeJob = SupervisorJob()
+            scope = CoroutineScope(Dispatchers.Default + scopeJob)
+            Logger.d("PluginDataChannel", "Scope recreated after cancellation")
+        }
+        return scope
+    }
+
     override fun createChannel(id: String, config: DataChannelConfig): PluginDataChannel {
+        val validScope = getValidScope()
         val existing = channels[id]
         if (existing != null) {
-            scope.launch { existing.close() }
+            validScope.launch { existing.close() }
         }
-        
+
         val channel = PluginDataChannelImpl(id, config)
         channels[id] = channel
         return channel
     }
-    
+
     override fun getChannel(id: String): PluginDataChannel? = channels[id]
-    
+
     override fun closeChannel(id: String) {
+        val validScope = getValidScope()
         channels[id]?.let { channel ->
-            scope.launch { channel.close() }
+            validScope.launch { channel.close() }
             channels.remove(id)
         }
     }
-    
+
     override fun closeAllChannels() {
+        val validScope = getValidScope()
         channels.values.forEach { channel ->
-            scope.launch { channel.close() }
+            validScope.launch { channel.close() }
         }
         channels.clear()
-        // 取消所有相关的协程，防止内存泄漏
-        scope.cancel()
+        // 只取消子协程，保留 scope 可复用性
+        scopeJob.cancelChildren()
+        Logger.d("PluginDataChannel", "All channels closed, scope remains valid")
     }
 }

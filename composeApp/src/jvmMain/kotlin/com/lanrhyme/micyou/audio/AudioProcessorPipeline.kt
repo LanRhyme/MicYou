@@ -4,6 +4,10 @@ import com.lanrhyme.micyou.NoiseReductionType
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
+/**
+ * 音频处理管道
+ * 使用预分配的缓冲区池来避免频繁的内存分配和GC压力
+ */
 class AudioProcessorPipeline {
     private val noiseReducer = NoiseReducer()
     private val dereverbEffect = DereverbEffect()
@@ -12,9 +16,23 @@ class AudioProcessorPipeline {
     private val vadEffect = VADEffect()
     private val resamplerEffect = ResamplerEffect()
 
-    private var scratchShorts: ShortArray = ShortArray(0)
-    private var scratchResultBuffer: ByteArray = ByteArray(0)
-    private var scratchResultByteBuffer: ByteBuffer? = null
+    // 预分配的缓冲区 - 使用更大的初始容量避免频繁扩容
+    private var scratchShorts: ShortArray = ShortArray(INITIAL_SHORTS_CAPACITY)
+    private var scratchResultBuffer: ByteArray = ByteArray(INITIAL_BYTES_CAPACITY)
+    private var scratchResultByteBuffer: ByteBuffer = ByteBuffer.wrap(scratchResultBuffer).order(ByteOrder.LITTLE_ENDIAN)
+
+    // 记录上次使用的缓冲区大小，避免重复检查
+    private var lastShortsSize: Int = 0
+    private var lastNeededBytes: Int = 0
+
+    companion object {
+        // 初始缓冲区容量 - 基于典型音频帧大小计算
+        // 48000Hz, 16bit, 2ch, 100ms ≈ 19200 bytes, 9600 shorts
+        private const val INITIAL_SHORTS_CAPACITY = 16384
+        private const val INITIAL_BYTES_CAPACITY = 32768
+        // 缓冲区增长因子
+        private const val GROWTH_FACTOR = 1.5
+    }
 
     fun updateConfig(
         enableNS: Boolean,
@@ -67,21 +85,30 @@ class AudioProcessorPipeline {
         val neededBytes = maxOutputShorts * 2
         ensureOutputBufferCapacity(neededBytes)
         
-        val outputBuffer = scratchResultByteBuffer!!
+        val outputBuffer = scratchResultByteBuffer
         outputBuffer.clear()
-        
+
         val processedShortCount = resamplerEffect.processToByteBuffer(processed, channelCount, outputBuffer)
-        
+
         return scratchResultBuffer.copyOf(processedShortCount * 2)
     }
-    
+
     private val playbackRatioLowerBound: Double get() = 0.97
 
+    /**
+     * 确保输出缓冲区有足够的容量
+     * 使用增长因子来减少频繁扩容，避免内存抖动
+     */
     private fun ensureOutputBufferCapacity(neededBytes: Int) {
-        if (scratchResultBuffer.size < neededBytes) {
-            scratchResultBuffer = ByteArray(neededBytes)
-            scratchResultByteBuffer = ByteBuffer.wrap(scratchResultBuffer).order(ByteOrder.LITTLE_ENDIAN)
-        }
+        // 快速检查：如果当前容量足够，直接返回
+        if (scratchResultBuffer.size >= neededBytes) return
+
+        // 只有当需要更大容量时才扩容
+        // 使用增长因子预分配更多空间，避免频繁扩容
+        val newSize = (neededBytes * GROWTH_FACTOR).toInt().coerceAtLeast(neededBytes)
+        scratchResultBuffer = ByteArray(newSize)
+        scratchResultByteBuffer = ByteBuffer.wrap(scratchResultBuffer).order(ByteOrder.LITTLE_ENDIAN)
+        lastNeededBytes = neededBytes
     }
 
     private fun convertToShorts(buffer: ByteArray, format: Int): ShortArray? {
@@ -91,9 +118,12 @@ class AudioProcessorPipeline {
             else -> buffer.size / 2
         }
         if (shortsSize <= 0) return null
-        
-        if (scratchShorts.size != shortsSize) {
-            scratchShorts = ShortArray(shortsSize)
+
+        // 快速检查：如果当前缓冲区容量足够，直接使用
+        if (scratchShorts.size < shortsSize) {
+            // 使用增长因子扩容
+            val newSize = (shortsSize * GROWTH_FACTOR).toInt().coerceAtLeast(shortsSize)
+            scratchShorts = ShortArray(newSize)
         }
         val shorts = scratchShorts
         
