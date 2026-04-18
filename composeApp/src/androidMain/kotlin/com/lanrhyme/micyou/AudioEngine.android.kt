@@ -22,9 +22,7 @@ import io.ktor.utils.io.writeFully
 import io.ktor.utils.io.writeInt
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.BufferOverflow
@@ -40,21 +38,52 @@ import java.io.EOFException
 import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
 
-@OptIn(DelicateCoroutinesApi::class)
-fun OutputStream.toByteWriteChannel(context: CoroutineContext = Dispatchers.IO): ByteWriteChannel = GlobalScope.reader(context, autoFlush = true) {
-    val buffer = ByteArray(4096)
-    while (!channel.isClosedForRead) {
-        val count = channel.readAvailable(buffer)
-        if (count == -1) break
-        this@toByteWriteChannel.write(buffer, 0, count)
-        this@toByteWriteChannel.flush()
-    }
-}.channel
+/**
+ * 将 OutputStream 转换为 ByteWriteChannel，使用当前协程的上下文。
+ *
+ * 此扩展函数应该仅在协程内部调用，以确保正确管理协程生命周期。
+ * 使用 coroutineContext 而非 GlobalScope，避免协程泄漏。
+ *
+ * **重要**：此函数不会自动关闭 OutputStream，因为 OutputStream 的生命周期
+ * 应该由调用者管理（例如通过 closeConnection 回调）。在 finally 中关闭会导致
+ * 蓝牙/WiFi 连接提前断开，影响音频传输。
+ *
+ * @return ByteWriteChannel 用于写入数据
+ */
+suspend fun OutputStream.toByteWriteChannelSuspend(): ByteWriteChannel {
+    val scope = CoroutineScope(coroutineContext)
+    val outputStream = this
+    return scope.reader(Dispatchers.IO, autoFlush = true) {
+        val buffer = ByteArray(4096)
+        try {
+            while (!channel.isClosedForRead) {
+                val count = channel.readAvailable(buffer)
+                if (count == -1) break
+                try {
+                    outputStream.write(buffer, 0, count)
+                    outputStream.flush()
+                } catch (e: java.io.IOException) {
+                    Logger.e("ByteWriteChannel", "I/O error writing to stream: ${e.message}", e)
+                    break
+                }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // 协程取消是正常行为，重新抛出以保持协程取消语义
+            throw e
+        } catch (e: Exception) {
+            Logger.e("ByteWriteChannel", "Unexpected error in write channel: ${e.message}", e)
+        }
+        // 注意：不在此处关闭 OutputStream，由调用者通过 closeConnection 回调管理
+        // 这与原始 toByteWriteChannel 的行为保持一致，避免蓝牙连接提前断开
+    }.channel
+}
 
 actual class AudioEngine actual constructor() {
     init {
+        // 注意：此单例模式用于通知栏快捷操作，不支持多实例场景
+        // 在测试环境中需要注意清理或使用 ViewModel 管理实例
         activeEngine = this
     }
 
@@ -71,15 +100,27 @@ actual class AudioEngine actual constructor() {
             return state == StreamState.Streaming || state == StreamState.Connecting
         }
     }
+
+    // 用于测试或清理场景，显式移除 active 引用
+    // 定义为实例方法，可直接使用 this 而无需传参
+    private fun clearActiveEngine() {
+        if (activeEngine == this) {
+            activeEngine = null
+        }
+    }
     private val _state = MutableStateFlow(StreamState.Idle)
     actual val streamState: Flow<StreamState> = _state
 
     fun currentStreamState(): StreamState = _state.value
     private val _audioLevels = MutableStateFlow(0f)
     actual val audioLevels: Flow<Float> = _audioLevels
+    private val _audioLevelData = MutableStateFlow(AudioLevelData.SILENT)
+    actual val audioLevelData: Flow<AudioLevelData> = _audioLevelData
+    private val _audioMetrics = MutableStateFlow<AudioMetrics?>(null)
+    actual val audioMetrics: Flow<AudioMetrics?> = _audioMetrics
     private val _lastError = MutableStateFlow<String?>(null)
     actual val lastError: Flow<String?> = _lastError
-    
+
     private val _isMuted = MutableStateFlow(false)
     actual val isMuted: Flow<Boolean> = _isMuted
 
@@ -179,18 +220,29 @@ actual class AudioEngine actual constructor() {
                         
                         val minBufSize = AudioRecord.getMinBufferSize(androidSampleRate, androidChannelConfig, androidAudioFormat)
 
+                        // 检查 minBufSize 是否有效，某些设备可能不支持 PCM_FLOAT
+                        if (minBufSize <= 0 || minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
+                            val msg = "音频格式不支持: 设备不支持 ${audioFormat.label} (${androidAudioFormat}) 格式或当前采样率 ${androidSampleRate}Hz"
+                            Logger.e("AudioEngine", msg + ", minBufSize=$minBufSize")
+                            _state.value = StreamState.Error
+                            _lastError.value = msg
+                            return@launch
+                        }
+
                         try {
                             // 使用用户选择的音频源
                             val sourceId = audioSource.sourceId
 
                             Logger.d("AudioEngine", "Initializing AudioRecord with source ${audioSource.name} (id=$sourceId)")
                             recorder = try {
+                                // 使用 minBufSize * 3 作为缓冲区，提供足够的缓冲避免音频丢包和杂音
+                                // 较大的缓冲区可以应对网络延迟和处理波动，减少音频断续
                                 AudioRecord(
                                     sourceId,
                                     androidSampleRate,
                                     androidChannelConfig,
                                     androidAudioFormat,
-                                    minBufSize * 2
+                                    minBufSize * 3
                                 )
                             } catch (e: Exception) {
                                 Logger.w("AudioEngine", "${audioSource.name} failed, falling back to MIC: ${e.message}")
@@ -199,7 +251,7 @@ actual class AudioEngine actual constructor() {
                                     androidSampleRate,
                                     androidChannelConfig,
                                     androidAudioFormat,
-                                    minBufSize * 2
+                                    minBufSize * 3
                                 )
                             }
                         } catch (e: SecurityException) {
@@ -243,24 +295,36 @@ actual class AudioEngine actual constructor() {
                         
                         if (mode == ConnectionMode.Bluetooth) {
                             Logger.i("AudioEngine", "Connecting via Bluetooth to $ip")
+
+                            // 显式检查蓝牙权限，提供友好的错误提示
+                            val context = ContextHelper.getContext()
+                                ?: throw IllegalStateException("应用上下文不可用，无法检查蓝牙权限")
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                val hasBluetoothConnect = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context, android.Manifest.permission.BLUETOOTH_CONNECT
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (!hasBluetoothConnect) {
+                                    throw SecurityException("缺少蓝牙连接权限 (BLUETOOTH_CONNECT)，请在应用设置中授予蓝牙权限")
+                                }
+                            }
+
                             val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
                                 ?: throw UnsupportedOperationException("设备不支持蓝牙")
-                            
+
                             if (!android.bluetooth.BluetoothAdapter.checkBluetoothAddress(ip)) {
                                 throw IllegalArgumentException("无效的蓝牙 MAC 地址: $ip")
                             }
-                            
+
                             val device = adapter.getRemoteDevice(ip)
                             // SPP UUID
                             val uuid = java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-                            
-                            // Note: Missing explicit permission check here, relying on SecurityException if missing
+
                             val btSocket = device.createRfcommSocketToServiceRecord(uuid)
                             btSocket.connect()
                             Logger.i("AudioEngine", "Bluetooth connected to $ip")
-                            
+
                             input = btSocket.inputStream.toByteReadChannel()
-                            output = btSocket.outputStream.toByteWriteChannel()
+                            output = btSocket.outputStream.toByteWriteChannelSuspend()
                             closeConnection = { btSocket.close() }
                             
                         } else {
@@ -413,9 +477,10 @@ actual class AudioEngine actual constructor() {
                             }
 
                             if (readBytes > 0) {
-                                // 计算电平
-                                val rms = calculateRMS(audioData, audioFormat)
-                                _audioLevels.value = rms
+                                // 计算电平数据
+                                val levelData = calculateAudioLevelData(audioData, audioFormat)
+                                _audioLevels.value = levelData.rms
+                                _audioLevelData.value = levelData
 
                                 if (!_isMuted.value) {
                                     // 创建数据包
@@ -501,6 +566,9 @@ actual class AudioEngine actual constructor() {
         job = null
         _state.value = StreamState.Idle
         isRunning = false
+
+        // 清理 active 引用（如果当前实例是 activeEngine）
+        clearActiveEngine()
 
         val context = ContextHelper.getContext()
         if (context != null) {
@@ -626,21 +694,34 @@ actual class AudioEngine actual constructor() {
         return false
     }
     
-    private fun calculateRMS(buffer: ByteArray, format: com.lanrhyme.micyou.AudioFormat): Float {
+    /**
+     * 计算音频数据的 RMS 电平值。
+     * 支持多种格式：PCM_FLOAT, PCM_8BIT, PCM_16BIT。
+     * 注意：JVM 端有独立的 calculateRMS 实现，只处理 16-bit 格式，
+     * 因为 AudioProcessorPipeline 已将所有格式统一转换。
+     */
+    /**
+     * 计算音频电平数据（RMS、峰值、dB）
+     */
+    private fun calculateAudioLevelData(buffer: ByteArray, format: com.lanrhyme.micyou.AudioFormat): AudioLevelData {
+        if (buffer.isEmpty()) return AudioLevelData.SILENT
+
         var sum = 0.0
+        var maxSample = 0.0
         var sampleCount = 0
 
         when (format) {
             com.lanrhyme.micyou.AudioFormat.PCM_FLOAT -> {
                 sampleCount = buffer.size / 4
                 for (i in 0 until sampleCount) {
-                     val byteIndex = i * 4
-                     val bits = (buffer[byteIndex].toInt() and 0xFF) or
-                                ((buffer[byteIndex + 1].toInt() and 0xFF) shl 8) or
-                                ((buffer[byteIndex + 2].toInt() and 0xFF) shl 16) or
-                                ((buffer[byteIndex + 3].toInt() and 0xFF) shl 24)
-                     val sample = Float.fromBits(bits)
-                     sum += sample * sample
+                    val byteIndex = i * 4
+                    val bits = (buffer[byteIndex].toInt() and 0xFF) or
+                               ((buffer[byteIndex + 1].toInt() and 0xFF) shl 8) or
+                               ((buffer[byteIndex + 2].toInt() and 0xFF) shl 16) or
+                               ((buffer[byteIndex + 3].toInt() and 0xFF) shl 24)
+                    val sample = Float.fromBits(bits)
+                    sum += sample * sample
+                    maxSample = maxOf(maxSample, kotlin.math.abs(sample.toDouble()))
                 }
             }
             com.lanrhyme.micyou.AudioFormat.PCM_8BIT -> {
@@ -649,9 +730,10 @@ actual class AudioEngine actual constructor() {
                     val sample = (buffer[i].toInt() and 0xFF) - 128
                     val normalized = sample / 128.0
                     sum += normalized * normalized
+                    maxSample = maxOf(maxSample, kotlin.math.abs(normalized))
                 }
             }
-            else -> { // 16-bit
+            else -> { // 16-bit (including PCM_16BIT and PCM_24BIT which is downscaled)
                 sampleCount = buffer.size / 2
                 for (i in 0 until sampleCount) {
                     val byteIndex = i * 2
@@ -659,9 +741,23 @@ actual class AudioEngine actual constructor() {
                                  ((buffer[byteIndex + 1].toInt()) shl 8)
                     val normalized = sample / 32768.0
                     sum += normalized * normalized
+                    maxSample = maxOf(maxSample, kotlin.math.abs(normalized))
                 }
             }
         }
-        return if (sampleCount > 0) Math.sqrt(sum / sampleCount).toFloat() else 0f
+
+        if (sampleCount == 0) return AudioLevelData.SILENT
+
+        val rms = Math.sqrt(sum / sampleCount).toFloat().coerceIn(0f, 1f)
+        val peak = maxSample.toFloat().coerceIn(0f, 1f)
+
+        return AudioLevelData.fromRmsAndPeak(rms, peak)
+    }
+
+    /**
+     * 更新性能配置（Android 端暂不支持动态调整）
+     */
+    actual fun updatePerformanceConfig(config: PerformanceConfig) {
+        Logger.d("AudioEngine", "Android 端不支持动态性能配置调整")
     }
 }

@@ -113,6 +113,10 @@ data class AppUiState(
     val updateTotalBytes: Long = 0,
     val updateErrorMessage: String? = null,
 
+    // Performance State
+    val performanceMode: String = "Default",
+    val audioMetrics: AudioMetrics? = null,
+
     // UI State
     val installMessage: String? = null,
     val snackbarMessage: String? = null
@@ -140,6 +144,9 @@ class MainViewModel : ViewModel() {
     
     // Expose audio levels from AudioStreamViewModel
     val audioLevels = audioStreamViewModel.audioLevels
+    val audioLevelData = audioStreamViewModel.audioLevelData
+    val audioMetricsFlow = audioStreamViewModel.audioMetrics
+    val levelHistory = audioStreamViewModel.levelHistory
     
     private val settings = SettingsFactory.getSettings()
     
@@ -276,6 +283,7 @@ class MainViewModel : ViewModel() {
                     updateDownloadedBytes = updateState.updateDownloadedBytes,
                     updateTotalBytes = updateState.updateTotalBytes,
                     updateErrorMessage = updateState.updateErrorMessage,
+                    performanceMode = audioState.performanceMode,
                     snackbarMessage = settingsState.snackbarMessage
                 )
             }.collect { combinedState ->
@@ -417,7 +425,14 @@ class MainViewModel : ViewModel() {
     fun downloadAndInstallUpdate(useMirror: Boolean = _uiState.value.useMirrorDownload) = updateViewModel.downloadAndInstallUpdate(useMirror)
     fun dismissUpdateDialog() = updateViewModel.dismissUpdateDialog()
     fun openGitHubRelease() = updateViewModel.openGitHubRelease()
-    
+
+    fun getPeakLevel(seconds: Int = 3): Float = audioStreamViewModel.getPeakLevel(seconds)
+    fun getAverageRms(seconds: Int = 3): Float = audioStreamViewModel.getAverageRms(seconds)
+
+    // Performance methods
+    fun setPerformanceMode(mode: String) = audioStreamViewModel.setPerformanceMode(mode)
+    fun setBufferSizeMultiplier(multiplier: Float) = audioStreamViewModel.setBufferSizeMultiplier(multiplier)
+
     fun clearInstallMessage() {
         _uiState.update { it.copy(installMessage = null) }
     }

@@ -9,6 +9,14 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sqrt
 
+/**
+ * ONNX Runtime AI 降噪处理器
+ *
+ * 性能优化：
+ * - 预分配 FloatBuffer 减少 GC 压力
+ * - 缓冲区复用避免每帧创建新数组
+ * - 状态数组预初始化
+ */
 class UlunasProcessor(
     modelPath: String,
     private val frameSize: Int = 960,
@@ -17,28 +25,94 @@ class UlunasProcessor(
     private val window: FloatArray = hanningWindow(frameSize)
     private val olaGainCompensation: Float = calculateOlaGainCompensation()
     private val previous: FloatArray = FloatArray(hopLength)
-    
+
     private val fft: FloatFFT_1D = FloatFFT_1D(frameSize.toLong())
     private val fftBuffer: FloatArray = FloatArray(frameSize)
     private val modelInput: FloatArray = FloatArray((frameSize / 2 + 1) * 2)
-    
+
+    // 预分配 FloatBuffer 用于频谱输入，避免每帧创建新包装器
+    private val modelInputBuffer: FloatBuffer = FloatBuffer.wrap(modelInput)
+
     private val olaAccumulator: FloatArray = FloatArray(frameSize)
     private val outputFrame: FloatArray = FloatArray(hopLength)
-    
+
     private var outputBuffer: FloatArray = FloatArray((frameSize / 2 + 1) * 2)
     private var stateBuffer: FloatArray = FloatArray(1464)
-    
+
     private var env: OrtEnvironment? = null
     private var session: OrtSession? = null
     private var inputNames: List<String> = emptyList()
     private var outputNames: List<String> = emptyList()
-    
+
     private val states: Array<FloatArray> = Array(18) { i -> createStateArray(i) }
-    
+
+    // 预分配状态输入的 FloatBuffer，避免每帧创建新包装器
+    private val stateBuffers: Array<FloatBuffer> = Array(18) { i -> FloatBuffer.wrap(states[i]) }
+
+    // 状态张量的形状定义（常量，避免每帧创建）
+    private val stateShapes = listOf(
+        longArrayOf(1, 1, 2, 121), longArrayOf(1, 24, 1, 61), longArrayOf(1, 24, 1, 31),
+        longArrayOf(1, 1, 24), longArrayOf(1, 1, 48), longArrayOf(1, 1, 48),
+        longArrayOf(1, 1, 64), longArrayOf(1, 1, 32), longArrayOf(1, 31, 16),
+        longArrayOf(1, 31, 16), longArrayOf(1, 24, 1, 31), longArrayOf(1, 12, 1, 31),
+        longArrayOf(1, 12, 2, 61), longArrayOf(1, 1, 64), longArrayOf(1, 1, 48),
+        longArrayOf(1, 1, 48), longArrayOf(1, 1, 24), longArrayOf(1, 1, 2)
+    )
+
     private var destroyed = false
+
+    // 模型初始化状态
+    private var modelLoaded = false
+    private val loadError: String?
     
     init {
-        initModel(modelPath)
+        val result = initModel(modelPath)
+        modelLoaded = result.isSuccess
+        loadError = result.exceptionOrNull()?.message
+        if (!modelLoaded) {
+            Logger.e("UlunasProcessor", "Model initialization failed: $loadError")
+        }
+    }
+
+    /**
+     * 检查模型是否成功加载
+     */
+    fun isModelLoaded(): Boolean = modelLoaded && session != null && !destroyed
+
+    /**
+     * 获取模型加载错误信息（如果有）
+     */
+    fun getLoadError(): String? = if (modelLoaded) null else loadError
+
+    private fun initModel(modelPath: String): Result<Unit> {
+        return try {
+            val modelFile = File(modelPath)
+            if (!modelFile.exists()) {
+                return Result.failure(AudioProcessingException("Model file not found: $modelPath"))
+            }
+
+            env = OrtEnvironment.getEnvironment()
+            val options = OrtSession.SessionOptions()
+
+            // 性能优化配置
+            options.setIntraOpNumThreads(1)
+            options.setInterOpNumThreads(1)
+            options.setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL)
+            options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT)
+
+            session = env?.createSession(modelPath, options)
+            inputNames = session?.inputNames?.toList() ?: emptyList()
+            outputNames = session?.outputNames?.toList() ?: emptyList()
+
+            Logger.i("UlunasProcessor", "Model loaded successfully: $modelPath")
+            Result.success(Unit)
+        } catch (e: OrtException) {
+            Logger.e("UlunasProcessor", "ONNX Runtime error during model loading: ${e.message}", e)
+            Result.failure(AudioProcessingException("Failed to load ONNX model: ${e.message}", e))
+        } catch (e: Exception) {
+            Logger.e("UlunasProcessor", "Failed to load model: ${e.message}", e)
+            Result.failure(AudioProcessingException("Failed to load model from $modelPath", e))
+        }
     }
     
     private fun hanningWindow(size: Int): FloatArray {
@@ -68,32 +142,7 @@ class UlunasProcessor(
         // 返回补偿因子：1 / sqrt(avgGain) 用于补偿双重加窗的衰减
         return if (avgGain > 0.001f) 1.0f / sqrt(avgGain) else 1.0f
     }
-    
-    private fun initModel(modelPath: String) {
-        try {
-            env = OrtEnvironment.getEnvironment()
-            val options = OrtSession.SessionOptions()
-            options.setIntraOpNumThreads(1)
-            options.setInterOpNumThreads(1)
-            options.setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL)
-            options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.BASIC_OPT)
-            
-            val modelFile = File(modelPath)
-            if (!modelFile.exists()) {
-                Logger.e("UlunasProcessor", "Model file not found: $modelPath")
-                return
-            }
-            
-            session = env?.createSession(modelPath, options)
-            inputNames = session?.inputNames?.toList() ?: emptyList()
-            outputNames = session?.outputNames?.toList() ?: emptyList()
-            
-            Logger.i("UlunasProcessor", "Model loaded: $modelPath")
-        } catch (e: Exception) {
-            Logger.e("UlunasProcessor", "Failed to load model: ${e.message}", e)
-        }
-    }
-    
+
     private fun createStateArray(index: Int): FloatArray {
         return when (index) {
             0 -> FloatArray(1 * 1 * 2 * 121)
@@ -119,7 +168,17 @@ class UlunasProcessor(
     }
     
     fun process(input: FloatArray): FloatArray {
-        if (destroyed || session == null || input.size != hopLength) {
+        // 提前检查所有必要条件
+        if (destroyed) {
+            Logger.w("UlunasProcessor", "Processor destroyed, returning input unchanged")
+            return input
+        }
+        if (!modelLoaded || session == null) {
+            Logger.w("UlunasProcessor", "Model not loaded (error: $loadError), returning input unchanged")
+            return input
+        }
+        if (input.size != hopLength) {
+            Logger.w("UlunasProcessor", "Invalid input size: ${input.size} (expected $hopLength), returning input unchanged")
             return input
         }
         return noiseReduction(input)
@@ -172,26 +231,23 @@ class UlunasProcessor(
         
         try {
             val inputTensors = mutableListOf<OnnxTensor>()
-            
+
             try {
-                // 频谱输入 [1, freq_bins, 1, 2]
-                val specShape = longArrayOf(1, specSize.toLong(), 1, 2)
-                inputTensors.add(OnnxTensor.createTensor(env, FloatBuffer.wrap(modelInput), specShape))
-                
-                // 状态输入
-                val stateShapes = listOf(
-                    longArrayOf(1, 1, 2, 121), longArrayOf(1, 24, 1, 61), longArrayOf(1, 24, 1, 31),
-                    longArrayOf(1, 1, 24), longArrayOf(1, 1, 48), longArrayOf(1, 1, 48),
-                    longArrayOf(1, 1, 64), longArrayOf(1, 1, 32), longArrayOf(1, 31, 16),
-                    longArrayOf(1, 31, 16), longArrayOf(1, 24, 1, 31), longArrayOf(1, 12, 1, 31),
-                    longArrayOf(1, 12, 2, 61), longArrayOf(1, 1, 64), longArrayOf(1, 1, 48),
-                    longArrayOf(1, 1, 48), longArrayOf(1, 1, 24), longArrayOf(1, 1, 2)
-                )
-                
-                for (i in 0 until 18) {
-                    inputTensors.add(OnnxTensor.createTensor(env, FloatBuffer.wrap(states[i]), stateShapes[i]))
+                // 重置预分配的 FloatBuffer position（准备读取）
+                modelInputBuffer.rewind()
+                for (i in stateBuffers.indices) {
+                    stateBuffers[i].rewind()
                 }
-                
+
+                // 频谱输入 [1, freq_bins, 1, 2] - 使用预分配的 modelInputBuffer
+                val specShape = longArrayOf(1, specSize.toLong(), 1, 2)
+                inputTensors.add(OnnxTensor.createTensor(env, modelInputBuffer, specShape))
+
+                // 状态输入 - 使用预分配的 stateBuffers 和 stateShapes
+                for (i in 0 until 18) {
+                    inputTensors.add(OnnxTensor.createTensor(env, stateBuffers[i], stateShapes[i]))
+                }
+
                 // 构建输入映射
                 val inputMap = mutableMapOf<String, OnnxTensor>()
                 inputNames.forEachIndexed { index, name ->
@@ -199,7 +255,7 @@ class UlunasProcessor(
                         inputMap[name] = inputTensors[index]
                     }
                 }
-                
+
                 // 运行推理
                 val results = session?.run(inputMap)
                 

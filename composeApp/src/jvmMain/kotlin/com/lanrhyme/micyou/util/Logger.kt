@@ -65,6 +65,8 @@ object JvmLogger : LoggerImpl {
                 logFile = File(logDir, "micyou.log")
                 logWriter = PrintWriter(FileWriter(logFile, true), true)
             } catch (e2: Exception) {
+                // 二次尝试也失败，记录错误但不中断程序运行
+                System.err.println("Failed to reinitialize log file after rotation: ${e2.message}")
             }
         }
     }
@@ -108,12 +110,14 @@ object JvmLogger : LoggerImpl {
         
         try {
             logWriter?.println(formattedMessage)
-            throwable?.let { 
+            throwable?.let {
                 it.printStackTrace(System.out)
                 it.printStackTrace(logWriter)
             }
             logWriter?.flush()
         } catch (e: Exception) {
+            // 写入日志文件失败时，仅输出到控制台，不影响程序运行
+            System.err.println("Failed to write to log file: ${e.message}")
         }
     }
     
@@ -127,6 +131,8 @@ object JvmLogger : LoggerImpl {
             logWriter?.close()
             logWriter = null
         } catch (e: Exception) {
+            // 释放日志资源失败，记录但不影响程序退出
+            System.err.println("Error releasing log writer: ${e.message}")
         }
     }
 }

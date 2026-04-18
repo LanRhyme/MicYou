@@ -1,5 +1,6 @@
 package com.lanrhyme.micyou
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.intl.Locale
 import kotlinx.serialization.Serializable
@@ -14,6 +15,26 @@ enum class AppLanguage(val label: String, val code: String) {
     ChineseCat("中文（猫猫语）🐱", "cat"),
     ChineseHard("中国人（坚硬）", "zh_hard"),
 }
+
+@Serializable
+data class AudioEnhancedStrings(
+    // Performance Settings
+    val performanceLabel: String = "Performance Mode",
+    val performanceDefault: String = "Default",
+    val performanceLowLatency: String = "Low Latency",
+    val performanceHighQuality: String = "High Quality",
+    val performanceInfoTitle: String = "Performance Mode Info",
+    val performanceInfoDescription: String = "Adjust audio processing buffer settings for different scenarios:",
+    val performanceDefaultDescription: String = "Balanced performance and stability, suitable for most scenarios with ~250ms buffer",
+    val performanceLowLatencyDescription: String = "Smaller buffer (~100ms) for real-time communication, may cause audio glitches on unstable networks",
+    val performanceHighQualityDescription: String = "Larger buffer (~500ms) for recording and high-fidelity transfer, higher latency but more stable",
+
+    // Audio Metrics
+    val bitrateLabel: String = "Bitrate",
+    val latencyLabel: String = "Latency",
+    val rmsLabel: String = "RMS",
+    val peakLabel: String = "Peak"
+)
 
 @Serializable
 data class ErrorStrings(
@@ -34,6 +55,10 @@ data class ErrorStrings(
     val errorAdminPrivilegeTitle: String = "Administrator Privilege Required",
     val errorDeviceNotFoundTitle: String = "Device Not Found",
     val errorBluetoothDisabledTitle: String = "Bluetooth Disabled",
+    val errorBluetoothServiceUnavailableTitle: String = "Bluetooth Service Unavailable",
+    val errorBluetoothAdapterNotFoundTitle: String = "Bluetooth Adapter Not Found",
+    val errorBlueZNotInstalledTitle: String = "BlueZ Not Installed",
+    val errorRfcommBindFailedTitle: String = "RFCOMM Bind Failed",
     val errorUsbConnectionFailedTitle: String = "USB Connection Failed",
     val errorAdbCommandFailedTitle: String = "ADB Command Failed",
     val errorHandshakeFailedTitle: String = "Handshake Failed",
@@ -54,6 +79,10 @@ data class ErrorStrings(
     val errorAdminPrivilegeMessage: String = "This operation requires administrator privileges. Please restart the application as administrator.",
     val errorDeviceNotFoundMessage: String = "The specified Bluetooth device was not found. Please ensure the device is paired and Bluetooth is enabled.",
     val errorBluetoothDisabledMessage: String = "Bluetooth is disabled on this device. Please enable Bluetooth in system settings.",
+    val errorBluetoothServiceUnavailableMessage: String = "Bluetooth service is not running. Please start the Bluetooth service (e.g., 'bluetoothctl' or systemd bluetooth service).",
+    val errorBluetoothAdapterNotFoundMessage: String = "No Bluetooth adapter was found on this device. Please check if a Bluetooth hardware is present and properly connected.",
+    val errorBlueZNotInstalledMessage: String = "BlueZ Bluetooth stack is not installed or not properly configured. BlueZ is required for Bluetooth functionality on Linux.",
+    val errorRfcommBindFailedMessage: String = "Failed to bind RFCOMM device. The device may already be in use or requires elevated permissions.",
     val errorUsbConnectionFailedMessage: String = "USB connection failed. Please check your USB cable and ensure USB debugging is enabled on your Android device.",
     val errorAdbCommandFailedMessage: String = "ADB command execution failed. Please ensure ADB is installed and USB debugging is enabled.",
     val errorHandshakeFailedMessage: String = "Handshake failed with the target device. This may indicate a version mismatch or protocol error.",
@@ -79,6 +108,13 @@ data class ErrorStrings(
     val errorSuggestionCheckAntivirus: String = "• Check antivirus or security software settings",
     val errorSuggestionEnableBluetooth: String = "• Enable Bluetooth in system settings",
     val errorSuggestionPairDevice: String = "• Pair the Bluetooth device first",
+    val errorSuggestionStartBluetoothService: String = "• Start Bluetooth service: sudo systemctl start bluetooth",
+    val errorSuggestionCheckBluetoothDaemon: String = "• Check Bluetooth daemon status: systemctl status bluetooth",
+    val errorSuggestionCheckBluetoothHardware: String = "• Verify Bluetooth hardware is connected and recognized",
+    val errorSuggestionCheckUsbBluetooth: String = "• If using USB Bluetooth adapter, check USB connection",
+    val errorSuggestionInstallBlueZ: String = "• Install BlueZ: sudo apt install bluez (or equivalent for your distro)",
+    val errorSuggestionCheckBlueZService: String = "• Ensure BlueZ service is running: sudo systemctl status bluetooth",
+    val errorSuggestionReleaseRfcomm: String = "• Release existing RFCOMM binding: sudo rfcomm release 0",
     val errorSuggestionCheckUsbCable: String = "• Check USB cable connection",
     val errorSuggestionEnableUsbDebugging: String = "• Enable USB debugging in Android developer options",
     val errorSuggestionRunAdbCommand: String = "• Run this command on PC: %s",
@@ -111,6 +147,34 @@ data class UsbStrings(
     val usbPortForwardingFailed: String = "ADB port forwarding failed. Please check if USB debugging is enabled.",
     val usbConnectionTimeout: String = "USB connection timeout. Please verify the ADB command was executed successfully.",
     val usbPermissionDenied: String = "USB debugging permission denied. Please accept the debugging request on your Android device."
+)
+
+@Serializable
+data class PermissionStrings(
+    val permissionDialogTitle: String = "App Permissions",
+    val permissionDialogMessage: String = "MicYou requires certain permissions to function properly. Please review and grant the following permissions:",
+    val permissionRecordAudioLabel: String = "Microphone",
+    val permissionRecordAudioDesc: String = "Required to capture and transmit audio from your device to the computer.",
+    val permissionBluetoothConnectLabel: String = "Bluetooth Connect",
+    val permissionBluetoothConnectDesc: String = "Used for Bluetooth audio streaming mode to connect with paired devices.",
+    val permissionBluetoothScanLabel: String = "Bluetooth Scan",
+    val permissionBluetoothScanDesc: String = "Used to discover nearby Bluetooth devices for connection.",
+    val permissionPostNotificationsLabel: String = "Notifications",
+    val permissionPostNotificationsDesc: String = "Displays streaming status notifications for better user experience.",
+    val permissionRequired: String = "Required",
+    val permissionOptional: String = "Optional",
+    val permissionGranted: String = "Granted",
+    val permissionClickToGrant: String = "Click to Grant",
+    val permissionRequiredHint: String = "Required permissions must be granted to use the app.",
+    val permissionRequestButton: String = "Grant Permissions",
+    val permissionAllGranted: String = "All Set",
+    val permissionManagementLabel: String = "Permission Management",
+    val permissionAllGrantedStatus: String = "All permissions granted (%d/%d)",
+    val permissionMissingWarning: String = "Some permissions missing (%d/%d granted)",
+    val permissionChecking: String = "Checking permissions...",
+    val permissionSettingsTitle: String = "App Permissions",
+    val permissionOpenSettings: String = "Open System Settings",
+    val permissionOpenSettingsDesc: String = "If you denied a permission, you need to grant it manually in system settings."
 )
 
 @Serializable
@@ -269,6 +333,19 @@ data class AppStrings(
     val firstLaunchMessage: String = "You seem to be using MicYou for the first time. This app turns your Android device into a high-quality microphone for your computer via Wi-Fi, Bluetooth, or USB.",
     val firstLaunchGuideButton: String = "View Usage Guide",
     val firstLaunchGotItButton: String = "I know how to use it",
+    val firstLaunchQuickStartTitle: String = "Quick Start Guide",
+    val firstLaunchStep1Title: String = "1. Install Desktop App",
+    val firstLaunchStep1Desc: String = "Download and install MicYou desktop app on your computer",
+    val firstLaunchStep2Title: String = "2. Connect Devices",
+    val firstLaunchStep2WifiDesc: String = "Wi-Fi: Enter computer IP address in the app",
+    val firstLaunchStep2BluetoothDesc: String = "Bluetooth: Pair devices and select Bluetooth mode",
+    val firstLaunchStep2UsbDesc: String = "USB: Connect via USB cable and run ADB command",
+    val firstLaunchStep3Title: String = "3. Start Streaming",
+    val firstLaunchStep3Desc: String = "Click Start button to begin audio streaming",
+    val firstLaunchStep4Title: String = "4. Configure Audio",
+    val firstLaunchStep4Desc: String = "Select VB-Cable as input device in your recording software",
+    val firstLaunchVideoGuide: String = "Video Tutorial",
+    val firstLaunchTextGuide: String = "Text Guide",
 
     // Plugins
     val pluginsSection: String = "Plugins",
@@ -363,15 +440,69 @@ data class AppStrings(
     val vbcableInstall: String = "Install",
     val vbcableInstalling: String = "Installing...",
     val vbcableSettingsLabel: String = "VB-Cable",
-    
+
     // Error Strings (nested)
     val errors: ErrorStrings = ErrorStrings(),
-    
+
+    // Audio Enhanced Strings (nested)
+    val audioEnhanced: AudioEnhancedStrings = AudioEnhancedStrings(),
+
     // USB Strings (nested)
-    val usb: UsbStrings = UsbStrings()
+    val usb: UsbStrings = UsbStrings(),
+
+    // Permission Strings (nested)
+    val permissions: PermissionStrings = PermissionStrings()
 )
 
 val LocalAppStrings = staticCompositionLocalOf { AppStrings() }
+val LocalPermissionStrings = staticCompositionLocalOf { PermissionStrings() }
+
+// Expect function for Android permission management UI
+@Composable
+expect fun AndroidPermissionManagementSection(cardOpacity: Float)
+
+// Permission state class - defined in commonMain for cross-platform use
+data class PermissionState(
+    val type: PermissionType,
+    val manifestPermission: String,
+    val isGranted: Boolean,
+    val minSdkVersion: Int = 0
+)
+
+// Permission type enum - defined in commonMain for cross-platform use
+enum class PermissionType(val labelKey: String, val descKey: String, val isRequired: Boolean) {
+    RECORD_AUDIO(
+        labelKey = "permissionRecordAudioLabel",
+        descKey = "permissionRecordAudioDesc",
+        isRequired = true
+    ),
+    BLUETOOTH_CONNECT(
+        labelKey = "permissionBluetoothConnectLabel",
+        descKey = "permissionBluetoothConnectDesc",
+        isRequired = false
+    ),
+    BLUETOOTH_SCAN(
+        labelKey = "permissionBluetoothScanLabel",
+        descKey = "permissionBluetoothScanDesc",
+        isRequired = false
+    ),
+    POST_NOTIFICATIONS(
+        labelKey = "permissionPostNotificationsLabel",
+        descKey = "permissionPostNotificationsDesc",
+        isRequired = false
+    )
+}
+
+// Expect function to check if all required permissions are granted
+expect fun hasAllRequiredPermissions(permissions: List<PermissionState>): Boolean
+
+// Expect function for permission dialog - used in App.kt
+@Composable
+expect fun PermissionDialog(
+    permissions: List<PermissionState>,
+    onDismiss: () -> Unit,
+    onRequestPermissions: (List<String>) -> Unit
+)
 
 private val json = Json {
     ignoreUnknownKeys = true

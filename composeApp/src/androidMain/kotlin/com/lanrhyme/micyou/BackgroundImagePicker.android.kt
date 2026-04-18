@@ -41,7 +41,7 @@ actual object BackgroundImagePicker {
     
     private fun copyToInternalStorage(uri: Uri): String? {
         return try {
-            val context = AndroidContext.context ?: return null
+            val context = AndroidContext.getContext() ?: return null
             val inputStream = context.contentResolver.openInputStream(uri) ?: return null
             
             val backgroundDir = File(context.filesDir, "backgrounds")

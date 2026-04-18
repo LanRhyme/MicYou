@@ -23,11 +23,11 @@ data class AudioStreamUiState(
     val isAutoConfig: Boolean = true,
     val showFirewallDialog: Boolean = false,
     val pendingFirewallPort: Int? = null,
-    
+
     // Error Dialog State
     val showErrorDialog: Boolean = false,
     val errorDetails: ConnectionErrorDetails? = null,
-    
+
     // Audio Processing Settings
     val enableNS: Boolean = false,
     val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
@@ -39,7 +39,11 @@ data class AudioStreamUiState(
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
     val androidAudioSourceName: String = "Unprocessed",
-    val audioConfigRevision: Int = 0
+    val audioConfigRevision: Int = 0,
+
+    // Performance Settings
+    val performanceMode: String = "Default",
+    val performanceConfig: PerformanceConfig = PerformanceConfig.DEFAULT
 )
 
 class AudioStreamViewModel : ViewModel() {
@@ -47,7 +51,17 @@ class AudioStreamViewModel : ViewModel() {
     val audioEngine: AudioEngine get() = _audioEngine
     private val _uiState = MutableStateFlow(AudioStreamUiState())
     val uiState: StateFlow<AudioStreamUiState> = _uiState.asStateFlow()
+
+    // 音频电平相关
     val audioLevels = _audioEngine.audioLevels
+    val audioLevelData = _audioEngine.audioLevelData
+    val audioMetrics = _audioEngine.audioMetrics
+
+    // 音频历史记录（用于可视化）
+    private val audioLevelHistory = AudioLevelHistory(maxDurationSeconds = 10)
+    private val _levelHistory = MutableStateFlow<List<AudioLevelHistory.AudioLevelSample>>(emptyList())
+    val levelHistory: StateFlow<List<AudioLevelHistory.AudioLevelSample>> = _levelHistory.asStateFlow()
+
     private val settings = SettingsFactory.getSettings()
 
     init {
@@ -132,18 +146,31 @@ class AudioStreamViewModel : ViewModel() {
         viewModelScope.launch {
             _audioEngine.streamState.collect { state ->
                 _uiState.update { it.copy(streamState = state) }
+                // 当停止时清空历史记录
+                if (state == StreamState.Idle) {
+                    audioLevelHistory.clear()
+                    _levelHistory.value = emptyList()
+                }
             }
         }
-        
+
         viewModelScope.launch {
             _audioEngine.lastError.collect { error ->
                 _uiState.update { it.copy(errorMessage = error) }
             }
         }
-        
+
         viewModelScope.launch {
             _audioEngine.isMuted.collect { muted ->
                 _uiState.update { it.copy(isMuted = muted) }
+            }
+        }
+
+        // 监听音频电平数据并更新历史记录
+        viewModelScope.launch {
+            _audioEngine.audioLevelData.collect { levelData ->
+                audioLevelHistory.addSample(levelData)
+                _levelHistory.value = audioLevelHistory.getSamples()
             }
         }
 
@@ -203,7 +230,61 @@ class AudioStreamViewModel : ViewModel() {
         Logger.i("AudioStreamViewModel", "Starting stream")
         val mode = _uiState.value.mode
         val ip = if (mode == ConnectionMode.Bluetooth) _uiState.value.bluetoothAddress else _uiState.value.ipAddress
-        val port = _uiState.value.port.toIntOrNull() ?: 6000
+
+        // 端口验证：确保端口在有效范围内 (1-65535)
+        val rawPort = _uiState.value.port.toIntOrNull()
+        val port = when {
+            rawPort == null -> {
+                Logger.w("AudioStreamViewModel", "Invalid port format: ${_uiState.value.port}, using default 6000")
+                6000
+            }
+            rawPort <= 0 || rawPort > 65535 -> {
+                Logger.w("AudioStreamViewModel", "Port out of range: $rawPort, using default 6000")
+                6000
+            }
+            else -> rawPort
+        }
+
+        // IP 地址验证（非蓝牙模式）
+        if (mode != ConnectionMode.Bluetooth) {
+            if (ip.isBlank()) {
+                Logger.e("AudioStreamViewModel", "IP address is empty")
+                _uiState.update {
+                    it.copy(
+                        streamState = StreamState.Error,
+                        errorMessage = "IP 地址不能为空",
+                        showErrorDialog = true
+                    )
+                }
+                return
+            }
+            // 基本的 IP 格式验证
+            val ipRegex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
+            if (!ipRegex.matches(ip) && !ip.startsWith("127.")) {
+                Logger.w("AudioStreamViewModel", "IP address format may be invalid: $ip")
+            }
+        }
+
+        // 蓝牙地址验证（蓝牙模式）
+        if (mode == ConnectionMode.Bluetooth) {
+            if (ip.isBlank()) {
+                Logger.e("AudioStreamViewModel", "Bluetooth address is empty")
+                _uiState.update {
+                    it.copy(
+                        streamState = StreamState.Error,
+                        errorMessage = "请选择蓝牙设备",
+                        showErrorDialog = true
+                    )
+                }
+                return
+            }
+            // MAC 地址格式验证
+            val macRegex = Regex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
+            if (!macRegex.matches(ip)) {
+                Logger.w("AudioStreamViewModel", "Bluetooth MAC address format may be invalid: $ip")
+            }
+        }
+
         val isClient = getPlatform().type == PlatformType.Android
         val sampleRate = _uiState.value.sampleRate
         val channelCount = _uiState.value.channelCount
@@ -304,9 +385,24 @@ class AudioStreamViewModel : ViewModel() {
     }
 
     fun setPort(port: String) {
-        Logger.d("AudioStreamViewModel", "Setting port to $port")
-        _uiState.update { it.copy(port = port) }
-        settings.putString("port", port)
+        // 验证端口输入
+        val portInt = port.toIntOrNull()
+        val validatedPort = when {
+            port.isBlank() -> "6000" // 空值使用默认端口
+            portInt == null -> {
+                Logger.w("AudioStreamViewModel", "Invalid port format: $port, keeping current value")
+                _uiState.value.port // 保持当前值
+            }
+            portInt <= 0 || portInt > 65535 -> {
+                Logger.w("AudioStreamViewModel", "Port out of valid range (1-65535): $portInt, keeping current value")
+                _uiState.value.port // 保持当前值
+            }
+            else -> port
+        }
+
+        Logger.d("AudioStreamViewModel", "Setting port to $validatedPort")
+        _uiState.update { it.copy(port = validatedPort) }
+        settings.putString("port", validatedPort)
     }
 
     fun setMonitoringEnabled(enabled: Boolean) {
@@ -435,6 +531,51 @@ class AudioStreamViewModel : ViewModel() {
                 _uiState.update { it.copy(errorMessage = "无法自动添加防火墙规则: $error\n请尝试以管理员身份运行程序，或手动在防火墙中放行 TCP $port 端口。") }
             }
         }
+    }
+
+    // ==================== 性能配置方法 ====================
+
+    /**
+     * 设置性能模式
+     */
+    fun setPerformanceMode(mode: String) {
+        val config = PerformanceConfig.fromMode(mode)
+
+        _uiState.update { it.copy(
+            performanceConfig = config,
+            performanceMode = mode
+        ) }
+
+        settings.putString("performance_mode", mode)
+        _audioEngine.updatePerformanceConfig(config)
+    }
+
+    /**
+     * 设置缓冲区大小倍数
+     */
+    fun setBufferSizeMultiplier(multiplier: Float) {
+        val config = PerformanceConfig.withBufferSizeMultiplier(multiplier)
+
+        _uiState.update { it.copy(
+            performanceConfig = config
+        ) }
+
+        settings.putFloat("buffer_size_multiplier", multiplier)
+        _audioEngine.updatePerformanceConfig(config)
+    }
+
+    /**
+     * 获取峰值电平（最近N秒内）
+     */
+    fun getPeakLevel(seconds: Int = 3): Float {
+        return audioLevelHistory.getPeakInRange(seconds)
+    }
+
+    /**
+     * 获取平均 RMS（最近N秒内）
+     */
+    fun getAverageRms(seconds: Int = 3): Float {
+        return audioLevelHistory.getAverageRms(seconds)
     }
 
     override fun onCleared() {

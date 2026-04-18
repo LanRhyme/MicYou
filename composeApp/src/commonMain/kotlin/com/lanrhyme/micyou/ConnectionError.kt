@@ -10,27 +10,33 @@ enum class ConnectionErrorType {
     NetworkUnreachable,      // 网络不可达（IP 错误或网络断开）
     PortInUse,               // 端口已被占用
     ConnectionRefused,       // 连接被拒绝（服务未启动）
-    
+
     // 权限相关错误
     PermissionDenied,        // 权限不足（防火墙、管理员权限）
     FirewallBlocked,         // 防火墙阻止连接
     AdminPrivilegeRequired,  // 需要管理员权限
-    
+
     // 设备相关错误
     DeviceNotFound,          // 设备未找到（蓝牙设备）
     BluetoothDisabled,       // 蓝牙功能被禁用
+    BluetoothServiceUnavailable, // 蓝牙服务不可用 (BlueZ未运行)
+    BluetoothAdapterNotFound,     // 蓝牙适配器未找到
     UsbConnectionFailed,     // USB 连接失败
     AdbCommandFailed,        // ADB 命令执行失败
-    
+
     // 协议相关错误
     HandshakeFailed,         // 握手失败（协议不匹配）
     ProtocolError,           // 协议错误
     VersionMismatch,         // 版本不匹配
-    
+
     // 音频相关错误
     AudioDeviceError,        // 音频设备错误
     AudioFormatError,        // 音频格式不支持
-    
+
+    // Linux 特有错误
+    BlueZNotInstalled,       // BlueZ 未安装
+    RfcommBindFailed,        // RFCOMM 绑定失败
+
     // 通用错误
     UnknownError             // 未知的错误类型
 }
@@ -105,6 +111,22 @@ object ConnectionErrorHelper {
             message.contains("Bluetooth", ignoreCase = true) ->
                 if (mode == ConnectionMode.Bluetooth) ConnectionErrorType.BluetoothDisabled
                 else ConnectionErrorType.DeviceNotFound
+
+            // BlueZ 相关 (Linux 蓝牙)
+            message.contains("bluez", ignoreCase = true) ||
+            message.contains("BlueZ", ignoreCase = true) ||
+            message.contains("hciconfig", ignoreCase = true) ->
+                ConnectionErrorType.BlueZNotInstalled
+
+            // RFCOMM 相关
+            message.contains("rfcomm", ignoreCase = true) ||
+            message.contains("RFCOMM", ignoreCase = true) ->
+                ConnectionErrorType.RfcommBindFailed
+
+            // 蓝牙适配器未找到
+            message.contains("hci", ignoreCase = true) ||
+            message.contains("adapter", ignoreCase = true) && message.contains("not found", ignoreCase = true) ->
+                ConnectionErrorType.BluetoothAdapterNotFound
             
             // USB 相关
             message.contains("usb", ignoreCase = true) ||
@@ -239,6 +261,52 @@ object ConnectionErrorHelper {
                 localizedMessage = errors.errorBluetoothDisabledMessage,
                 recoverySuggestions = listOf(
                     errors.errorSuggestionEnableBluetooth
+                )
+            )
+
+            ConnectionErrorType.BluetoothServiceUnavailable -> ConnectionErrorDetails(
+                type = type,
+                originalMessage = originalMessage,
+                localizedTitle = errors.errorBluetoothServiceUnavailableTitle,
+                localizedMessage = errors.errorBluetoothServiceUnavailableMessage,
+                recoverySuggestions = listOf(
+                    errors.errorSuggestionStartBluetoothService,
+                    errors.errorSuggestionCheckBluetoothDaemon
+                )
+            )
+
+            ConnectionErrorType.BluetoothAdapterNotFound -> ConnectionErrorDetails(
+                type = type,
+                originalMessage = originalMessage,
+                localizedTitle = errors.errorBluetoothAdapterNotFoundTitle,
+                localizedMessage = errors.errorBluetoothAdapterNotFoundMessage,
+                recoverySuggestions = listOf(
+                    errors.errorSuggestionCheckBluetoothHardware,
+                    errors.errorSuggestionCheckUsbBluetooth
+                )
+            )
+
+            ConnectionErrorType.BlueZNotInstalled -> ConnectionErrorDetails(
+                type = type,
+                originalMessage = originalMessage,
+                localizedTitle = errors.errorBlueZNotInstalledTitle,
+                localizedMessage = errors.errorBlueZNotInstalledMessage,
+                recoverySuggestions = listOf(
+                    errors.errorSuggestionInstallBlueZ,
+                    errors.errorSuggestionCheckBlueZService
+                ),
+                showHelpButton = true,
+                helpUrl = "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md#bluetooth-linux"
+            )
+
+            ConnectionErrorType.RfcommBindFailed -> ConnectionErrorDetails(
+                type = type,
+                originalMessage = originalMessage,
+                localizedTitle = errors.errorRfcommBindFailedTitle,
+                localizedMessage = errors.errorRfcommBindFailedMessage,
+                recoverySuggestions = listOf(
+                    errors.errorSuggestionReleaseRfcomm,
+                    errors.errorSuggestionRunAsAdmin
                 )
             )
             

@@ -95,7 +95,7 @@ class AudioOutputManager {
     
     private fun initPulseAudio(audioFormat: AudioFormat): Boolean {
         val sinkName = PipeWireManager.virtualSinkName
-        
+
         try {
             val process = ProcessBuilder(
                 "pw-cat",
@@ -106,22 +106,42 @@ class AudioOutputManager {
                 "--format=s16",
                 "-"
             ).redirectErrorStream(false).start()
-            
-            Thread.sleep(200)
-            
-            if (process.isAlive) {
+
+            // 短暂等待以检测"立即退出"的失败场景
+            // 若进程在短窗口后仍存活，视为启动成功并立即继续
+            Thread.sleep(100)
+
+            val isProcessAlive = process.isAlive
+
+            // 判断成功条件：
+            // 1. 进程仍在运行 → 视为成功启动
+            // 2. 进程已终止且 exitValue == 0 → 正常退出（虽然不太常见）
+            val success = if (isProcessAlive) {
+                true  // 进程运行中，成功
+            } else {
+                // 进程已终止，检查退出值
+                try {
+                    process.exitValue() == 0
+                } catch (e: IllegalThreadStateException) {
+                    false // 无法获取退出值，视为失败
+                }
+            }
+
+            if (success) {
                 pwCatProcess = process
                 isUsingVirtualDevice = true
-                Logger.i("AudioOutputManager", "Using pw-cat to write to virtual sink: $sinkName")
+                val statusInfo = if (isProcessAlive) "running" else "exited(0)"
+                Logger.i("AudioOutputManager", "Using pw-cat to write to virtual sink: $sinkName (status=$statusInfo)")
                 return true
             } else {
+                val exitInfo = try { "exit(${process.exitValue()})" } catch (e: Exception) { "exit(?)" }
                 val output = process.errorStream.bufferedReader().readText()
-                Logger.e("AudioOutputManager", "pw-cat failed to start: $output")
+                Logger.e("AudioOutputManager", "pw-cat failed to start ($exitInfo): $output")
             }
         } catch (e: Exception) {
             Logger.w("AudioOutputManager", "pw-cat method failed: ${e.message}")
         }
-        
+
         return false
     }
     
@@ -172,7 +192,7 @@ class AudioOutputManager {
     
     private fun initDefault(audioFormat: AudioFormat, lineInfo: DataLine.Info): Boolean {
         Logger.d("AudioOutputManager", "Try using the default audio device")
-        
+
         if (PlatformInfo.isWindows) {
             val cableMixer = findVBCableMixer(lineInfo)
             if (cableMixer != null) {
@@ -184,6 +204,9 @@ class AudioOutputManager {
                 } catch (e: Exception) {
                     Logger.e("AudioOutputManager", "Failed to initialize VB-CABLE", e)
                 }
+            } else {
+                // Windows上没有找到VB-CABLE，给出明确警告
+                Logger.w("AudioOutputManager", "VB-CABLE not found on Windows. Audio will be muted for privacy. Please install VB-CABLE from https://vb-audio.com/Cable/ to enable audio transmission.")
             }
         }
         
@@ -220,7 +243,9 @@ class AudioOutputManager {
     private fun openAndStartLine(audioFormat: AudioFormat): Boolean {
         return try {
             val bytesPerSecond = (currentSampleRate * currentChannelCount * 2).coerceAtLeast(1)
-            val bufferSizeBytes = (bytesPerSecond / 4).coerceIn(8192, 131072)
+            // 增加缓冲区大小到约 400ms，减少播放断续和杂音
+            // 蓝牙和高延迟网络环境需要更大的缓冲区
+            val bufferSizeBytes = (bytesPerSecond * 4 / 10).coerceIn(8192, 131072)
             
             outputLine?.open(audioFormat, bufferSizeBytes)
             outputLine?.start()
@@ -305,12 +330,31 @@ class AudioOutputManager {
                 "--capture-props={\"node.target\": \"$sinkName\", \"media.class\": \"Stream/Input/Audio\", \"stream.capture.sink\": true}",
                 "--playback-props={\"media.class\": \"Stream/Output/Audio\"}"
             ).redirectErrorStream(true).start()
-            
-            Thread.sleep(200)
-            
-            if (process.isAlive) {
+
+            // 短暂等待以检测"立即退出"的失败场景
+            // 若进程在短窗口后仍存活，视为启动成功并立即继续
+            Thread.sleep(100)
+
+            val isProcessAlive = process.isAlive
+
+            // 判断成功条件：
+            // 1. 进程仍在运行 → 视为成功启动
+            // 2. 进程已终止且 exitValue == 0 → 正常退出
+            val success = if (isProcessAlive) {
+                true  // 进程运行中，成功
+            } else {
+                // 进程已终止，检查退出值
+                try {
+                    process.exitValue() == 0
+                } catch (e: IllegalThreadStateException) {
+                    false // 无法获取退出值，视为失败
+                }
+            }
+
+            if (success) {
                 monitorLoopbackProcess = process
-                Logger.i("AudioOutputManager", "Monitor loopback started (pid: ${process.pid()})")
+                val statusInfo = if (isProcessAlive) "running" else "exited(0)"
+                Logger.i("AudioOutputManager", "Monitor loopback started (pid: ${process.pid()}, status=$statusInfo)")
             } else {
                 val output = process.inputStream.bufferedReader().readText()
                 Logger.e("AudioOutputManager", "Monitor loopback failed to start: $output")
@@ -332,7 +376,8 @@ class AudioOutputManager {
         try {
             val line = AudioSystem.getLine(lineInfo) as SourceDataLine
             val bytesPerSecond = (currentSampleRate * currentChannelCount * 2).coerceAtLeast(1)
-            line.open(audioFormat, (bytesPerSecond / 4).coerceIn(8192, 131072))
+            // 增加缓冲区大小到约 400ms，减少播放断续和杂音
+            line.open(audioFormat, (bytesPerSecond * 4 / 10).coerceIn(8192, 131072))
             line.start()
             monitorLine = line
             Logger.i("AudioOutputManager", "Monitor line opened (system default speaker)")

@@ -24,6 +24,7 @@ import com.kdroid.composetray.tray.api.Tray
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.util.JvmLogger
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.app_icon
 import org.jetbrains.compose.resources.ExperimentalResourceApi
@@ -88,10 +89,12 @@ fun main() {
         var isVisible by remember { mutableStateOf(true) }
         var showSettingsWindow by remember { mutableStateOf(false) }
 
-        // Helper function for app exit
+        // Helper function for app exit with timeout protection
         val exitApp: () -> Unit = {
             runBlocking {
-                VirtualAudioDeviceManager.setSystemDefaultMicrophone(toCable = false)
+                withTimeoutOrNull(Constants.EXIT_CLEANUP_TIMEOUT_MS) {
+                    VirtualAudioDeviceManager.setSystemDefaultMicrophone(toCable = false)
+                } ?: Logger.w("Main", "Timeout while restoring system default microphone")
             }
             exitProcess(0)
         }

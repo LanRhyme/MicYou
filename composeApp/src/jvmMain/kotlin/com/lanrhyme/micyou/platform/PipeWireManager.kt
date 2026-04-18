@@ -36,45 +36,68 @@ object PipeWireManager {
         return deviceExists()
     }
     
+    /**
+     * 等待设备创建完成，使用智能轮询而非固定等待
+     * @param maxWaitMs 最大等待时间（毫秒）
+     * @param checkIntervalMs 检查间隔（毫秒）
+     * @return 实际等待时间
+     */
+    private fun waitForDeviceReady(maxWaitMs: Long = 500, checkIntervalMs: Long = 50): Long {
+        var waited = 0L
+        // 等待 PipeWire 设备注册完成
+        while (waited < maxWaitMs) {
+            if (deviceExists()) {
+                return waited
+            }
+            Thread.sleep(checkIntervalMs)
+            waited += checkIntervalMs
+        }
+        return waited
+    }
+
     fun setup(): Boolean {
         if (!PlatformInfo.isLinux) {
             Logger.w("PipeWireManager", "PipeWire virtual audio device only supports Linux platform")
             return false
         }
-        
+
         if (!isAvailable()) {
             Logger.e("PipeWireManager", "PipeWire is not available")
             return false
         }
-        
+
         Logger.i("PipeWireManager", "Setting up PipeWire virtual audio device...")
-        
+
         return try {
             cleanup()
-            
+
             if (!createVirtualSink()) {
                 Logger.e("PipeWireManager", "Failed to create virtual Sink")
                 return false
             }
-            
-            Thread.sleep(500)
-            
+
+            // 使用智能等待替代固定 Thread.sleep
+            val waited1 = waitForDeviceReady(500)
+            Logger.d("PipeWireManager", "Waited ${waited1}ms for virtual sink to be ready")
+
             if (!createLoopback()) {
                 Logger.e("PipeWireManager", "Failed to create loopback")
                 cleanup()
                 return false
             }
-            
-            Thread.sleep(500)
-            
+
+            // 使用智能等待替代固定 Thread.sleep
+            val waited2 = waitForDeviceReady(500)
+            Logger.d("PipeWireManager", "Waited ${waited2}ms for loopback to be ready")
+
             if (!hideVirtualSink()) {
                 Logger.w("PipeWireManager", "Failed to hide virtual Sink (non-fatal)")
             }
-            
+
             if (!setDefaultSource()) {
                 Logger.w("PipeWireManager", "Failed to set default source (non-fatal)")
             }
-            
+
             isSetup = true
             Logger.i("PipeWireManager", "Virtual audio device setup complete")
             true
@@ -120,20 +143,39 @@ object PipeWireManager {
     
     private fun createLoopback(): Boolean {
         Logger.d("PipeWireManager", "Creating loopback: $SINK_NAME -> $SOURCE_NAME")
-        
+
         return try {
             val process = ProcessBuilder(
                 "pw-loopback",
                 "--capture-props={\"node.target\": \"$SINK_NAME\", \"media.class\": \"Stream/Input/Audio\", \"stream.capture.sink\": true}",
                 "--playback-props={\"node.description\": \"$SOURCE_NAME\", \"media.class\": \"Audio/Source\"}"
             ).redirectErrorStream(true).start()
-            
+
             loopbackProcess = process
-            
-            Thread.sleep(200)
-            
-            if (process.isAlive) {
-                Logger.i("PipeWireManager", "Loopback created successfully (pid: ${process.pid()})")
+
+            // 短暂等待以检测"立即退出"的失败场景
+            // 若进程在短窗口后仍存活，视为启动成功并立即继续
+            Thread.sleep(100)
+
+            val isProcessAlive = process.isAlive
+
+            // 判断成功条件：
+            // 1. 进程仍在运行 → 视为成功启动
+            // 2. 进程已终止且 exitValue == 0 → 正常退出
+            val success = if (isProcessAlive) {
+                true  // 进程运行中，成功
+            } else {
+                // 进程已终止，检查退出值
+                try {
+                    process.exitValue() == 0
+                } catch (e: IllegalThreadStateException) {
+                    false // 无法获取退出值，视为失败
+                }
+            }
+
+            if (success) {
+                val statusInfo = if (isProcessAlive) "running" else "exited(0)"
+                Logger.i("PipeWireManager", "Loopback created successfully (pid: ${process.pid()}, status=$statusInfo)")
                 true
             } else {
                 val output = process.inputStream.bufferedReader().readText()

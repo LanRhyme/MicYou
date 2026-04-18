@@ -877,6 +877,9 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             onCheckedChange = { viewModel.setKeepScreenOn(it) },
                             cardOpacity = cardOpacity
                         )
+
+                        // Permission Management (Android only) - uses androidMain implementation
+                        AndroidPermissionManagementSection(cardOpacity)
                     }
 
                     if (platform.type == PlatformType.Desktop) {
@@ -1576,6 +1579,45 @@ fun VBCableManagementSection(
                                 }
                             }
                         }
+
+                        // 性能配置 - 新增
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.medium)
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(strings.audioEnhanced.performanceLabel, style = MaterialTheme.typography.titleSmall)
+                                    var showPerformanceHelp by remember { mutableStateOf(false) }
+                                    IconButton(onClick = { showPerformanceHelp = true }) {
+                                        Icon(Icons.Default.Info, contentDescription = "Help", modifier = Modifier.size(20.dp))
+                                    }
+                                    if (showPerformanceHelp) {
+                                        PerformanceModeHelpPopup(onDismiss = { showPerformanceHelp = false })
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    items(listOf("Default", "Low Latency", "High Quality")) { mode ->
+                                        val modeLabel = when (mode) {
+                                            "Low Latency" -> strings.audioEnhanced.performanceLowLatency
+                                            "High Quality" -> strings.audioEnhanced.performanceHighQuality
+                                            else -> strings.audioEnhanced.performanceDefault
+                                        }
+                                        FilterChip(
+                                            selected = state.performanceMode == mode,
+                                            onClick = { viewModel.setPerformanceMode(mode) },
+                                            label = { Text(modeLabel) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1934,6 +1976,141 @@ fun NoiseReductionHelpPopup(onDismiss: () -> Unit) {
 
 @Composable
 private fun AlgorithmInfoItem(
+    title: String,
+    description: String,
+    recommendation: String,
+    isRecommended: Boolean
+) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+            if (recommendation.isNotEmpty()) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    color = if (isRecommended) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Text(
+                        recommendation,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isRecommended) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 性能模式帮助 Popup
+ */
+@Composable
+fun PerformanceModeHelpPopup(onDismiss: () -> Unit) {
+    val strings = LocalAppStrings.current
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = MaterialTheme.shapes.medium,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                // 标题
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            strings.audioEnhanced.performanceInfoTitle,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        strings.audioEnhanced.performanceInfoDescription,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Default
+                    PerformanceModeInfoItem(
+                        title = strings.audioEnhanced.performanceDefault,
+                        description = strings.audioEnhanced.performanceDefaultDescription,
+                        recommendation = strings.nsAlgorithmRecommended,
+                        isRecommended = true
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Low Latency
+                    PerformanceModeInfoItem(
+                        title = strings.audioEnhanced.performanceLowLatency,
+                        description = strings.audioEnhanced.performanceLowLatencyDescription,
+                        recommendation = "",
+                        isRecommended = false
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // High Quality
+                    PerformanceModeInfoItem(
+                        title = strings.audioEnhanced.performanceHighQuality,
+                        description = strings.audioEnhanced.performanceHighQualityDescription,
+                        recommendation = "",
+                        isRecommended = false
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 关闭按钮
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(strings.nsAlgorithmCloseButton)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PerformanceModeInfoItem(
     title: String,
     description: String,
     recommendation: String,

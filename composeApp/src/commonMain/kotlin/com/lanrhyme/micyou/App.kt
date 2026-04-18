@@ -12,9 +12,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.Alignment
 
 @Composable
 fun App(
@@ -24,7 +28,14 @@ fun App(
     onExitApp: () -> Unit = {},
     onHideApp: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
-    isBluetoothDisabled: Boolean = false
+    isBluetoothDisabled: Boolean = false,
+    // Permission dialog parameters (Android only)
+    showPermissionDialog: Boolean = false,
+    currentPermissions: List<PermissionState> = emptyList(),
+    onRequestPermissions: (List<String>) -> Unit = {},
+    onPermissionDialogDismiss: () -> Unit = {},
+    // Flag to indicate permission dialog has been dismissed (to control first launch dialog timing)
+    isPermissionDialogDismissed: Boolean = true
 ) {
     val platform = remember { getPlatform() }
     val isClient = platform.type == PlatformType.Android
@@ -39,11 +50,15 @@ fun App(
     val updateInfo = uiState.updateInfo
     val pocketMode = uiState.pocketMode
     val useSystemTitleBar = uiState.useSystemTitleBar
-    val showFirstLaunchDialog = uiState.showFirstLaunchDialog
+    // Only show first launch dialog after permission dialog is dismissed
+    val showFirstLaunchDialog = uiState.showFirstLaunchDialog && isPermissionDialogDismissed
     val showVBCableDialog = uiState.showVBCableDialog
     val vbcableInstallProgress = uiState.vbcableInstallProgress
 
-    CompositionLocalProvider(LocalAppStrings provides strings) {
+    CompositionLocalProvider(
+        LocalAppStrings provides strings,
+        LocalPermissionStrings provides strings.permissions
+    ) {
         AppTheme(
             themeMode = uiState.themeMode,
             seedColor = seedColorObj,
@@ -165,22 +180,133 @@ fun App(
                 )
             }
 
-            // First Launch Dialog
+            // First Launch Dialog - Enhanced with Quick Start Guide
             if (showFirstLaunchDialog) {
                 AlertDialog(
                     onDismissRequest = { },
                     title = { Text(strings.firstLaunchTitle) },
                     text = {
-                        Column {
-                            Text(strings.firstLaunchMessage)
+                        Column(
+                            modifier = Modifier
+                                .widthIn(min = 400.dp, max = 500.dp)
+                                .heightIn(max = 450.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = strings.firstLaunchMessage,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = strings.firstLaunchQuickStartTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            // Step 1
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = strings.firstLaunchStep1Title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = strings.firstLaunchStep1Desc,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+
+                            // Step 2
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = strings.firstLaunchStep2Title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = strings.firstLaunchStep2WifiDesc,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Text(
+                                        text = strings.firstLaunchStep2BluetoothDesc,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Text(
+                                        text = strings.firstLaunchStep2UsbDesc,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+
+                            // Step 3
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = strings.firstLaunchStep3Title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = strings.firstLaunchStep3Desc,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+
+                            // Step 4
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = strings.firstLaunchStep4Title,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = strings.firstLaunchStep4Desc,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
                         }
                     },
                     confirmButton = {
-                        TextButton(onClick = {
-                            openUrl("https://www.bilibili.com/video/BV1MpNKz8ELw")
-                            finalViewModel.dismissFirstLaunchDialog()
-                        }) {
-                            Text(strings.firstLaunchGuideButton)
+                        Row {
+                            TextButton(onClick = {
+                                openUrl("https://www.bilibili.com/video/BV1MpNKz8ELw")
+                            }) {
+                                Text(strings.firstLaunchVideoGuide)
+                            }
+                            TextButton(onClick = {
+                                openUrl("https://github.com/LanRhyme/MicYou/blob/master/docs/README.md")
+                            }) {
+                                Text(strings.firstLaunchTextGuide)
+                            }
                         }
                     },
                     dismissButton = {
@@ -246,7 +372,16 @@ fun App(
                     confirmButton = { }
                 )
             }
-            
+
+            // Permission Dialog (Android only)
+            if (showPermissionDialog && platform.type == PlatformType.Android && currentPermissions.isNotEmpty()) {
+                PermissionDialog(
+                    permissions = currentPermissions,
+                    onDismiss = onPermissionDialogDismiss,
+                    onRequestPermissions = onRequestPermissions
+                )
+            }
+
             // Connection Error Dialog
             val errorDetailsValue = uiState.errorDetails
             if (uiState.showErrorDialog && errorDetailsValue != null) {

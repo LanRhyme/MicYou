@@ -278,6 +278,21 @@
     "errorSuggestionUpdateApp": "• 更新到最新版本",
     "errorSuggestionCheckLogs": "• 检视应用程式日志以取得详细错误资讯"
   },
+  "audioEnhanced": {
+    "performanceLabel": "效能模式",
+    "performanceDefault": "默认设置",
+    "performanceLowLatency": "低延迟模式",
+    "performanceHighQuality": "高质量模式",
+    "performanceInfoTitle": "效能模式说明",
+    "performanceInfoDescription": "调整音频处理缓冲区设定，适用于不同场景：",
+    "performanceDefaultDescription": "平衡效能和稳定性，缓冲区约 250ms，适合大多数场景",
+    "performanceLowLatencyDescription": "小缓冲区（约 100ms），适合即时通话，网路不稳定时可能出现杂音",
+    "performanceHighQualityDescription": "大缓冲区（约 500ms），适合录音和高保真传输，延迟较高但更稳定",
+    "bitrateLabel": "位元传输率",
+    "latencyLabel": "延迟时间",
+    "rmsLabel": "均方根值",
+    "peakLabel": "峰值数值"
+  },
   "usb": {
     "usbModeDialogTitle": "通用串行总线式连线设定项目",
     "usbModeDialogMessage": "通用串行总线式连线需要安卓调试桥接港口转发。请在电脑上执行以下指令：",
@@ -292,5 +307,31 @@
     "usbPortForwardingFailed": "安卓调试桥接港口转发失败。请检查是否已启用通用串行总线式侦错。",
     "usbConnectionTimeout": "通用串行总线式连线超时。请验证安卓调试桥接指令是否成功执行。",
     "usbPermissionDenied": "通用串行总线式侦错权限被拒绝。请在安卓装置上接受侦错请求。"
+  },
+  "permissions": {
+    "permissionDialogTitle": "应用程式权限项目标题项",
+    "permissionDialogMessage": "麦克风你需要一些权限项目才能正常运作。请查看并授予以下权限项目：",
+    "permissionRecordAudioLabel": "微型电话器件项",
+    "permissionRecordAudioDesc": "用于捕获和传输装置音频到电脑项目项，是应用程式的核心功能项目项。",
+    "permissionBluetoothConnectLabel": "蓝色牙齿连线项目项",
+    "permissionBluetoothConnectDesc": "用于蓝色牙齿音频传输模式项项，与已配对的装置建立连线项目项。",
+    "permissionBluetoothScanLabel": "蓝色牙齿扫描项目项",
+    "permissionBluetoothScanDesc": "用于发现附近的蓝色牙齿装置以便进行连线项目项。",
+    "permissionPostNotificationsLabel": "通知项目项",
+    "permissionPostNotificationsDesc": "显示串流状态通知项目项，提供更好的使用者体验项目项。",
+    "permissionRequired": "必选项目项",
+    "permissionOptional": "可选项项",
+    "permissionGranted": "已授权项目项",
+    "permissionClickToGrant": "点击授权项目项",
+    "permissionRequiredHint": "必选权限项目必须授予才能使用本应用程式项目项。",
+    "permissionRequestButton": "授予权限项目按钮项",
+    "permissionAllGranted": "完成项目项",
+    "permissionManagementLabel": "权限管理项目标题项",
+    "permissionAllGrantedStatus": "所有权限项目已授予 (%d/%d)",
+    "permissionMissingWarning": "部分权限项目缺失 (%d/%d 已授予)",
+    "permissionChecking": "正在检查权限项目...",
+    "permissionSettingsTitle": "应用程式权限项目标题项",
+    "permissionOpenSettings": "开启系统设定项目项",
+    "permissionOpenSettingsDesc": "如果您拒绝了某个权限项目项，需要在系统设定中手动授予项目项。"
   }
 }

@@ -1,5 +1,6 @@
 package com.lanrhyme.micyou
 
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -25,6 +26,94 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /**
+ * 音频可视化常量配置
+ * 预定义所有魔法数字，便于维护和调整
+ */
+object VisualizerConstants {
+    // Volume Ring 配置
+    const val VOLUME_RING_BASE_RADIUS_FACTOR = 0.85f
+    const val VOLUME_RING_STROKE_WIDTH_DP = 8
+    const val VOLUME_RING_TICK_COUNT = 60
+    const val VOLUME_RING_MAJOR_TICK_INTERVAL = 5
+    const val VOLUME_RING_MAJOR_TICK_LENGTH_DP = 6
+    const val VOLUME_RING_MINOR_TICK_LENGTH_DP = 3
+    const val VOLUME_RING_INNER_GLOW_RADIUS_FACTOR = 0.6f
+
+    // Ripple 配置
+    const val RIPPLE_RING_COUNT_DESKTOP = 3
+    const val RIPPLE_RING_COUNT_MOBILE = 4
+    const val RIPPLE_BAR_COUNT_DESKTOP = 36
+    const val RIPPLE_BAR_COUNT_MOBILE = 48
+    const val RIPPLE_BASE_INNER_RADIUS_DESKTOP = 0.55f
+    const val RIPPLE_BASE_INNER_RADIUS_MOBILE = 0.45f
+    const val RIPPLE_BAR_HEIGHT_FACTOR_DESKTOP = 0.15f
+    const val RIPPLE_BAR_HEIGHT_FACTOR_MOBILE = 0.18f
+    const val RIPPLE_RING_WIDTH_BASE_DESKTOP = 3f
+    const val RIPPLE_RING_WIDTH_BASE_MOBILE = 4f
+    const val RIPPLE_GLOW_STEPS = 8
+
+    // Bars 配置
+    const val BARS_COUNT = 48
+    const val BARS_INNER_RADIUS_FACTOR = 0.35f
+    const val BARS_HEIGHT_FACTOR = 0.35f
+
+    // Wave 配置
+    const val WAVE_COUNT = 3
+    const val WAVE_SEGMENTS = 72
+    const val WAVE_BASE_RADIUS_FACTOR = 0.4f
+    const val WAVE_RADIUS_INCREMENT = 0.15f
+    const val WAVE_AMPLITUDE_FACTOR = 0.08f
+    const val WAVE_CENTER_RADIUS_FACTOR = 0.25f
+
+    // Glow 配置
+    const val GLOW_LAYERS = 12
+    const val GLOW_RAY_COUNT = 8
+    const val GLOW_CORE_RADIUS_FACTOR = 0.15f
+    const val GLOW_RAY_LENGTH_FACTOR = 0.4f
+
+    // Particles 配置
+    const val PARTICLES_COUNT = 36
+    const val PARTICLES_BASE_DISTANCE_FACTOR = 0.35f
+    const val PARTICLES_CENTER_GLOW_RADIUS_FACTOR = 0.2f
+    const val PARTICLES_TRAIL_LENGTH_FACTOR = 0.1f
+
+    // Connecting Animation 配置
+    const val CONNECTING_ARC_COUNT = 3
+    const val CONNECTING_ARC_ANGLE_OFFSET = 120f
+    const val CONNECTING_ARC_SWEEP_BASE_DESKTOP = 60f
+    const val CONNECTING_ARC_SWEEP_BASE_MOBILE = 50f
+
+    // 动画时长配置
+    const val ANIM_DURATION_BREATH_DESKTOP = 1500
+    const val ANIM_DURATION_BREATH_MOBILE = 1800
+    const val ANIM_DURATION_WAVE_DESKTOP = 3000
+    const val ANIM_DURATION_WAVE_MOBILE = 2500
+    const val ANIM_DURATION_GLOW = 2000
+    const val ANIM_DURATION_ROTATION_DESKTOP = 2000
+    const val ANIM_DURATION_ROTATION_MOBILE = 2500
+    const val ANIM_DURATION_PULSE_DESKTOP = 1000
+    const val ANIM_DURATION_PULSE_MOBILE = 1200
+    const val ANIM_DURATION_LEVEL_UPDATE = 100
+
+    // 缓动函数配置 - 音频级别更新使用线性缓动以保持实时响应
+    val EASING_LEVEL_UPDATE = LinearEasing
+
+    // Alpha 值配置
+    const val ALPHA_BACKGROUND_RING = 0.15f
+    const val ALPHA_END_DOT = 0.9f
+    const val ALPHA_TICK_ACTIVE = 0.4f
+    const val ALPHA_TICK_INACTIVE = 0.1f
+    const val ALPHA_RING_BASE = 0.35f
+    const val ALPHA_RING_DECREMENT = 0.07f
+    const val ALPHA_BAR_BASE = 0.5f
+    const val ALPHA_INNER_GLOW = 0.15f
+    const val ALPHA_GLOW_MAX = 0.35f
+    const val ALPHA_CORE = 0.6f
+    const val ALPHA_RAY = 0.3f
+    const val ALPHA_PARTICLE_BASE = 0.3f
+}
+
+/**
  * Unified Audio Visualizer Component
  * Supports both Desktop and Mobile platforms with optimized rendering
  */
@@ -40,16 +129,16 @@ fun AudioVisualizer(
     val breathScale = rememberBreathAnimation(
         minValue = if (isDesktop) 0.98f else 0.97f,
         maxValue = if (isDesktop) 1.02f else 1.03f,
-        durationMillis = if (isDesktop) 1500 else 1800
+        durationMillis = if (isDesktop) VisualizerConstants.ANIM_DURATION_BREATH_DESKTOP else VisualizerConstants.ANIM_DURATION_BREATH_MOBILE
     )
     val wavePhase = rememberWaveAnimation(
         phaseOffset = 0f,
-        durationMillis = if (isDesktop) 3000 else 2500
+        durationMillis = if (isDesktop) VisualizerConstants.ANIM_DURATION_WAVE_DESKTOP else VisualizerConstants.ANIM_DURATION_WAVE_MOBILE
     )
     val glowAlpha = rememberGlowAnimation(
         minValue = 0.2f,
         maxValue = 0.5f,
-        durationMillis = 2000
+        durationMillis = VisualizerConstants.ANIM_DURATION_GLOW
     )
 
     when (style) {
@@ -112,18 +201,18 @@ private fun VolumeRingVisualizer(
 ) {
     val animatedLevel by animateFloatAsState(
         targetValue = audioLevel,
-        animationSpec = tween(100, easing = LinearEasing),
+        animationSpec = tween(VisualizerConstants.ANIM_DURATION_LEVEL_UPDATE, easing = VisualizerConstants.EASING_LEVEL_UPDATE),
         label = "VolumeLevel"
     )
 
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2 * 0.85f
-        val strokeWidth = if (isDesktop) 8.dp.toPx() else 8.dp.toPx()
+        val baseRadius = min(size.width, size.height) / 2 * VisualizerConstants.VOLUME_RING_BASE_RADIUS_FACTOR
+        val strokeWidth = VisualizerConstants.VOLUME_RING_STROKE_WIDTH_DP.dp.toPx()
 
         // Background ring
         drawCircle(
-            color = color.copy(alpha = 0.15f),
+            color = color.copy(alpha = VisualizerConstants.ALPHA_BACKGROUND_RING),
             radius = baseRadius,
             center = center,
             style = Stroke(width = strokeWidth)
@@ -150,24 +239,25 @@ private fun VolumeRingVisualizer(
             val dotY = center.y + baseRadius * sin(endAngleRad)
 
             drawCircle(
-                color = color.copy(alpha = 0.9f),
+                color = color.copy(alpha = VisualizerConstants.ALPHA_END_DOT),
                 radius = strokeWidth * 0.8f,
                 center = Offset(dotX, dotY)
             )
         }
 
         // Tick marks
-        val tickCount = 60
-        for (i in 0 until tickCount) {
-            val tickAngle = -90f + (i.toFloat() / tickCount) * 360f
+        for (i in 0 until VisualizerConstants.VOLUME_RING_TICK_COUNT) {
+            val tickAngle = -90f + (i.toFloat() / VisualizerConstants.VOLUME_RING_TICK_COUNT) * 360f
             val tickAngleRad = Math.toRadians(tickAngle.toDouble()).toFloat()
-            val tickProgress = i.toFloat() / tickCount
+            val tickProgress = i.toFloat() / VisualizerConstants.VOLUME_RING_TICK_COUNT
 
             val innerRadius = baseRadius - strokeWidth * 0.5f
             val outerRadius = baseRadius + strokeWidth * 0.5f
 
-            val tickAlpha = if (tickProgress <= animatedLevel) 0.4f else 0.1f
-            val tickLength = if (i % 5 == 0) 6.dp.toPx() else 3.dp.toPx()
+            val tickAlpha = if (tickProgress <= animatedLevel) VisualizerConstants.ALPHA_TICK_ACTIVE else VisualizerConstants.ALPHA_TICK_INACTIVE
+            val tickLength = if (i % VisualizerConstants.VOLUME_RING_MAJOR_TICK_INTERVAL == 0)
+                VisualizerConstants.VOLUME_RING_MAJOR_TICK_LENGTH_DP.dp.toPx()
+                else VisualizerConstants.VOLUME_RING_MINOR_TICK_LENGTH_DP.dp.toPx()
 
             val startX = center.x + innerRadius * cos(tickAngleRad)
             val startY = center.y + innerRadius * sin(tickAngleRad)
@@ -178,15 +268,15 @@ private fun VolumeRingVisualizer(
                 color = color.copy(alpha = tickAlpha),
                 start = Offset(startX, startY),
                 end = Offset(endX, endY),
-                strokeWidth = if (i % 5 == 0) 2.dp.toPx() else 1.dp.toPx()
+                strokeWidth = if (i % VisualizerConstants.VOLUME_RING_MAJOR_TICK_INTERVAL == 0) 2.dp.toPx() else 1.dp.toPx()
             )
         }
 
         // Inner glow
-        val glowRadius = baseRadius * 0.6f * animatedLevel
+        val glowRadius = baseRadius * VisualizerConstants.VOLUME_RING_INNER_GLOW_RADIUS_FACTOR * animatedLevel
         if (glowRadius > 0) {
             drawCircle(
-                color = color.copy(alpha = 0.1f * animatedLevel),
+                color = color.copy(alpha = VisualizerConstants.ALPHA_INNER_GLOW * animatedLevel),
                 radius = glowRadius,
                 center = center
             )
@@ -207,11 +297,11 @@ private fun RippleVisualizer(
     glowAlpha: Float,
     isDesktop: Boolean
 ) {
-    val ringCount = if (isDesktop) 3 else 4
-    val barCount = if (isDesktop) 36 else 48
-    val baseInnerRadius = if (isDesktop) 0.55f else 0.45f
-    val barHeightFactor = if (isDesktop) 0.15f else 0.18f
-    val ringWidthBase = if (isDesktop) 3f else 4f
+    val ringCount = if (isDesktop) VisualizerConstants.RIPPLE_RING_COUNT_DESKTOP else VisualizerConstants.RIPPLE_RING_COUNT_MOBILE
+    val barCount = if (isDesktop) VisualizerConstants.RIPPLE_BAR_COUNT_DESKTOP else VisualizerConstants.RIPPLE_BAR_COUNT_MOBILE
+    val baseInnerRadius = if (isDesktop) VisualizerConstants.RIPPLE_BASE_INNER_RADIUS_DESKTOP else VisualizerConstants.RIPPLE_BASE_INNER_RADIUS_MOBILE
+    val barHeightFactor = if (isDesktop) VisualizerConstants.RIPPLE_BAR_HEIGHT_FACTOR_DESKTOP else VisualizerConstants.RIPPLE_BAR_HEIGHT_FACTOR_MOBILE
+    val ringWidthBase = if (isDesktop) VisualizerConstants.RIPPLE_RING_WIDTH_BASE_DESKTOP else VisualizerConstants.RIPPLE_RING_WIDTH_BASE_MOBILE
 
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
@@ -220,7 +310,7 @@ private fun RippleVisualizer(
         // Concentric rings
         for (i in 0..ringCount) {
             val waveRadius = baseRadius * (0.5f + i * 0.15f * audioLevel)
-            val alpha = (0.35f - i * 0.07f) * audioLevel
+            val alpha = (VisualizerConstants.ALPHA_RING_BASE - i * VisualizerConstants.ALPHA_RING_DECREMENT) * audioLevel
 
             drawCircle(
                 color = color.copy(alpha = alpha.coerceIn(0f, 1f)),
@@ -245,7 +335,7 @@ private fun RippleVisualizer(
             val endY = center.y + (innerRadius + barHeight) * sin(radians)
 
             drawLine(
-                color = color.copy(alpha = 0.5f * audioLevel),
+                color = color.copy(alpha = VisualizerConstants.ALPHA_BAR_BASE * audioLevel),
                 start = Offset(startX, startY),
                 end = Offset(endX, endY),
                 strokeWidth = 3.dp.toPx(),
@@ -254,9 +344,8 @@ private fun RippleVisualizer(
         }
 
         // Center glow
-        val glowSteps = 8
-        for (i in 0 until glowSteps) {
-            val progress = i.toFloat() / glowSteps
+        for (i in 0 until VisualizerConstants.RIPPLE_GLOW_STEPS) {
+            val progress = i.toFloat() / VisualizerConstants.RIPPLE_GLOW_STEPS
             val glowRadius = baseRadius * 0.3f * (1f + progress * 0.5f)
             val alpha = glowAlpha * (1f - progress) * audioLevel
 
@@ -280,23 +369,19 @@ private fun BarsVisualizer(
     wavePhase: Float,
     isDesktop: Boolean
 ) {
-    val barCount = if (isDesktop) 48 else 48
-    val innerRadiusFactor = if (isDesktop) 0.35f else 0.35f
-    val barHeightFactor = if (isDesktop) 0.35f else 0.35f
-
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         val baseRadius = min(size.width, size.height) / 2
 
-        for (i in 0 until barCount) {
-            val angle = (i.toFloat() / barCount) * 360f
+        for (i in 0 until VisualizerConstants.BARS_COUNT) {
+            val angle = (i.toFloat() / VisualizerConstants.BARS_COUNT) * 360f
             val radians = Math.toRadians(angle.toDouble()).toFloat()
 
             val normalizedAngle = (angle + wavePhase) % 360f
             val dynamicLevel = audioLevel * (0.3f + 0.7f * abs(sin(normalizedAngle * 0.03f + wavePhase * 0.015f)))
-            val barHeight = baseRadius * barHeightFactor * dynamicLevel
+            val barHeight = baseRadius * VisualizerConstants.BARS_HEIGHT_FACTOR * dynamicLevel
 
-            val innerRadius = baseRadius * innerRadiusFactor
+            val innerRadius = baseRadius * VisualizerConstants.BARS_INNER_RADIUS_FACTOR
             val barWidth = (2.5f * (1f + dynamicLevel * 0.5f)).dp.toPx()
 
             drawLine(
@@ -310,7 +395,7 @@ private fun BarsVisualizer(
         // Inner glow
         val innerGlowRadius = baseRadius * 0.3f
         drawCircle(
-            color.copy(alpha = audioLevel * 0.15f),
+            color.copy(alpha = audioLevel * VisualizerConstants.ALPHA_INNER_GLOW),
             innerGlowRadius,
             center
         )
@@ -328,21 +413,18 @@ private fun WaveVisualizer(
     wavePhase: Float,
     isDesktop: Boolean
 ) {
-    val waveCount = 3
-    val segments = 72
-
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         val baseRadius = min(size.width, size.height) / 2
 
-        for (waveIndex in 0 until waveCount) {
-            val waveRadius = baseRadius * (0.4f + waveIndex * 0.15f)
-            val waveAmplitude = baseRadius * 0.08f * audioLevel * (1f - waveIndex * 0.25f)
+        for (waveIndex in 0 until VisualizerConstants.WAVE_COUNT) {
+            val waveRadius = baseRadius * (VisualizerConstants.WAVE_BASE_RADIUS_FACTOR + waveIndex * VisualizerConstants.WAVE_RADIUS_INCREMENT)
+            val waveAmplitude = baseRadius * VisualizerConstants.WAVE_AMPLITUDE_FACTOR * audioLevel * (1f - waveIndex * 0.25f)
 
             val path = Path()
 
-            for (i in 0..segments) {
-                val angle = (i.toFloat() / segments) * 360f
+            for (i in 0..VisualizerConstants.WAVE_SEGMENTS) {
+                val angle = (i.toFloat() / VisualizerConstants.WAVE_SEGMENTS) * 360f
                 val radians = Math.toRadians(angle.toDouble()).toFloat()
 
                 val waveOffset = waveAmplitude * sin(angle * 0.1f + wavePhase * 0.05f + waveIndex * 1.5f)
@@ -364,8 +446,8 @@ private fun WaveVisualizer(
 
         // Center circle
         drawCircle(
-            color.copy(alpha = audioLevel * 0.2f),
-            baseRadius * 0.25f,
+            color.copy(alpha = audioLevel * VisualizerConstants.ALPHA_INNER_GLOW),
+            baseRadius * VisualizerConstants.WAVE_CENTER_RADIUS_FACTOR,
             center
         )
     }
@@ -383,33 +465,30 @@ private fun GlowVisualizer(
     breathScale: Float,
     isDesktop: Boolean
 ) {
-    val glowLayers = 12
-    val rayCount = 8
-
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         val baseRadius = min(size.width, size.height) / 2
 
         // Glow layers
-        repeat(glowLayers) { i ->
-            val progress = i.toFloat() / glowLayers
+        repeat(VisualizerConstants.GLOW_LAYERS) { i ->
+            val progress = i.toFloat() / VisualizerConstants.GLOW_LAYERS
             val glowRadius = baseRadius * (0.2f + progress * 0.6f) * (1f + audioLevel * 0.3f)
-            val alpha = (glowAlpha * (1f - progress * 0.8f) * audioLevel).coerceIn(0f, 0.35f)
+            val alpha = (glowAlpha * (1f - progress * 0.8f) * audioLevel).coerceIn(0f, VisualizerConstants.ALPHA_GLOW_MAX)
             drawCircle(color.copy(alpha = alpha), glowRadius, center)
         }
 
         // Core
-        val coreRadius = baseRadius * 0.15f * (1f + audioLevel * 0.5f)
-        drawCircle(color.copy(alpha = 0.6f * audioLevel), coreRadius, center)
+        val coreRadius = baseRadius * VisualizerConstants.GLOW_CORE_RADIUS_FACTOR * (1f + audioLevel * 0.5f)
+        drawCircle(color.copy(alpha = VisualizerConstants.ALPHA_CORE * audioLevel), coreRadius, center)
 
         // Rays
-        for (i in 0 until rayCount) {
-            val angle = (i.toFloat() / rayCount) * 360f
+        for (i in 0 until VisualizerConstants.GLOW_RAY_COUNT) {
+            val angle = (i.toFloat() / VisualizerConstants.GLOW_RAY_COUNT) * 360f
             val radians = Math.toRadians(angle.toDouble()).toFloat()
-            val rayLength = baseRadius * 0.4f * audioLevel
+            val rayLength = baseRadius * VisualizerConstants.GLOW_RAY_LENGTH_FACTOR * audioLevel
 
             drawLine(
-                color = color.copy(alpha = 0.3f * audioLevel),
+                color = color.copy(alpha = VisualizerConstants.ALPHA_RAY * audioLevel),
                 start = center,
                 end = Offset(center.x + rayLength * cos(radians), center.y + rayLength * sin(radians)),
                 strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round
@@ -429,27 +508,25 @@ private fun ParticlesVisualizer(
     wavePhase: Float,
     isDesktop: Boolean
 ) {
-    val particleCount = 36
-
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         val baseRadius = min(size.width, size.height) / 2
 
-        for (i in 0 until particleCount) {
-            val baseAngle = (i.toFloat() / particleCount) * 360f
+        for (i in 0 until VisualizerConstants.PARTICLES_COUNT) {
+            val baseAngle = (i.toFloat() / VisualizerConstants.PARTICLES_COUNT) * 360f
             val angleOffset = sin(wavePhase * 0.02f + i * 0.5f) * 15f
             val angle = baseAngle + angleOffset
             val radians = Math.toRadians(angle.toDouble()).toFloat()
 
             val distanceVariation = sin(wavePhase * 0.03f + i * 0.3f) * 0.3f
-            val baseDistance = baseRadius * (0.35f + distanceVariation)
+            val baseDistance = baseRadius * (VisualizerConstants.PARTICLES_BASE_DISTANCE_FACTOR + distanceVariation)
             val distance = baseDistance * (0.5f + audioLevel * 0.8f)
 
             val x = center.x + distance * cos(radians)
             val y = center.y + distance * sin(radians)
 
             val particleSize = (3f + audioLevel * 4f * abs(sin(wavePhase * 0.02f + i))).dp.toPx()
-            val alpha = (0.3f + audioLevel * 0.5f).coerceIn(0f, 1f)
+            val alpha = (VisualizerConstants.ALPHA_PARTICLE_BASE + audioLevel * 0.5f).coerceIn(0f, 1f)
 
             // Particle
             drawCircle(
@@ -459,7 +536,7 @@ private fun ParticlesVisualizer(
             )
 
             // Trail
-            val trailLength = baseRadius * 0.1f * audioLevel
+            val trailLength = baseRadius * VisualizerConstants.PARTICLES_TRAIL_LENGTH_FACTOR * audioLevel
             drawLine(
                 color = color.copy(alpha = alpha * 0.5f),
                 start = Offset(x, y),
@@ -473,8 +550,8 @@ private fun ParticlesVisualizer(
 
         // Center glow
         drawCircle(
-            color.copy(alpha = audioLevel * 0.15f),
-            baseRadius * 0.2f,
+            color.copy(alpha = audioLevel * VisualizerConstants.ALPHA_INNER_GLOW),
+            baseRadius * VisualizerConstants.PARTICLES_CENTER_GLOW_RADIUS_FACTOR,
             center
         )
     }
@@ -490,24 +567,24 @@ fun ConnectingAnimation(
     isDesktop: Boolean = true
 ) {
     val rotation = com.lanrhyme.micyou.animation.rememberRotationAnimation(
-        durationMillis = if (isDesktop) 2000 else 2500
+        durationMillis = if (isDesktop) VisualizerConstants.ANIM_DURATION_ROTATION_DESKTOP else VisualizerConstants.ANIM_DURATION_ROTATION_MOBILE
     )
     val pulse = com.lanrhyme.micyou.animation.rememberPulseAnimation(
         minValue = if (isDesktop) 0.9f else 0.92f,
         maxValue = if (isDesktop) 1.1f else 1.08f,
-        durationMillis = if (isDesktop) 1000 else 1200
+        durationMillis = if (isDesktop) VisualizerConstants.ANIM_DURATION_PULSE_DESKTOP else VisualizerConstants.ANIM_DURATION_PULSE_MOBILE
     )
 
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         val radius = min(size.width, size.height) / 2
 
-        for (i in 0..2) {
-            val arcAngle = rotation + i * 120f
+        for (i in 0..VisualizerConstants.CONNECTING_ARC_COUNT) {
+            val arcAngle = rotation + i * VisualizerConstants.CONNECTING_ARC_ANGLE_OFFSET
             val sweepAngle = if (isDesktop) {
-                60f + 20f * sin(rotation * 0.02f)
+                VisualizerConstants.CONNECTING_ARC_SWEEP_BASE_DESKTOP + 20f * sin(rotation * 0.02f)
             } else {
-                50f + 30f * sin(rotation * 0.025f)
+                VisualizerConstants.CONNECTING_ARC_SWEEP_BASE_MOBILE + 30f * sin(rotation * 0.025f)
             }
 
             val radiusFactor = if (isDesktop) {

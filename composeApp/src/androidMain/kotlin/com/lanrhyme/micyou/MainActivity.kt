@@ -10,50 +10,85 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
+
+    private var permissionDialogState = mutableStateOf(false)
+    private var currentPermissionsState = mutableStateOf<List<PermissionState>>(emptyList())
+    private var permissionDialogDismissed = mutableStateOf(false)
+
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        // Update permission states after request
+        currentPermissionsState.value = getRequiredPermissions(this)
+
+        // Check if all required permissions are granted
+        val allRequiredGranted = hasAllRequiredPermissions(currentPermissionsState.value)
+        if (!allRequiredGranted) {
+            // Keep showing dialog if required permissions not granted
+            permissionDialogState.value = true
+        } else {
+            permissionDialogState.value = false
+            permissionDialogDismissed.value = true
+        }
+    }
+
+    fun requestPermissions(permissions: List<String>) {
+        permissionLauncher.launch(permissions.toTypedArray())
+    }
+
+    fun showPermissionDialog() {
+        currentPermissionsState.value = getRequiredPermissions(this)
+        permissionDialogState.value = true
+    }
+
+    fun hidePermissionDialog() {
+        permissionDialogState.value = false
+        permissionDialogDismissed.value = true
+    }
+
+    fun shouldShowPermissionDialog(): Boolean {
+        return !hasAllRequiredPermissions(getRequiredPermissions(this))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        
+
         AndroidContext.init(this)
         ContextHelper.init(this)
         Logger.init(AndroidLogger(this))
         Logger.i("MainActivity", "App started")
-        
+
         BackgroundImagePicker.registerLauncher(this)
         PluginFileChooserHelper.registerLauncher(this)
 
         val shouldQuickStart = intent?.action == ACTION_QUICK_START
 
-        val permissionsToRequest = mutableListOf<String>()
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            permissionsToRequest.add(Manifest.permission.RECORD_AUDIO)
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
-            }
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN)
-            }
-        }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-        if (permissionsToRequest.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 1001)
+        // Initialize permission state
+        currentPermissionsState.value = getRequiredPermissions(this)
+
+        // Show permission dialog first if needed (before first launch dialog)
+        val needsPermissions = shouldShowPermissionDialog()
+        if (needsPermissions) {
+            permissionDialogState.value = true
+        } else {
+            // No permissions needed, mark as dismissed so first launch can show
+            permissionDialogDismissed.value = true
         }
 
         setContent {
@@ -67,13 +102,16 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(shouldQuickStart) {
                 if (shouldQuickStart && appViewModel.uiState.value.streamState == StreamState.Idle) {
-                    appViewModel.startStream()
-                    moveTaskToBack(true)
+                    // Don't auto-start if permissions are missing
+                    if (!needsPermissions) {
+                        appViewModel.startStream()
+                        moveTaskToBack(true)
+                    }
                 }
             }
 
             LaunchedEffect(shouldQuickStart, streamState) {
-                if (shouldQuickStart) {
+                if (shouldQuickStart && !needsPermissions) {
                     when (streamState) {
                         StreamState.Streaming -> {
                             Toast.makeText(this@MainActivity, R.string.qs_toast_connected, Toast.LENGTH_SHORT).show()
@@ -125,7 +163,23 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            App(viewModel = appViewModel)
+            // Permission dialog state from activity
+            val showPermissionDialog by permissionDialogState
+            val currentPermissions by currentPermissionsState
+            val isPermissionDialogDismissed by permissionDialogDismissed
+
+            App(
+                viewModel = appViewModel,
+                showPermissionDialog = showPermissionDialog,
+                currentPermissions = currentPermissions,
+                onRequestPermissions = { perms ->
+                    requestPermissions(perms)
+                },
+                onPermissionDialogDismiss = {
+                    hidePermissionDialog()
+                },
+                isPermissionDialogDismissed = isPermissionDialogDismissed
+            )
         }
     }
 

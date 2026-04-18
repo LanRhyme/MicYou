@@ -12,6 +12,62 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.*
 
+/**
+ * 动画默认值常量
+ * 统一管理所有动画的默认参数，便于维护和调整
+ */
+object AnimationDefaults {
+    // Pulse 动画默认值
+    const val PULSE_MIN_VALUE = 0.8f
+    const val PULSE_MAX_VALUE = 1.2f
+    const val PULSE_DURATION = 1000
+
+    // Breath 动画默认值
+    const val BREATH_MIN_VALUE = 0.95f
+    const val BREATH_MAX_VALUE = 1.05f
+    const val BREATH_DURATION = 2000
+
+    // Glow 动画默认值
+    const val GLOW_MIN_VALUE = 0.3f
+    const val GLOW_MAX_VALUE = 1f
+    const val GLOW_DURATION = 1500
+
+    // Rotation 动画默认值
+    const val ROTATION_DURATION = 20000
+
+    // Wave 动画默认值
+    const val WAVE_DURATION = 2000
+
+    // Shimmer 动画默认值
+    const val SHIMMER_DURATION = 1500
+
+    // Infinite 动画默认值
+    const val INFINITE_DURATION = 1000
+
+    // Staggered 动画默认值
+    const val STAGGERED_DURATION = 400
+    const val STAGGERED_DELAY_PER_ITEM = 50
+    const val STAGGERED_MAX_DELAY = 300
+
+    // 粒子系统默认值
+    const val PARTICLE_COUNT = 30
+    const val PARTICLE_MIN_SIZE = 2f
+    const val PARTICLE_MAX_SIZE = 8f
+    const val PARTICLE_SPEED = 1f
+
+    // Glow 效果默认值
+    const val GLOW_STEPS = 10
+    const val GLOW_RADIUS_FACTOR = 1.5f
+    const val GLOW_ALPHA = 0.3f
+
+    // 音频波形默认值
+    const val AUDIO_WAVE_COUNT = 3
+    val AUDIO_WAVE_STROKE_WIDTH: Dp = 3.dp
+
+    // Ripple 效果默认值
+    const val RIPPLE_STROKE_WIDTH_DP = 4
+}
+
 object EasingFunctions {
     val EaseOutExpo: Easing = Easing { x ->
         if (x == 1f) 1f else 1f - 2f.pow(-10f * x)
@@ -120,7 +176,7 @@ fun animateFloatAsStateWithEasing(
 fun rememberInfiniteAnimation(
     initialValue: Float,
     targetValue: Float,
-    durationMillis: Int = 1000,
+    durationMillis: Int = AnimationDefaults.INFINITE_DURATION,
     easing: Easing = LinearEasing
 ): Float {
     val transition = rememberInfiniteTransition(label = "InfiniteTransition")
@@ -137,34 +193,34 @@ fun rememberInfiniteAnimation(
 
 @Composable
 fun rememberPulseAnimation(
-    minValue: Float = 0.8f,
-    maxValue: Float = 1.2f,
-    durationMillis: Int = 1000
+    minValue: Float = AnimationDefaults.PULSE_MIN_VALUE,
+    maxValue: Float = AnimationDefaults.PULSE_MAX_VALUE,
+    durationMillis: Int = AnimationDefaults.PULSE_DURATION
 ): Float {
     return rememberInfiniteAnimation(minValue, maxValue, durationMillis, EasingFunctions.EaseInOutCubic)
 }
 
 @Composable
 fun rememberBreathAnimation(
-    minValue: Float = 0.95f,
-    maxValue: Float = 1.05f,
-    durationMillis: Int = 2000
+    minValue: Float = AnimationDefaults.BREATH_MIN_VALUE,
+    maxValue: Float = AnimationDefaults.BREATH_MAX_VALUE,
+    durationMillis: Int = AnimationDefaults.BREATH_DURATION
 ): Float {
     return rememberInfiniteAnimation(minValue, maxValue, durationMillis, EasingFunctions.EaseInOutExpo)
 }
 
 @Composable
 fun rememberGlowAnimation(
-    minValue: Float = 0.3f,
-    maxValue: Float = 1f,
-    durationMillis: Int = 1500
+    minValue: Float = AnimationDefaults.GLOW_MIN_VALUE,
+    maxValue: Float = AnimationDefaults.GLOW_MAX_VALUE,
+    durationMillis: Int = AnimationDefaults.GLOW_DURATION
 ): Float {
     return rememberInfiniteAnimation(minValue, maxValue, durationMillis, EasingFunctions.EaseInOutCubic)
 }
 
 @Composable
 fun rememberRotationAnimation(
-    durationMillis: Int = 20000
+    durationMillis: Int = AnimationDefaults.ROTATION_DURATION
 ): Float {
     val transition = rememberInfiniteTransition(label = "RotationTransition")
     return transition.animateFloat(
@@ -181,7 +237,7 @@ fun rememberRotationAnimation(
 @Composable
 fun rememberWaveAnimation(
     phaseOffset: Float = 0f,
-    durationMillis: Int = 2000
+    durationMillis: Int = AnimationDefaults.WAVE_DURATION
 ): Float {
     val transition = rememberInfiniteTransition(label = "WaveTransition")
     return transition.animateFloat(
@@ -200,9 +256,13 @@ fun rememberStaggeredAppearAnimation(
     index: Int,
     totalItems: Int,
     visible: Boolean,
-    durationMillis: Int = 400
+    durationMillis: Int = AnimationDefaults.STAGGERED_DURATION
 ): Float {
-    val delay = (index * 50).coerceAtMost(300)
+    // 使用安全的延迟计算，防止整数溢出和负值
+    val delay = (index.toLong() * AnimationDefaults.STAGGERED_DELAY_PER_ITEM)
+        .coerceAtMost(AnimationDefaults.STAGGERED_MAX_DELAY.toLong())
+        .coerceAtLeast(0L)
+        .toInt()
     return animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(durationMillis, delayMillis = delay, easing = EasingFunctions.EaseOutExpo),
@@ -217,7 +277,7 @@ fun rememberShimmerAnimation(): Float {
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = LinearEasing),
+            animation = tween(AnimationDefaults.SHIMMER_DURATION, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "Shimmer"
@@ -235,20 +295,20 @@ data class ParticleState(
 )
 
 class ParticleSystem(
-    private val particleCount: Int = 30,
-    private val minSize: Float = 2f,
-    private val maxSize: Float = 8f,
-    private val speed: Float = 1f
+    private val particleCount: Int = AnimationDefaults.PARTICLE_COUNT,
+    private val minSize: Float = AnimationDefaults.PARTICLE_MIN_SIZE,
+    private val maxSize: Float = AnimationDefaults.PARTICLE_MAX_SIZE,
+    private val speed: Float = AnimationDefaults.PARTICLE_SPEED
 ) {
     private var particles = mutableListOf<ParticleState>()
-    
+
     fun initialize(width: Float, height: Float) {
         particles = mutableListOf()
         repeat(particleCount) {
             particles.add(createParticle(width, height))
         }
     }
-    
+
     private fun createParticle(width: Float, height: Float): ParticleState {
         return ParticleState(
             x = (0..width.toInt()).random().toFloat(),
@@ -260,13 +320,13 @@ class ParticleSystem(
             life = (0.5f..1f).random()
         )
     }
-    
+
     fun update(width: Float, height: Float, deltaTime: Float = 0.016f) {
         particles = particles.map { p ->
             var newX = p.x + p.velocityX
             var newY = p.y + p.velocityY
             var newLife = p.life - deltaTime * 0.5f
-            
+
             if (newLife <= 0 || newX < 0 || newX > width || newY < 0 || newY > height) {
                 createParticle(width, height)
             } else {
@@ -274,7 +334,7 @@ class ParticleSystem(
             }
         }.toMutableList()
     }
-    
+
     fun getParticles(): List<ParticleState> = particles
 }
 
@@ -295,12 +355,11 @@ fun DrawScope.drawGlowingCircle(
     center: Offset,
     radius: Float,
     color: Color,
-    glowRadius: Float = radius * 1.5f,
-    glowAlpha: Float = 0.3f
+    glowRadius: Float = radius * AnimationDefaults.GLOW_RADIUS_FACTOR,
+    glowAlpha: Float = AnimationDefaults.GLOW_ALPHA
 ) {
-    val glowSteps = 10
-    repeat(glowSteps) { i ->
-        val progress = i.toFloat() / glowSteps
+    repeat(AnimationDefaults.GLOW_STEPS) { i ->
+        val progress = i.toFloat() / AnimationDefaults.GLOW_STEPS
         val currentRadius = radius + (glowRadius - radius) * progress
         val currentAlpha = glowAlpha * (1f - progress)
         drawCircle(
@@ -321,8 +380,8 @@ fun DrawScope.drawAudioWaveform(
     radius: Float,
     audioLevel: Float,
     color: Color,
-    waveCount: Int = 3,
-    strokeWidth: Dp = 3.dp
+    waveCount: Int = AnimationDefaults.AUDIO_WAVE_COUNT,
+    strokeWidth: Dp = AnimationDefaults.AUDIO_WAVE_STROKE_WIDTH
 ) {
     val safeAudioLevel = audioLevel.coerceIn(0f, 1f)
     repeat(waveCount) { index ->
@@ -350,7 +409,7 @@ fun DrawScope.drawRippleEffect(
         color = color.copy(alpha = alpha * 0.5f),
         radius = radius,
         center = center,
-        style = Stroke(width = 4.dp.toPx())
+        style = Stroke(width = AnimationDefaults.RIPPLE_STROKE_WIDTH_DP.dp.toPx())
     )
 }
 

@@ -9,7 +9,7 @@ import java.io.File
 
 actual fun loadImageBitmap(path: String): ImageBitmap? {
     return try {
-        val context = AndroidContext.context ?: return null
+        val context = AndroidContext.getContext() ?: return null
         
         val inputStream = when {
             path.startsWith("/") -> File(path).inputStream()

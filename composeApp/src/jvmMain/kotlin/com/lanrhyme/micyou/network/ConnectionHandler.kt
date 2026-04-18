@@ -51,7 +51,7 @@ class ConnectionHandler(
 
             // 2. 设置发送通道（限制容量防止内存无限增长）
             // 使用固定容量 + DROP_OLDEST 策略，避免消息队列无限增长导致内存溢出
-            sendChannel = Channel(64)
+            sendChannel = Channel(Constants.MESSAGE_CHANNEL_CAPACITY)
             
             coroutineScope {
                 // 启动写入任务
@@ -150,11 +150,22 @@ class ConnectionHandler(
 
             val length = input.readInt()
 
-            if (length > 2 * 1024 * 1024) { // 2MB limit
+            // 包大小验证：保持稳健性，跳过异常包而不是断开连接
+            // 2MB 限制防止内存溢出，但不会因为单个异常包就断开整个连接
+            if (length > Constants.MAX_PACKET_SIZE) {
+                Logger.w("ConnectionHandler", "Packet size too large: $length bytes (max: ${Constants.MAX_PACKET_SIZE}), skipping packet")
                 continue
             }
 
-            if (length <= 0) continue
+            if (length < 0) {
+                Logger.w("ConnectionHandler", "Invalid negative packet length: $length, skipping packet")
+                continue
+            }
+
+            if (length == 0) {
+                Logger.d("ConnectionHandler", "Received empty packet, skipping")
+                continue
+            }
 
             val packetBytes = ByteArray(length)
             input.readFully(packetBytes)

@@ -6,44 +6,102 @@ import de.maxhenkel.rnnoise4j.Denoiser
 import java.io.IOException
 import java.nio.file.Files
 
+/**
+ * 单例模型加载器，确保 Ulunas 模型只加载一次并缓存路径
+ * 使用双重检查锁定模式实现线程安全的延迟初始化
+ */
+object UlunasModelLoader {
+    @Volatile
+    private var modelPath: String? = null
+    private val lock = Any()
+
+    /**
+     * 获取 Ulunas 模型路径，延迟初始化且线程安全
+     * 模型只会被复制一次到用户目录，后续直接使用缓存的路径
+     */
+    fun getModelPath(): String {
+        // 第一次检查（无锁）
+        modelPath?.let { path ->
+            if (java.io.File(path).exists()) return path
+        }
+
+        // 双重检查锁定
+        return synchronized(lock) {
+            modelPath?.let { path ->
+                if (java.io.File(path).exists()) return path
+            }
+
+            loadModelInternal()
+        }
+    }
+
+    private fun loadModelInternal(): String {
+        // 检查系统属性
+        System.getProperty("micyou.ulunas.model.path")?.let { path ->
+            Logger.i("UlunasModelLoader", "Using system property model path: $path")
+            modelPath = path
+            return path
+        }
+
+        // 使用用户目录下的固定位置
+        val userDir = java.io.File(System.getProperty("user.home"), ".micyou")
+        if (!userDir.exists()) {
+            userDir.mkdirs()
+        }
+        val modelFile = java.io.File(userDir, "ulunas.onnx")
+
+        // 如果已存在且有效，直接返回
+        if (modelFile.exists() && modelFile.length() > 0) {
+            Logger.i("UlunasModelLoader", "Using cached model: ${modelFile.absolutePath}")
+            modelPath = modelFile.absolutePath
+            return modelFile.absolutePath
+        }
+
+        // 从资源复制模型
+        Logger.i("UlunasModelLoader", "Copying model from resources to: ${modelFile.absolutePath}")
+        val classLoader = this.javaClass.classLoader
+        val resourceStream = classLoader.getResourceAsStream("ulunas.onnx")
+            ?: throw IOException("Unable to find Ulunas model file: ulunas.onnx")
+
+        resourceStream.use { input ->
+            modelFile.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        Logger.i("UlunasModelLoader", "Model cached successfully, size: ${modelFile.length()}")
+        modelPath = modelFile.absolutePath
+        return modelFile.absolutePath
+    }
+
+    /**
+     * 清除缓存的模型路径（用于测试或重新加载）
+     */
+    fun clearCache() {
+        synchronized(lock) {
+            modelPath = null
+        }
+    }
+}
+
 class NoiseReducer(
     private val frameSize: Int = 480
 ) : AudioEffect {
-    
+
     var enableNS: Boolean = false
     var nsType: NoiseReductionType = NoiseReductionType.Ulunas
 
-    // RNNoise
+    // RNNoise - 延迟初始化
     private var denoiserLeft: Denoiser? = null
     private var denoiserRight: Denoiser? = null
     private var rnnoiseFrameLeft: ShortArray = ShortArray(0)
     private var rnnoiseFrameRight: ShortArray = ShortArray(0)
 
-    // Ulunas
+    // Ulunas - 延迟初始化
     private var ulunasProcessorLeft: UlunasProcessor? = null
     private var ulunasProcessorRight: UlunasProcessor? = null
     private var ulunasFrameLeft: FloatArray = FloatArray(0)
     private var ulunasFrameRight: FloatArray = FloatArray(0)
-    
-    // 使用伴生对象缓存模型路径，避免重复创建临时目录
-    companion object {
-        private var cachedModelPath: String? = null
-        private var tempModelDir: java.nio.file.Path? = null
-        
-        @Synchronized
-        fun cleanupTempFiles() {
-            tempModelDir?.let { dir ->
-                try {
-                    dir.toFile().deleteRecursively()
-                    Logger.d("NoiseReducer", "Cleaned up temp model directory: $dir")
-                } catch (e: Exception) {
-                    Logger.w("NoiseReducer", "Failed to cleanup temp directory: ${e.message}")
-                }
-                tempModelDir = null
-                cachedModelPath = null
-            }
-        }
-    }
 
     var speechProbability: Float? = null
         private set
@@ -119,12 +177,13 @@ class NoiseReducer(
 
     private fun processUlunas(input: ShortArray, channelCount: Int) {
         try {
-            val modelPath = getUlnasModelPath()
-            
-            val hopLength = frameSize 
-            
+            // 使用单例模型加载器获取路径，避免重复检查
+            val modelPath = UlunasModelLoader.getModelPath()
+
+            val hopLength = frameSize
+
             if (ulunasProcessorLeft == null) {
-                Logger.i("NoiseReducer", "Initializing Ulunas processor (Kotlin) with model: $modelPath")
+                Logger.i("NoiseReducer", "Initializing Ulunas processor with cached model")
                 ulunasProcessorLeft = UlunasProcessor(modelPath, 960, hopLength)
             }
             if (channelCount >= 2 && ulunasProcessorRight == null) {
@@ -152,7 +211,8 @@ class NoiseReducer(
                         }
                         val processedLeft = processorL.process(left)
                         for (i in 0 until hopLength) {
-                            input[base + i] = (processedLeft[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+                            // 使用 32768.0f 保持对称范围，避免量化误差
+                            input[base + i] = (processedLeft[i] * 32768.0f).toInt().coerceIn(-32768, 32767).toShort()
                         }
                     } else {
                         val rightArr = right ?: continue
@@ -166,8 +226,9 @@ class NoiseReducer(
                         val processedRight = processorRightInst.process(rightArr)
                         for (i in 0 until hopLength) {
                             val idx = base + i * 2
-                            input[idx] = (processedLeft[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
-                            input[idx + 1] = (processedRight[i] * 32767.0f).toInt().coerceIn(-32768, 32767).toShort()
+                            // 使用 32768.0f 保持对称范围，避免量化误差
+                            input[idx] = (processedLeft[i] * 32768.0f).toInt().coerceIn(-32768, 32767).toShort()
+                            input[idx + 1] = (processedRight[i] * 32768.0f).toInt().coerceIn(-32768, 32767).toShort()
                         }
                     }
                 }
@@ -176,47 +237,6 @@ class NoiseReducer(
             Logger.e("NoiseReducer", "Ulunas processing failed: ${e.message}", e)
             enableNS = false
         }
-    }
-    
-    private fun getUlnasModelPath(): String {
-        // 首先检查缓存的路径
-        cachedModelPath?.let { 
-            if (java.io.File(it).exists()) return it 
-        }
-        
-        System.getProperty("micyou.ulunas.model.path")?.let {
-            Logger.i("NoiseReducer", "Using system property Ulunas model path: $it")
-            cachedModelPath = it
-            return it
-        }
-
-        // 尝试使用用户主目录下的固定位置，而不是临时目录
-        val userDir = java.io.File(System.getProperty("user.home"), ".micyou")
-        if (!userDir.exists()) {
-            userDir.mkdirs()
-        }
-        val modelFile = java.io.File(userDir, "ulunas.onnx")
-
-        if (modelFile.exists() && modelFile.length() > 0) {
-            Logger.i("NoiseReducer", "Found existing model in user dir: ${modelFile.absolutePath}, size: ${modelFile.length()}")
-            cachedModelPath = modelFile.absolutePath
-            return modelFile.absolutePath
-        }
-
-        Logger.i("NoiseReducer", "Loading Ulunas model from resources...")
-        val classLoader = this.javaClass.classLoader
-        val resourceStream = classLoader.getResourceAsStream("ulunas.onnx")
-            ?: throw IOException("Unable to find Ulunas model file: ulunas.onnx")
-
-        resourceStream.use { input ->
-            modelFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        }
-
-        Logger.i("NoiseReducer", "Copied model to: ${modelFile.absolutePath}, size: ${modelFile.length()}")
-        cachedModelPath = modelFile.absolutePath
-        return modelFile.absolutePath
     }
 
     override fun reset() {
@@ -233,6 +253,7 @@ class NoiseReducer(
             ulunasProcessorRight?.destroy()
             ulunasProcessorRight = null
         } catch (e: Exception) {
+            Logger.d("NoiseReducer", "Error during release: ${e.message}")
         }
     }
 }

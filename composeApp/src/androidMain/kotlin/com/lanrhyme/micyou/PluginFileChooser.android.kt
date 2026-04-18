@@ -43,7 +43,7 @@ object PluginFileChooserHelper {
     
     private fun copyPluginToInternalStorage(uri: Uri): String? {
         return try {
-            val context = AndroidContext.context ?: return null
+            val context = AndroidContext.getContext() ?: return null
             val inputStream = context.contentResolver.openInputStream(uri) ?: return null
             
             val pluginDir = File(context.cacheDir, "plugin_imports")
@@ -66,7 +66,7 @@ object PluginFileChooserHelper {
     }
     
     private fun getFileNameFromUri(uri: Uri): String? {
-        val context = AndroidContext.context ?: return null
+        val context = AndroidContext.getContext() ?: return null
         var fileName: String? = null
         
         context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->

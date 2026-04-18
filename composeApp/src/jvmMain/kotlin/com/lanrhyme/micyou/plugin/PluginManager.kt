@@ -242,6 +242,8 @@ class PluginManager(
             Result.success(Unit)
         } catch (e: Exception) {
             Logger.e("PluginManager", "Failed to enable plugin: $pluginId", e)
+            // 启用失败时注销安全管理器
+            PluginSecurityManager.unregister(pluginId)
             Result.failure(e)
         }
     }

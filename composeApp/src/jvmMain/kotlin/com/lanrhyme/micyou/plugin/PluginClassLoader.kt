@@ -9,13 +9,13 @@ class PluginClassLoader(
     private val pluginId: String,
     private val securityManager: PluginSecurityManager
 ) : URLClassLoader(urls, parent) {
-    
+
     override fun loadClass(name: String, resolve: Boolean): Class<*> {
         synchronized(getClassLoadingLock(name)) {
             var c = findLoadedClass(name)
-            
+
             if (c == null) {
-                if (name.startsWith("com.lanrhyme.micyou.plugin.") && 
+                if (name.startsWith("com.lanrhyme.micyou.plugin.") &&
                     !name.startsWith("com.lanrhyme.micyou.plugin.api.")) {
                     c = findClass(name)
                 } else {
@@ -26,11 +26,11 @@ class PluginClassLoader(
                     }
                 }
             }
-            
+
             if (resolve) {
                 resolveClass(c)
             }
-            
+
             return c
         }
     }

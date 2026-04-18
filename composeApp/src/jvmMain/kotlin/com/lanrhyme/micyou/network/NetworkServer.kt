@@ -36,6 +36,8 @@ class NetworkServer(
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError = _lastError.asStateFlow()
 
+    // 使用统一的协程作用域管理所有服务器相关协程的生命周期
+    private val serverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var serverJob: Job? = null
     private var selectorManager: SelectorManager? = null
     
@@ -64,8 +66,8 @@ class NetworkServer(
 
         // 使用 CompletableDeferred 确保绑定成功后才返回，同时捕获异常
         val startupComplete = CompletableDeferred<Unit>()
-        
-        serverJob = CoroutineScope(Dispatchers.IO).launch {
+
+        serverJob = serverScope.launch {
             try {
                 if (mode == ConnectionMode.Bluetooth) {
                     if (PlatformInfo.isLinux) {
@@ -137,7 +139,11 @@ class NetworkServer(
         linuxBlueZServer?.stop()
         linuxBlueZServer = null
         serverJob?.cancel()
-        serverJob?.join()
+        // 使用超时保护，避免长时间等待协程结束
+        withTimeoutOrNull(Constants.SERVER_STOP_TIMEOUT_MS) {
+            serverJob?.join()
+        } ?: Logger.w("NetworkServer", "Server job join timeout after ${Constants.SERVER_STOP_TIMEOUT_MS}ms")
+        serverJob = null
         cleanup()
     }
 

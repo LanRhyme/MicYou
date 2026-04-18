@@ -10,18 +10,53 @@ import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
+/**
+ * Android 应用上下文持有者。
+ *
+ * **安全性说明**：
+ * 此类使用 `applicationContext` 而非 Activity Context，因此不会导致内存泄漏。
+ * Application Context 的生命周期与应用进程相同，不会随 Activity 销毁而释放。
+ *
+ * **初始化要求**：
+ * 必须在 MainActivity.onCreate() 中调用 `AndroidContext.init(context)` 进行初始化，
+ * 否则在调用 `SettingsFactory.getSettings()` 时会抛出 IllegalStateException。
+ */
 object AndroidContext {
-    var context: Context? = null
-    
+    private var applicationContext: Context? = null
+
+    /**
+     * 初始化上下文。
+     * 应在 MainActivity.onCreate() 中调用。
+     *
+     * @param ctx 任意 Context（Activity 或 Application），内部会转换为 applicationContext
+     */
     fun init(ctx: Context) {
-        context = ctx.applicationContext
+        applicationContext = ctx.applicationContext
+    }
+
+    /**
+     * 获取应用上下文。
+     *
+     * @return Application Context，如果未初始化则返回 null
+     */
+    fun getContext(): Context? = applicationContext
+
+    /**
+     * 获取应用上下文，如果未初始化则抛出异常。
+     *
+     * @return Application Context
+     * @throws IllegalStateException 如果未初始化
+     */
+    fun requireContext(): Context {
+        return applicationContext ?: throw IllegalStateException(
+            "AndroidContext not initialized. Call AndroidContext.init(context) in MainActivity."
+        )
     }
 }
 
 actual object SettingsFactory {
     actual fun getSettings(): Settings {
-        val ctx = AndroidContext.context
-            ?: throw IllegalStateException("AndroidContext not initialized. Call AndroidContext.init(context) in MainActivity.")
+        val ctx = AndroidContext.requireContext()
         return AndroidSettings(ctx)
     }
 }
