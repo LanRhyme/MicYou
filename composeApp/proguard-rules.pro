@@ -24,15 +24,23 @@
 -keep class com.lanrhyme.micyou.plugin.AudioConfig { *; }
 -keep class com.lanrhyme.micyou.plugin.ConnectionInfo { *; }
 -keep class com.lanrhyme.micyou.plugin.DataChannelConfig { *; }
--keep class com.lanrhyme.micyou.plugin.PlatformInfo { *; }
 -keep class com.lanrhyme.micyou.plugin.PluginHost$PlatformInfo { *; }
+-keep class com.lanrhyme.micyou.plugin.PluginDataChannel$ReceivedPacket { *; }
 
 -keep enum com.lanrhyme.micyou.plugin.StreamState { *; }
 -keep enum com.lanrhyme.micyou.plugin.ConnectionMode { *; }
 -keep enum com.lanrhyme.micyou.plugin.NoiseReductionType { *; }
 -keep enum com.lanrhyme.micyou.plugin.PluginPlatform { *; }
+-keep enum com.lanrhyme.micyou.plugin.DataChannelMode { *; }
+-keep enum com.lanrhyme.micyou.plugin.MobileUIMode { *; }
 
 # 保留序列化/注解元数据（插件清单与协议对象使用 kotlinx.serialization）。
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+
+# 保留 kotlinx.serialization 生成的成员，避免序列化异常。
+-keepclassmembers class * {
+    *** Companion;
+    *** $serializer;
+}
 
 # 可选：若第三方依赖在 release 下出现仅告警类缺失，再按需添加 dontwarn。
