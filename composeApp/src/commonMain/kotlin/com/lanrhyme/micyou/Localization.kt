@@ -178,6 +178,25 @@ data class PermissionStrings(
 )
 
 @Serializable
+data class ExpressiveStrings(
+    // Palette Style (Expressive 2025)
+    val paletteStyleLabel: String = "Color Palette Style",
+    val paletteStyleDesc: String = "Adjust color saturation and vibrancy",
+    val paletteStyleTonal: String = "Tonal",
+    val paletteStyleExpressive: String = "Expressive",
+    val paletteStyleVibrant: String = "Vibrant",
+    val paletteStyleMonochrome: String = "Monochrome",
+    val paletteStyleRainbow: String = "Rainbow",
+
+    // Expressive Style
+    val expressiveStyleLabel: String = "Expressive Style",
+    val useExpressiveShapesLabel: String = "Expressive Shapes",
+    val useExpressiveShapesDesc: String = "Use larger rounded corners (Material 3 Expressive)",
+    val useExpressiveTypographyLabel: String = "Expressive Typography",
+    val useExpressiveTypographyDesc: String = "Use larger font sizes (Material 3 Expressive)"
+)
+
+@Serializable
 data class AppStrings(
     val appName: String = "MicYou",
     val ipLabel: String = "IP: ",
@@ -451,7 +470,10 @@ data class AppStrings(
     val usb: UsbStrings = UsbStrings(),
 
     // Permission Strings (nested)
-    val permissions: PermissionStrings = PermissionStrings()
+    val permissions: PermissionStrings = PermissionStrings(),
+
+    // Expressive Strings (nested)
+    val expressive: ExpressiveStrings = ExpressiveStrings()
 )
 
 val LocalAppStrings = staticCompositionLocalOf { AppStrings() }

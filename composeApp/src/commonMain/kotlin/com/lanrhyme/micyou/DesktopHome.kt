@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -251,7 +252,7 @@ fun DesktopHome(
                     delayMillis = 200,
                     modifier = Modifier.weight(0.8f).fillMaxHeight(),
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.large,
                     cardOpacity = state.backgroundSettings.cardOpacity,
                     hazeState = hazeState,
                     enableHaze = state.backgroundSettings.enableHazeEffect
@@ -292,7 +293,7 @@ private fun AnimatedCard(
     delayMillis: Int,
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
-    shape: RoundedCornerShape = RoundedCornerShape(16.dp),
+    shape: Shape = MaterialTheme.shapes.large,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
     enableHaze: Boolean = false,

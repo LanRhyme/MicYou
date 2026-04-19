@@ -5,9 +5,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import com.lanrhyme.micyou.theme.*
+
+// 导出PaletteStyle供外部使用
+typealias AppPaletteStyle = PaletteStyle
 
 //  Material Design 3 颜色工具 - 简化实现
 object MD3ColorUtils {
@@ -78,7 +81,7 @@ object MD3SeedColors {
     )
 }
 
-// 生成 M3 标准配色方案
+// 生成 M3 标准配色方案（兼容旧代码）
 fun generateMD3ColorScheme(seedColor: Color, isDark: Boolean): androidx.compose.material3.ColorScheme {
     return if (isDark) {
         generateDarkColorScheme(seedColor)
@@ -248,21 +251,41 @@ fun isDarkThemeActive(themeMode: ThemeMode): Boolean {
 // 默认种子颜色 - Google Blue
 val DefaultSeedColor = MD3SeedColors.Blue
 
-// M3 应用主题
+// 默认调色板风格
+val DefaultPaletteStyle = PaletteStyle.Tonal
+
+/**
+ * Material 3 Expressive 应用主题
+ * 支持调色板风格、Expressive形状和字体
+ */
 @Composable
 fun AppTheme(
     themeMode: ThemeMode = ThemeMode.System,
     seedColor: Color = DefaultSeedColor,
     useDynamicColor: Boolean = false,
     oledPureBlack: Boolean = false,
+    paletteStyle: PaletteStyle = DefaultPaletteStyle,
+    useExpressiveShapes: Boolean = true,
+    useExpressiveTypography: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val isDark = isDarkThemeActive(themeMode)
     val dynamicScheme = if (useDynamicColor) getDynamicColorScheme(isDark) else null
-    val baseColorScheme = dynamicScheme ?: generateMD3ColorScheme(seedColor, isDark)
+
+    // 使用Expressive配色方案生成器
+    val baseColorScheme = dynamicScheme ?: generateExpressiveColorScheme(seedColor, isDark, paletteStyle)
     val targetColorScheme = if (isDark && oledPureBlack) baseColorScheme.withOledDarkBackground() else baseColorScheme
 
-    MaterialTheme(colorScheme = targetColorScheme, content = content)
+    // 应用Expressive形状和字体
+    val shapes = if (useExpressiveShapes) ExpressiveShapes else MaterialTheme.shapes
+    val typography = if (useExpressiveTypography) ExpressiveTypography else MaterialTheme.typography
+
+    MaterialTheme(
+        colorScheme = targetColorScheme,
+        shapes = shapes,
+        typography = typography,
+        content = content
+    )
 }
 
 // 保留旧的辅助函数以兼容现有代码
@@ -279,4 +302,4 @@ fun hsvToColor(hsv: FloatArray): Int {
 
 fun generateColorScheme(seed: Color, isDark: Boolean): androidx.compose.material3.ColorScheme {
     return generateMD3ColorScheme(seed, isDark)
-} 
+}

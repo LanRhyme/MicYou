@@ -786,7 +786,7 @@ fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit, hazeState: HazeS
                             hazeState = hazeState,
                             enabled = true,
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.large,
                             color = hazeContainerColor,
                             hazeColor = hazeContainerColor
                         ) {
@@ -807,7 +807,7 @@ fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit, hazeState: HazeS
                             colors = CardDefaults.cardColors(
                                 containerColor = hazeContainerColor
                             ),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = MaterialTheme.shapes.large,
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
@@ -1047,6 +1047,56 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             }
                         }
                     }
+
+                    // Palette Style Selector (Expressive 2025)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(strings.expressive.paletteStyleLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(strings.expressive.paletteStyleDesc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(com.lanrhyme.micyou.theme.PaletteStyle.entries) { style ->
+                                    FilterChip(
+                                        selected = state.paletteStyle == style,
+                                        onClick = { viewModel.setPaletteStyle(style) },
+                                        label = {
+                                            Text(when(style) {
+                                                com.lanrhyme.micyou.theme.PaletteStyle.Tonal -> strings.expressive.paletteStyleTonal
+                                                com.lanrhyme.micyou.theme.PaletteStyle.Expressive -> strings.expressive.paletteStyleExpressive
+                                                com.lanrhyme.micyou.theme.PaletteStyle.Vibrant -> strings.expressive.paletteStyleVibrant
+                                                com.lanrhyme.micyou.theme.PaletteStyle.Monochrome -> strings.expressive.paletteStyleMonochrome
+                                                com.lanrhyme.micyou.theme.PaletteStyle.Rainbow -> strings.expressive.paletteStyleRainbow
+                                            })
+                                        },
+                                        leadingIcon = {
+                                            if (state.paletteStyle == style) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Expressive Style toggles
+                    SettingsSwitchItem(
+                        headline = strings.expressive.useExpressiveShapesLabel,
+                        supporting = strings.expressive.useExpressiveShapesDesc,
+                        checked = state.useExpressiveShapes,
+                        onCheckedChange = { viewModel.setUseExpressiveShapes(it) },
+                        cardOpacity = cardOpacity
+                    )
+
+                    SettingsSwitchItem(
+                        headline = strings.expressive.useExpressiveTypographyLabel,
+                        supporting = strings.expressive.useExpressiveTypographyDesc,
+                        checked = state.useExpressiveTypography,
+                        onCheckedChange = { viewModel.setUseExpressiveTypography(it) },
+                        cardOpacity = cardOpacity
+                    )
 
                     Box(
                         modifier = Modifier

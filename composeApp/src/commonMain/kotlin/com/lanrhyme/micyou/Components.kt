@@ -250,21 +250,112 @@ fun BreathingGlowEffect(
             ),
             label = "GlowAlpha"
         ).value
-    
+
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         val baseRadius = min(size.width, size.height) / 2
-        
+
         val glowSteps = 10
         for (i in 0 until glowSteps) {
             val progress = i.toFloat() / glowSteps
             val currentRadius = baseRadius * (0.3f + progress * 0.7f)
             val currentAlpha = glowAlpha * (1f - progress)
-            
+
             drawCircle(
                 color = color.copy(alpha = currentAlpha.coerceIn(0f, 1f)),
                 radius = currentRadius,
                 center = center
+            )
+        }
+    }
+}
+
+/**
+ * Expressive Ripple Effect - Material 3 Expressive style
+ * 更大的缩放范围和更长的动画时间
+ */
+@Composable
+fun ExpressiveRippleEffect(
+    trigger: Int,
+    modifier: Modifier = Modifier,
+    color: Color = Color.White,
+    maxScale: Float = 3.0f,
+    durationMillis: Int = 1000
+) {
+    val progress = remember { Animatable(0f) }
+
+    LaunchedEffect(trigger) {
+        if (trigger > 0) {
+            progress.animateTo(
+                1f,
+                animationSpec = tween(durationMillis, easing = EasingFunctions.EaseOutExpo)
+            )
+            progress.snapTo(0f)
+        }
+    }
+
+    if (progress.value > 0f) {
+        Canvas(modifier = modifier) {
+            val center = Offset(size.width / 2, size.height / 2)
+            val baseRadius = min(size.width, size.height) / 2
+
+            for (i in 0..4) {
+                val ringProgress = (progress.value - i * 0.08f).coerceIn(0f, 1f)
+                if (ringProgress > 0f) {
+                    val ringRadius = baseRadius * (1f + (maxScale - 1f) * ringProgress)
+                    val ringAlpha = (1f - ringProgress) * (1f - i * 0.2f)
+
+                    drawCircle(
+                        color = color.copy(alpha = ringAlpha.coerceIn(0f, 1f) * 0.4f),
+                        radius = ringRadius,
+                        center = center,
+                        style = Stroke(width = (4 - i).dp.toPx())
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Expressive Glowing Border Effect
+ * 更粗的边框和更大的发光范围
+ */
+@Composable
+fun ExpressiveGlowingBorderEffect(
+    modifier: Modifier = Modifier,
+    color: Color,
+    borderWidth: Dp = 3.dp,
+    glowRadius: Dp = 12.dp,
+    isAnimating: Boolean = true
+) {
+    val glowAlpha = if (isAnimating) {
+        val transition = rememberInfiniteTransition(label = "ExpressiveGlowBorder")
+        transition.animateFloat(
+            initialValue = 0.4f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1200, easing = EasingFunctions.EaseInOutCubic),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "ExpressiveGlowAlpha"
+        ).value
+    } else {
+        0.6f
+    }
+
+    Canvas(modifier = modifier) {
+        val glowSteps = 8
+        for (i in 0 until glowSteps) {
+            val progress = i.toFloat() / glowSteps
+            val currentGlowRadius = glowRadius.toPx() * (1f - progress)
+            val currentAlpha = glowAlpha * (1f - progress * 0.7f)
+
+            drawCircle(
+                color = color.copy(alpha = currentAlpha.coerceIn(0f, 1f) * 0.35f),
+                radius = (min(size.width, size.height) / 2) + currentGlowRadius,
+                center = Offset(size.width / 2, size.height / 2),
+                style = Stroke(width = borderWidth.toPx())
             )
         }
     }

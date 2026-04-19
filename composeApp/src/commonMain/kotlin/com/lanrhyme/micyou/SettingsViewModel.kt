@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lanrhyme.micyou.theme.PaletteStyle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,9 @@ data class SettingsUiState(
     val seedColor: Long = 0xFF4285F4,
     val useDynamicColor: Boolean = false,
     val oledPureBlack: Boolean = false,
+    val paletteStyle: PaletteStyle = PaletteStyle.Tonal,
+    val useExpressiveShapes: Boolean = true,
+    val useExpressiveTypography: Boolean = true,
     val language: AppLanguage = AppLanguage.System,
     val autoStart: Boolean = false,
     val enableStreamingNotification: Boolean = true,
@@ -50,6 +54,11 @@ class SettingsViewModel : ViewModel() {
         val savedSeedColor = settings.getLong("seed_color", 0xFF4285F4)
         val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
         val savedOledPureBlack = settings.getBoolean("oled_pure_black", false)
+
+        val savedPaletteStyleName = settings.getString("palette_style", PaletteStyle.Tonal.name)
+        val savedPaletteStyle = try { PaletteStyle.valueOf(savedPaletteStyleName) } catch(e: Exception) { PaletteStyle.Tonal }
+        val savedUseExpressiveShapes = settings.getBoolean("use_expressive_shapes", true)
+        val savedUseExpressiveTypography = settings.getBoolean("use_expressive_typography", true)
         
         val initialLanguage = try { 
             AppLanguage.valueOf(settings.getString("language", AppLanguage.System.name)) 
@@ -95,12 +104,15 @@ class SettingsViewModel : ViewModel() {
             settings.putBoolean("has_launched_before", true)
         }
 
-        _uiState.update { 
+        _uiState.update {
             it.copy(
                 themeMode = savedThemeMode,
                 seedColor = savedSeedColor,
                 useDynamicColor = savedUseDynamicColor,
                 oledPureBlack = savedOledPureBlack,
+                paletteStyle = savedPaletteStyle,
+                useExpressiveShapes = savedUseExpressiveShapes,
+                useExpressiveTypography = savedUseExpressiveTypography,
                 language = initialLanguage,
                 autoStart = savedAutoStart,
                 enableStreamingNotification = savedEnableStreamingNotification,
@@ -144,6 +156,21 @@ class SettingsViewModel : ViewModel() {
     fun setOledPureBlack(enabled: Boolean) {
         _uiState.update { it.copy(oledPureBlack = enabled) }
         settings.putBoolean("oled_pure_black", enabled)
+    }
+
+    fun setPaletteStyle(style: PaletteStyle) {
+        _uiState.update { it.copy(paletteStyle = style) }
+        settings.putString("palette_style", style.name)
+    }
+
+    fun setUseExpressiveShapes(enabled: Boolean) {
+        _uiState.update { it.copy(useExpressiveShapes = enabled) }
+        settings.putBoolean("use_expressive_shapes", enabled)
+    }
+
+    fun setUseExpressiveTypography(enabled: Boolean) {
+        _uiState.update { it.copy(useExpressiveTypography = enabled) }
+        settings.putBoolean("use_expressive_typography", enabled)
     }
 
     fun setLanguage(language: AppLanguage) {

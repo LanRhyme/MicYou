@@ -3,6 +3,7 @@ package com.lanrhyme.micyou
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lanrhyme.micyou.plugin.PluginInfo
+import com.lanrhyme.micyou.theme.PaletteStyle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -79,6 +80,9 @@ data class AppUiState(
     val seedColor: Long = 0xFF4285F4,
     val useDynamicColor: Boolean = false,
     val oledPureBlack: Boolean = false,
+    val paletteStyle: PaletteStyle = PaletteStyle.Tonal,
+    val useExpressiveShapes: Boolean = true,
+    val useExpressiveTypography: Boolean = true,
     val language: AppLanguage = AppLanguage.System,
     val autoStart: Boolean = false,
     val enableStreamingNotification: Boolean = true,
@@ -256,6 +260,9 @@ class MainViewModel : ViewModel() {
                     seedColor = settingsState.seedColor,
                     useDynamicColor = settingsState.useDynamicColor,
                     oledPureBlack = settingsState.oledPureBlack,
+                    paletteStyle = settingsState.paletteStyle,
+                    useExpressiveShapes = settingsState.useExpressiveShapes,
+                    useExpressiveTypography = settingsState.useExpressiveTypography,
                     language = settingsState.language,
                     autoStart = settingsState.autoStart,
                     enableStreamingNotification = settingsState.enableStreamingNotification,
@@ -336,6 +343,9 @@ class MainViewModel : ViewModel() {
     fun setSeedColor(color: Long) = settingsViewModel.setSeedColor(color)
     fun setUseDynamicColor(enable: Boolean) = settingsViewModel.setUseDynamicColor(enable)
     fun setOledPureBlack(enabled: Boolean) = settingsViewModel.setOledPureBlack(enabled)
+    fun setPaletteStyle(style: PaletteStyle) = settingsViewModel.setPaletteStyle(style)
+    fun setUseExpressiveShapes(enabled: Boolean) = settingsViewModel.setUseExpressiveShapes(enabled)
+    fun setUseExpressiveTypography(enabled: Boolean) = settingsViewModel.setUseExpressiveTypography(enabled)
     fun setLanguage(language: AppLanguage) = settingsViewModel.setLanguage(language)
     fun setAutoStart(enabled: Boolean) = settingsViewModel.setAutoStart(enabled)
     fun setEnableStreamingNotification(enabled: Boolean) {

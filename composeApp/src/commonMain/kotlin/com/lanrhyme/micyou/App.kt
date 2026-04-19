@@ -63,7 +63,10 @@ fun App(
             themeMode = uiState.themeMode,
             seedColor = seedColorObj,
             useDynamicColor = uiState.useDynamicColor,
-            oledPureBlack = uiState.oledPureBlack
+            oledPureBlack = uiState.oledPureBlack,
+            paletteStyle = uiState.paletteStyle,
+            useExpressiveShapes = uiState.useExpressiveShapes,
+            useExpressiveTypography = uiState.useExpressiveTypography
         ) {
             if (platform.type == PlatformType.Android) {
                 MobileHome(finalViewModel)

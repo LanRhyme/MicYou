@@ -109,6 +109,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lanrhyme.micyou.animation.EasingFunctions
 import com.lanrhyme.micyou.plugin.PluginInfo
+import com.lanrhyme.micyou.theme.SuperRoundedShape
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -351,7 +352,7 @@ private fun HeaderSection(
     )
 
     HazeSurface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
         hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier
@@ -372,7 +373,7 @@ private fun HeaderSection(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.size(36.dp)
                 ) {
@@ -613,7 +614,7 @@ private fun ModeCard(
     enableHaze: Boolean = false
 ) {
     HazeSurface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
         hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
@@ -678,7 +679,7 @@ private fun PortCard(
     enableHaze: Boolean = false
 ) {
     HazeSurface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
         hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
@@ -1328,8 +1329,8 @@ private fun MainControlButton(
             interactionSource = interactionSource,
             containerColor = buttonColor,
             modifier = Modifier.size(buttonSize),
-            shape = CircleShape,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = if (isPressed) 2.dp else 6.dp)
+            shape = SuperRoundedShape,
+            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = if (isPressed) 2.dp else 8.dp)
         ) {
             Icon(
                 when {
@@ -1386,7 +1387,7 @@ private fun BottomBar(
     )
 
     HazeSurface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
         hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier

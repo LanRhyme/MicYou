@@ -366,5 +366,20 @@
     "permissionSettingsTitle": "应用权限",
     "permissionOpenSettings": "打开系统设置",
     "permissionOpenSettingsDesc": "如果您拒绝了某个权限，需要在系统设置中手动授予。"
+  },
+
+  "expressive": {
+    "paletteStyleLabel": "色彩风格",
+    "paletteStyleDesc": "调整色彩饱和度和鲜艳程度",
+    "paletteStyleTonal": "色调（经典）",
+    "paletteStyleExpressive": "表达性",
+    "paletteStyleVibrant": "鲜艳",
+    "paletteStyleMonochrome": "单色",
+    "paletteStyleRainbow": "彩虹",
+    "expressiveStyleLabel": "表达性样式",
+    "useExpressiveShapesLabel": "表达性形状",
+    "useExpressiveShapesDesc": "使用更大的圆角（Material 3 Expressive）",
+    "useExpressiveTypographyLabel": "表达性字体",
+    "useExpressiveTypographyDesc": "使用更大的字体尺寸（Material 3 Expressive）"
   }
 }
