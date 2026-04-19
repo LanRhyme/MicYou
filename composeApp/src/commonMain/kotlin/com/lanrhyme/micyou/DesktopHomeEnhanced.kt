@@ -411,7 +411,7 @@ private fun HeaderSection(
             val coroutineScope = rememberCoroutineScope()
             
             Surface(
-                shape = RoundedCornerShape(10.dp),
+                shape = MaterialTheme.shapes.small,
                 color = MaterialTheme.colorScheme.surfaceContainerHighest
             ) {
                 Box(
@@ -648,7 +648,7 @@ private fun ModeCard(
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(MaterialTheme.shapes.small)
                             .background(bgColor)
                             .hoverable(interactionSource = remember { MutableInteractionSource() })
                             .clickable { onModeSelected(mode) }
@@ -720,7 +720,7 @@ private fun StatusCard(
     )
     
     HazeSurface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
         hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
         modifier = modifier.fillMaxWidth(),
@@ -733,7 +733,7 @@ private fun StatusCard(
             verticalArrangement = Arrangement.Center
         ) {
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.small,
                 color = statusColor.copy(alpha = 0.12f),
                 modifier = Modifier.size(48.dp)
             ) {
@@ -766,7 +766,7 @@ private fun StatusCard(
                 if (errorMessage != null) {
                     Spacer(Modifier.height(6.dp))
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
                     ) {
                         Text(
@@ -818,7 +818,7 @@ private fun CenterPanel(
     val isConnecting = state.streamState == StreamState.Connecting
 
     HazeSurface(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f * cardOpacity),
         hazeColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f * cardOpacity * 0.7f),
         modifier = modifier
@@ -880,7 +880,7 @@ private fun CenterPanel(
                 )
                 if (isRunning) {
                     Surface(
-                        shape = RoundedCornerShape(3.dp),
+                        shape = MaterialTheme.shapes.extraSmall,
                         color = buttonColor
                     ) {
                         Text(
@@ -1481,7 +1481,7 @@ private fun MuteButton(
     )
     
     Surface(
-        shape = RoundedCornerShape(10.dp),
+        shape = MaterialTheme.shapes.small,
         color = bgColor,
         modifier = Modifier.scale(scale).clickable(interactionSource, null) { onToggle() }
     ) {
@@ -1525,7 +1525,7 @@ private fun MonitorButton(
     )
     
     Surface(
-        shape = RoundedCornerShape(10.dp),
+        shape = MaterialTheme.shapes.small,
         color = bgColor,
         modifier = Modifier.scale(scale).clickable(interactionSource, null) { onToggle() }
     ) {

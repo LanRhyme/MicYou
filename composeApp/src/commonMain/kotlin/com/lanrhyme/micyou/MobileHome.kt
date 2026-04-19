@@ -503,8 +503,8 @@ private fun MainControlCard(
 
     HazeSurface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f * cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f * cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
         hazeState = hazeState,
         enabled = state.backgroundSettings.enableHazeEffect

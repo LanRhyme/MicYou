@@ -90,6 +90,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
@@ -99,6 +100,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.lanrhyme.micyou.animation.EasingFunctions
+import com.lanrhyme.micyou.theme.ExpressiveCard
+import com.lanrhyme.micyou.theme.ExpressiveElevatedCard
+import com.lanrhyme.micyou.theme.ExpressiveFilterChip
+import com.lanrhyme.micyou.theme.ExpressiveSlider
+import com.lanrhyme.micyou.theme.ExpressiveSwitch
+import com.lanrhyme.micyou.theme.SuperRoundedShape
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 
@@ -277,15 +284,12 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible:
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 左侧导航栏 - 使用 AnimatedCard 样式
-        AnimatedSettingsCard(
-            visible = contentVisible,
-            delayMillis = 100,
+        // 左侧导航栏 - 使用 ExpressiveCard（无动画）
+        ExpressiveCard(
             modifier = Modifier.width(240.dp).fillMaxHeight(),
-            cardOpacity = cardOpacity,
-            hazeState = hazeState,
-            enableHaze = state.backgroundSettings.enableHazeEffect,
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = cardOpacity)  // Expressive: 最亮的表面
+            )
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -317,14 +321,14 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible:
                         )
                     }
                 }
-                
-                item { 
+
+                item {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                    ) 
+                    )
                 }
-                
-                itemsIndexed(SettingsSection.entries.toList()) { index, section ->
+
+                items(SettingsSection.entries.toList()) { section ->
                     val icon = when (section) {
                         SettingsSection.General -> Icons.Rounded.Settings
                         SettingsSection.Appearance -> Icons.Rounded.Palette
@@ -333,86 +337,42 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible:
                         SettingsSection.About -> Icons.Rounded.Info
                     }
                     val isSelected = currentSection == section
-                    
-                    // 导航项进入动画
-                    var navItemVisible by remember { mutableStateOf(false) }
-                    LaunchedEffect(contentVisible) {
-                        if (contentVisible) {
-                            delay(150L + index * 50L)
-                            navItemVisible = true
-                        }
-                    }
-                    
-                    AnimatedVisibility(
-                        visible = navItemVisible,
-                        enter = slideInHorizontally(
-                            initialOffsetX = { -30 },
-                            animationSpec = tween(300, easing = EasingFunctions.EaseOutExpo)
-                        ) + fadeIn(tween(300)),
-                        exit = fadeOut(tween(200))
-                    ) {
-                        NavigationItem(
-                            icon = icon,
-                            label = section.getLabel(strings),
-                            isSelected = isSelected,
-                            onClick = { currentSection = section }
-                        )
-                    }
+
+                    NavigationItem(
+                        icon = icon,
+                        label = section.getLabel(strings),
+                        isSelected = isSelected,
+                        onClick = { currentSection = section }
+                    )
                 }
             }
         }
-        
-        // 右侧内容区 - 使用 AnimatedCard 样式
-        AnimatedSettingsCard(
-            visible = contentVisible,
-            delayMillis = 200,
+
+        // 右侧内容区 - 使用 ExpressiveCard（无动画）
+        ExpressiveCard(
             modifier = Modifier.weight(1f).fillMaxHeight(),
-            cardOpacity = cardOpacity,
-            hazeState = hazeState,
-            enableHaze = state.backgroundSettings.enableHazeEffect,
-            containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.7f)
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = cardOpacity)  // Expressive: 更亮的表面
+            )
         ) {
             Column(
                 modifier = Modifier.padding(top = 20.dp, start = 24.dp, end = 24.dp, bottom = 24.dp)
             ) {
                 // 标题区域
-                AnimatedContent(
-                    targetState = currentSection,
-                    transitionSpec = {
-                        (slideInHorizontally(
-                            initialOffsetX = { if (targetState.ordinal > initialState.ordinal) 50 else -50 },
-                            animationSpec = tween(300, easing = EasingFunctions.EaseOutExpo)
-                        ) + fadeIn(tween(250))) togetherWith
-                        (slideOutHorizontally(
-                            targetOffsetX = { if (targetState.ordinal > initialState.ordinal) -50 else 50 },
-                            animationSpec = tween(250, easing = EasingFunctions.EaseInExpo)
-                        ) + fadeOut(tween(200)))
-                    },
-                    label = "sectionTitle"
-                ) { section ->
-                    Text(
-                        section.getLabel(strings),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                
+                Text(
+                    currentSection.getLabel(strings),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+
                 Spacer(Modifier.height(16.dp))
-                
-                // 内容区域 - 使用 AnimatedContent 实现页面切换动画
+
+                // 内容区域 - 简化切换动画
                 AnimatedContent(
                     targetState = currentSection,
                     transitionSpec = {
-                        val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                        (slideInHorizontally(
-                            initialOffsetX = { direction * 100 },
-                            animationSpec = tween(350, easing = EasingFunctions.EaseOutExpo)
-                        ) + fadeIn(tween(300))) togetherWith
-                        (slideOutHorizontally(
-                            targetOffsetX = { -direction * 100 },
-                            animationSpec = tween(300, easing = EasingFunctions.EaseInExpo)
-                        ) + fadeOut(tween(250)))
+                        fadeIn(tween(200)) togetherWith fadeOut(tween(150))
                     },
                     label = "sectionContent"
                 ) { section ->
@@ -609,224 +569,11 @@ fun VBCableManagementSection(
 }
 }
 
-/**
- * 设置页面卡片组件 - 带进入动画
- */
-@Composable
-private fun AnimatedSettingsCard(
-    visible: Boolean,
-    delayMillis: Int,
-    modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
-    shape: RoundedCornerShape = RoundedCornerShape(20.dp),
-    cardOpacity: Float = 1f,
-    hazeState: HazeState? = null,
-    enableHaze: Boolean = false,
-    content: @Composable () -> Unit
-) {
-    val cardAlpha by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(400, delayMillis, easing = EasingFunctions.EaseOutExpo),
-        label = "cardAlpha"
-    )
-    val cardScale by animateFloatAsState(
-        targetValue = if (visible) 1f else 0.9f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow,
-            visibilityThreshold = 0.001f
-        ),
-        label = "cardScale"
-    )
-    val cardOffsetY by animateFloatAsState(
-        targetValue = if (visible) 0f else 40f,
-        animationSpec = tween(500, delayMillis, easing = EasingFunctions.EaseOutExpo),
-        label = "cardOffsetY"
-    )
-
-    if (enableHaze && hazeState != null) {
-        HazeCard(
-            hazeState = hazeState,
-            enabled = true,
-            hazeColor = containerColor.copy(alpha = cardOpacity * 0.7f),
-            modifier = modifier
-                .graphicsLayer {
-                    this.alpha = cardAlpha
-                    this.scaleX = cardScale
-                    this.scaleY = cardScale
-                    translationY = cardOffsetY
-                }
-                .clip(shape)
-        ) {
-            content()
-        }
-    } else {
-        Card(
-            modifier = modifier
-                .graphicsLayer {
-                    this.alpha = cardAlpha
-                    this.scaleX = cardScale
-                    this.scaleY = cardScale
-                    translationY = cardOffsetY
-                },
-            colors = CardDefaults.cardColors(
-                containerColor = containerColor.copy(alpha = cardOpacity)
-            ),
-            shape = shape,
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            content()
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit, hazeState: HazeState?) {
-    val strings = LocalAppStrings.current
-    val state by viewModel.uiState.collectAsState()
-    val cardOpacity = state.backgroundSettings.cardOpacity
-    val isDarkTheme = isDarkThemeActive(state.themeMode)
-    
-    // 根据主题模式选择毛玻璃颜色：浅色模式用浅色，深色模式用深色
-    val hazeContainerColor = if (isDarkTheme) {
-        MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.85f)
-    } else {
-        MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.85f)
-    }
-    
-    // 页面进入动画
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(100)
-        visible = true
-    }
-    
-    // 当使用自定义背景时，Scaffold 使用透明色
-    val scaffoldColor = if (state.backgroundSettings.hasCustomBackground) {
-        Color.Transparent
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(strings.settingsTitle) },
-                navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = strings.close)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (state.backgroundSettings.hasCustomBackground) {
-                        if (isDarkTheme) {
-                            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.7f)
-                        } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
-                        }
-                    } else {
-                        if (isDarkTheme) {
-                            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = cardOpacity)
-                        } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = cardOpacity)
-                        }
-                    },
-                    scrolledContainerColor = if (state.backgroundSettings.hasCustomBackground) {
-                        if (isDarkTheme) {
-                            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.7f)
-                        } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
-                        }
-                    } else {
-                        if (isDarkTheme) {
-                            MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = cardOpacity)
-                        } else {
-                            MaterialTheme.colorScheme.surface.copy(alpha = cardOpacity)
-                        }
-                    }
-                )
-            )
-        },
-        containerColor = scaffoldColor
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.padding(padding).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            itemsIndexed(SettingsSection.entries.toList()) { index, section ->
-                // 使用 graphicsLayer 实现动画，不会阻塞滚动
-                var cardAnimated by remember { mutableStateOf(false) }
-                LaunchedEffect(Unit) {
-                    delay(100L + index * 80L)
-                    cardAnimated = true
-                }
-                
-                val cardAlpha by animateFloatAsState(
-                    targetValue = if (cardAnimated) 1f else 0f,
-                    animationSpec = tween(350, easing = EasingFunctions.EaseOutExpo),
-                    label = "cardAlpha"
-                )
-                val cardOffsetY by animateFloatAsState(
-                    targetValue = if (cardAnimated) 0f else 60f,
-                    animationSpec = tween(400, easing = EasingFunctions.EaseOutExpo),
-                    label = "cardOffsetY"
-                )
-                
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer {
-                            this.alpha = cardAlpha
-                            translationY = cardOffsetY
-                        }
-                ) {
-                    if (state.backgroundSettings.enableHazeEffect && hazeState != null) {
-                        HazeSurface(
-                            hazeState = hazeState,
-                            enabled = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            color = hazeContainerColor,
-                            hazeColor = hazeContainerColor
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    section.getLabel(strings),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                SettingsContent(section, viewModel)
-                            }
-                        }
-                    } else {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = hazeContainerColor
-                            ),
-                            shape = MaterialTheme.shapes.large,
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    section.getLabel(strings),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                SettingsContent(section, viewModel)
-                            }
-                        }
-                    }
-                }
-            }
-            item { Spacer(Modifier.height(16.dp)) }
-        }
-    }
+    // 使用新的 Expressive 风格设置页面
+    MobileSettingsPage(viewModel, onClose, hazeState)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

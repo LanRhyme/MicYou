@@ -1,10 +1,23 @@
 package com.lanrhyme.micyou.theme
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -339,4 +352,291 @@ fun ExpressiveSlider(
         steps = steps,
         colors = colors
     )
+}
+
+/**
+ * Expressive List Group - M3 Expressive 风格的列表组
+ * 顶部项有大圆角的顶部，底部项有大圆角的底部，中间项之间有小圆角空隙
+ */
+
+/**
+ * 顶部圆角形状 - 只有顶部有大圆角
+ */
+val ExpressiveTopRoundedShape = RoundedCornerShape(
+    topStart = 20.dp,
+    topEnd = 20.dp,
+    bottomStart = 5.dp,
+    bottomEnd = 5.dp
+)
+
+/**
+ * 底部圆角形状 - 只有底部有大圆角
+ */
+val ExpressiveBottomRoundedShape = RoundedCornerShape(
+    topStart = 5.dp,
+    topEnd = 5.dp,
+    bottomStart = 20.dp,
+    bottomEnd = 20.dp
+)
+
+/**
+ * 中间项形状 - 小圆角
+ */
+val ExpressiveMiddleRoundedShape = RoundedCornerShape(5.dp)
+
+/**
+ * 单项圆角形状 - 顶部和底部都有大圆角（用于只有一个项的情况）
+ */
+val ExpressiveSingleRoundedShape = RoundedCornerShape(20.dp)
+
+/**
+ * Expressive List Group 容器
+ * 用于创建 M3 Expressive 风格的设置列表
+ *
+ * @param modifier Modifier
+ * @param itemGap 列表项之间的空隙（默认 4dp）
+ * @param containerColor 容器背景色（默认透明，使用 SurfaceContainerLow 作为项背景）
+ * @param content 列表项内容，使用 ExpressiveListItem 来构建每个项
+ */
+@Composable
+fun ExpressiveListGroup(
+    modifier: Modifier = Modifier,
+    itemGap: Dp = 3.dp,
+    containerColor: Color = Color.Transparent,
+    content: @Composable ExpressiveListGroupScope.() -> Unit
+) {
+    val scope = ExpressiveListGroupScopeImpl()
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(containerColor),
+        verticalArrangement = Arrangement.spacedBy(itemGap)
+    ) {
+        scope.content()
+    }
+}
+
+/**
+ * Expressive List Group Scope - 用于跟踪列表项索引
+ */
+interface ExpressiveListGroupScope {
+    @Composable
+    fun ExpressiveListItem(
+        isFirst: Boolean = false,
+        isLast: Boolean = false,
+        isSingle: Boolean = false,
+        onClick: (() -> Unit)? = null,
+        containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+        content: @Composable ColumnScope.() -> Unit
+    )
+}
+
+private class ExpressiveListGroupScopeImpl : ExpressiveListGroupScope {
+    @Composable
+    override fun ExpressiveListItem(
+        isFirst: Boolean,
+        isLast: Boolean,
+        isSingle: Boolean,
+        onClick: (() -> Unit)?,
+        containerColor: Color,
+        content: @Composable ColumnScope.() -> Unit
+    ) {
+        val shape = when {
+            isSingle -> ExpressiveSingleRoundedShape
+            isFirst -> ExpressiveTopRoundedShape
+            isLast -> ExpressiveBottomRoundedShape
+            else -> ExpressiveMiddleRoundedShape
+        }
+
+        if (onClick != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = shape,
+                color = containerColor,
+                onClick = onClick
+            ) {
+                Column(content = content)
+            }
+        } else {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = shape,
+                color = containerColor
+            ) {
+                Column(content = content)
+            }
+        }
+    }
+}
+
+/**
+ * Expressive List Item Surface - 基础列表项容器（无内边距，用于嵌套 ListItem）
+ */
+@Composable
+fun ExpressiveListItem(
+    isFirst: Boolean = false,
+    isLast: Boolean = false,
+    isSingle: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    content: @Composable () -> Unit
+) {
+    val shape = when {
+        isSingle -> ExpressiveSingleRoundedShape
+        isFirst -> ExpressiveTopRoundedShape
+        isLast -> ExpressiveBottomRoundedShape
+        else -> ExpressiveMiddleRoundedShape
+    }
+
+    if (onClick != null) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = shape,
+            color = containerColor,
+            onClick = onClick
+        ) {
+            content()
+        }
+    } else {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = shape,
+            color = containerColor
+        ) {
+            content()
+        }
+    }
+}
+
+/**
+ * Expressive Settings Box Item - 用于复杂内容的设置项容器（带内边距）
+ */
+@Composable
+fun ExpressiveSettingsBoxItem(
+    isFirst: Boolean = false,
+    isLast: Boolean = false,
+    isSingle: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    contentPadding: Dp = 12.dp,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val shape = when {
+        isSingle -> ExpressiveSingleRoundedShape
+        isFirst -> ExpressiveTopRoundedShape
+        isLast -> ExpressiveBottomRoundedShape
+        else -> ExpressiveMiddleRoundedShape
+    }
+
+    if (onClick != null) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = shape,
+            color = containerColor,
+            onClick = onClick
+        ) {
+            Column(
+                modifier = Modifier.padding(contentPadding),
+                content = content
+            )
+        }
+    } else {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = shape,
+            color = containerColor
+        ) {
+            Column(
+                modifier = Modifier.padding(contentPadding),
+                content = content
+            )
+        }
+    }
+}
+
+/**
+ * Expressive Settings Switch Item - 开关设置项
+ */
+@Composable
+fun ExpressiveSettingsSwitchItem(
+    headline: String,
+    supporting: String? = null,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    isFirst: Boolean = false,
+    isLast: Boolean = false,
+    isSingle: Boolean = false,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow
+) {
+    ExpressiveListItem(
+        isFirst = isFirst,
+        isLast = isLast,
+        isSingle = isSingle,
+        onClick = { onCheckedChange(!checked) },
+        containerColor = containerColor
+    ) {
+        ListItem(
+            headlineContent = { Text(headline) },
+            supportingContent = supporting?.let { { Text(it) } },
+            trailingContent = {
+                Switch(
+                    checked = checked,
+                    onCheckedChange = onCheckedChange
+                )
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+    }
+}
+
+/**
+ * Expressive Settings Dropdown Item - 下拉选择设置项
+ */
+@Composable
+fun <T> ExpressiveSettingsDropdownItem(
+    headline: String,
+    selected: T,
+    options: List<T>,
+    labelProvider: (T) -> String,
+    onSelect: (T) -> Unit,
+    isFirst: Boolean = false,
+    isLast: Boolean = false,
+    isSingle: Boolean = false,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExpressiveListItem(
+        isFirst = isFirst,
+        isLast = isLast,
+        isSingle = isSingle,
+        onClick = null,
+        containerColor = containerColor
+    ) {
+        ListItem(
+            headlineContent = { Text(headline) },
+            trailingContent = {
+                Box {
+                    TextButton(onClick = { expanded = true }) { Text(labelProvider(selected)) }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        options.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(labelProvider(option)) },
+                                onClick = { onSelect(option); expanded = false },
+                                trailingIcon = {
+                                    if (selected == option) Icon(Icons.Default.Check, contentDescription = null)
+                                }
+                            )
+                        }
+                    }
+                }
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+    }
 }
