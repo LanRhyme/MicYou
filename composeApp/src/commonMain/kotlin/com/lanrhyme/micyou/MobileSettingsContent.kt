@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -37,7 +39,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -66,6 +67,10 @@ import com.lanrhyme.micyou.theme.ExpressiveSettingsDropdownItem
 import com.lanrhyme.micyou.theme.ExpressiveSettingsSwitchItem
 import com.lanrhyme.micyou.theme.PaletteStyle
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 
 /**
  * M3 Expressive 风格的手机端设置页面
@@ -83,44 +88,32 @@ fun MobileSettingsPage(
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val platform = getPlatform()
 
-    val scaffoldColor = if (state.backgroundSettings.hasCustomBackground) {
-        Color.Transparent
-    } else {
-        MaterialTheme.colorScheme.background
-    }
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val topBarBackgroundColor = backgroundColor.copy(alpha = 0.8f)
+    // 独立的 HazeState 用于顶部导航栏毛玻璃效果
+    val topBarHazeState = rememberHazeState()
 
-    val topAppBarColor = MaterialTheme.colorScheme.surfaceContainerHigh
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        strings.settingsTitle,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = strings.close)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = scaffoldColor
+    Box(modifier = Modifier.fillMaxSize()) {
+        // 内容区域 - 作为 hazeSource（与 TopAppBar 的 hazeEffect 是兄弟关系）
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    if (state.backgroundSettings.hasCustomBackground) Color.Transparent
+                    else backgroundColor
                 )
-            )
-        },
-        containerColor = scaffoldColor
-    ) { padding ->
+                .hazeSource(state = topBarHazeState)
+        ) {
+        // 内容列表 - 使用 contentPadding 让内容从 TopAppBar 下方开始，滚动时可穿过半透明导航栏
         LazyColumn(
             modifier = Modifier
-                .padding(padding)
-                .padding(horizontal = 16.dp, vertical = 0.dp),
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 64.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             item {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
             // General Section
             item {
@@ -243,6 +236,38 @@ fun MobileSettingsPage(
             item {
                 Spacer(Modifier.height(16.dp))
             }
+        }
+        }
+
+        // 顶部导航栏 - 0.8 不透明度 + haze 毛玻璃效果（始终启用，与内容区域是兄弟关系）
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .hazeEffect(
+                    state = topBarHazeState,
+                    style = HazeStyle(
+                        backgroundColor = topBarBackgroundColor,
+                        tints = listOf(HazeTint(color = topBarBackgroundColor))
+                    )
+                )
+        ) {
+            TopAppBar(
+                title = {
+                    Text(
+                        strings.settingsTitle,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = strings.close)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
+            )
         }
     }
 }
