@@ -19,10 +19,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 
 /**
  * Material 3 Expressive 组件样式
@@ -480,6 +485,8 @@ fun ExpressiveListItem(
     isSingle: Boolean = false,
     onClick: (() -> Unit)? = null,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    hazeState: HazeState? = null,
+    enableHaze: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val shape = when {
@@ -489,22 +496,49 @@ fun ExpressiveListItem(
         else -> ExpressiveMiddleRoundedShape
     }
 
-    if (onClick != null) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = shape,
-            color = containerColor,
-            onClick = onClick
+    if (enableHaze && hazeState != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .hazeEffect(
+                    state = hazeState,
+                    style = HazeStyle(
+                        backgroundColor = containerColor,
+                        tints = listOf(HazeTint(color = containerColor))
+                    )
+                )
         ) {
-            content()
+            if (onClick != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Transparent,
+                    onClick = onClick
+                ) {
+                    content()
+                }
+            } else {
+                content()
+            }
         }
     } else {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = shape,
-            color = containerColor
-        ) {
-            content()
+        if (onClick != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = shape,
+                color = containerColor,
+                onClick = onClick
+            ) {
+                content()
+            }
+        } else {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = shape,
+                color = containerColor
+            ) {
+                content()
+            }
         }
     }
 }
@@ -520,6 +554,8 @@ fun ExpressiveSettingsBoxItem(
     onClick: (() -> Unit)? = null,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     contentPadding: Dp = 12.dp,
+    hazeState: HazeState? = null,
+    enableHaze: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = when {
@@ -529,28 +565,61 @@ fun ExpressiveSettingsBoxItem(
         else -> ExpressiveMiddleRoundedShape
     }
 
-    if (onClick != null) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = shape,
-            color = containerColor,
-            onClick = onClick
+    if (enableHaze && hazeState != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .hazeEffect(
+                    state = hazeState,
+                    style = HazeStyle(
+                        backgroundColor = containerColor,
+                        tints = listOf(HazeTint(color = containerColor))
+                    )
+                )
         ) {
-            Column(
-                modifier = Modifier.padding(contentPadding),
-                content = content
-            )
+            if (onClick != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Transparent,
+                    onClick = onClick
+                ) {
+                    Column(
+                        modifier = Modifier.padding(contentPadding),
+                        content = content
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier.padding(contentPadding),
+                    content = content
+                )
+            }
         }
     } else {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = shape,
-            color = containerColor
-        ) {
-            Column(
-                modifier = Modifier.padding(contentPadding),
-                content = content
-            )
+        if (onClick != null) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = shape,
+                color = containerColor,
+                onClick = onClick
+            ) {
+                Column(
+                    modifier = Modifier.padding(contentPadding),
+                    content = content
+                )
+            }
+        } else {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = shape,
+                color = containerColor
+            ) {
+                Column(
+                    modifier = Modifier.padding(contentPadding),
+                    content = content
+                )
+            }
         }
     }
 }
@@ -567,14 +636,18 @@ fun ExpressiveSettingsSwitchItem(
     isFirst: Boolean = false,
     isLast: Boolean = false,
     isSingle: Boolean = false,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    hazeState: HazeState? = null,
+    enableHaze: Boolean = false
 ) {
     ExpressiveListItem(
         isFirst = isFirst,
         isLast = isLast,
         isSingle = isSingle,
         onClick = { onCheckedChange(!checked) },
-        containerColor = containerColor
+        containerColor = containerColor,
+        hazeState = hazeState,
+        enableHaze = enableHaze
     ) {
         ListItem(
             headlineContent = { Text(headline) },
@@ -603,7 +676,9 @@ fun <T> ExpressiveSettingsDropdownItem(
     isFirst: Boolean = false,
     isLast: Boolean = false,
     isSingle: Boolean = false,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    hazeState: HazeState? = null,
+    enableHaze: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -612,7 +687,9 @@ fun <T> ExpressiveSettingsDropdownItem(
         isLast = isLast,
         isSingle = isSingle,
         onClick = null,
-        containerColor = containerColor
+        containerColor = containerColor,
+        hazeState = hazeState,
+        enableHaze = enableHaze
     ) {
         ListItem(
             headlineContent = { Text(headline) },

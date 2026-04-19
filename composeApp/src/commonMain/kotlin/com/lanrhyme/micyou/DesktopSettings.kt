@@ -837,14 +837,6 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         cardOpacity = cardOpacity
                     )
 
-                    SettingsSwitchItem(
-                        headline = strings.expressive.useExpressiveTypographyLabel,
-                        supporting = strings.expressive.useExpressiveTypographyDesc,
-                        checked = state.useExpressiveTypography,
-                        onCheckedChange = { viewModel.setUseExpressiveTypography(it) },
-                        cardOpacity = cardOpacity
-                    )
-
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

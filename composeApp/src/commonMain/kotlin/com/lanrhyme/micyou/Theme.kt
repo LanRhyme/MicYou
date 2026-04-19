@@ -256,7 +256,7 @@ val DefaultPaletteStyle = PaletteStyle.Tonal
 
 /**
  * Material 3 Expressive 应用主题
- * 支持调色板风格、Expressive形状和字体
+ * 支持调色板风格和Expressive形状
  */
 @Composable
 fun AppTheme(
@@ -266,7 +266,6 @@ fun AppTheme(
     oledPureBlack: Boolean = false,
     paletteStyle: PaletteStyle = DefaultPaletteStyle,
     useExpressiveShapes: Boolean = true,
-    useExpressiveTypography: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val isDark = isDarkThemeActive(themeMode)
@@ -276,14 +275,12 @@ fun AppTheme(
     val baseColorScheme = dynamicScheme ?: generateExpressiveColorScheme(seedColor, isDark, paletteStyle)
     val targetColorScheme = if (isDark && oledPureBlack) baseColorScheme.withOledDarkBackground() else baseColorScheme
 
-    // 应用Expressive形状和字体
+    // 应用Expressive形状
     val shapes = if (useExpressiveShapes) ExpressiveShapes else MaterialTheme.shapes
-    val typography = if (useExpressiveTypography) ExpressiveTypography else MaterialTheme.typography
 
     MaterialTheme(
         colorScheme = targetColorScheme,
         shapes = shapes,
-        typography = typography,
         content = content
     )
 }

@@ -131,7 +131,7 @@ fun MobileSettingsPage(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
-                ExpressiveGeneralSettings(viewModel)
+                ExpressiveGeneralSettings(viewModel, hazeState)
             }
 
             // Appearance Section
@@ -143,7 +143,7 @@ fun MobileSettingsPage(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
-                ExpressiveAppearanceSettings(viewModel)
+                ExpressiveAppearanceSettings(viewModel, hazeState)
             }
 
             // Audio Section (Android only for mobile)
@@ -156,7 +156,7 @@ fun MobileSettingsPage(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.padding(bottom = 4.dp)
                 )
-                    ExpressiveAudioSettings(viewModel)
+                    ExpressiveAudioSettings(viewModel, hazeState)
                 }
             }
 
@@ -169,7 +169,7 @@ fun MobileSettingsPage(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
-                ExpressivePluginSettings(viewModel)
+                ExpressivePluginSettings(viewModel, hazeState)
             }
 
             // About Section
@@ -181,7 +181,7 @@ fun MobileSettingsPage(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
-                ExpressiveAboutSettings(viewModel)
+                ExpressiveAboutSettings(viewModel, hazeState)
             }
 
             // 底部额外间距
@@ -196,12 +196,15 @@ fun MobileSettingsPage(
  * Expressive 风格的通用设置部分
  */
 @Composable
-private fun ExpressiveGeneralSettings(viewModel: MainViewModel) {
+private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
     val strings = LocalAppStrings.current
     val platform = getPlatform()
 
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val cardOpacity = state.backgroundSettings.cardOpacity
+    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     // 收集所有设置项
     val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
@@ -216,7 +219,9 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel) {
             onSelect = { viewModel.setLanguage(it) },
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         )
     }
 
@@ -229,7 +234,9 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel) {
                 onCheckedChange = { viewModel.setEnableStreamingNotification(it) },
                 isFirst = isFirst,
                 isLast = isLast,
-                containerColor = containerColor
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
             )
         }
 
@@ -241,7 +248,9 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel) {
                 onCheckedChange = { viewModel.setKeepScreenOn(it) },
                 isFirst = isFirst,
                 isLast = isLast,
-                containerColor = containerColor
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
             )
         }
     }
@@ -255,7 +264,9 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel) {
             onCheckedChange = { viewModel.setAutoCheckUpdate(it) },
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         )
     }
 
@@ -267,7 +278,9 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel) {
             onCheckedChange = { viewModel.setUseMirrorDownload(it) },
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         )
     }
 
@@ -285,12 +298,15 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel) {
  * Expressive 风格的外观设置部分
  */
 @Composable
-private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
+private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
     val strings = LocalAppStrings.current
     val platform = getPlatform()
 
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val cardOpacity = state.backgroundSettings.cardOpacity
+    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     val seedColors = listOf(
         0xFF4285F4L, // Google Blue
@@ -311,7 +327,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
         ExpressiveSettingsBoxItem(
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             Text(strings.themeLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
@@ -346,7 +364,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
                 onCheckedChange = { viewModel.setUseDynamicColor(it) },
                 isFirst = isFirst,
                 isLast = isLast,
-                containerColor = containerColor
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
             )
         }
     }
@@ -360,7 +380,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
             onCheckedChange = { viewModel.setOledPureBlack(it) },
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         )
     }
 
@@ -369,7 +391,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
         ExpressiveSettingsBoxItem(
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             Text(strings.themeColorLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
@@ -411,7 +435,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
         ExpressiveSettingsBoxItem(
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             Text(strings.expressive.paletteStyleLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Text(strings.expressive.paletteStyleDesc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -448,20 +474,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
             onCheckedChange = { viewModel.setUseExpressiveShapes(it) },
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
-        )
-    }
-
-    // Expressive Typography
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsSwitchItem(
-            headline = strings.expressive.useExpressiveTypographyLabel,
-            supporting = strings.expressive.useExpressiveTypographyDesc,
-            checked = state.useExpressiveTypography,
-            onCheckedChange = { viewModel.setUseExpressiveTypography(it) },
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         )
     }
 
@@ -470,7 +485,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
         ExpressiveSettingsBoxItem(
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             Text(strings.visualizerStyleLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
@@ -503,7 +520,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
         ExpressiveSettingsBoxItem(
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             Text(strings.backgroundSettingsLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
@@ -583,11 +602,14 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel) {
  * Expressive 风格的音频设置部分 (Android)
  */
 @Composable
-private fun ExpressiveAudioSettings(viewModel: MainViewModel) {
+private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
     val strings = LocalAppStrings.current
 
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val cardOpacity = state.backgroundSettings.cardOpacity
+    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     // 收集所有设置项
     val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
@@ -598,7 +620,9 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel) {
             isFirst = isFirst,
             isLast = isLast,
             onClick = { viewModel.setAutoConfig(!state.isAutoConfig) },
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             ListItem(
                 headlineContent = { Text(strings.autoConfigLabel) },
@@ -626,7 +650,9 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel) {
             enabled = manualSettingsEnabled,
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         )
     }
 
@@ -640,7 +666,9 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel) {
             enabled = manualSettingsEnabled,
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         )
     }
 
@@ -654,7 +682,9 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel) {
             enabled = manualSettingsEnabled,
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         )
     }
 
@@ -664,7 +694,9 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel) {
             viewModel = viewModel,
             isFirst = isFirst,
             isLast = isLast,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         )
     }
 
@@ -690,7 +722,9 @@ private fun ExpressiveAudioDropdownItem(
     enabled: Boolean = true,
     isFirst: Boolean = false,
     isLast: Boolean = false,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    hazeState: HazeState? = null,
+    enableHaze: Boolean = false
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -698,7 +732,9 @@ private fun ExpressiveAudioDropdownItem(
         isFirst = isFirst,
         isLast = isLast,
         onClick = null,
-        containerColor = containerColor
+        containerColor = containerColor,
+        hazeState = hazeState,
+        enableHaze = enableHaze
     ) {
         ListItem(
             headlineContent = { Text(headline) },
@@ -738,7 +774,9 @@ private fun ExpressiveAudioSourceItem(
     viewModel: MainViewModel,
     isFirst: Boolean = false,
     isLast: Boolean = false,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+    hazeState: HazeState? = null,
+    enableHaze: Boolean = false
 ) {
     val state by viewModel.uiState.collectAsState()
     val strings = LocalAppStrings.current
@@ -751,7 +789,9 @@ private fun ExpressiveAudioSourceItem(
         isFirst = isFirst,
         isLast = isLast,
         onClick = null,
-        containerColor = containerColor
+        containerColor = containerColor,
+        hazeState = hazeState,
+        enableHaze = enableHaze
     ) {
         ListItem(
             headlineContent = { Text(strings.audioSourceLabel) },
@@ -786,16 +826,21 @@ private fun ExpressiveAudioSourceItem(
  * Expressive 风格的插件设置部分
  */
 @Composable
-private fun ExpressivePluginSettings(viewModel: MainViewModel) {
+private fun ExpressivePluginSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
     val strings = LocalAppStrings.current
 
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val cardOpacity = state.backgroundSettings.cardOpacity
+    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     // 使用单层卡片包裹插件设置内容
     ExpressiveSettingsBoxItem(
         isSingle = true,
-        containerColor = containerColor
+        containerColor = containerColor,
+        hazeState = hazeState,
+        enableHaze = enableHaze
     ) {
         Text(strings.pluginsSection, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(12.dp))
@@ -807,14 +852,17 @@ private fun ExpressivePluginSettings(viewModel: MainViewModel) {
  * Expressive 风格的关于设置部分
  */
 @Composable
-private fun ExpressiveAboutSettings(viewModel: MainViewModel) {
+private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
     val strings = LocalAppStrings.current
     val uriHandler = LocalUriHandler.current
     var showLicenseDialog by remember { mutableStateOf(false) }
     var showContributorsDialog by remember { mutableStateOf(false) }
 
-    val containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val cardOpacity = state.backgroundSettings.cardOpacity
+    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     if (showContributorsDialog) {
         ContributorsDialog(onDismiss = { showContributorsDialog = false })
@@ -871,7 +919,9 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel) {
             isFirst = isFirst,
             isLast = isLast,
             onClick = null,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             ListItem(
                 headlineContent = { Text(strings.developerLabel) },
@@ -888,7 +938,9 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel) {
             isFirst = isFirst,
             isLast = isLast,
             onClick = null,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             ListItem(
                 headlineContent = { Text(strings.githubRepoLabel) },
@@ -912,7 +964,9 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel) {
             isFirst = isFirst,
             isLast = isLast,
             onClick = { showContributorsDialog = true },
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             ListItem(
                 headlineContent = { Text(strings.contributorsLabel) },
@@ -929,7 +983,9 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel) {
             isFirst = isFirst,
             isLast = isLast,
             onClick = null,
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             ListItem(
                 headlineContent = { Text(strings.versionLabel) },
@@ -951,7 +1007,9 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel) {
             isFirst = isFirst,
             isLast = isLast,
             onClick = { showLicenseDialog = true },
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             ListItem(
                 headlineContent = { Text(strings.openSourceLicense) },
@@ -974,7 +1032,9 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel) {
                     }
                 }
             },
-            containerColor = containerColor
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
         ) {
             ListItem(
                 headlineContent = { Text(strings.exportLog) },

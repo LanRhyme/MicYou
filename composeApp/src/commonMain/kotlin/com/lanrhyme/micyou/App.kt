@@ -65,8 +65,7 @@ fun App(
             useDynamicColor = uiState.useDynamicColor,
             oledPureBlack = uiState.oledPureBlack,
             paletteStyle = uiState.paletteStyle,
-            useExpressiveShapes = uiState.useExpressiveShapes,
-            useExpressiveTypography = uiState.useExpressiveTypography
+            useExpressiveShapes = uiState.useExpressiveShapes
         ) {
             if (platform.type == PlatformType.Android) {
                 MobileHome(finalViewModel)
