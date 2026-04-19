@@ -1,33 +1,22 @@
 package com.lanrhyme.micyou
 
-import javax.swing.JFileChooser
-import javax.swing.SwingUtilities
-import javax.swing.filechooser.FileNameExtensionFilter
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.absolutePath
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.openFilePicker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
-actual fun openPluginFileChooser(onResult: (String?) -> Unit) {
-    val filePath = if (!SwingUtilities.isEventDispatchThread()) {
-        var result: String? = null
-        SwingUtilities.invokeAndWait {
-            result = openFileChooserInternal()
+actual fun openPluginFileChooser(scope: CoroutineScope, onResult: (String?) -> Unit) {
+    scope.launch {
+        try {
+            val file = FileKit.openFilePicker(
+                type = FileKitType.File(extensions = listOf("zip", "jar"))
+            )
+            onResult(file?.absolutePath())
+        } catch (e: Exception) {
+            Logger.e("PluginFileChooser", "Failed to pick plugin file", e)
+            onResult(null)
         }
-        result
-    } else {
-        openFileChooserInternal()
-    }
-    onResult(filePath)
-}
-
-private fun openFileChooserInternal(): String? {
-    val chooser = JFileChooser().apply {
-        fileFilter = FileNameExtensionFilter(
-            "Plugin Files (*.zip, *.jar)",
-            "zip", "jar"
-        )
-    }
-    val chooserResult = chooser.showOpenDialog(null)
-    return if (chooserResult == JFileChooser.APPROVE_OPTION) {
-        chooser.selectedFile.absolutePath
-    } else {
-        null
     }
 }

@@ -23,6 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.dialogs.init
 
 class MainActivity : ComponentActivity() {
 
@@ -74,8 +76,7 @@ class MainActivity : ComponentActivity() {
         Logger.init(AndroidLogger(this))
         Logger.i("MainActivity", "App started")
 
-        BackgroundImagePicker.registerLauncher(this)
-        PluginFileChooserHelper.registerLauncher(this)
+        FileKit.init(this)
 
         val shouldQuickStart = intent?.action == ACTION_QUICK_START
 

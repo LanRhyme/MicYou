@@ -23,6 +23,7 @@ composenativetray = "1.1.0"
 onnxruntime = "1.14.0"
 jtransforms = "3.2"
 window = "1.5.1"
+filekit = "0.13.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -56,6 +57,8 @@ composenativetray = { module = "io.github.kdroidfilter:composenativetray", versi
 onnxruntime = { module = "com.microsoft.onnxruntime:onnxruntime", version.ref = "onnxruntime" }
 jtransforms = { module = "com.github.wendykierp:JTransforms", version.ref = "jtransforms" }
 androidx-window = { group = "androidx.window", name = "window", version.ref = "window" }
+filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
+filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

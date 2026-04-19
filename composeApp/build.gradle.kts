@@ -87,6 +87,8 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
             implementation("dev.chrisbanes.haze:haze:1.7.2")
+            implementation(libs.filekit.core)
+            implementation(libs.filekit.dialogs.compose)
             implementation(project(":plugin-api"))
         }
         commonTest.dependencies {

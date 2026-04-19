@@ -1,63 +1,47 @@
 package com.lanrhyme.micyou
 
-import android.app.Activity
-import android.content.Intent
-import android.net.Uri
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.PlatformFile
+import io.github.vinceglb.filekit.extension
+import io.github.vinceglb.filekit.readBytes
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.openFilePicker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import java.io.File
 
 actual object BackgroundImagePicker {
-    private var launcher: ActivityResultLauncher<Intent>? = null
-    private var callback: ((String?) -> Unit)? = null
-    
-    fun registerLauncher(activity: MainActivity): ActivityResultLauncher<Intent> {
-        val l = activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                val uri = result.data?.data
-                if (uri != null) {
-                    val savedPath = copyToInternalStorage(uri)
-                    callback?.invoke(savedPath)
-                } else {
-                    callback?.invoke(null)
-                }
-            } else {
-                callback?.invoke(null)
+    actual fun pickImage(scope: CoroutineScope, onResult: (String?) -> Unit) {
+        scope.launch {
+            try {
+                val file = FileKit.openFilePicker(type = FileKitType.Image)
+                val savedPath = file?.let { copyToInternalStorage(it) }
+                onResult(savedPath)
+            } catch (e: Exception) {
+                Logger.e("BackgroundImagePicker", "Failed to pick image", e)
+                onResult(null)
             }
         }
-        launcher = l
-        return l
     }
-    
-    actual fun pickImage(onResult: (String?) -> Unit) {
-        callback = onResult
-        val intent = Intent(Intent.ACTION_PICK).apply {
-            type = "image/*"
-        }
-        launcher?.launch(intent) ?: run {
-            onResult(null)
-        }
-    }
-    
-    private fun copyToInternalStorage(uri: Uri): String? {
+
+    private suspend fun copyToInternalStorage(file: PlatformFile): String? {
         return try {
             val context = AndroidContext.getContext() ?: return null
-            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-            
+            val bytes = file.readBytes()
+
             val backgroundDir = File(context.filesDir, "backgrounds")
             if (!backgroundDir.exists()) {
                 backgroundDir.mkdirs()
             }
-            
-            val outputFile = File(backgroundDir, "custom_background.jpg")
-            outputFile.outputStream().use { output ->
-                inputStream.copyTo(output)
-            }
-            inputStream.close()
-            
+
+            val extension = file.extension
+            val fileName = "custom_background.$extension"
+            val outputFile = File(backgroundDir, fileName)
+            outputFile.writeBytes(bytes)
+
             outputFile.absolutePath
         } catch (e: Exception) {
-            Logger.e("BackgroundImage", "Failed to copy image to internal storage", e)
+            Logger.e("BackgroundImagePicker", "Failed to copy image to internal storage", e)
             null
         }
     }
