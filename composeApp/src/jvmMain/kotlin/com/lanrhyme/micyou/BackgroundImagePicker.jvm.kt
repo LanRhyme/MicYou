@@ -4,15 +4,15 @@ import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.absolutePath
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 actual object BackgroundImagePicker {
-    private val scope = CoroutineScope(Dispatchers.Main)
-
+    // 文件选择是短暂的用户交互操作，使用 GlobalScope 是可接受的
+    // 协程会在用户完成选择（或取消）后立即结束
     actual fun pickImage(onResult: (String?) -> Unit) {
-        scope.launch {
+        GlobalScope.launch(Dispatchers.Main) {
             try {
                 val file = FileKit.openFilePicker(
                     type = FileKitType.File(
