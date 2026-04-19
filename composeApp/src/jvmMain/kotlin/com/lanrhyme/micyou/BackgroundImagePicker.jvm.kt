@@ -16,7 +16,7 @@ actual object BackgroundImagePicker {
             try {
                 val file = FileKit.openFilePicker(
                     type = FileKitType.File(
-                        extensions = listOf("jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif")
+                        extensions = listOf("jpg", "jpeg", "png", "gif", "bmp", "webp")
                     )
                 )
                 onResult(file?.absolutePath())
