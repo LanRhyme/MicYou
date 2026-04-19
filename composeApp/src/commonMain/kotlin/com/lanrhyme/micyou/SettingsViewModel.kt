@@ -299,7 +299,7 @@ class SettingsViewModel : ViewModel() {
     }
     
     fun pickBackgroundImage() {
-        BackgroundImagePicker.pickImage { path ->
+        BackgroundImagePicker.pickImage(viewModelScope) { path ->
             path?.let { setBackgroundImage(it) }
         }
     }

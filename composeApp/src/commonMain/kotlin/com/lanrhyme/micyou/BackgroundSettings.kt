@@ -1,5 +1,7 @@
 package com.lanrhyme.micyou
 
+import kotlinx.coroutines.CoroutineScope
+
 data class BackgroundSettings(
     val imagePath: String = "",
     val brightness: Float = 0.5f,
@@ -12,5 +14,5 @@ data class BackgroundSettings(
 }
 
 expect object BackgroundImagePicker {
-    fun pickImage(onResult: (String?) -> Unit)
+    fun pickImage(scope: CoroutineScope, onResult: (String?) -> Unit)
 }

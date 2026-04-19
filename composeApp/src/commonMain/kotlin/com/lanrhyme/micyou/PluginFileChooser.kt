@@ -1,3 +1,5 @@
 package com.lanrhyme.micyou
 
-expect fun openPluginFileChooser(onResult: (String?) -> Unit)
+import kotlinx.coroutines.CoroutineScope
+
+expect fun openPluginFileChooser(scope: CoroutineScope, onResult: (String?) -> Unit)

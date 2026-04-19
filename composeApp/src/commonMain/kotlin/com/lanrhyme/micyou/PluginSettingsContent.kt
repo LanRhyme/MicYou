@@ -29,6 +29,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +47,8 @@ fun PluginSettingsContent(
     val state by viewModel.uiState.collectAsState()
     val strings = LocalAppStrings.current
     val platform = getPlatform()
-    
+    val scope = rememberCoroutineScope()
+
     var showDeleteDialog by remember { mutableStateOf<PluginInfo?>(null) }
     var showPlatformWarning by remember { mutableStateOf<PluginInfo?>(null) }
     var activePluginWindow by remember { mutableStateOf<String?>(null) }
@@ -79,7 +81,7 @@ fun PluginSettingsContent(
         ) {
             Button(
                 onClick = {
-                    openPluginFileChooser { filePath ->
+                    openPluginFileChooser(scope) { filePath ->
                         filePath?.let { path ->
                             viewModel.importPlugin(path) { result ->
                                 result.onSuccess {
