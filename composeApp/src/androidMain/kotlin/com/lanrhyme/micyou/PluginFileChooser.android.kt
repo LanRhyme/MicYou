@@ -40,7 +40,7 @@ private suspend fun copyPluginToInternalStorage(file: PlatformFile): String? {
 
         val fileName = file.name
         val outputFile = File(pluginDir, fileName)
-        outputFile.writeBytes(bytes)
+        outputFile.writeBytes(file.readBytes())
 
         outputFile.absolutePath
     } catch (e: Exception) {
