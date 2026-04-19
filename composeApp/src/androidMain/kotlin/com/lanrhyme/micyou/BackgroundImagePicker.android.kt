@@ -15,11 +15,7 @@ actual object BackgroundImagePicker {
     actual fun pickImage(onResult: (String?) -> Unit) {
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                val file = FileKit.openFilePicker(
-                    type = FileKitType.File(
-                        extensions = listOf("jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif")
-                    )
-                )
+                val file = FileKit.openFilePicker(type = FileKitType.Image)
                 val savedPath = file?.let { copyToInternalStorage(it) }
                 onResult(savedPath)
             } catch (e: Exception) {
