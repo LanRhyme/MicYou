@@ -3,7 +3,7 @@ package com.lanrhyme.micyou
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.extension
-import io.github.vinceglb.filekit.source
+import io.github.vinceglb.filekit.readBytes
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import kotlinx.coroutines.GlobalScope
@@ -30,6 +30,7 @@ actual object BackgroundImagePicker {
     private suspend fun copyToInternalStorage(file: PlatformFile): String? {
         return try {
             val context = AndroidContext.getContext() ?: return null
+            val bytes = file.readBytes()
 
             val backgroundDir = File(context.filesDir, "backgrounds")
             if (!backgroundDir.exists()) {
@@ -39,15 +40,7 @@ actual object BackgroundImagePicker {
             val extension = file.extension
             val fileName = "custom_background.$extension"
             val outputFile = File(backgroundDir, fileName)
-
-            file.source().buffered().use { source ->
-                outputFile.outputStream().use { output ->
-                    while (!source.exhausted()) {
-                        val chunk = source.readByteArray(8192)
-                        output.write(chunk)
-                    }
-                }
-            }
+            outputFile.writeBytes(bytes)
 
             outputFile.absolutePath
         } catch (e: Exception) {

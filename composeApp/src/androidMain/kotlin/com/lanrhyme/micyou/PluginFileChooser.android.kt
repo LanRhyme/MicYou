@@ -3,7 +3,7 @@ package com.lanrhyme.micyou
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.PlatformFile
 import io.github.vinceglb.filekit.name
-import io.github.vinceglb.filekit.source
+import io.github.vinceglb.filekit.readBytes
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import kotlinx.coroutines.GlobalScope
@@ -31,6 +31,8 @@ actual fun openPluginFileChooser(onResult: (String?) -> Unit) {
 private suspend fun copyPluginToInternalStorage(file: PlatformFile): String? {
     return try {
         val context = AndroidContext.getContext() ?: return null
+
+
         val pluginDir = File(context.cacheDir, "plugin_imports")
         if (!pluginDir.exists()) {
             pluginDir.mkdirs()
@@ -38,15 +40,7 @@ private suspend fun copyPluginToInternalStorage(file: PlatformFile): String? {
 
         val fileName = file.name
         val outputFile = File(pluginDir, fileName)
-
-        file.source().buffered().use { source ->
-            outputFile.outputStream().use { output ->
-                while (!source.exhausted()) {
-                    val chunk = source.readByteArray(8192)
-                    output.write(chunk)
-                }
-            }
-        }
+        outputFile.writeBytes(file.readBytes())
 
         outputFile.absolutePath
     } catch (e: Exception) {
