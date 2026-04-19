@@ -4,11 +4,14 @@ import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.absolutePath
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
+
+private val filePickerScope = CoroutineScope(Dispatchers.Main)
 
 actual fun openPluginFileChooser(onResult: (String?) -> Unit) {
-    runBlocking(Dispatchers.IO) {
+    filePickerScope.launch {
         try {
             val file = FileKit.openFilePicker(
                 type = FileKitType.File(extensions = listOf("zip", "jar"))

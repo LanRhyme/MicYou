@@ -4,16 +4,21 @@ import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.absolutePath
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 
 actual object BackgroundImagePicker {
+    private val scope = CoroutineScope(Dispatchers.Main)
+
     actual fun pickImage(onResult: (String?) -> Unit) {
-        runBlocking(Dispatchers.IO) {
+        scope.launch {
             try {
                 val file = FileKit.openFilePicker(
-                type = FileKitType.File(extensions = listOf("jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif"))
-            )
+                    type = FileKitType.File(
+                        extensions = listOf("jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff", "tif")
+                    )
+                )
                 onResult(file?.absolutePath())
             } catch (e: Exception) {
                 Logger.e("BackgroundImagePicker", "Failed to pick image", e)
