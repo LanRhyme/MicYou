@@ -54,11 +54,7 @@ class SettingsViewModel : ViewModel() {
         val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
         val savedOledPureBlack = settings.getBoolean("oled_pure_black", false)
 
-        var savedPaletteStyleName = settings.getString("palette_style", PaletteStyle.Expressive.name)
-        if (savedPaletteStyleName == "Tonal") {
-            savedPaletteStyleName = "Expressive"
-            settings.putString("palette_style", "Expressive")
-        }
+        val savedPaletteStyleName = settings.getString("palette_style", PaletteStyle.Expressive.name)
         val savedPaletteStyle = try { PaletteStyle.valueOf(savedPaletteStyleName) } catch(e: Exception) { PaletteStyle.Expressive }
         val savedUseExpressiveShapes = settings.getBoolean("use_expressive_shapes", true)
 

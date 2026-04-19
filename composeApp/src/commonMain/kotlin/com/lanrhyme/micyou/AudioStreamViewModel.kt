@@ -109,7 +109,10 @@ class AudioStreamViewModel : ViewModel() {
         val savedBluetoothAddress = settings.getString("bluetooth_address", "")
         val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
 
-        _uiState.update { 
+        val savedPerformanceMode = settings.getString("performance_mode", "Default")
+        val savedBufferSizeMultiplier = settings.getFloat("buffer_size_multiplier", 1.0f)
+
+        _uiState.update {
             it.copy(
                 mode = savedMode,
                 ipAddress = savedIp,
@@ -129,8 +132,10 @@ class AudioStreamViewModel : ViewModel() {
                 amplification = savedAmplification,
                 androidAudioSourceName = savedAndroidAudioSourceName,
                 bluetoothAddress = savedBluetoothAddress,
-                isAutoConfig = savedIsAutoConfig
-            ) 
+                isAutoConfig = savedIsAutoConfig,
+                performanceMode = savedPerformanceMode,
+                performanceConfig = PerformanceConfig.withBufferSizeMultiplier(savedBufferSizeMultiplier)
+            )
         }
         
         // Apply auto config on startup if enabled
