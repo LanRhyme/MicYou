@@ -14,7 +14,7 @@ data class SettingsUiState(
     val seedColor: Long = 0xFF4285F4,
     val useDynamicColor: Boolean = false,
     val oledPureBlack: Boolean = false,
-    val paletteStyle: PaletteStyle = PaletteStyle.Tonal,
+    val paletteStyle: PaletteStyle = PaletteStyle.Expressive,
     val useExpressiveShapes: Boolean = true,
     val language: AppLanguage = AppLanguage.System,
     val autoStart: Boolean = false,
@@ -54,8 +54,12 @@ class SettingsViewModel : ViewModel() {
         val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
         val savedOledPureBlack = settings.getBoolean("oled_pure_black", false)
 
-        val savedPaletteStyleName = settings.getString("palette_style", PaletteStyle.Tonal.name)
-        val savedPaletteStyle = try { PaletteStyle.valueOf(savedPaletteStyleName) } catch(e: Exception) { PaletteStyle.Tonal }
+        var savedPaletteStyleName = settings.getString("palette_style", PaletteStyle.Expressive.name)
+        if (savedPaletteStyleName == "Tonal") {
+            savedPaletteStyleName = "Expressive"
+            settings.putString("palette_style", "Expressive")
+        }
+        val savedPaletteStyle = try { PaletteStyle.valueOf(savedPaletteStyleName) } catch(e: Exception) { PaletteStyle.Expressive }
         val savedUseExpressiveShapes = settings.getBoolean("use_expressive_shapes", true)
 
         val initialLanguage = try { 

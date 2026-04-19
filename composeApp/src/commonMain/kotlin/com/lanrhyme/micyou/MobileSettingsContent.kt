@@ -1,7 +1,6 @@
 package com.lanrhyme.micyou
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,12 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.TextSnippet
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Info
@@ -34,8 +35,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -53,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
@@ -107,7 +107,7 @@ fun MobileSettingsPage(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = topAppBarColor
+                    containerColor = scaffoldColor
                 )
             )
         },
@@ -117,70 +117,125 @@ fun MobileSettingsPage(
             modifier = Modifier
                 .padding(padding)
                 .padding(horizontal = 16.dp, vertical = 0.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
             }
             // General Section
             item {
-                Text(
-                    strings.generalSection,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(height = 18.dp, width = 5.dp)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        strings.generalSection,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 ExpressiveGeneralSettings(viewModel, hazeState)
             }
 
             // Appearance Section
             item {
-                Text(
-                    strings.appearanceSection,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(height = 18.dp, width = 5.dp)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        strings.appearanceSection,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 ExpressiveAppearanceSettings(viewModel, hazeState)
             }
 
             // Audio Section (Android only for mobile)
             if (platform.type == PlatformType.Android) {
                 item {
-                    Text(
-                        strings.audioSection,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(height = 18.dp, width = 5.dp)
+                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            strings.audioSection,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     ExpressiveAudioSettings(viewModel, hazeState)
                 }
             }
 
             // Plugins Section
             item {
-                Text(
-                    strings.pluginsSection,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(height = 18.dp, width = 5.dp)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        strings.pluginsSection,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 ExpressivePluginSettings(viewModel, hazeState)
             }
 
             // About Section
             item {
-                Text(
-                    strings.aboutSection,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(height = 18.dp, width = 5.dp)
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        strings.aboutSection,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 ExpressiveAboutSettings(viewModel, hazeState)
             }
 
@@ -448,13 +503,7 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
                         selected = state.paletteStyle == style,
                         onClick = { viewModel.setPaletteStyle(style) },
                         label = {
-                            Text(when(style) {
-                                PaletteStyle.Tonal -> strings.expressive.paletteStyleTonal
-                                PaletteStyle.Expressive -> strings.expressive.paletteStyleExpressive
-                                PaletteStyle.Vibrant -> strings.expressive.paletteStyleVibrant
-                                PaletteStyle.Monochrome -> strings.expressive.paletteStyleMonochrome
-                                PaletteStyle.Rainbow -> strings.expressive.paletteStyleRainbow
-                            })
+                            Text(style.name)
                         },
                         leadingIcon = {
                             if (state.paletteStyle == style) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
@@ -624,17 +673,32 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            ListItem(
-                headlineContent = { Text(strings.autoConfigLabel) },
-                supportingContent = { Text(strings.autoConfigDesc) },
-                trailingContent = {
-                    Switch(
-                        checked = state.isAutoConfig,
-                        onCheckedChange = { viewModel.setAutoConfig(it) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(
+                        strings.autoConfigLabel,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        strings.autoConfigDesc,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = state.isAutoConfig,
+                    onCheckedChange = null // Handled by row click
+                )
+            }
         }
     }
 
@@ -731,38 +795,58 @@ private fun ExpressiveAudioDropdownItem(
     ExpressiveListItem(
         isFirst = isFirst,
         isLast = isLast,
-        onClick = null,
+        onClick = if (enabled) { { expanded = true } } else null,
         containerColor = containerColor,
         hazeState = hazeState,
         enableHaze = enableHaze
     ) {
-        ListItem(
-            headlineContent = { Text(headline) },
-            trailingContent = {
-                Box {
-                    TextButton(
-                        onClick = { expanded = true },
-                        enabled = enabled
-                    ) { Text(selected) }
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false },
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        options.forEachIndexed { index, option ->
-                            DropdownMenuItem(
-                                text = { Text(option) },
-                                onClick = { onSelect(index); expanded = false },
-                                trailingIcon = {
-                                    if (option == selected) Icon(Icons.Default.Check, contentDescription = null)
-                                }
-                            )
-                        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = headline,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                modifier = Modifier.weight(1f).padding(end = 16.dp)
+            )
+            Box {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = selected,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    )
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    shape = MaterialTheme.shapes.extraLarge
+                ) {
+                    options.forEachIndexed { index, option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = { onSelect(index); expanded = false },
+                            trailingIcon = {
+                                if (option == selected) Icon(Icons.Default.Check, contentDescription = null)
+                            }
+                        )
                     }
                 }
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+            }
+        }
     }
 }
 
@@ -788,37 +872,60 @@ private fun ExpressiveAudioSourceItem(
     ExpressiveListItem(
         isFirst = isFirst,
         isLast = isLast,
-        onClick = null,
+        onClick = { expanded = true },
         containerColor = containerColor,
         hazeState = hazeState,
         enableHaze = enableHaze
     ) {
-        ListItem(
-            headlineContent = { Text(strings.audioSourceLabel) },
-            trailingContent = {
-                if (audioSourceOptions.isNotEmpty() && currentSource != null) {
-                    Box {
-                        TextButton(onClick = { expanded = true }) { Text(currentSource.label) }
-                        DropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false },
-                            shape = MaterialTheme.shapes.medium
-                        ) {
-                            audioSourceOptions.forEach { source ->
-                                DropdownMenuItem(
-                                    text = { Text(source.label) },
-                                    onClick = { viewModel.setAndroidAudioSource(source.name); expanded = false },
-                                    trailingIcon = {
-                                        if (currentSource == source) Icon(Icons.Default.Check, contentDescription = null)
-                                    }
-                                )
-                            }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = strings.audioSourceLabel,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).padding(end = 16.dp)
+            )
+            if (audioSourceOptions.isNotEmpty() && currentSource != null) {
+                Box {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = currentSource.label,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        shape = MaterialTheme.shapes.extraLarge
+                    ) {
+                        audioSourceOptions.forEach { source ->
+                            DropdownMenuItem(
+                                text = { Text(source.label) },
+                                onClick = { viewModel.setAndroidAudioSource(source.name); expanded = false },
+                                trailingIcon = {
+                                    if (currentSource == source) Icon(Icons.Default.Check, contentDescription = null)
+                                }
+                            )
                         }
                     }
                 }
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+            }
+        }
     }
 }
 
@@ -923,12 +1030,20 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            ListItem(
-                headlineContent = { Text(strings.developerLabel) },
-                supportingContent = { Text("LanRhyme、ChinsaaWei") },
-                leadingContent = { Icon(Icons.Rounded.Person, null, modifier = Modifier.size(24.dp)) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Rounded.Person, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(strings.developerLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(4.dp))
+                    Text("LanRhyme、ChinsaaWei", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 
@@ -937,24 +1052,30 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
         ExpressiveListItem(
             isFirst = isFirst,
             isLast = isLast,
-            onClick = null,
+            onClick = { uriHandler.openUri("https://github.com/LanRhyme/MicYou") },
             containerColor = containerColor,
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            ListItem(
-                headlineContent = { Text(strings.githubRepoLabel) },
-                supportingContent = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Rounded.Language, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(strings.githubRepoLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         "https://github.com/LanRhyme/MicYou",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary,
-                        textDecoration = TextDecoration.Underline,
-                        modifier = Modifier.clickable { uriHandler.openUri("https://github.com/LanRhyme/MicYou") }
+                        textDecoration = TextDecoration.Underline
                     )
-                },
-                leadingContent = { Icon(Icons.Rounded.Language, null, modifier = Modifier.size(24.dp)) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+                }
+            }
         }
     }
 
@@ -968,12 +1089,20 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            ListItem(
-                headlineContent = { Text(strings.contributorsLabel) },
-                supportingContent = { Text(strings.contributorsDesc) },
-                leadingContent = { Icon(Icons.Rounded.People, null, modifier = Modifier.size(24.dp)) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Rounded.People, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(strings.contributorsLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(4.dp))
+                    Text(strings.contributorsDesc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 
@@ -982,22 +1111,31 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
         ExpressiveListItem(
             isFirst = isFirst,
             isLast = isLast,
-            onClick = null,
+            onClick = { viewModel.checkUpdateManual() },
             containerColor = containerColor,
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            ListItem(
-                headlineContent = { Text(strings.versionLabel) },
-                supportingContent = { Text(getAppVersion()) },
-                leadingContent = { Icon(Icons.Rounded.Info, null, modifier = Modifier.size(24.dp)) },
-                trailingContent = {
-                    TextButton(onClick = { viewModel.checkUpdateManual() }) {
-                        Text(strings.checkUpdate)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Rounded.Info, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(strings.versionLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(getAppVersion(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+                }
+                TextButton(onClick = { viewModel.checkUpdateManual() }) {
+                    Text(strings.checkUpdate)
+                }
+            }
         }
     }
 
@@ -1011,12 +1149,20 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            ListItem(
-                headlineContent = { Text(strings.openSourceLicense) },
-                supportingContent = { Text(strings.viewLibraries) },
-                leadingContent = { Icon(Icons.Rounded.Description, null, modifier = Modifier.size(24.dp)) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Rounded.Description, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(strings.openSourceLicense, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(4.dp))
+                    Text(strings.viewLibraries, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 
@@ -1036,17 +1182,25 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            ListItem(
-                headlineContent = { Text(strings.exportLog) },
-                supportingContent = { Text(strings.exportLogDesc) },
-                leadingContent = { Icon(Icons.AutoMirrored.Rounded.TextSnippet, null, modifier = Modifier.size(24.dp)) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.TextSnippet, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(strings.exportLog, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(4.dp))
+                    Text(strings.exportLogDesc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
     }
 
     // 渲染设置项
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         items.forEachIndexed { index, item ->
             val isFirst = index == 0
             val isLast = index == items.size - 1

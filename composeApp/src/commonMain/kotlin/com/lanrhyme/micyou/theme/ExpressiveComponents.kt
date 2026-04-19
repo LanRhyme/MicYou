@@ -9,9 +9,14 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -368,31 +373,31 @@ fun ExpressiveSlider(
  * 顶部圆角形状 - 只有顶部有大圆角
  */
 val ExpressiveTopRoundedShape = RoundedCornerShape(
-    topStart = 20.dp,
-    topEnd = 20.dp,
-    bottomStart = 5.dp,
-    bottomEnd = 5.dp
+    topStart = 28.dp,
+    topEnd = 28.dp,
+    bottomStart = 8.dp,
+    bottomEnd = 8.dp
 )
 
 /**
  * 底部圆角形状 - 只有底部有大圆角
  */
 val ExpressiveBottomRoundedShape = RoundedCornerShape(
-    topStart = 5.dp,
-    topEnd = 5.dp,
-    bottomStart = 20.dp,
-    bottomEnd = 20.dp
+    topStart = 8.dp,
+    topEnd = 8.dp,
+    bottomStart = 28.dp,
+    bottomEnd = 28.dp
 )
 
 /**
  * 中间项形状 - 小圆角
  */
-val ExpressiveMiddleRoundedShape = RoundedCornerShape(5.dp)
+val ExpressiveMiddleRoundedShape = RoundedCornerShape(8.dp)
 
 /**
  * 单项圆角形状 - 顶部和底部都有大圆角（用于只有一个项的情况）
  */
-val ExpressiveSingleRoundedShape = RoundedCornerShape(20.dp)
+val ExpressiveSingleRoundedShape = RoundedCornerShape(28.dp)
 
 /**
  * Expressive List Group 容器
@@ -553,7 +558,7 @@ fun ExpressiveSettingsBoxItem(
     isSingle: Boolean = false,
     onClick: (() -> Unit)? = null,
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
-    contentPadding: Dp = 12.dp,
+    contentPadding: Dp = 20.dp,
     hazeState: HazeState? = null,
     enableHaze: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
@@ -649,17 +654,39 @@ fun ExpressiveSettingsSwitchItem(
         hazeState = hazeState,
         enableHaze = enableHaze
     ) {
-        ListItem(
-            headlineContent = { Text(headline) },
-            supportingContent = supporting?.let { { Text(it) } },
-            trailingContent = {
-                Switch(
-                    checked = checked,
-                    onCheckedChange = onCheckedChange
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 16.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = headline,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+                if (supporting != null) {
+                    androidx.compose.foundation.layout.Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = supporting,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Switch(
+                checked = checked,
+                onCheckedChange = null // Handled by row click
+            )
+        }
     }
 }
 
@@ -686,34 +713,59 @@ fun <T> ExpressiveSettingsDropdownItem(
         isFirst = isFirst,
         isLast = isLast,
         isSingle = isSingle,
-        onClick = null,
+        onClick = { expanded = true },
         containerColor = containerColor,
         hazeState = hazeState,
         enableHaze = enableHaze
     ) {
-        ListItem(
-            headlineContent = { Text(headline) },
-            trailingContent = {
-                Box {
-                    TextButton(onClick = { expanded = true }) { Text(labelProvider(selected)) }
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false },
-                        shape = MaterialTheme.shapes.medium
-                    ) {
-                        options.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(labelProvider(option)) },
-                                onClick = { onSelect(option); expanded = false },
-                                trailingIcon = {
-                                    if (selected == option) Icon(Icons.Default.Check, contentDescription = null)
-                                }
-                            )
-                        }
+        androidx.compose.foundation.layout.Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = headline,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 16.dp)
+            )
+            Box {
+                androidx.compose.foundation.layout.Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = labelProvider(selected),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    shape = MaterialTheme.shapes.extraLarge
+                ) {
+                    options.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(labelProvider(option)) },
+                            onClick = { onSelect(option); expanded = false },
+                            trailingIcon = {
+                                if (selected == option) Icon(Icons.Default.Check, contentDescription = null)
+                            }
+                        )
                     }
                 }
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-        )
+            }
+        }
     }
 }

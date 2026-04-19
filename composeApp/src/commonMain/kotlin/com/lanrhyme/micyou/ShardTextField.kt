@@ -126,7 +126,7 @@ fun ShardTextField(
                 .clip(shape)
                 .background(bgColor, shape)
                 .border(borderWidth, borderColor, shape)
-                .padding(horizontal = 14.dp, vertical = if (label != null) 10.dp else 16.dp)
+                .padding(start = 14.dp, end = 14.dp, top = if (label != null) 6.dp else 10.dp, bottom = 10.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -141,7 +141,6 @@ fun ShardTextField(
                     modifier = Modifier.weight(1f),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    // Floating label
                     if (label != null) {
                         Text(
                             text = label,
@@ -154,7 +153,7 @@ fun ShardTextField(
                                     translationY = labelOffsetY
                                     transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
                                 }
-                                .padding(top = if (labelIsFloating) 0.dp else 0.dp)
+                                .padding(vertical = 4.dp)
                         )
                     }
 
@@ -197,8 +196,7 @@ fun ShardTextField(
                 }
             }
         }
-        
-        // Supporting text
+
         if (supportingText != null) {
             Spacer(modifier = Modifier.height(4.dp))
             Box(modifier = Modifier.padding(start = 14.dp)) {

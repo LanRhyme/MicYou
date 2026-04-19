@@ -13,10 +13,14 @@ import kotlin.math.abs
 
 enum class PaletteStyle {
     Tonal,       // 经典M3色调风格 - 平衡饱和度
-    Expressive,  // 表达性风格 - 高饱和度，更有表现力
+    Neutral,     // 中性风格 - 极低饱和度
     Vibrant,     // 鲜艳风格 - 最高饱和度，充满活力
-    Monochrome,  // 单色风格 - 低饱和度，简约中性
-    Rainbow      // 彩虹风格 - 色相偏移，多彩变化
+    Expressive,  // 表达性风格 - 高饱和度，更有表现力
+    Rainbow,     // 彩虹风格 - 色相偏移，多彩变化
+    FruitSalad,  // 水果沙拉风格 - 强烈的色相对比双色调
+    Monochrome,  // 单色风格 - 低饱和度，纯黑白中性色
+    Fidelity,    // 高保真风格 - 原色直出，不进行色相转移
+    Content      // 内容导向风格 - 基于图像内容的配色提取（在此表现为更高原色比例）
 }
 
 object ExpressiveColorUtils {
@@ -66,7 +70,7 @@ object ExpressiveColorUtils {
     fun expressiveTone(
         seedColor: Color,
         tone: Int,
-        paletteStyle: PaletteStyle = PaletteStyle.Tonal,
+        paletteStyle: PaletteStyle = PaletteStyle.Expressive,
         colorRole: ColorRole = ColorRole.Primary
     ): Color {
         val hsl = colorToHSL(seedColor.toArgb())
@@ -81,17 +85,20 @@ object ExpressiveColorUtils {
     fun neutralTone(
         seedColor: Color,
         tone: Int,
-        paletteStyle: PaletteStyle = PaletteStyle.Tonal
+        paletteStyle: PaletteStyle = PaletteStyle.Expressive
     ): Color {
         val hsl = colorToHSL(seedColor.toArgb())
         val neutralChroma = when (paletteStyle) {
             PaletteStyle.Monochrome -> 0f
-            PaletteStyle.Tonal -> 0.005f
-            PaletteStyle.Expressive -> hsl[1] * 0.12f  // Expressive: 带主色调倾向
-            PaletteStyle.Vibrant -> hsl[1] * 0.15f
-            PaletteStyle.Rainbow -> hsl[1] * 0.08f
+            PaletteStyle.Neutral -> 0.01f
+            PaletteStyle.Tonal -> 0.03f
+            PaletteStyle.Fidelity, PaletteStyle.Content -> hsl[1] * 0.15f
+            PaletteStyle.FruitSalad -> hsl[1] * 0.20f
+            PaletteStyle.Expressive -> hsl[1] * 0.25f  // Increased for visible color
+            PaletteStyle.Vibrant -> hsl[1] * 0.35f
+            PaletteStyle.Rainbow -> hsl[1] * 0.15f
         }
-        return Color(hslToColor(hsl[0], neutralChroma.coerceIn(0f, 0.1f), tone / 100f))
+        return Color(hslToColor(hsl[0], neutralChroma.coerceIn(0f, 0.25f), tone / 100f))
     }
 
     /**
@@ -100,29 +107,32 @@ object ExpressiveColorUtils {
     fun neutralVariantTone(
         seedColor: Color,
         tone: Int,
-        paletteStyle: PaletteStyle = PaletteStyle.Tonal
+        paletteStyle: PaletteStyle = PaletteStyle.Expressive
     ): Color {
         val hsl = colorToHSL(seedColor.toArgb())
         val variantChroma = when (paletteStyle) {
             PaletteStyle.Monochrome -> 0.01f
-            PaletteStyle.Tonal -> 0.04f
-            PaletteStyle.Expressive -> hsl[1] * 0.2f
-            PaletteStyle.Vibrant -> hsl[1] * 0.25f
-            PaletteStyle.Rainbow -> hsl[1] * 0.15f
+            PaletteStyle.Neutral -> 0.02f
+            PaletteStyle.Tonal -> 0.06f
+            PaletteStyle.Fidelity, PaletteStyle.Content -> hsl[1] * 0.20f
+            PaletteStyle.FruitSalad -> hsl[1] * 0.25f
+            PaletteStyle.Expressive -> hsl[1] * 0.30f
+            PaletteStyle.Vibrant -> hsl[1] * 0.40f
+            PaletteStyle.Rainbow -> hsl[1] * 0.25f
         }
-        return Color(hslToColor(hsl[0], variantChroma.coerceIn(0f, 0.2f), tone / 100f))
+        return Color(hslToColor(hsl[0], variantChroma.coerceIn(0f, 0.35f), tone / 100f))
     }
 
     /**
      * 第三颜色生成 - 根据PaletteStyle进行色相偏移
      */
-    fun tertiaryColor(seedColor: Color, paletteStyle: PaletteStyle = PaletteStyle.Tonal): Color {
+    fun tertiaryColor(seedColor: Color, paletteStyle: PaletteStyle = PaletteStyle.Expressive): Color {
         val hsl = colorToHSL(seedColor.toArgb())
         val hueOffset = when (paletteStyle) {
-            PaletteStyle.Tonal -> 60f
-            PaletteStyle.Expressive -> 90f
+            PaletteStyle.Tonal, PaletteStyle.Neutral, PaletteStyle.Fidelity -> 60f
+            PaletteStyle.Expressive, PaletteStyle.FruitSalad -> 90f
             PaletteStyle.Vibrant -> 120f
-            PaletteStyle.Monochrome -> 30f
+            PaletteStyle.Monochrome, PaletteStyle.Content -> 30f
             PaletteStyle.Rainbow -> 180f
         }
         val newHue = (hsl[0] + hueOffset) % 360f
@@ -131,7 +141,7 @@ object ExpressiveColorUtils {
 
     private fun getChromaMultiplier(paletteStyle: PaletteStyle, colorRole: ColorRole): Float {
         return when (paletteStyle) {
-            PaletteStyle.Tonal -> when (colorRole) {
+            PaletteStyle.Tonal, PaletteStyle.Neutral -> when (colorRole) {
                 ColorRole.Primary -> 1.0f
                 ColorRole.Secondary -> 0.5f
                 ColorRole.Tertiary -> 0.6f
@@ -141,7 +151,7 @@ object ExpressiveColorUtils {
                 ColorRole.Secondary -> 1.0f
                 ColorRole.Tertiary -> 1.25f
             }
-            PaletteStyle.Vibrant -> when (colorRole) {
+            PaletteStyle.Vibrant, PaletteStyle.FruitSalad -> when (colorRole) {
                 ColorRole.Primary -> 1.5f
                 ColorRole.Secondary -> 1.3f
                 ColorRole.Tertiary -> 1.4f
@@ -155,6 +165,16 @@ object ExpressiveColorUtils {
                 ColorRole.Primary -> 1.2f
                 ColorRole.Secondary -> 1.0f
                 ColorRole.Tertiary -> 1.3f
+            }
+            PaletteStyle.Fidelity -> when (colorRole) {
+                ColorRole.Primary -> 1.1f
+                ColorRole.Secondary -> 0.7f
+                ColorRole.Tertiary -> 0.8f
+            }
+            PaletteStyle.Content -> when (colorRole) {
+                ColorRole.Primary -> 1.0f
+                ColorRole.Secondary -> 0.8f
+                ColorRole.Tertiary -> 0.9f
             }
         }
     }
@@ -170,7 +190,7 @@ enum class ColorRole {
 fun generateExpressiveColorScheme(
     seedColor: Color,
     isDark: Boolean,
-    paletteStyle: PaletteStyle = PaletteStyle.Tonal
+    paletteStyle: PaletteStyle = PaletteStyle.Expressive
 ): androidx.compose.material3.ColorScheme {
     return if (isDark) {
         generateExpressiveDarkColorScheme(seedColor, paletteStyle)
@@ -282,23 +302,23 @@ private fun generateExpressiveDarkColorScheme(seed: Color, style: PaletteStyle):
         errorContainer = Color(0xFF8C1D18),
         onErrorContainer = Color(0xFFF9DEDC),
 
-        // Background & Surface - 深色模式：背景暗，表面更暗形成层次
-        background = ExpressiveColorUtils.neutralTone(seed, 6, style),
+        // Background & Surface - 深色模式：背景暗，表面更暗形成层次 (稍微提亮以增加色度可见性)
+        background = ExpressiveColorUtils.neutralTone(seed, 10, style),
         onBackground = ExpressiveColorUtils.neutralTone(seed, 90, style),
 
-        surface = ExpressiveColorUtils.neutralTone(seed, 6, style),
+        surface = ExpressiveColorUtils.neutralTone(seed, 10, style),
         onSurface = ExpressiveColorUtils.neutralTone(seed, 90, style),
 
         // Surface层级 - 深色模式下从亮到暗
-        surfaceDim = ExpressiveColorUtils.neutralTone(seed, 6, style),
-        surfaceBright = ExpressiveColorUtils.neutralTone(seed, 24, style),
+        surfaceDim = ExpressiveColorUtils.neutralTone(seed, 10, style),
+        surfaceBright = ExpressiveColorUtils.neutralTone(seed, 28, style),
 
         // Surface Container层级 - 深色模式：Lowest最暗，Highest最亮
-        surfaceContainerLowest = ExpressiveColorUtils.neutralTone(seed, 4, style),
-        surfaceContainerLow = ExpressiveColorUtils.neutralTone(seed, 10, style),
-        surfaceContainer = ExpressiveColorUtils.neutralTone(seed, 12, style),
-        surfaceContainerHigh = ExpressiveColorUtils.neutralTone(seed, 17, style),
-        surfaceContainerHighest = ExpressiveColorUtils.neutralTone(seed, 24, style),
+        surfaceContainerLowest = ExpressiveColorUtils.neutralTone(seed, 6, style),
+        surfaceContainerLow = ExpressiveColorUtils.neutralTone(seed, 14, style),
+        surfaceContainer = ExpressiveColorUtils.neutralTone(seed, 16, style),
+        surfaceContainerHigh = ExpressiveColorUtils.neutralTone(seed, 21, style),
+        surfaceContainerHighest = ExpressiveColorUtils.neutralTone(seed, 28, style),
 
         // Surface Variant
         surfaceVariant = ExpressiveColorUtils.neutralVariantTone(seed, 30, style),

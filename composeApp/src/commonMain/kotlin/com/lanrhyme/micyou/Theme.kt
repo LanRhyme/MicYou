@@ -252,7 +252,7 @@ fun isDarkThemeActive(themeMode: ThemeMode): Boolean {
 val DefaultSeedColor = MD3SeedColors.Blue
 
 // 默认调色板风格
-val DefaultPaletteStyle = PaletteStyle.Tonal
+val DefaultPaletteStyle = PaletteStyle.Expressive
 
 /**
  * Material 3 Expressive 应用主题
@@ -298,5 +298,5 @@ fun hsvToColor(hsv: FloatArray): Int {
 }
 
 fun generateColorScheme(seed: Color, isDark: Boolean): androidx.compose.material3.ColorScheme {
-    return generateMD3ColorScheme(seed, isDark)
+    return generateExpressiveColorScheme(seed, isDark)
 }

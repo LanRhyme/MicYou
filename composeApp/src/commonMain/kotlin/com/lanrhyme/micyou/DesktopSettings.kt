@@ -811,13 +811,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                         selected = state.paletteStyle == style,
                                         onClick = { viewModel.setPaletteStyle(style) },
                                         label = {
-                                            Text(when(style) {
-                                                com.lanrhyme.micyou.theme.PaletteStyle.Tonal -> strings.expressive.paletteStyleTonal
-                                                com.lanrhyme.micyou.theme.PaletteStyle.Expressive -> strings.expressive.paletteStyleExpressive
-                                                com.lanrhyme.micyou.theme.PaletteStyle.Vibrant -> strings.expressive.paletteStyleVibrant
-                                                com.lanrhyme.micyou.theme.PaletteStyle.Monochrome -> strings.expressive.paletteStyleMonochrome
-                                                com.lanrhyme.micyou.theme.PaletteStyle.Rainbow -> strings.expressive.paletteStyleRainbow
-                                            })
+                                            Text(style.name)
                                         },
                                         leadingIcon = {
                                             if (state.paletteStyle == style) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
