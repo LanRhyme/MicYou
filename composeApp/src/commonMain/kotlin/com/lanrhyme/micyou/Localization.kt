@@ -191,7 +191,9 @@ data class ExpressiveStrings(
     // Expressive Style
     val expressiveStyleLabel: String = "Expressive Style",
     val useExpressiveShapesLabel: String = "Expressive Shapes",
-    val useExpressiveShapesDesc: String = "Use larger rounded corners (Material 3 Expressive)"
+    val useExpressiveShapesDesc: String = "Use larger rounded corners (Material 3 Expressive)",
+    val useExpressiveTypographyLabel: String = "Expressive Typography",
+    val useExpressiveTypographyDesc: String = "Use larger font sizes (Material 3 Expressive)"
 )
 
 @Serializable

@@ -93,6 +93,8 @@ object ExpressiveColorUtils {
         // 转换公式：s = chroma / (100 - abs(2*l - 100))，其中l = tone
         val l = tone / 100f
         val maxChroma = 100f * (1f - abs(2f * l - 1f))
+        // 当tone=0或tone=100时，maxChroma=0，此时为纯黑或纯白，饱和度应为0
+        if (maxChroma <= 0f) return 0f
         return (chroma / maxChroma).coerceIn(0f, 1f)
     }
 

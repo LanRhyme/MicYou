@@ -554,6 +554,21 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
         )
     }
 
+    // Expressive Typography
+    items.add { isFirst, isLast ->
+        ExpressiveSettingsSwitchItem(
+            headline = strings.expressive.useExpressiveTypographyLabel,
+            supporting = strings.expressive.useExpressiveTypographyDesc,
+            checked = state.useExpressiveTypography,
+            onCheckedChange = { viewModel.setUseExpressiveTypography(it) },
+            isFirst = isFirst,
+            isLast = isLast,
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
+        )
+    }
+
     // 可视化样式 - 复杂内容
     items.add { isFirst, isLast ->
         ExpressiveSettingsBoxItem(

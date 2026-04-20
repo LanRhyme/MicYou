@@ -193,7 +193,14 @@ fun main() {
             ) {
                 val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
                 CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(themeMode = uiState.themeMode, seedColor = seedColorObj, oledPureBlack = uiState.oledPureBlack) {
+                    AppTheme(
+                    themeMode = uiState.themeMode,
+                    seedColor = seedColorObj,
+                    oledPureBlack = uiState.oledPureBlack,
+                    paletteStyle = uiState.paletteStyle,
+                    useExpressiveShapes = uiState.useExpressiveShapes,
+                    useExpressiveTypography = uiState.useExpressiveTypography
+                ) {
                         CloseConfirmDialog(
                             onDismiss = { viewModel.setShowCloseConfirmDialog(false) },
                             onMinimize = { viewModel.confirmCloseAction(CloseAction.Minimize, uiState.rememberCloseAction, onExit = exitApp, onHide = { isVisible = false }) },
@@ -218,7 +225,15 @@ fun main() {
             ) {
                 val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
                 CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(themeMode = uiState.themeMode, seedColor = seedColorObj, useDynamicColor = uiState.useDynamicColor, oledPureBlack = uiState.oledPureBlack) {
+                    AppTheme(
+                    themeMode = uiState.themeMode,
+                    seedColor = seedColorObj,
+                    useDynamicColor = uiState.useDynamicColor,
+                    oledPureBlack = uiState.oledPureBlack,
+                    paletteStyle = uiState.paletteStyle,
+                    useExpressiveShapes = uiState.useExpressiveShapes,
+                    useExpressiveTypography = uiState.useExpressiveTypography
+                ) {
                         DesktopSettings(viewModel = viewModel, onClose = { showSettingsWindow = false })
                     }
                 }
@@ -243,6 +258,9 @@ private fun FloatingMicWindowContainer(
     val seedColor = uiState.seedColor
     val useDynamicColor = uiState.useDynamicColor
     val oledPureBlack = uiState.oledPureBlack
+    val paletteStyle = uiState.paletteStyle
+    val useExpressiveShapes = uiState.useExpressiveShapes
+    val useExpressiveTypography = uiState.useExpressiveTypography
     val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
 
     Window(
@@ -265,7 +283,10 @@ private fun FloatingMicWindowContainer(
                 themeMode = themeMode,
                 seedColor = seedColorObj,
                 useDynamicColor = useDynamicColor,
-                oledPureBlack = oledPureBlack
+                oledPureBlack = oledPureBlack,
+                paletteStyle = paletteStyle,
+                useExpressiveShapes = useExpressiveShapes,
+                useExpressiveTypography = useExpressiveTypography
             ) {
                 FloatingMicWindow(
                     viewModel = viewModel,
