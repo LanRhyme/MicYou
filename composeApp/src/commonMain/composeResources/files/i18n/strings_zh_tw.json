@@ -361,5 +361,17 @@
     "permissionSettingsTitle": "應用程式權限",
     "permissionOpenSettings": "開啟系統設定",
     "permissionOpenSettingsDesc": "如果您拒絕了某個權限，需要在系統設定中手動授予。"
+  },
+  "expressive": {
+    "paletteStyleLabel": "色彩風格",
+    "paletteStyleDesc": "調整色彩飽和度和鮮豔程度",
+    "paletteStyleTonal": "色調（經典）",
+    "paletteStyleExpressive": "表達性",
+    "paletteStyleVibrant": "鮮豔",
+    "paletteStyleMonochrome": "單色",
+    "paletteStyleRainbow": "彩虹",
+    "expressiveStyleLabel": "表達性樣式",
+    "useExpressiveShapesLabel": "表達性形狀",
+    "useExpressiveShapesDesc": "使用更大的圓角（Material 3 Expressive）"
   }
 }

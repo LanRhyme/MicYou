@@ -361,5 +361,17 @@
     "permissionSettingsTitle": "应用权限喵~",
     "permissionOpenSettings": "打开系统设置喵~",
     "permissionOpenSettingsDesc": "如果您拒绝了某个权限喵~需要在系统设置中手动授予喵~"
+  },
+  "expressive": {
+    "paletteStyleLabel": "色彩风格喵~ 🎨",
+    "paletteStyleDesc": "调整色彩饱和度和鲜艳程度喵~",
+    "paletteStyleTonal": "色调（经典）喵~",
+    "paletteStyleExpressive": "表达性喵~ ✨",
+    "paletteStyleVibrant": "鲜艳喵~",
+    "paletteStyleMonochrome": "单色喵~",
+    "paletteStyleRainbow": "彩虹喵~ 🌈",
+    "expressiveStyleLabel": "表达性样式喵~",
+    "useExpressiveShapesLabel": "表达性形状喵~",
+    "useExpressiveShapesDesc": "使用更大的圆角（Material 3 Expressive）喵~ (´・ω・`)"
   }
 }

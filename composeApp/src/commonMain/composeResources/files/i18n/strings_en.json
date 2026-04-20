@@ -360,5 +360,17 @@
     "permissionSettingsTitle": "App Permissions",
     "permissionOpenSettings": "Open System Settings",
     "permissionOpenSettingsDesc": "If you denied a permission, you need to grant it manually in system settings."
+  },
+  "expressive": {
+    "paletteStyleLabel": "Palette Style",
+    "paletteStyleDesc": "Adjust color saturation and vibrancy",
+    "paletteStyleTonal": "Tonal (Classic)",
+    "paletteStyleExpressive": "Expressive",
+    "paletteStyleVibrant": "Vibrant",
+    "paletteStyleMonochrome": "Monochrome",
+    "paletteStyleRainbow": "Rainbow",
+    "expressiveStyleLabel": "Expressive Style",
+    "useExpressiveShapesLabel": "Expressive Shapes",
+    "useExpressiveShapesDesc": "Use larger rounded corners (Material 3 Expressive)"
   }
 }
