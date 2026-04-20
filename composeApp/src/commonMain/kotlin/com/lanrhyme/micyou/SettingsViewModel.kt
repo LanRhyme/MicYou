@@ -269,6 +269,7 @@ class SettingsViewModel : ViewModel() {
     }
 
     fun confirmMirrorCdk(cdk: String) {
+        if (cdk.isBlank()) return
         setMirrorCdk(cdk)
         _uiState.update {
             it.copy(
