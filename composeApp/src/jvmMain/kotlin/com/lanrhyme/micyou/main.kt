@@ -198,8 +198,7 @@ fun main() {
                     seedColor = seedColorObj,
                     oledPureBlack = uiState.oledPureBlack,
                     paletteStyle = uiState.paletteStyle,
-                    useExpressiveShapes = uiState.useExpressiveShapes,
-                    useExpressiveTypography = uiState.useExpressiveTypography
+                    useExpressiveShapes = uiState.useExpressiveShapes
                 ) {
                         CloseConfirmDialog(
                             onDismiss = { viewModel.setShowCloseConfirmDialog(false) },
@@ -231,8 +230,7 @@ fun main() {
                     useDynamicColor = uiState.useDynamicColor,
                     oledPureBlack = uiState.oledPureBlack,
                     paletteStyle = uiState.paletteStyle,
-                    useExpressiveShapes = uiState.useExpressiveShapes,
-                    useExpressiveTypography = uiState.useExpressiveTypography
+                    useExpressiveShapes = uiState.useExpressiveShapes
                 ) {
                         DesktopSettings(viewModel = viewModel, onClose = { showSettingsWindow = false })
                     }
@@ -260,7 +258,6 @@ private fun FloatingMicWindowContainer(
     val oledPureBlack = uiState.oledPureBlack
     val paletteStyle = uiState.paletteStyle
     val useExpressiveShapes = uiState.useExpressiveShapes
-    val useExpressiveTypography = uiState.useExpressiveTypography
     val seedColorObj = androidx.compose.ui.graphics.Color(seedColor.toInt())
 
     Window(
@@ -285,8 +282,7 @@ private fun FloatingMicWindowContainer(
                 useDynamicColor = useDynamicColor,
                 oledPureBlack = oledPureBlack,
                 paletteStyle = paletteStyle,
-                useExpressiveShapes = useExpressiveShapes,
-                useExpressiveTypography = useExpressiveTypography
+                useExpressiveShapes = useExpressiveShapes
             ) {
                 FloatingMicWindow(
                     viewModel = viewModel,

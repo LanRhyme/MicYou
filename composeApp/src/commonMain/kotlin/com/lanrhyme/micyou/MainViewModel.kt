@@ -82,7 +82,6 @@ data class AppUiState(
     val oledPureBlack: Boolean = false,
     val paletteStyle: PaletteStyle = PaletteStyle.Expressive,
     val useExpressiveShapes: Boolean = true,
-    val useExpressiveTypography: Boolean = false,
     val language: AppLanguage = AppLanguage.System,
     val autoStart: Boolean = false,
     val enableStreamingNotification: Boolean = true,
@@ -262,7 +261,6 @@ class MainViewModel : ViewModel() {
                     oledPureBlack = settingsState.oledPureBlack,
                     paletteStyle = settingsState.paletteStyle,
                     useExpressiveShapes = settingsState.useExpressiveShapes,
-                    useExpressiveTypography = settingsState.useExpressiveTypography,
                     language = settingsState.language,
                     autoStart = settingsState.autoStart,
                     enableStreamingNotification = settingsState.enableStreamingNotification,
@@ -345,7 +343,6 @@ class MainViewModel : ViewModel() {
     fun setOledPureBlack(enabled: Boolean) = settingsViewModel.setOledPureBlack(enabled)
     fun setPaletteStyle(style: PaletteStyle) = settingsViewModel.setPaletteStyle(style)
     fun setUseExpressiveShapes(enabled: Boolean) = settingsViewModel.setUseExpressiveShapes(enabled)
-    fun setUseExpressiveTypography(enabled: Boolean) = settingsViewModel.setUseExpressiveTypography(enabled)
     fun setLanguage(language: AppLanguage) = settingsViewModel.setLanguage(language)
     fun setAutoStart(enabled: Boolean) = settingsViewModel.setAutoStart(enabled)
     fun setEnableStreamingNotification(enabled: Boolean) {

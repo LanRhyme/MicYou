@@ -86,7 +86,6 @@ fun AppTheme(
     oledPureBlack: Boolean = false,
     paletteStyle: PaletteStyle = DefaultPaletteStyle,
     useExpressiveShapes: Boolean = true,
-    useExpressiveTypography: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val isDark = isDarkThemeActive(themeMode)
@@ -99,13 +98,9 @@ fun AppTheme(
     // 应用Expressive形状
     val shapes = if (useExpressiveShapes) ExpressiveShapes else MaterialTheme.shapes
 
-    // 应用Expressive字体
-    val typography = if (useExpressiveTypography) ExpressiveTypography else MaterialTheme.typography
-
     MaterialTheme(
         colorScheme = targetColorScheme,
         shapes = shapes,
-        typography = typography,
         content = content
     )
 }
