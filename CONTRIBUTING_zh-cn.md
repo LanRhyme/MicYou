@@ -121,10 +121,37 @@ fun getStrings(language: AppLanguage): AppStrings {
 
 ### 翻译工作流
 
-- **源语言**：英文（`strings_en.json`）
+- **母语言（必须保持同步）**：英文（`strings_en.json`）和简体中文（`strings_zh.json`）
 - **位置**：`composeApp/src/commonMain/composeResources/files/i18n/`
 - **文件格式**：JSON
 - **目前已支持**：5+ 种语言，包括中文（简体、繁体、粤语）
+
+### 翻译更新流程（GitHub 工作流）
+
+当你新增或修改翻译时，请按以下顺序操作：
+
+1. 先更新两个母语言文件：
+```bash
+# 同时编辑这两个文件
+composeApp/src/commonMain/composeResources/files/i18n/strings_en.json
+composeApp/src/commonMain/composeResources/files/i18n/strings_zh.json
+```
+
+2. 再更新其他语言文件（`strings_*.json`），确保键集合一致。
+
+3. 本地运行翻译校验：
+```bash
+./gradlew checkLocalization
+```
+
+4. 建议先执行一次钩子安装，让每次提交前自动检查：
+```bash
+./gradlew installGitHooks
+```
+
+5. 仅在 `checkLocalization` 通过后再提交。
+
+预提交钩子会执行 `checkLocalization`，若键不一致或值为空会阻止提交。
 
 ### 特殊语言变体
 

@@ -121,10 +121,37 @@ To test your translation locally:
 
 ### Translation Workflow
 
-- **Source language**: English (`strings_en.json`)
+- **Base languages (must be kept in sync)**: English (`strings_en.json`) and Simplified Chinese (`strings_zh.json`)
 - **Location**: `composeApp/src/commonMain/composeResources/files/i18n/`
 - **File format**: JSON
 - **Currently supported**: 5+ languages including Chinese (Simplified, Traditional, Cantonese)
+
+### Translation Update Process (GitHub workflow)
+
+When you add or update translations, follow this order:
+
+1. Update both base language files first:
+```bash
+# edit both files
+composeApp/src/commonMain/composeResources/files/i18n/strings_en.json
+composeApp/src/commonMain/composeResources/files/i18n/strings_zh.json
+```
+
+2. Update other locale files (`strings_*.json`) using the same key set.
+
+3. Run localization checks locally:
+```bash
+./gradlew checkLocalization
+```
+
+4. Install hooks once (recommended) so checks run automatically before each commit:
+```bash
+./gradlew installGitHooks
+```
+
+5. Commit changes only after `checkLocalization` passes.
+
+The pre-commit hook runs `checkLocalization` and blocks commits when key sets are inconsistent or values are empty.
 
 ### Special Language Variants
 
