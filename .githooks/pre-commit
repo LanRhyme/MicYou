@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -eu
+
+echo "[pre-commit] Running localization checks..."
+./gradlew -q checkLocalization
