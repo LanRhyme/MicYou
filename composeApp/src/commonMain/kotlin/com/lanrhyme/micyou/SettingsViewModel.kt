@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.System,
-    val seedColor: Long = 0xFF4285F4,
+    val seedColor: Long = 0xFF1565C0,
     val useDynamicColor: Boolean = false,
     val oledPureBlack: Boolean = false,
     val paletteStyle: PaletteStyle = PaletteStyle.Expressive,
@@ -50,7 +50,7 @@ class SettingsViewModel : ViewModel() {
         val savedThemeModeName = settings.getString("theme_mode", ThemeMode.System.name)
         val savedThemeMode = try { ThemeMode.valueOf(savedThemeModeName) } catch(e: Exception) { ThemeMode.System }
         
-        val savedSeedColor = settings.getLong("seed_color", 0xFF4285F4)
+        val savedSeedColor = settings.getLong("seed_color", 0xFF1565C0)
         val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
         val savedOledPureBlack = settings.getBoolean("oled_pure_black", false)
 

@@ -389,14 +389,14 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
     val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     val seedColors = listOf(
-        0xFF4285F4L, // Google Blue
-        0xFF6750A4L, // Material Purple
-        0xFFE91E63L, // Pink
-        0xFFF44336L, // Red
-        0xFFFF9800L, // Orange
-        0xFF4CAF50L, // Green
-        0xFF009688L, // Teal
-        0xFF9C27B0L  // Deep Purple
+        0xFF1565C0L, // Ocean Blue
+        0xFF6750A4L, // M3 Purple
+        0xFFE91E63L, // Rose Pink
+        0xFF2E7D32L, // Forest Green
+        0xFFFF5722L, // Sunset Orange
+        0xFF00695CL, // Deep Teal
+        0xFF283593L, // Midnight Indigo
+        0xFF7B1FA2L  // Lavender Violet
     )
 
     // 收集所有设置项

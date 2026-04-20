@@ -584,16 +584,16 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
     val strings = LocalAppStrings.current
     val cardOpacity = state.backgroundSettings.cardOpacity
 
-    // 预设种子颜色 - Material Design 3 多样化配色方案
+    // 预设种子颜色 - Material Design 3 Expressive 精选配色
     val seedColors = listOf(
-        0xFF4285F4L, // Google Blue (Default) - 蓝色
-        0xFF6750A4L, // Material Purple - 紫色
-        0xFFE91E63L, // Pink - 粉色
-        0xFFF44336L, // Red - 红色
-        0xFFFF9800L, // Orange - 橙色
-        0xFF4CAF50L, // Green - 绿色
-        0xFF009688L, // Teal - 青绿色
-        0xFF9C27B0L  // Deep Purple - 深紫
+        0xFF1565C0L, // Ocean Blue (Default) - 海洋蓝
+        0xFF6750A4L, // M3 Purple - Material紫
+        0xFFE91E63L, // Rose Pink - 玫瑰粉
+        0xFF2E7D32L, // Forest Green - 森林绿
+        0xFFFF5722L, // Sunset Orange - 日落橙
+        0xFF00695CL, // Deep Teal - 深青绿
+        0xFF283593L, // Midnight Indigo - 深靛蓝
+        0xFF7B1FA2L  // Lavender Violet - 薰衣草紫
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

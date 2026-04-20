@@ -62,22 +62,25 @@ object MD3ColorUtils {
     }
 }
 
-// M3 预设种子颜色
+// M3 Expressive 预设种子颜色 - 精选现代配色
 object MD3SeedColors {
-    val Blue = Color(0xFF4285F4)           // Google Blue (默认)
-    val Purple = Color(0xFF6750A4)         // Material Purple
-    val Pink = Color(0xFFD0BCFF)           // 淡紫色
-    val Red = Color(0xFFF44336)            // 红色
-    val Orange = Color(0xFFFF9800)         // 橙色
-    val Yellow = Color(0xFFFFEB3B)         // 黄色
-    val Green = Color(0xFF4CAF50)          // 绿色
-    val Teal = Color(0xFF009688)           // 青绿色
-    val Cyan = Color(0xFF00BCD4)           // 青色
-    val DeepPurple = Color(0xFF9C27B0)     // 深紫色
-    val Indigo = Color(0xFF3F51B5)         // 靛蓝色
+    // 核心推荐色 - 符合M3 Expressive风格
+    val OceanBlue = Color(0xFF1565C0)      // 海洋蓝 - 深邃优雅
+    val M3Purple = Color(0xFF6750A4)       // Material Purple - 经典M3紫
+    val RosePink = Color(0xFFE91E63)       // 玫瑰粉 - 温暖浪漫
+    val ForestGreen = Color(0xFF2E7D32)    // 森林绿 - 自然清新
+    val SunsetOrange = Color(0xFFFF5722)   // 日落橙 - 活力温暖
+    val DeepTeal = Color(0xFF00695C)       // 深青绿 - 稳重现代
+
+    // 进阶选择色
+    val MidnightIndigo = Color(0xFF283593) // 深靛蓝 - 夜空神秘
+    val CoralRed = Color(0xFFD32F2F)       // 珊瑚红 - 热情明亮
+    val GoldenAmber = Color(0xFFFF8F00)    // 金琥珀 - 温暖质感
+    val LavenderViolet = Color(0xFF7B1FA2) // 薰衣草紫 - 优雅神秘
 
     val allColors = listOf(
-        Blue, Purple, Pink, Red, Orange, Yellow, Green, Teal, Cyan, DeepPurple, Indigo
+        OceanBlue, M3Purple, RosePink, ForestGreen, SunsetOrange, DeepTeal,
+        MidnightIndigo, CoralRed, GoldenAmber, LavenderViolet
     )
 }
 
@@ -249,7 +252,7 @@ fun isDarkThemeActive(themeMode: ThemeMode): Boolean {
 }
 
 // 默认种子颜色 - Google Blue
-val DefaultSeedColor = MD3SeedColors.Blue
+val DefaultSeedColor = MD3SeedColors.OceanBlue
 
 // 默认调色板风格
 val DefaultPaletteStyle = PaletteStyle.Expressive

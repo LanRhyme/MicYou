@@ -9,21 +9,42 @@ import kotlin.math.abs
 /**
  * Material 3 Expressive (2025) 颜色方案生成器
  * 支持多种调色板风格：Tonal, Expressive, Vibrant, Monochrome, Rainbow
+ *
+ * M3 Expressive 规范核心：
+ * - Primary chroma: 48 (高饱和度)
+ * - Secondary chroma: 16 (中等饱和度)
+ * - Tertiary chroma: 24 (偏中高饱和度)
+ * - Neutral chroma: 4 (微弱色彩倾向)
+ * - Neutral Variant chroma: 8 (稍强色彩倾向)
  */
 
 enum class PaletteStyle {
-    Tonal,       // 经典M3色调风格 - 平衡饱和度
-    Neutral,     // 中性风格 - 极低饱和度
-    Vibrant,     // 鲜艳风格 - 最高饱和度，充满活力
-    Expressive,  // 表达性风格 - 高饱和度，更有表现力
-    Rainbow,     // 彩虹风格 - 色相偏移，多彩变化
-    FruitSalad,  // 水果沙拉风格 - 强烈的色相对比双色调
-    Monochrome,  // 单色风格 - 低饱和度，纯黑白中性色
-    Fidelity,    // 高保真风格 - 原色直出，不进行色相转移
-    Content      // 内容导向风格 - 基于图像内容的配色提取（在此表现为更高原色比例）
+    Tonal,       // 经典M3色调风格 - 标准chroma值
+    Neutral,     // 中性风格 - 极低chroma
+    Vibrant,     // 鲜艳风格 - 最高chroma
+    Expressive,  // 表达性风格 - M3 Expressive标准chroma
+    Rainbow,     // 彩虹风格 - 色相偏移
+    FruitSalad,  // 水果沙拉风格 - 双色调高对比
+    Monochrome,  // 单色风格 - 无chroma
+    Fidelity,    // 高保真风格 - 保持原色chroma
+    Content      // 内容导向风格 - 适中原色chroma
 }
 
 object ExpressiveColorUtils {
+    // M3 Expressive 标准chroma值 (基于HCT色彩空间)
+    private const val EXPRESSIVE_PRIMARY_CHROMA = 48f
+    private const val EXPRESSIVE_SECONDARY_CHROMA = 16f
+    private const val EXPRESSIVE_TERTIARY_CHROMA = 24f
+    private const val EXPRESSIVE_NEUTRAL_CHROMA = 4f
+    private const val EXPRESSIVE_NEUTRAL_VARIANT_CHROMA = 8f
+
+    // M3 Tonal 标准chroma值
+    private const val TONAL_PRIMARY_CHROMA = 36f
+    private const val TONAL_SECONDARY_CHROMA = 16f
+    private const val TONAL_TERTIARY_CHROMA = 24f
+    private const val TONAL_NEUTRAL_CHROMA = 4f
+    private const val TONAL_NEUTRAL_VARIANT_CHROMA = 6f
+
     fun colorToHSL(color: Int): FloatArray {
         val r = ((color shr 16) and 0xFF) / 255f
         val g = ((color shr 8) and 0xFF) / 255f
@@ -64,8 +85,20 @@ object ExpressiveColorUtils {
     }
 
     /**
-     * Expressive风格色调生成
-     * 根据PaletteStyle调整色度(chroma)倍率
+     * 将chroma值转换为HSL饱和度
+     * Chroma是HCT色彩空间的色度量，需要转换为HSL的饱和度
+     */
+    private fun chromaToHslSaturation(chroma: Float, tone: Int): Float {
+        // chroma范围是0-120，tone范围是0-100
+        // 转换公式：s = chroma / (100 - abs(2*l - 100))，其中l = tone
+        val l = tone / 100f
+        val maxChroma = 100f * (1f - abs(2f * l - 1f))
+        return (chroma / maxChroma).coerceIn(0f, 1f)
+    }
+
+    /**
+     * Expressive风格色调生成 - 使用标准M3 chroma值
+     * 关键修复：不再依赖种子颜色饱和度，使用固定chroma
      */
     fun expressiveTone(
         seedColor: Color,
@@ -74,13 +107,18 @@ object ExpressiveColorUtils {
         colorRole: ColorRole = ColorRole.Primary
     ): Color {
         val hsl = colorToHSL(seedColor.toArgb())
-        val chromaMultiplier = getChromaMultiplier(paletteStyle, colorRole)
-        val adjustedChroma = (hsl[1] * chromaMultiplier).coerceIn(0f, 1f)
-        return Color(hslToColor(hsl[0], adjustedChroma, tone / 100f))
+        val hue = hsl[0]
+
+        // 使用固定chroma值，而非依赖种子颜色饱和度
+        val chroma = getStandardChroma(paletteStyle, colorRole)
+        val saturation = chromaToHslSaturation(chroma, tone)
+
+        return Color(hslToColor(hue, saturation, tone / 100f))
     }
 
     /**
-     * 中性色调生成 - Expressive风格下带微弱色彩倾向
+     * 中性色调生成 - Expressive风格下使用固定低chroma
+     * 关键修复：中性色应该有固定的微弱色彩倾向，而非基于种子颜色
      */
     fun neutralTone(
         seedColor: Color,
@@ -88,17 +126,22 @@ object ExpressiveColorUtils {
         paletteStyle: PaletteStyle = PaletteStyle.Expressive
     ): Color {
         val hsl = colorToHSL(seedColor.toArgb())
+        val hue = hsl[0]
+
+        // 使用固定的中性chroma值
         val neutralChroma = when (paletteStyle) {
             PaletteStyle.Monochrome -> 0f
-            PaletteStyle.Neutral -> 0.01f
-            PaletteStyle.Tonal -> 0.03f
-            PaletteStyle.Fidelity, PaletteStyle.Content -> hsl[1] * 0.15f
-            PaletteStyle.FruitSalad -> hsl[1] * 0.20f
-            PaletteStyle.Expressive -> hsl[1] * 0.25f  // Increased for visible color
-            PaletteStyle.Vibrant -> hsl[1] * 0.35f
-            PaletteStyle.Rainbow -> hsl[1] * 0.15f
+            PaletteStyle.Neutral -> 2f
+            PaletteStyle.Tonal -> TONAL_NEUTRAL_CHROMA
+            PaletteStyle.Fidelity, PaletteStyle.Content -> 6f
+            PaletteStyle.FruitSalad -> 10f
+            PaletteStyle.Expressive -> EXPRESSIVE_NEUTRAL_CHROMA
+            PaletteStyle.Vibrant -> 12f
+            PaletteStyle.Rainbow -> 8f
         }
-        return Color(hslToColor(hsl[0], neutralChroma.coerceIn(0f, 0.25f), tone / 100f))
+
+        val saturation = chromaToHslSaturation(neutralChroma, tone)
+        return Color(hslToColor(hue, saturation, tone / 100f))
     }
 
     /**
@@ -110,17 +153,21 @@ object ExpressiveColorUtils {
         paletteStyle: PaletteStyle = PaletteStyle.Expressive
     ): Color {
         val hsl = colorToHSL(seedColor.toArgb())
+        val hue = hsl[0]
+
         val variantChroma = when (paletteStyle) {
-            PaletteStyle.Monochrome -> 0.01f
-            PaletteStyle.Neutral -> 0.02f
-            PaletteStyle.Tonal -> 0.06f
-            PaletteStyle.Fidelity, PaletteStyle.Content -> hsl[1] * 0.20f
-            PaletteStyle.FruitSalad -> hsl[1] * 0.25f
-            PaletteStyle.Expressive -> hsl[1] * 0.30f
-            PaletteStyle.Vibrant -> hsl[1] * 0.40f
-            PaletteStyle.Rainbow -> hsl[1] * 0.25f
+            PaletteStyle.Monochrome -> 0f
+            PaletteStyle.Neutral -> 2f
+            PaletteStyle.Tonal -> TONAL_NEUTRAL_VARIANT_CHROMA
+            PaletteStyle.Fidelity, PaletteStyle.Content -> 10f
+            PaletteStyle.FruitSalad -> 12f
+            PaletteStyle.Expressive -> EXPRESSIVE_NEUTRAL_VARIANT_CHROMA
+            PaletteStyle.Vibrant -> 16f
+            PaletteStyle.Rainbow -> 10f
         }
-        return Color(hslToColor(hsl[0], variantChroma.coerceIn(0f, 0.35f), tone / 100f))
+
+        val saturation = chromaToHslSaturation(variantChroma, tone)
+        return Color(hslToColor(hue, saturation, tone / 100f))
     }
 
     /**
@@ -136,45 +183,63 @@ object ExpressiveColorUtils {
             PaletteStyle.Rainbow -> 180f
         }
         val newHue = (hsl[0] + hueOffset) % 360f
-        return Color(hslToColor(newHue, hsl[1], hsl[2]))
+
+        // Tertiary使用自己的chroma，而非继承种子颜色的饱和度
+        val tertiaryChroma = getStandardChroma(paletteStyle, ColorRole.Tertiary)
+        val saturation = chromaToHslSaturation(tertiaryChroma, 50) // 用tone=50作为基准
+
+        return Color(hslToColor(newHue, saturation, hsl[2]))
     }
 
-    private fun getChromaMultiplier(paletteStyle: PaletteStyle, colorRole: ColorRole): Float {
+    /**
+     * 获取标准chroma值 - 基于M3规范
+     */
+    private fun getStandardChroma(paletteStyle: PaletteStyle, colorRole: ColorRole): Float {
         return when (paletteStyle) {
-            PaletteStyle.Tonal, PaletteStyle.Neutral -> when (colorRole) {
-                ColorRole.Primary -> 1.0f
-                ColorRole.Secondary -> 0.5f
-                ColorRole.Tertiary -> 0.6f
-            }
             PaletteStyle.Expressive -> when (colorRole) {
-                ColorRole.Primary -> 1.35f
-                ColorRole.Secondary -> 1.0f
-                ColorRole.Tertiary -> 1.25f
+                ColorRole.Primary -> EXPRESSIVE_PRIMARY_CHROMA
+                ColorRole.Secondary -> EXPRESSIVE_SECONDARY_CHROMA
+                ColorRole.Tertiary -> EXPRESSIVE_TERTIARY_CHROMA
             }
-            PaletteStyle.Vibrant, PaletteStyle.FruitSalad -> when (colorRole) {
-                ColorRole.Primary -> 1.5f
-                ColorRole.Secondary -> 1.3f
-                ColorRole.Tertiary -> 1.4f
+            PaletteStyle.Tonal -> when (colorRole) {
+                ColorRole.Primary -> TONAL_PRIMARY_CHROMA
+                ColorRole.Secondary -> TONAL_SECONDARY_CHROMA
+                ColorRole.Tertiary -> TONAL_TERTIARY_CHROMA
+            }
+            PaletteStyle.Neutral -> when (colorRole) {
+                ColorRole.Primary -> 12f
+                ColorRole.Secondary -> 8f
+                ColorRole.Tertiary -> 10f
+            }
+            PaletteStyle.Vibrant -> when (colorRole) {
+                ColorRole.Primary -> 72f  // 最高chroma
+                ColorRole.Secondary -> 48f
+                ColorRole.Tertiary -> 56f
+            }
+            PaletteStyle.FruitSalad -> when (colorRole) {
+                ColorRole.Primary -> 64f
+                ColorRole.Secondary -> 48f
+                ColorRole.Tertiary -> 56f
             }
             PaletteStyle.Monochrome -> when (colorRole) {
-                ColorRole.Primary -> 0.4f
-                ColorRole.Secondary -> 0.3f
-                ColorRole.Tertiary -> 0.35f
+                ColorRole.Primary -> 8f
+                ColorRole.Secondary -> 4f
+                ColorRole.Tertiary -> 6f
             }
             PaletteStyle.Rainbow -> when (colorRole) {
-                ColorRole.Primary -> 1.2f
-                ColorRole.Secondary -> 1.0f
-                ColorRole.Tertiary -> 1.3f
+                ColorRole.Primary -> 48f
+                ColorRole.Secondary -> 32f
+                ColorRole.Tertiary -> 40f
             }
             PaletteStyle.Fidelity -> when (colorRole) {
-                ColorRole.Primary -> 1.1f
-                ColorRole.Secondary -> 0.7f
-                ColorRole.Tertiary -> 0.8f
+                ColorRole.Primary -> 48f  // 保持较高chroma
+                ColorRole.Secondary -> 24f
+                ColorRole.Tertiary -> 32f
             }
             PaletteStyle.Content -> when (colorRole) {
-                ColorRole.Primary -> 1.0f
-                ColorRole.Secondary -> 0.8f
-                ColorRole.Tertiary -> 0.9f
+                ColorRole.Primary -> 36f
+                ColorRole.Secondary -> 20f
+                ColorRole.Tertiary -> 28f
             }
         }
     }

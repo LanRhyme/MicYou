@@ -77,7 +77,7 @@ data class AppUiState(
     
     // Settings State
     val themeMode: ThemeMode = ThemeMode.System,
-    val seedColor: Long = 0xFF4285F4,
+    val seedColor: Long = 0xFF1565C0,
     val useDynamicColor: Boolean = false,
     val oledPureBlack: Boolean = false,
     val paletteStyle: PaletteStyle = PaletteStyle.Expressive,
