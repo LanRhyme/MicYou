@@ -14,11 +14,20 @@ data class UpdateUiState(
     val updateErrorMessage: String? = null
 )
 
+sealed class UpdateCheckResult {
+    data class UpdateAvailable(val info: UpdateInfo) : UpdateCheckResult()
+    data object NoUpdate : UpdateCheckResult()
+    data class Error(val message: String) : UpdateCheckResult()
+}
+
 class UpdateViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(UpdateUiState())
     val uiState: StateFlow<UpdateUiState> = _uiState.asStateFlow()
     private val updateChecker = UpdateChecker()
     private val settings = SettingsFactory.getSettings()
+
+    private val _checkResultFlow = MutableStateFlow<UpdateCheckResult?>(null)
+    val checkResultFlow: StateFlow<UpdateCheckResult?> = _checkResultFlow.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -28,8 +37,19 @@ class UpdateViewModel : ViewModel() {
         }
     }
 
-    fun checkUpdateManual() { viewModelScope.launch { checkUpdateInternal() } }
-    fun checkUpdateAuto() { if (settings.getBoolean("auto_check_update", true)) checkUpdateManual() }
+    fun checkUpdateManual() {
+        viewModelScope.launch {
+            _checkResultFlow.emit(null)
+            val result = checkUpdateInternal()
+            _checkResultFlow.emit(result)
+        }
+    }
+
+    fun checkUpdateAuto() {
+        if (settings.getBoolean("auto_check_update", true)) {
+            viewModelScope.launch { checkUpdateInternal() }
+        }
+    }
 
     fun downloadAndInstallUpdate(useMirror: Boolean) {
         val info = _uiState.value.updateInfo ?: return
@@ -56,14 +76,24 @@ class UpdateViewModel : ViewModel() {
         }
     }
 
-    private suspend fun checkUpdateInternal() {
-        updateChecker.checkUpdate(settings.getString("mirror_cdk", "")).onSuccess { info ->
-            if (info?.isLatest == false) _uiState.update { it.copy(updateInfo = info) }
-        }
+    private suspend fun checkUpdateInternal(): UpdateCheckResult {
+        return updateChecker.checkUpdate(settings.getString("mirror_cdk", "")).fold(
+            onSuccess = { info ->
+                if (info?.isLatest == false) {
+                    _uiState.update { it.copy(updateInfo = info) }
+                    UpdateCheckResult.UpdateAvailable(info)
+                } else {
+                    UpdateCheckResult.NoUpdate
+                }
+            },
+            onFailure = { e ->
+                UpdateCheckResult.Error(e.message ?: "Unknown error")
+            }
+        )
     }
 
     private fun failDownload(error: String?) = _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Failed, updateErrorMessage = error) }
-    
+
     fun dismissUpdateDialog() = _uiState.update { UpdateUiState() }
 
     fun openGitHubRelease() {

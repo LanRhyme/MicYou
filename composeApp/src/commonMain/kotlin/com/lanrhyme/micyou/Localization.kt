@@ -324,6 +324,7 @@ data class AppStrings(
     val updateLater: String = "Later",
     val checkUpdate: String = "Check for Updates",
     val isLatestVersion: String = "Already the latest version",
+    val updateAvailableMsg: String = "New version %s is available!",
     val checkingUpdate: String = "Checking for updates...",
     val updateCheckFailed: String = "Failed to check for updates: %s",
     val newVersionReleased: String = "New version released",

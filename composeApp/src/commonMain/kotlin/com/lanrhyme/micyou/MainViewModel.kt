@@ -217,6 +217,21 @@ class MainViewModel : ViewModel() {
                 _uiState.update { it.copy(vbcableInstallProgress = progress) }
             }
         }
+
+        // Observe update check results for user feedback
+        viewModelScope.launch {
+            updateViewModel.checkResultFlow.collect { result ->
+                result?.let {
+                    val strings = getStrings(_uiState.value.language)
+                    val message = when (it) {
+                        is UpdateCheckResult.UpdateAvailable -> strings.updateAvailableMsg.format(it.info.versionName)
+                        is UpdateCheckResult.NoUpdate -> strings.isLatestVersion
+                        is UpdateCheckResult.Error -> strings.updateCheckFailed.format(it.message)
+                    }
+                    _uiState.update { state -> state.copy(snackbarMessage = message) }
+                }
+            }
+        }
     }
 
     private fun setupStateObservers() {

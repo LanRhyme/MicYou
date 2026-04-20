@@ -254,7 +254,8 @@ class SettingsViewModel : ViewModel() {
 
     fun setUseMirrorDownload(enabled: Boolean) {
         if (enabled) {
-            // Always show dialog when enabling mirror download
+            // Show dialog first, don't change the state yet
+            // User needs to confirm with CDK before enabling
             _uiState.update { it.copy(showMirrorCdkDialog = true) }
         } else {
             _uiState.update { it.copy(useMirrorDownload = false) }
@@ -268,7 +269,6 @@ class SettingsViewModel : ViewModel() {
     }
 
     fun confirmMirrorCdk(cdk: String) {
-        if (cdk.isBlank()) return
         setMirrorCdk(cdk)
         _uiState.update {
             it.copy(

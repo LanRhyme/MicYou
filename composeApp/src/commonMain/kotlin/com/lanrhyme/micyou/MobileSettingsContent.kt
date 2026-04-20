@@ -1,6 +1,7 @@
 package com.lanrhyme.micyou
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -267,6 +269,16 @@ fun MobileSettingsPage(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
                 )
+            )
+        }
+
+        // Mirror CDK Dialog
+        if (state.showMirrorCdkDialog) {
+            MirrorCdkDialog(
+                cdk = state.mirrorCdk,
+                onDismiss = { viewModel.dismissMirrorCdkDialog() },
+                onConfirm = { cdk -> viewModel.confirmMirrorCdk(cdk) },
+                strings = strings
             )
         }
     }
@@ -1251,4 +1263,70 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
             )
         }
     }
+}
+
+@Composable
+private fun MirrorCdkDialog(
+    cdk: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+    strings: AppStrings
+) {
+    val uriHandler = LocalUriHandler.current
+    var inputCdk by remember { mutableStateOf(cdk) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(strings.mirrorCdkLabel) },
+        text = {
+            Column {
+                Text(
+                    text = strings.mirrorCdkDesc,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = inputCdk,
+                    onValueChange = { inputCdk = it },
+                    placeholder = { Text(strings.mirrorCdkPlaceholder) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    Text(
+                        text = strings.mirrorCdkGetLink,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier.clickable {
+                            val lang = strings.languageLabel
+                            val url = if (lang.contains("中文") || lang.contains("简体") || lang.contains("繁體") || lang.contains("粤语")) {
+                                "https://mirrorchyan.com/zh/get-start"
+                            } else {
+                                "https://mirrorchyan.com/en/get-start"
+                            }
+                            uriHandler.openUri(url)
+                        }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(inputCdk) },
+                enabled = inputCdk.isNotBlank()
+            ) {
+                Text(strings.ok)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(strings.cancel)
+            }
+        }
+    )
 }
