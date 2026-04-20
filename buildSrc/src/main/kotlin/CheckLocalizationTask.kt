@@ -73,7 +73,7 @@ abstract class CheckLocalizationTask : DefaultTask() {
 
         val emptyPrimaryBaseKeys = primaryBaseMap.filterValues { it.isBlank() }.keys.sorted()
         if (emptyPrimaryBaseKeys.isNotEmpty()) {
-            issues += "[${primaryBaseFile.name}] Empty values in base locale: ${emptyPrimaryBaseKeys.joinToString(", ")}" 
+            issues += "[${primaryBaseFile.name}] Empty values in base locale (${emptyPrimaryBaseKeys.size}): ${emptyPrimaryBaseKeys.joinToString(", ")}"
         }
 
         for (base in bases.drop(1)) {
