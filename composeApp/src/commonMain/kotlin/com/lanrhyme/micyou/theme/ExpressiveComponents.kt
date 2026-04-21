@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
@@ -550,6 +551,7 @@ fun ExpressiveListItem(
 
 /**
  * Expressive Settings Box Item - 用于复杂内容的设置项容器（带内边距）
+ * @param overlay 可选的覆盖层内容，放置在最外层可覆盖整个卡片（如遮罩）
  */
 @Composable
 fun ExpressiveSettingsBoxItem(
@@ -561,6 +563,7 @@ fun ExpressiveSettingsBoxItem(
     contentPadding: Dp = 20.dp,
     hazeState: HazeState? = null,
     enableHaze: Boolean = false,
+    overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = when {
@@ -600,6 +603,7 @@ fun ExpressiveSettingsBoxItem(
                     content = content
                 )
             }
+            overlay()
         }
     } else {
         if (onClick != null) {
@@ -609,10 +613,13 @@ fun ExpressiveSettingsBoxItem(
                 color = containerColor,
                 onClick = onClick
             ) {
-                Column(
-                    modifier = Modifier.padding(contentPadding),
-                    content = content
-                )
+                Box {
+                    Column(
+                        modifier = Modifier.padding(contentPadding),
+                        content = content
+                    )
+                    overlay()
+                }
             }
         } else {
             Surface(
@@ -620,10 +627,13 @@ fun ExpressiveSettingsBoxItem(
                 shape = shape,
                 color = containerColor
             ) {
-                Column(
-                    modifier = Modifier.padding(contentPadding),
-                    content = content
-                )
+                Box {
+                    Column(
+                        modifier = Modifier.padding(contentPadding),
+                        content = content
+                    )
+                    overlay()
+                }
             }
         }
     }

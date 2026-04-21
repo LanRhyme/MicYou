@@ -487,7 +487,27 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
             isLast = isLast,
             containerColor = containerColor,
             hazeState = hazeState,
-            enableHaze = enableHaze
+            enableHaze = enableHaze,
+            overlay = {
+                // 开启动态取色时，显示遮罩覆盖整个卡片
+                if (state.useDynamicColor) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                            .clickable(enabled = false) { },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = strings.dynamicColorEnabledHint,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                }
+            }
         ) {
             Text(strings.themeColorLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
@@ -505,22 +525,6 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
                 disabledHint = strings.dynamicColorEnabledHint,
                 modifier = Modifier.fillMaxWidth()
             )
-            if (state.useDynamicColor) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = strings.dynamicColorEnabledHint,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
         }
     }
 
