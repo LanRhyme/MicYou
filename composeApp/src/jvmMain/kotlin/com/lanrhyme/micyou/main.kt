@@ -129,15 +129,15 @@ fun main() {
         }
 
         val windowState = rememberWindowState(
-            width = if (uiState.pocketMode) 600.dp else 850.dp,
-            height = if (uiState.pocketMode) 250.dp else 650.dp,
+            width = if (uiState.pocketMode) 650.dp else 850.dp,
+            height = if (uiState.pocketMode) 300.dp else 650.dp,
             position = WindowPosition(Alignment.Center)
         )
 
         LaunchedEffect(uiState.pocketMode) {
             windowState.size = androidx.compose.ui.unit.DpSize(
-                if (uiState.pocketMode) 600.dp else 850.dp,
-                if (uiState.pocketMode) 250.dp else 650.dp
+                if (uiState.pocketMode) 650.dp else 850.dp,
+                if (uiState.pocketMode) 300.dp else 650.dp
             )
         }
 

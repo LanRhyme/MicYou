@@ -371,7 +371,7 @@ private fun NetworkConfigCard(
 
     Column(
         modifier = Modifier.padding(10.dp).fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             AnimatedVisibility(
@@ -388,7 +388,7 @@ private fun NetworkConfigCard(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            
+
             AnimatedVisibility(
                 visible = titleVisible,
                 enter = fadeIn(tween(300, 100)) + slideInVertically(
@@ -433,8 +433,6 @@ private fun NetworkConfigCard(
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(6.dp))
 
         AnimatedVisibility(
             visible = fieldsVisible,
@@ -505,13 +503,14 @@ private fun NetworkConfigCard(
                     enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.9f),
                     exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.9f)
                 ) {
-                    ShardTextField(
+                    OutlinedTextField(
                         value = state.port,
                         onValueChange = { viewModel.setPort(it) },
-                        label = strings.portLabel,
-                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(strings.portLabel) },
+                        modifier = Modifier.fillMaxWidth().height(60.dp),
                         textStyle = MaterialTheme.typography.bodySmall,
-                        singleLine = true
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.medium
                     )
                 }
             }
