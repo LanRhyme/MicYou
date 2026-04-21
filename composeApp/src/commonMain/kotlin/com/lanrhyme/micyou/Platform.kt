@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
+import com.lanrhyme.micyou.theme.PaletteStyle
 
 enum class PlatformType {
     Android, Desktop
@@ -66,7 +67,7 @@ interface LoggerImpl {
 }
 
 @Composable
-expect fun getDynamicColorScheme(isDark: Boolean): ColorScheme?
+expect fun getDynamicColorScheme(isDark: Boolean, paletteStyle: PaletteStyle): ColorScheme?
 
 // 检查当前平台是否支持动态取色
 expect fun isDynamicColorSupported(): Boolean

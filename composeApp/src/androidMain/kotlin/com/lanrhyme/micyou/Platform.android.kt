@@ -7,7 +7,11 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import com.lanrhyme.micyou.theme.PaletteStyle
+import com.lanrhyme.micyou.theme.dynamicColorScheme
 
 class AndroidPlatform : Platform {
     override val name: String = "Android ${Build.VERSION.SDK_INT}"
@@ -42,10 +46,18 @@ actual suspend fun isPortAllowed(port: Int, protocol: String): Boolean = true
 actual suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit> = Result.success(Unit)
 
 @Composable
-actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {
+actual fun getDynamicColorScheme(isDark: Boolean, paletteStyle: PaletteStyle): ColorScheme? {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val context = LocalContext.current
-        return if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        // 先获取 Android 原生动态颜色方案
+        val nativeScheme = if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+
+        // 从原生方案中提取 primary 作为 seed color
+        val seedColor = nativeScheme.primary
+        Logger.d("Platform", "Using Android dynamic primary as seed: ${seedColor.toArgb()}")
+
+        // 使用用户选择的 paletteStyle 重新生成配色方案
+        return dynamicColorScheme(seedColor, isDark, paletteStyle)
     }
     return null
 }

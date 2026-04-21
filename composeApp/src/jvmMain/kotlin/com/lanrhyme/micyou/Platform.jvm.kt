@@ -5,7 +5,8 @@ import androidx.compose.runtime.Composable
 import com.lanrhyme.micyou.platform.FirewallManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.WindowsAccentColorExtractor
-import com.lanrhyme.micyou.theme.generateColorScheme
+import com.lanrhyme.micyou.theme.PaletteStyle
+import com.lanrhyme.micyou.theme.dynamicColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
@@ -121,7 +122,7 @@ actual fun getDynamicSeedColor(): Long? {
 }
 
 @Composable
-actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {
+actual fun getDynamicColorScheme(isDark: Boolean, paletteStyle: PaletteStyle): ColorScheme? {
     // 目前只为 Windows 提供莫奈取色
     if (!PlatformInfo.isWindows) {
         return null
@@ -135,8 +136,8 @@ actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {
 
     Logger.d("Platform", "Using Windows accent color: $color")
 
-    // 使用现有的颜色方案生成器
-    return generateColorScheme(color, isDark)
+    // 使用用户选择的 paletteStyle 生成配色方案
+    return dynamicColorScheme(color, isDark, paletteStyle)
 }
 
 actual fun getAudioSourceOptions(): List<AudioSourceOption> = emptyList()

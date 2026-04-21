@@ -147,8 +147,8 @@ fun AppTheme(
 ) {
     val isDark = isDarkThemeActive(themeMode)
 
-    // 动态颜色（如果启用）
-    val dynamicScheme = if (useDynamicColor) getDynamicColorScheme(isDark) else null
+    // 动态颜色（如果启用）- 使用用户选择的 paletteStyle
+    val dynamicScheme = if (useDynamicColor) getDynamicColorScheme(isDark, paletteStyle) else null
 
     // 使用 materialkolor 生成配色方案 - 不做任何手动调整
     val baseColorScheme = dynamicScheme ?: remember(seedColor, isDark, paletteStyle) {
