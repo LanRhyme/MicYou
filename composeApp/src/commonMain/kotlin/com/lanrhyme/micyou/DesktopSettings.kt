@@ -123,7 +123,7 @@ private fun SettingsItemContainer(
         modifier = modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
     ) {
         content()
@@ -244,7 +244,7 @@ fun DesktopSettings(
     val surfaceColor = if (state.backgroundSettings.hasCustomBackground) {
         Color.Transparent
     } else {
-        MaterialTheme.colorScheme.surface
+        MaterialTheme.colorScheme.surfaceContainer
     }
     
     Surface(
@@ -288,7 +288,7 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible:
         ExpressiveCard(
             modifier = Modifier.width(240.dp).fillMaxHeight(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = cardOpacity)  // Expressive: 最亮的表面
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = cardOpacity)
             )
         ) {
             LazyColumn(
@@ -352,7 +352,7 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible:
         ExpressiveCard(
             modifier = Modifier.weight(1f).fillMaxHeight(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = cardOpacity)  // Expressive: 更亮的表面
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = cardOpacity)
             )
         ) {
             Column(
@@ -518,7 +518,7 @@ fun VBCableManagementSection(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
@@ -706,7 +706,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(strings.themeLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -754,7 +754,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(strings.themeColorLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -800,7 +800,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(strings.expressive.paletteStyleLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -835,7 +835,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(strings.visualizerStyleLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -867,7 +867,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(strings.backgroundSettingsLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -955,7 +955,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.autoConfigLabel) },
@@ -977,7 +977,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.sampleRateLabel) },
@@ -1006,7 +1006,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.channelCountLabel) },
@@ -1035,7 +1035,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.audioFormatLabel) },
@@ -1065,7 +1065,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.audioSourceLabel) },
@@ -1104,7 +1104,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             Row(
                                 modifier = Modifier
@@ -1137,7 +1137,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.enableNsLabel) },
@@ -1156,7 +1156,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(MaterialTheme.shapes.medium)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                    .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Row(
@@ -1200,7 +1200,7 @@ fun VBCableManagementSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
@@ -1257,7 +1257,7 @@ fun VBCableManagementSection(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.enableDereverbLabel) },
@@ -1276,7 +1276,7 @@ fun VBCableManagementSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(MaterialTheme.shapes.medium)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                    .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text("${strings.dereverbLevelLabel}: ${(state.dereverbLevel * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
@@ -1294,7 +1294,7 @@ fun VBCableManagementSection(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.enableAgcLabel) },
@@ -1313,7 +1313,7 @@ fun VBCableManagementSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(MaterialTheme.shapes.medium)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                    .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text("${strings.agcTargetLabel}: ${state.agcTargetLevel}", style = MaterialTheme.typography.bodySmall)
@@ -1331,7 +1331,7 @@ fun VBCableManagementSection(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
                                 headlineContent = { Text(strings.enableVadLabel) },
@@ -1350,7 +1350,7 @@ fun VBCableManagementSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(MaterialTheme.shapes.medium)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                    .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text("${strings.vadThresholdLabel}: ${state.vadThreshold}", style = MaterialTheme.typography.bodySmall)
@@ -1368,7 +1368,7 @@ fun VBCableManagementSection(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
@@ -1420,36 +1420,7 @@ fun VBCableManagementSection(
                     AlertDialog(
                         onDismissRequest = { showLicenseDialog = false },
                         title = { Text(strings.licensesTitle) },
-                        text = {
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                item {
-                                    Text(strings.basedOnAndroidMic, style = MaterialTheme.typography.bodyMedium)
-                                    Spacer(Modifier.height(8.dp))
-                                    HorizontalDivider()
-                                    Spacer(Modifier.height(8.dp))
-                                }
-                                item {
-                                    Text("AndroidMic", style = MaterialTheme.typography.titleSmall)
-                                    Text("MIT License", style = MaterialTheme.typography.bodySmall)
-                                }
-                                item {
-                                    Text("JetBrains Compose Multiplatform", style = MaterialTheme.typography.titleSmall)
-                                    Text("Apache License 2.0", style = MaterialTheme.typography.bodySmall)
-                                }
-                                item {
-                                    Text("Kotlin Coroutines", style = MaterialTheme.typography.titleSmall)
-                                    Text("Apache License 2.0", style = MaterialTheme.typography.bodySmall)
-                                }
-                                item {
-                                    Text("Ktor", style = MaterialTheme.typography.titleSmall)
-                                    Text("Apache License 2.0", style = MaterialTheme.typography.bodySmall)
-                                }
-                                item {
-                                    Text("Material Components", style = MaterialTheme.typography.titleSmall)
-                                    Text("Apache License 2.0", style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                        },
+                        text = { OpenSourceLibrariesList() },
                         confirmButton = {
                             TextButton(onClick = { showLicenseDialog = false }) {
                                 Text(strings.close)
@@ -1463,7 +1434,7 @@ fun VBCableManagementSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
                             headlineContent = { Text(strings.developerLabel) },
@@ -1476,7 +1447,7 @@ fun VBCableManagementSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
                             headlineContent = { Text(strings.githubRepoLabel) },
@@ -1496,7 +1467,7 @@ fun VBCableManagementSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
                             headlineContent = { Text(strings.contributorsLabel) },
@@ -1510,7 +1481,7 @@ fun VBCableManagementSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
                             headlineContent = { Text(strings.versionLabel) },
@@ -1528,7 +1499,7 @@ fun VBCableManagementSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
                             headlineContent = { Text(strings.openSourceLicense) },
@@ -1542,7 +1513,7 @@ fun VBCableManagementSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
                             headlineContent = { Text(strings.exportLog) },
@@ -1945,7 +1916,7 @@ private fun VBCableManagementSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(

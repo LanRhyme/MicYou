@@ -136,7 +136,7 @@ fun MobileHome(viewModel: MainViewModel) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             CustomBackground(
@@ -269,8 +269,8 @@ private fun MobileHeaderSection(
 ) {
     HazeSurface(
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
         hazeState = hazeState,
         enabled = state.backgroundSettings.enableHazeEffect
@@ -366,8 +366,8 @@ private fun ConnectionConfigCard(
 ) {
     HazeSurface(
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
         hazeState = hazeState,
         enabled = state.backgroundSettings.enableHazeEffect
@@ -490,8 +490,8 @@ private fun MainControlCard(
 
     HazeSurface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
         hazeState = hazeState,
         enabled = state.backgroundSettings.enableHazeEffect
@@ -640,8 +640,8 @@ private fun MobileBottomBar(
     
     HazeSurface(
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
         hazeState = hazeState,
         enabled = state.backgroundSettings.enableHazeEffect

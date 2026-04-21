@@ -210,7 +210,7 @@ fun DesktopHomeEnhanced(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha }
     ) {
@@ -353,8 +353,8 @@ private fun HeaderSection(
 
     HazeSurface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
@@ -615,8 +615,8 @@ private fun ModeCard(
 ) {
     HazeSurface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
         hazeState = hazeState,
         enabled = enableHaze
@@ -680,8 +680,8 @@ private fun PortCard(
 ) {
     HazeSurface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier.fillMaxWidth(),
         hazeState = hazeState,
         enabled = enableHaze
@@ -721,8 +721,8 @@ private fun StatusCard(
     
     HazeSurface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
         modifier = modifier.fillMaxWidth(),
         hazeState = hazeState,
         enabled = enableHaze
@@ -1388,8 +1388,8 @@ private fun BottomBar(
 
     HazeSurface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity),
-        hazeColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = cardOpacity * 0.7f),
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {

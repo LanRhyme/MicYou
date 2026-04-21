@@ -80,7 +80,7 @@ data class AppUiState(
     val seedColor: Long = 0xFF1565C0,
     val useDynamicColor: Boolean = false,
     val oledPureBlack: Boolean = false,
-    val paletteStyle: PaletteStyle = PaletteStyle.Expressive,
+    val paletteStyle: PaletteStyle = PaletteStyle.TonalSpot,
     val useExpressiveShapes: Boolean = true,
     val language: AppLanguage = AppLanguage.System,
     val autoStart: Boolean = false,

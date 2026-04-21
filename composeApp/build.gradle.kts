@@ -90,6 +90,7 @@ kotlin {
             implementation("dev.chrisbanes.haze:haze:1.7.2")
             implementation(libs.filekit.core)
             implementation(libs.filekit.dialogs.compose)
+            implementation(libs.materialKolor)
             implementation(project(":plugin-api"))
         }
         commonTest.dependencies {

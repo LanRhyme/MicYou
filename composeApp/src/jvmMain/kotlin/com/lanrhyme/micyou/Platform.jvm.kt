@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import com.lanrhyme.micyou.platform.FirewallManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.WindowsAccentColorExtractor
+import com.lanrhyme.micyou.theme.generateColorScheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress

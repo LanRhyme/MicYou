@@ -11,10 +11,10 @@ import kotlinx.coroutines.launch
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.System,
-    val seedColor: Long = 0xFF1565C0,
+    val seedColor: Long = 0xFF4A672D,
     val useDynamicColor: Boolean = false,
     val oledPureBlack: Boolean = false,
-    val paletteStyle: PaletteStyle = PaletteStyle.Expressive,
+    val paletteStyle: PaletteStyle = PaletteStyle.TonalSpot,
     val useExpressiveShapes: Boolean = true,
     val language: AppLanguage = AppLanguage.System,
     val autoStart: Boolean = false,
@@ -49,13 +49,14 @@ class SettingsViewModel : ViewModel() {
     private fun loadSettings() {
         val savedThemeModeName = settings.getString("theme_mode", ThemeMode.System.name)
         val savedThemeMode = try { ThemeMode.valueOf(savedThemeModeName) } catch(e: Exception) { ThemeMode.System }
-        
-        val savedSeedColor = settings.getLong("seed_color", 0xFF1565C0)
+
+        val savedSeedColor = settings.getLong("seed_color", 0xFF4A672D)
         val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
         val savedOledPureBlack = settings.getBoolean("oled_pure_black", false)
 
-        val savedPaletteStyleName = settings.getString("palette_style", PaletteStyle.Expressive.name)
-        val savedPaletteStyle = try { PaletteStyle.valueOf(savedPaletteStyleName) } catch(e: Exception) { PaletteStyle.Expressive }
+        val savedPaletteStyleName = settings.getString("palette_style", PaletteStyle.TonalSpot.name)
+        val savedPaletteStyle = try { PaletteStyle.valueOf(savedPaletteStyleName) } catch(e: Exception) { PaletteStyle.TonalSpot }
+
         val savedUseExpressiveShapes = settings.getBoolean("use_expressive_shapes", true)
 
         val initialLanguage = try { 

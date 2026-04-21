@@ -305,7 +305,7 @@ fun App(
                                 Text(strings.firstLaunchVideoGuide)
                             }
                             TextButton(onClick = {
-                                openUrl("https://github.com/LanRhyme/MicYou/blob/master/docs/README.md")
+                                openUrl("https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md")
                             }) {
                                 Text(strings.firstLaunchTextGuide)
                             }

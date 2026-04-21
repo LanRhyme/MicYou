@@ -20,7 +20,6 @@
   "backgroundBlurLabel": "模糊",
   "backgroundBrightnessLabel": "明度",
   "backgroundSettingsLabel": "背景",
-  "basedOnAndroidMic": "麦克风你是基于安卓麦克风的东西。",
   "blackHoleConfigHint": "黑洞 已安装，请在系统设置里面配置",
   "blackHoleFallback": "找不到 黑洞，回退到默认设备物件",
   "blackHoleInitFailed": "初始化 黑洞 失败了啊",

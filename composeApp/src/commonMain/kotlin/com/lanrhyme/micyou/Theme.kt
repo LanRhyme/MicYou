@@ -1,44 +1,107 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2025-2026 InstallerX Revived contributors
+// Adapted for MicYou
 package com.lanrhyme.micyou
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import com.lanrhyme.micyou.theme.*
+import com.lanrhyme.micyou.theme.ExpressiveShapes
+import com.lanrhyme.micyou.theme.PaletteStyle
+import com.lanrhyme.micyou.theme.animateAsState
+import com.lanrhyme.micyou.theme.dynamicColorScheme
+import kotlin.math.abs
 
-// 导出PaletteStyle供外部使用
+// 导出类型供外部使用
 typealias AppPaletteStyle = PaletteStyle
 
-// M3 Expressive 预设种子颜色 - 精选现代配色
-object MD3SeedColors {
-    // 核心推荐色 - 符合M3 Expressive风格
-    val OceanBlue = Color(0xFF1565C0)      // 海洋蓝 - 深邃优雅
-    val M3Purple = Color(0xFF6750A4)       // Material Purple - 经典M3紫
-    val RosePink = Color(0xFFE91E63)       // 玫瑰粉 - 温暖浪漫
-    val ForestGreen = Color(0xFF2E7D32)    // 森林绿 - 自然清新
-    val SunsetOrange = Color(0xFFFF5722)   // 日落橙 - 活力温暖
-    val DeepTeal = Color(0xFF00695C)       // 深青绿 - 稳重现代
+/**
+ * 预设种子颜色 - 参考 InstallerX-Revived PresetColors
+ */
+object PresetColors {
+    val Default = Color(0xFF4A672D)
+    val Pink = Color(0xFFB94073)
+    val Red = Color(0xFFBA1A1A)
+    val Orange = Color(0xFF944A00)
+    val Amber = Color(0xFF8C5300)
+    val Yellow = Color(0xFF795900)
+    val Lime = Color(0xFF5E6400)
+    val Green = Color(0xFF006D39)
+    val Cyan = Color(0xFF006A64)
+    val Teal = Color(0xFF006874)
+    val LightBlue = Color(0xFF00639B)
+    val Blue = Color(0xFF335BBC)
+    val Indigo = Color(0xFF5355A9)
+    val Purple = Color(0xFF6750A4)
+    val DeepPurple = Color(0xFF7E42A4)
+    val BlueGrey = Color(0xFF575D7E)
+    val Brown = Color(0xFF7D524A)
+    val Grey = Color(0xFF5F6162)
 
-    // 进阶选择色
-    val MidnightIndigo = Color(0xFF283593) // 深靛蓝 - 夜空神秘
-    val CoralRed = Color(0xFFD32F2F)       // 珊瑚红 - 热情明亮
-    val GoldenAmber = Color(0xFFFF8F00)    // 金琥珀 - 温暖质感
-    val LavenderViolet = Color(0xFF7B1FA2) // 薰衣草紫 - 优雅神秘
-
-    val allColors = listOf(
-        OceanBlue, M3Purple, RosePink, ForestGreen, SunsetOrange, DeepTeal,
-        MidnightIndigo, CoralRed, GoldenAmber, LavenderViolet
-    )
+    val allColors = listOf(Default, Pink, Red, Orange, Amber, Yellow, Lime, Green, Cyan, Teal, LightBlue, Blue, Indigo, Purple, DeepPurple, BlueGrey, Brown, Grey)
 }
 
-// 应用 OLED 纯黑背景
-private fun androidx.compose.material3.ColorScheme.withOledDarkBackground(): androidx.compose.material3.ColorScheme {
+// HSV 工具函数 - 用于 ColorPicker
+fun colorToHSV(color: Int, hsv: FloatArray) {
+    val r = ((color shr 16) and 0xFF) / 255f
+    val g = ((color shr 8) and 0xFF) / 255f
+    val b = (color and 0xFF) / 255f
+    val max = maxOf(r, g, b)
+    val min = minOf(r, g, b)
+    val l = (max + min) / 2f
+    var h = 0f
+    var s = 0f
+    if (max != min) {
+        val delta = max - min
+        s = if (l > 0.5f) delta / (2f - max - min) else delta / (max + min)
+        h = when (max) {
+            r -> ((g - b) / delta + if (g < b) 6f else 0f)
+            g -> ((b - r) / delta + 2f)
+            else -> ((r - g) / delta + 4f)
+        } / 6f
+    }
+    hsv[0] = h * 360f
+    hsv[1] = s
+    hsv[2] = l
+}
+
+fun hsvToColor(hsv: FloatArray): Int {
+    val h = hsv[0] / 360f
+    val s = hsv[1]
+    val l = hsv[2]
+    if (s == 0f) {
+        val v = (l * 255f).toInt()
+        return (0xFF shl 24) or (v shl 16) or (v shl 8) or v
+    }
+    val c = (1f - abs(2f * l - 1f)) * s
+    val x = c * (1f - abs((h * 6f) % 2f - 1f))
+    val m = l - c / 2f
+    val (r, g, b) = when ((h * 6f).toInt() % 6) {
+        0 -> Triple(c, x, 0f)
+        1 -> Triple(x, c, 0f)
+        2 -> Triple(0f, c, x)
+        3 -> Triple(0f, x, c)
+        4 -> Triple(x, 0f, c)
+        else -> Triple(c, 0f, x)
+    }
+    return (0xFF shl 24) or (((r + m) * 255f).toInt() shl 16) or (((g + m) * 255f).toInt() shl 8) or ((b + m) * 255f).toInt()
+}
+
+// 兼容旧名称
+val MD3SeedColors = PresetColors
+
+/**
+ * OLED 纯黑背景调整 - 仅用于 OLED 模式
+ */
+private fun ColorScheme.withOledDarkBackground(): ColorScheme {
     val pureBlack = Color(0xFF000000)
     val lowSurface = Color(0xFF121212)
     val mediumSurface = Color(0xFF1E1E1E)
     val highSurface = Color(0xFF2A2A2A)
     val topSurface = Color(0xFF363636)
-
     return copy(
         background = pureBlack,
         surface = pureBlack,
@@ -55,28 +118,22 @@ private fun androidx.compose.material3.ColorScheme.withOledDarkBackground(): and
     )
 }
 
-enum class ThemeMode {
-    System, Light, Dark
-}
+enum class ThemeMode { System, Light, Dark }
 
 @Composable
-fun isDarkThemeActive(themeMode: ThemeMode): Boolean {
-    return when (themeMode) {
-        ThemeMode.System -> isSystemInDarkTheme()
-        ThemeMode.Light -> false
-        ThemeMode.Dark -> true
-    }
+fun isDarkThemeActive(themeMode: ThemeMode): Boolean = when (themeMode) {
+    ThemeMode.System -> isSystemInDarkTheme()
+    ThemeMode.Light -> false
+    ThemeMode.Dark -> true
 }
 
-// 默认种子颜色 - Google Blue
-val DefaultSeedColor = MD3SeedColors.OceanBlue
-
-// 默认调色板风格
-val DefaultPaletteStyle = PaletteStyle.Expressive
+// 默认值
+val DefaultSeedColor = PresetColors.Default
+val DefaultPaletteStyle = PaletteStyle.TonalSpot
 
 /**
- * Material 3 Expressive 应用主题
- * 支持调色板风格和Expressive形状
+ * 应用主题 - 参考 InstallerX-Revived InstallerTheme.kt
+ * 完全依赖 materialkolor 生成的配色方案，强制使用 Expressive (2025)
  */
 @Composable
 fun AppTheme(
@@ -89,34 +146,28 @@ fun AppTheme(
     content: @Composable () -> Unit
 ) {
     val isDark = isDarkThemeActive(themeMode)
+
+    // 动态颜色（如果启用）
     val dynamicScheme = if (useDynamicColor) getDynamicColorScheme(isDark) else null
 
-    // 使用Expressive配色方案生成器
-    val baseColorScheme = dynamicScheme ?: generateExpressiveColorScheme(seedColor, isDark, paletteStyle)
-    val targetColorScheme = if (isDark && oledPureBlack) baseColorScheme.withOledDarkBackground() else baseColorScheme
+    // 使用 materialkolor 生成配色方案 - 不做任何手动调整
+    val baseColorScheme = dynamicScheme ?: remember(seedColor, isDark, paletteStyle) {
+        dynamicColorScheme(
+            keyColor = seedColor,
+            isDark = isDark,
+            style = paletteStyle
+        )
+    }
 
-    // 应用Expressive形状
-    val shapes = if (useExpressiveShapes) ExpressiveShapes else MaterialTheme.shapes
+    // 应用颜色动画
+    val animatedColorScheme = baseColorScheme.animateAsState()
+
+    // OLED 纯黑处理
+    val finalColorScheme = if (isDark && oledPureBlack) animatedColorScheme.withOledDarkBackground() else animatedColorScheme
 
     MaterialTheme(
-        colorScheme = targetColorScheme,
-        shapes = shapes,
+        colorScheme = finalColorScheme,
+        shapes = if (useExpressiveShapes) ExpressiveShapes else MaterialTheme.shapes,
         content = content
     )
-}
-
-// 保留旧的辅助函数以兼容现有代码
-fun colorToHSV(color: Int, hsv: FloatArray) {
-    val hsl = ExpressiveColorUtils.colorToHSL(color)
-    hsv[0] = hsl[0]
-    hsv[1] = hsl[1]
-    hsv[2] = hsl[2]
-}
-
-fun hsvToColor(hsv: FloatArray): Int {
-    return ExpressiveColorUtils.hslToColor(hsv[0], hsv[1], hsv[2])
-}
-
-fun generateColorScheme(seed: Color, isDark: Boolean): androidx.compose.material3.ColorScheme {
-    return generateExpressiveColorScheme(seed, isDark)
 }

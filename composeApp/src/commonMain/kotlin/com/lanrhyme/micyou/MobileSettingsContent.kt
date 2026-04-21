@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -62,6 +63,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lanrhyme.micyou.theme.ExpressiveListItem
 import com.lanrhyme.micyou.theme.ExpressiveSettingsBoxItem
@@ -90,7 +92,7 @@ fun MobileSettingsPage(
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val platform = getPlatform()
 
-    val backgroundColor = MaterialTheme.colorScheme.background
+    val backgroundColor = MaterialTheme.colorScheme.surfaceContainer
     val topBarBackgroundColor = backgroundColor.copy(alpha = 0.8f)
     // 独立的 HazeState 用于顶部导航栏毛玻璃效果
     val topBarHazeState = rememberHazeState()
@@ -115,7 +117,7 @@ fun MobileSettingsPage(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             item {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(32.dp))
             }
             // General Section
             item {
@@ -295,7 +297,7 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
 
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
     val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     // 收集所有设置项
@@ -397,7 +399,7 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
 
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
     val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     val seedColors = listOf(
@@ -694,7 +696,7 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
 
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
     val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     // 收集所有设置项
@@ -918,26 +920,28 @@ private fun ExpressiveAudioSourceItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = strings.audioSourceLabel,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f).padding(end = 16.dp)
+                color = MaterialTheme.colorScheme.onSurface
             )
+            Spacer(Modifier.weight(1f))
             if (audioSourceOptions.isNotEmpty() && currentSource != null) {
                 Box {
                     Row(
+                        modifier = Modifier.widthIn(max = 180.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
                             text = currentSource.label,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
@@ -976,7 +980,7 @@ private fun ExpressivePluginSettings(viewModel: MainViewModel, hazeState: HazeSt
 
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
     val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     // 使用单层卡片包裹插件设置内容
@@ -1005,7 +1009,7 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
 
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
     val containerColor = baseContainerColor.copy(alpha = cardOpacity)
 
     if (showContributorsDialog) {
@@ -1016,36 +1020,7 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
         AlertDialog(
             onDismissRequest = { showLicenseDialog = false },
             title = { Text(strings.licensesTitle) },
-            text = {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item {
-                        Text(strings.basedOnAndroidMic, style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.height(8.dp))
-                        HorizontalDivider()
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    item {
-                        Text("AndroidMic", style = MaterialTheme.typography.titleSmall)
-                        Text("MIT License", style = MaterialTheme.typography.bodySmall)
-                    }
-                    item {
-                        Text("JetBrains Compose Multiplatform", style = MaterialTheme.typography.titleSmall)
-                        Text("Apache License 2.0", style = MaterialTheme.typography.bodySmall)
-                    }
-                    item {
-                        Text("Kotlin Coroutines", style = MaterialTheme.typography.titleSmall)
-                        Text("Apache License 2.0", style = MaterialTheme.typography.bodySmall)
-                    }
-                    item {
-                        Text("Ktor", style = MaterialTheme.typography.titleSmall)
-                        Text("Apache License 2.0", style = MaterialTheme.typography.bodySmall)
-                    }
-                    item {
-                        Text("Material Components", style = MaterialTheme.typography.titleSmall)
-                        Text("Apache License 2.0", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            },
+            text = { OpenSourceLibrariesList() },
             confirmButton = {
                 TextButton(onClick = { showLicenseDialog = false }) {
                     Text(strings.close)
