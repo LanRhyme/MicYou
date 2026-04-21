@@ -219,6 +219,16 @@
   "vbcableNotInstalled": "未安装",
   "vbcableInstalling": "正在安装 VB-Cable...",
   "vbcableNeedsAdmin": "需要管理员权限，请以管理员身份运行应用",
+  "mdnsNearbyDevices": "附近的电脑",
+  "mdnsScanning": "正在扫描...",
+  "mdnsNoDevicesFound": "未发现附近的电脑",
+  "mdnsNoDevicesHint": "请确保电脑端已开启服务端模式",
+  "mdnsRefresh": "刷新",
+  "mdnsConnect": "连接",
+  "mdnsManualInput": "手动输入 IP",
+  "mdnsDiscoveryError": "发现服务错误: %s",
+  "mdnsPermissionRequired": "设备发现需要位置权限",
+  "mdnsPermissionGrant": "授予权限",
   
   "errors": {
     "errorDialogTitle": "连接错误",

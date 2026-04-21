@@ -446,6 +446,19 @@ private fun ConnectionConfigCard(
                 }
             }
 
+            // mDNS Device Discovery (WiFi mode only, client side)
+            AnimatedVisibility(
+                visible = isClient && state.mode == ConnectionMode.Wifi,
+                enter = fadeIn(tween(300)) + expandVertically(),
+                exit = fadeOut(tween(200)) + shrinkVertically()
+            ) {
+                MDnsDiscoverySection(
+                    state = state,
+                    viewModel = viewModel,
+                    strings = strings
+                )
+            }
+
             // IP/Port input
             AnimatedVisibility(
                 visible = isClient && state.mode != ConnectionMode.Usb || state.mode != ConnectionMode.Bluetooth,
@@ -481,6 +494,231 @@ private fun ConnectionConfigCard(
                             textStyle = MaterialTheme.typography.bodySmall
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MDnsDiscoverySection(
+    state: AppUiState,
+    viewModel: MainViewModel,
+    strings: AppStrings
+) {
+    var showManualInput by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(state.mode) {
+        if (state.mode == ConnectionMode.Wifi) {
+            viewModel.startMDnsDiscovery()
+        }
+    }
+    
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                strings.mdnsNearbyDevices,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                val refreshInteractionSource = remember { MutableInteractionSource() }
+                val isRefreshPressed by refreshInteractionSource.collectIsPressedAsState()
+                val refreshScale by animateFloatAsState(
+                    targetValue = if (isRefreshPressed) 0.85f else 1f,
+                    animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
+                )
+                val infiniteTransition = rememberInfiniteTransition(label = "RefreshRotation")
+                val rotation by infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 360f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "Rotation"
+                )
+                
+                IconButton(
+                    onClick = { viewModel.refreshMDnsDiscovery() },
+                    interactionSource = refreshInteractionSource,
+                    modifier = Modifier.size(32.dp).scale(refreshScale)
+                ) {
+                    Icon(
+                        Icons.Filled.Refresh,
+                        contentDescription = strings.mdnsRefresh,
+                        modifier = Modifier.size(18.dp).graphicsLayer { 
+                            rotationZ = if (state.isDiscovering) rotation else 0f 
+                        },
+                        tint = if (state.isDiscovering) MaterialTheme.colorScheme.primary
+                               else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        
+        when {
+            state.isDiscovering && state.discoveredServices.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(60.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            strings.mdnsScanning,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            
+            state.discoveredServices.isEmpty() -> {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        strings.mdnsNoDevicesFound,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        strings.mdnsNoDevicesHint,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+            }
+            
+            else -> {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    state.discoveredServices.forEach { service ->
+                        MDnsDeviceCard(
+                            service = service,
+                            strings = strings,
+                            onClick = {
+                                viewModel.selectDiscoveredDevice(service)
+                                showManualInput = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        
+        AnimatedVisibility(
+            visible = !showManualInput,
+            enter = fadeIn(tween(200)),
+            exit = fadeOut(tween(150))
+        ) {
+            Text(
+                text = strings.mdnsManualInput,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable { showManualInput = true }.padding(top = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MDnsDeviceCard(
+    service: com.lanrhyme.micyou.mdns.DiscoveredService,
+    strings: AppStrings,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val elevation by animateDpAsState(
+        targetValue = if (isPressed) 0.dp else 1.dp,
+        animationSpec = tween(100)
+    )
+    
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        tonalElevation = elevation,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.extraSmall,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                
+                Column {
+                    Text(
+                        service.instanceName,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        "${service.host}:${service.port}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.height(28.dp)
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        strings.mdnsConnect,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }

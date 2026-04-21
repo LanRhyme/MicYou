@@ -458,6 +458,18 @@ data class AppStrings(
     val vbcableInstalling: String = "Installing...",
     val vbcableSettingsLabel: String = "VB-Cable",
 
+    // mDNS Discovery
+    val mdnsNearbyDevices: String = "Nearby Computers",
+    val mdnsScanning: String = "Scanning...",
+    val mdnsNoDevicesFound: String = "No nearby computers found",
+    val mdnsNoDevicesHint: String = "Please ensure the desktop server is running",
+    val mdnsRefresh: String = "Refresh",
+    val mdnsConnect: String = "Connect",
+    val mdnsManualInput: String = "Manual IP Input",
+    val mdnsDiscoveryError: String = "Discovery error: %s",
+    val mdnsPermissionRequired: String = "Location permission required for device discovery",
+    val mdnsPermissionGrant: String = "Grant Permission",
+
     // Error Strings (nested)
     val errors: ErrorStrings = ErrorStrings(),
 

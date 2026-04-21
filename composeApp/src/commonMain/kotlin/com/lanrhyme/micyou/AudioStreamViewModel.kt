@@ -2,6 +2,10 @@ package com.lanrhyme.micyou
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lanrhyme.micyou.mdns.DiscoveredService
+import com.lanrhyme.micyou.mdns.DiscoveryState
+import com.lanrhyme.micyou.mdns.MDnsConstants
+import com.lanrhyme.micyou.mdns.createMDnsDiscovery
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,7 +47,12 @@ data class AudioStreamUiState(
 
     // Performance Settings
     val performanceMode: String = "Default",
-    val performanceConfig: PerformanceConfig = PerformanceConfig.DEFAULT
+    val performanceConfig: PerformanceConfig = PerformanceConfig.DEFAULT,
+    
+    // mDNS Discovery
+    val mdnsDiscoveryState: DiscoveryState = DiscoveryState.Idle,
+    val discoveredServices: List<DiscoveredService> = emptyList(),
+    val isDiscovering: Boolean = false
 )
 
 class AudioStreamViewModel : ViewModel() {
@@ -63,10 +72,32 @@ class AudioStreamViewModel : ViewModel() {
     val levelHistory: StateFlow<List<AudioLevelHistory.AudioLevelSample>> = _levelHistory.asStateFlow()
 
     private val settings = SettingsFactory.getSettings()
+    
+    // mDNS Discovery
+    private var mdnsDiscovery: com.lanrhyme.micyou.mdns.MDnsDiscovery? = null
 
     init {
         loadSettings()
         setupAudioEngineObservers()
+        initMDnsDiscovery()
+    }
+    
+    private fun initMDnsDiscovery() {
+        try {
+            mdnsDiscovery = createMDnsDiscovery()
+            viewModelScope.launch {
+                mdnsDiscovery?.discoveryState?.collect { state ->
+                    _uiState.update { it.copy(mdnsDiscoveryState = state) }
+                }
+            }
+            viewModelScope.launch {
+                mdnsDiscovery?.discoveredServices?.collect { services ->
+                    _uiState.update { it.copy(discoveredServices = services) }
+                }
+            }
+        } catch (e: Exception) {
+            Logger.e("AudioStreamViewModel", "Failed to initialize mDNS discovery", e)
+        }
     }
 
     private fun loadSettings() {
@@ -305,6 +336,11 @@ class AudioStreamViewModel : ViewModel() {
                 Logger.d("AudioStreamViewModel", "Calling _audioEngine.start()")
                 _audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat)
                 Logger.i("AudioStreamViewModel", "Stream started successfully")
+                
+                // Publish mDNS service on desktop server
+                if (!isClient && mode == ConnectionMode.Wifi) {
+                    publishMDnsService(port)
+                }
             } catch (e: Exception) {
                 Logger.e("AudioStreamViewModel", "Failed to start stream", e)
                 
@@ -351,6 +387,9 @@ class AudioStreamViewModel : ViewModel() {
     fun stopStream() {
         Logger.i("AudioStreamViewModel", "Stopping stream")
         _audioEngine.stop()
+        
+        // Unpublish mDNS service
+        unpublishMDnsService()
     }
 
     fun setMode(mode: ConnectionMode) {
@@ -582,9 +621,84 @@ class AudioStreamViewModel : ViewModel() {
     fun getAverageRms(seconds: Int = 3): Float {
         return audioLevelHistory.getAverageRms(seconds)
     }
+    
+    // ==================== mDNS 发现方法 ====================
+    
+    /**
+     * 开始mDNS服务发现（客户端模式）
+     */
+    fun startMDnsDiscovery() {
+        if (_uiState.value.isDiscovering) {
+            Logger.w("AudioStreamViewModel", "mDNS discovery already running")
+            return
+        }
+        
+        Logger.i("AudioStreamViewModel", "Starting mDNS discovery")
+        mdnsDiscovery?.startDiscovery()
+        _uiState.update { it.copy(isDiscovering = true) }
+    }
+    
+    /**
+     * 停止mDNS服务发现
+     */
+    fun stopMDnsDiscovery() {
+        Logger.i("AudioStreamViewModel", "Stopping mDNS discovery")
+        mdnsDiscovery?.stopDiscovery()
+        _uiState.update { it.copy(isDiscovering = false) }
+    }
+    
+    /**
+     * 刷新mDNS服务发现
+     */
+    fun refreshMDnsDiscovery() {
+        Logger.i("AudioStreamViewModel", "Refreshing mDNS discovery")
+        mdnsDiscovery?.clearDiscoveredServices()
+        mdnsDiscovery?.stopDiscovery()
+        mdnsDiscovery?.startDiscovery()
+    }
+    
+    /**
+     * 发布mDNS服务（服务端模式）
+     */
+    fun publishMDnsService(port: Int) {
+        val platform = getPlatform()
+        val serviceName = "${MDnsConstants.DEFAULT_SERVICE_NAME_PREFIX}-${platform.name}"
+        
+        Logger.i("AudioStreamViewModel", "Publishing mDNS service: $serviceName on port $port")
+        mdnsDiscovery?.publishService(
+            port = port,
+            serviceName = serviceName,
+            txtRecords = mapOf("ver" to "1.0")
+        )
+    }
+    
+    /**
+     * 注销mDNS服务
+     */
+    fun unpublishMDnsService() {
+        Logger.i("AudioStreamViewModel", "Unpublishing mDNS service")
+        mdnsDiscovery?.unpublishService()
+    }
+    
+    /**
+     * 选择发现的设备并连接
+     */
+    fun selectDiscoveredDevice(service: DiscoveredService) {
+        Logger.i("AudioStreamViewModel", "Selected discovered device: ${service.instanceName} at ${service.host}:${service.port}")
+        _uiState.update { 
+            it.copy(
+                ipAddress = service.host,
+                port = service.port.toString()
+            )
+        }
+        settings.putString("ip_address", service.host)
+        settings.putString("port", service.port.toString())
+    }
 
     override fun onCleared() {
         super.onCleared()
         _audioEngine.stop()
+        mdnsDiscovery?.stopDiscovery()
+        mdnsDiscovery?.unpublishService()
     }
 }

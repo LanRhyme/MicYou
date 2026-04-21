@@ -2,6 +2,8 @@ package com.lanrhyme.micyou
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lanrhyme.micyou.mdns.DiscoveredService
+import com.lanrhyme.micyou.mdns.DiscoveryState
 import com.lanrhyme.micyou.plugin.PluginInfo
 import com.lanrhyme.micyou.theme.PaletteStyle
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -119,6 +121,11 @@ data class AppUiState(
     // Performance State
     val performanceMode: String = "Default",
     val audioMetrics: AudioMetrics? = null,
+    
+    // mDNS Discovery State
+    val mdnsDiscoveryState: DiscoveryState = DiscoveryState.Idle,
+    val discoveredServices: List<DiscoveredService> = emptyList(),
+    val isDiscovering: Boolean = false,
 
     // UI State
     val installMessage: String? = null,
@@ -304,6 +311,9 @@ class MainViewModel : ViewModel() {
                     updateTotalBytes = updateState.updateTotalBytes,
                     updateErrorMessage = updateState.updateErrorMessage,
                     performanceMode = audioState.performanceMode,
+                    mdnsDiscoveryState = audioState.mdnsDiscoveryState,
+                    discoveredServices = audioState.discoveredServices,
+                    isDiscovering = audioState.isDiscovering,
                     snackbarMessage = settingsState.snackbarMessage
                 )
             }.collect { combinedState ->
@@ -350,6 +360,14 @@ class MainViewModel : ViewModel() {
     fun confirmAddFirewallRule() = audioStreamViewModel.confirmAddFirewallRule()
     fun dismissErrorDialog() = audioStreamViewModel.dismissErrorDialog()
     fun retryAfterError() = audioStreamViewModel.retryAfterError()
+    
+    // mDNS Discovery methods
+    fun startMDnsDiscovery() = audioStreamViewModel.startMDnsDiscovery()
+    fun stopMDnsDiscovery() = audioStreamViewModel.stopMDnsDiscovery()
+    fun refreshMDnsDiscovery() = audioStreamViewModel.refreshMDnsDiscovery()
+    fun publishMDnsService(port: Int) = audioStreamViewModel.publishMDnsService(port)
+    fun unpublishMDnsService() = audioStreamViewModel.unpublishMDnsService()
+    fun selectDiscoveredDevice(service: DiscoveredService) = audioStreamViewModel.selectDiscoveredDevice(service)
     
     // Settings methods
     fun setThemeMode(mode: ThemeMode) = settingsViewModel.setThemeMode(mode)
