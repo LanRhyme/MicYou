@@ -68,6 +68,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
+            implementation("androidx.navigation:navigation-compose:2.8.0")
             implementation(libs.ktor.client.okhttp)
         }
         commonMain.dependencies {

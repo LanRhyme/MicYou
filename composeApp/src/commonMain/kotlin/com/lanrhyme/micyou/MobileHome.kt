@@ -114,13 +114,7 @@ fun MobileHome(viewModel: MainViewModel) {
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
     
-    var showSettings by remember { mutableStateOf(false) }
     var contentVisible by remember { mutableStateOf(false) }
-
-    // Handle Android system back gesture to close settings page (no-op on desktop)
-    BackHandlerCompat(enabled = showSettings) {
-        showSettings = false
-    }
     
     val hazeState = if (state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground) {
         rememberHazeState()
@@ -152,93 +146,86 @@ fun MobileHome(viewModel: MainViewModel) {
                 forcePureBlackBackground = forcePureBlackBackground
             )
             
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Header
-                AnimatedCardVisibility(
-                    visible = contentVisible,
-                    delayMillis = 50
-                ) {
-                    MobileHeaderSection(
-                        platform = platform,
-                        state = state,
-                        onOpenSettings = { showSettings = true },
-                        strings = strings,
-                        cardOpacity = state.backgroundSettings.cardOpacity,
-                        hazeState = hazeState
-                    )
-                }
+            MobileSettingsNavigation(
+                homeContent = { onOpenSettings ->
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Header
+                        AnimatedCardVisibility(
+                            visible = contentVisible,
+                            delayMillis = 50
+                        ) {
+                            MobileHeaderSection(
+                                platform = platform,
+                                state = state,
+                                onOpenSettings = onOpenSettings,
+                                strings = strings,
+                                cardOpacity = state.backgroundSettings.cardOpacity,
+                                hazeState = hazeState
+                            )
+                        }
 
-                // Connection config
-                AnimatedCardVisibility(
-                    visible = contentVisible,
-                    delayMillis = 150
-                ) {
-                    ConnectionConfigCard(
-                        state = state,
-                        viewModel = viewModel,
-                        isClient = isClient,
-                        strings = strings,
-                        cardOpacity = state.backgroundSettings.cardOpacity,
-                        hazeState = hazeState
-                    )
-                }
+                        // Connection config
+                        AnimatedCardVisibility(
+                            visible = contentVisible,
+                            delayMillis = 150
+                        ) {
+                            ConnectionConfigCard(
+                                state = state,
+                                viewModel = viewModel,
+                                isClient = isClient,
+                                strings = strings,
+                                cardOpacity = state.backgroundSettings.cardOpacity,
+                                hazeState = hazeState
+                            )
+                        }
 
-                // Main control
-                AnimatedCardVisibility(
-                    visible = contentVisible,
-                    delayMillis = 250,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    MainControlCard(
-                        state = state,
-                        viewModel = viewModel,
-                        audioLevel = audioLevel,
-                        strings = strings,
-                        cardOpacity = state.backgroundSettings.cardOpacity,
-                        hazeState = hazeState
-                    )
-                }
+                        // Main control
+                        AnimatedCardVisibility(
+                            visible = contentVisible,
+                            delayMillis = 250,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            MainControlCard(
+                                state = state,
+                                viewModel = viewModel,
+                                audioLevel = audioLevel,
+                                strings = strings,
+                                cardOpacity = state.backgroundSettings.cardOpacity,
+                                hazeState = hazeState
+                            )
+                        }
 
-                // Bottom bar (mute + settings)
-                AnimatedCardVisibility(
-                    visible = contentVisible,
-                    delayMillis = 350
-                ) {
-                    MobileBottomBar(
-                        state = state,
-                        viewModel = viewModel,
-                        strings = strings,
-                        cardOpacity = state.backgroundSettings.cardOpacity,
-                        hazeState = hazeState
-                    )
+                        // Bottom bar (mute + settings)
+                        AnimatedCardVisibility(
+                            visible = contentVisible,
+                            delayMillis = 350
+                        ) {
+                            MobileBottomBar(
+                                state = state,
+                                viewModel = viewModel,
+                                strings = strings,
+                                cardOpacity = state.backgroundSettings.cardOpacity,
+                                hazeState = hazeState
+                            )
+                        }
+                    }
+                },
+                settingsContent = { onClose ->
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        shadowElevation = 0.dp,
+                        tonalElevation = 0.dp
+                    ) {
+                        DesktopSettings(viewModel = viewModel, onClose = onClose)
+                    }
                 }
-            }
-            // Settings page overlay
-            AnimatedVisibility(
-                visible = showSettings,
-                enter = slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(360, easing = EasingFunctions.EaseOutExpo)
-                ) + fadeIn(animationSpec = tween(240)),
-                exit = slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(300, easing = EasingFunctions.EaseInOutExpo)
-                ) + fadeOut(animationSpec = tween(200))
-            ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    shadowElevation = 0.dp,
-                    tonalElevation = 0.dp
-                ) {
-                    DesktopSettings(viewModel = viewModel, onClose = { showSettings = false })
-                }
-            }
+            )
         }
     }
 }
