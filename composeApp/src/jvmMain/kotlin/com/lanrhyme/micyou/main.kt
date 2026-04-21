@@ -196,6 +196,7 @@ fun main() {
                     AppTheme(
                     themeMode = uiState.themeMode,
                     seedColor = seedColorObj,
+                    useDynamicColor = uiState.useDynamicColor,
                     oledPureBlack = uiState.oledPureBlack,
                     paletteStyle = uiState.paletteStyle,
                     useExpressiveShapes = uiState.useExpressiveShapes
