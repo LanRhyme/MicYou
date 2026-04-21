@@ -507,7 +507,7 @@ private fun NetworkConfigCard(
                         value = state.port,
                         onValueChange = { viewModel.setPort(it) },
                         label = { Text(strings.portLabel) },
-                        modifier = Modifier.fillMaxWidth().height(60.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp),
                         textStyle = MaterialTheme.typography.bodySmall,
                         singleLine = true,
                         shape = MaterialTheme.shapes.medium

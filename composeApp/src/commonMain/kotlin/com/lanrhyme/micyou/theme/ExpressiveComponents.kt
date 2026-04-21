@@ -613,7 +613,7 @@ fun ExpressiveSettingsBoxItem(
                 color = containerColor,
                 onClick = onClick
             ) {
-                Box {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(contentPadding),
                         content = content
@@ -627,7 +627,7 @@ fun ExpressiveSettingsBoxItem(
                 shape = shape,
                 color = containerColor
             ) {
-                Box {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.padding(contentPadding),
                         content = content

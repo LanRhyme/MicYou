@@ -7,6 +7,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -52,12 +53,15 @@ actual fun getDynamicColorScheme(isDark: Boolean, paletteStyle: PaletteStyle): C
         // 先获取 Android 原生动态颜色方案
         val nativeScheme = if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
 
-        // 从原生方案中提取 primary 作为 seed color
-        val seedColor = nativeScheme.primary
-        Logger.d("Platform", "Using Android dynamic primary as seed: ${seedColor.toArgb()}")
+        // 使用 remember 缓存生成的配色方案，仅在参数变化时重新计算
+        return remember(nativeScheme, isDark, paletteStyle) {
+            // 从原生方案中提取 primary 作为 seed color
+            val seedColor = nativeScheme.primary
+            Logger.d("Platform", "Using Android dynamic primary as seed: ${seedColor.toArgb()}")
 
-        // 使用用户选择的 paletteStyle 重新生成配色方案
-        return dynamicColorScheme(seedColor, isDark, paletteStyle)
+            // 使用用户选择的 paletteStyle 重新生成配色方案
+            dynamicColorScheme(seedColor, isDark, paletteStyle)
+        }
     }
     return null
 }
