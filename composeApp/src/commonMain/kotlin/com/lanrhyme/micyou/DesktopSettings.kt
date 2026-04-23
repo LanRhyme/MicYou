@@ -1531,7 +1531,7 @@ fun VBCableManagementSection(
                             modifier = Modifier.clickable {
                                 viewModel.exportLog { path ->
                                     if (path != null) {
-                                        viewModel.showSnackbar("${strings.logExported}: $path")
+                                        viewModel.showSnackbar(strings.logExported.replace("%s", path))
                                     } else {
                                         viewModel.showSnackbar(strings.logExportFailed)
                                     }

@@ -107,7 +107,7 @@
   "languageLabel": "语言喵~",
   "licensesTitle": "开源库和许可证喵~",
   "logExportFailed": "导出日志失败喵... (ToT)",
-  "logExported": "日志已导出到 喵~ ✓",
+  "logExported": "日志已导出到: %s 喵~ ✓",
   "logsSection": "日志喵~ 📋",
   "micMuted": "麦克风已静音喵... (×_×;)",
   "micNormal": "麦克风正常喵~ (๑˃̵ᴗ˂̵)",

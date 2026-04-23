@@ -107,7 +107,7 @@
   "languageLabel": "Language",
   "licensesTitle": "Open Source Libraries and Licenses",
   "logExportFailed": "Failed to export log",
-  "logExported": "Log exported to ",
+  "logExported": "Log exported to: %s",
   "logsSection": "Logs",
   "micMuted": "Microphone Muted",
   "micNormal": "Microphone Normal",

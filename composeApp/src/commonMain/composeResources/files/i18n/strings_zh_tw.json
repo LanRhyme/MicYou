@@ -107,7 +107,7 @@
   "languageLabel": "語言",
   "licensesTitle": "開源函式庫與許可證",
   "logExportFailed": "匯出日誌失敗",
-  "logExported": "日誌已匯出至 ",
+  "logExported": "日誌已匯出至: %s",
   "logsSection": "日誌",
   "micMuted": "麥克風已靜音",
   "micNormal": "麥克風正常",
