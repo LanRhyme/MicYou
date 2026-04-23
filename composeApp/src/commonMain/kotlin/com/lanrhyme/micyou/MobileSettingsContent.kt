@@ -43,15 +43,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -94,14 +91,6 @@ fun MobileSettingsPage(
     val state by viewModel.uiState.collectAsState()
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val platform = getPlatform()
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(state.snackbarMessage) {
-        state.snackbarMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
-    }
 
     val backgroundColor = MaterialTheme.colorScheme.surfaceContainer
     val topBarBackgroundColor = backgroundColor.copy(alpha = 0.8f)
@@ -294,14 +283,6 @@ fun MobileSettingsPage(
                 strings = strings
             )
         }
-
-        // Snackbar Host
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier
-                .padding(bottom = 16.dp)
-                .align(Alignment.BottomCenter)
-        )
     }
 }
 

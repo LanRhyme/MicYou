@@ -275,7 +275,7 @@ fun DesktopSettings(
             SnackbarHost(
                 hostState = snackbarHostState,
                 modifier = Modifier
-                    .padding(bottom = 16.dp, end = 16.dp)
+                    .padding(bottom = 16.dp)
                     .align(Alignment.BottomCenter)
             )
         }

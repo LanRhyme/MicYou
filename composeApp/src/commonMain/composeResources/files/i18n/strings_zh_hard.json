@@ -108,7 +108,7 @@
   "languageLabel": "语言标签项",
   "licensesTitle": "开源库和许可证书们",
   "logExportFailed": "出口日志记录失败了啊",
-  "logExported": "日志记录出口到达处: %s",
+  "logExported": "日志记录出口到达处 ",
   "logsSection": "日志区域部分",
   "micMuted": "微型电话已经静音了",
   "micNormal": "微型电话正常的",

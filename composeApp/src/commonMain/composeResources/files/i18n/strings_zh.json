@@ -107,7 +107,7 @@
   "languageLabel": "语言",
   "licensesTitle": "开源库和许可证",
   "logExportFailed": "导出日志失败",
-  "logExported": "日志已导出至: %s",
+  "logExported": "日志已导出至 ",
   "logsSection": "日志",
   "micMuted": "麦克风已静音",
   "micNormal": "麦克风正常",

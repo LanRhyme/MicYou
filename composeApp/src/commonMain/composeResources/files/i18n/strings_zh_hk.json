@@ -107,7 +107,7 @@
   "languageLabel": "語言",
   "licensesTitle": "開源程式庫同授權",
   "logExportFailed": "匯出日誌失敗",
-  "logExported": "日誌已經匯出到： %s",
+  "logExported": "日誌已經匯出到 ",
   "logsSection": "日誌",
   "micMuted": "咪高峰已靜音",
   "micNormal": "咪高峰正常",

@@ -295,7 +295,7 @@ data class AppStrings(
     val logsSection: String = "Logs",
     val exportLog: String = "Export Log",
     val exportLogDesc: String = "Export application logs for debugging",
-    val logExported: String = "Log exported to: %s",
+    val logExported: String = "Log exported to: ",
     val logExportFailed: String = "Failed to export log",
     val firewallTitle: String = "Firewall Check",
     val firewallMessage: String = "Port %d is not allowed by Windows Firewall. This may prevent Android devices from connecting via Wi-Fi.\n\nWould you like to try adding a firewall rule for this port? (Requires Administrator privileges)",
