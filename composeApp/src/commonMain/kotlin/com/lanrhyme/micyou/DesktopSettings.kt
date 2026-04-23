@@ -71,6 +71,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -263,12 +264,20 @@ fun DesktopSettings(
                 hazeState = hazeState,
                 forcePureBlackBackground = forcePureBlackBackground
             )
-            
+
             if (platform.type == PlatformType.Desktop) {
                 DesktopLayout(viewModel, onClose, contentVisible, hazeState)
             } else {
                 MobileLayout(viewModel, onClose, hazeState)
             }
+
+            // Snackbar Host
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .padding(bottom = 16.dp, end = 16.dp)
+                    .align(Alignment.BottomCenter)
+            )
         }
     }
 }
@@ -1523,6 +1532,8 @@ fun VBCableManagementSection(
                                 viewModel.exportLog { path ->
                                     if (path != null) {
                                         viewModel.showSnackbar("${strings.logExported}: $path")
+                                    } else {
+                                        viewModel.showSnackbar(strings.logExportFailed)
                                     }
                                 }
                             },
