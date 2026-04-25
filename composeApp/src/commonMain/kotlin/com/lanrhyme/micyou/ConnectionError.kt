@@ -147,6 +147,14 @@ object ConnectionErrorHelper {
             message.contains("Audio", ignoreCase = true) ->
                 ConnectionErrorType.AudioDeviceError
             
+            // UDP 相关
+            message.contains("udp", ignoreCase = true) ||
+            message.contains("UDP", ignoreCase = true) ->
+                if (message.contains("firewall", ignoreCase = true) || message.contains("blocked", ignoreCase = true))
+                    ConnectionErrorType.UdpPortBlocked
+                else
+                    ConnectionErrorType.UdpConnectionFailed
+            
             // 其他
             else -> ConnectionErrorType.UnknownError
         }
@@ -435,7 +443,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = errors.errorFirewallBlockedTitle,
-                localizedMessage = "UDP 音频端口被防火墙阻止。请确保 UDP 端口 ${port?.plus(1) ?: "6001"} 已放行。",
+                localizedMessage = "UDP 音频端口被防火墙阻止。请确保 UDP 端口 ${port?.plus(UDP_PORT_OFFSET) ?: "6001"} 已放行。",
                 recoverySuggestions = listOf(
                     errors.errorSuggestionAddFirewallRule,
                     errors.errorSuggestionRunAsAdmin
@@ -452,7 +460,7 @@ object ConnectionErrorHelper {
                 recoverySuggestions = listOf(
                     errors.errorSuggestionCheckNetwork,
                     errors.errorSuggestionCheckTargetRunning,
-                    "确保 UDP 端口 ${port?.plus(1) ?: "6001"} 未被阻止"
+                    "确保 UDP 端口 ${port?.plus(UDP_PORT_OFFSET) ?: "6001"} 未被阻止"
                 )
             )
         }

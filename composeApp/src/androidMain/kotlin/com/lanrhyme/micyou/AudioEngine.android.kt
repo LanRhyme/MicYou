@@ -138,10 +138,10 @@ actual class AudioEngine actual constructor() {
     // Channel for outgoing messages (Audio + Control)
     private var sendChannel: Channel<MessageWrapper>? = null
     
-    // UDP 音频发送通道
-    private var udpSendChannel: Channel<MessageWrapper>? = null
     private var udpSocket: DatagramSocket? = null
     private var udpServerAddress: InetSocketAddress? = null
+    // 预分配的 UDP 发送缓冲区，减少 GC 压力
+    private val udpSendBuffer = ByteArray(Constants.MAX_PACKET_SIZE + 8) // 8 bytes header + max payload
 
     @Volatile
     private var enableStreamingNotification: Boolean = true
@@ -358,7 +358,6 @@ actual class AudioEngine actual constructor() {
                                 val udpPort = port + UDP_PORT_OFFSET
                                 Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
                                 udpSocket = DatagramSocket()
-                                udpSocket?.soTimeout = 0 // 非阻塞
                                 udpServerAddress = InetSocketAddress(targetIp, udpPort)
                                 Logger.i("AudioEngine", "UDP connected to $targetIp:$udpPort")
                             }
@@ -605,23 +604,23 @@ actual class AudioEngine actual constructor() {
         try {
             val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), wrapper)
             val length = packetBytes.size
+            val totalSize = 8 + length
             
-            // 构建 UDP 数据包：Magic (4B) + Length (4B) + Payload
-            val udpData = ByteArray(8 + length)
-            // 写入魔数（大端）
-            udpData[0] = (PACKET_MAGIC shr 24).toByte()
-            udpData[1] = (PACKET_MAGIC shr 16).toByte()
-            udpData[2] = (PACKET_MAGIC shr 8).toByte()
-            udpData[3] = PACKET_MAGIC.toByte()
+            // 使用预分配缓冲区构建 UDP 数据包：Magic (4B) + Length (4B) + Payload
+            // 写入 UDP 专用魔数（大端）
+            udpSendBuffer[0] = (UDP_PACKET_MAGIC shr 24).toByte()
+            udpSendBuffer[1] = (UDP_PACKET_MAGIC shr 16).toByte()
+            udpSendBuffer[2] = (UDP_PACKET_MAGIC shr 8).toByte()
+            udpSendBuffer[3] = UDP_PACKET_MAGIC.toByte()
             // 写入长度（大端）
-            udpData[4] = (length shr 24).toByte()
-            udpData[5] = (length shr 16).toByte()
-            udpData[6] = (length shr 8).toByte()
-            udpData[7] = length.toByte()
+            udpSendBuffer[4] = (length shr 24).toByte()
+            udpSendBuffer[5] = (length shr 16).toByte()
+            udpSendBuffer[6] = (length shr 8).toByte()
+            udpSendBuffer[7] = length.toByte()
             // 写入负载
-            System.arraycopy(packetBytes, 0, udpData, 8, length)
+            System.arraycopy(packetBytes, 0, udpSendBuffer, 8, length)
             
-            val udpPacket = DatagramPacket(udpData, udpData.size, udpServerAddress)
+            val udpPacket = DatagramPacket(udpSendBuffer, totalSize, udpServerAddress)
             udpSocket?.send(udpPacket)
         } catch (e: Exception) {
             Logger.w("AudioEngine", "UDP 发送失败: ${e.message}")

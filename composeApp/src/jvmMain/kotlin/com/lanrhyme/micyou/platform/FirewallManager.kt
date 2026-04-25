@@ -6,6 +6,13 @@ import java.util.concurrent.TimeUnit
 object FirewallManager {
     private const val COMMAND_TIMEOUT_SECONDS = 2L
     
+    /** 防火墙协议类型 */
+    enum class Protocol {
+        TCP, UDP;
+        
+        override fun toString(): String = name
+    }
+    
     fun isFirewallEnabled(): Boolean {
         if (!PlatformInfo.isWindows) {
             return true
@@ -33,7 +40,7 @@ object FirewallManager {
         }
     }
     
-    fun isPortAllowed(port: Int, protocol: String = "TCP"): Boolean {
+    fun isPortAllowed(port: Int, protocol: Protocol = Protocol.TCP): Boolean {
         if (!PlatformInfo.isWindows) {
             return true
         }
@@ -66,7 +73,7 @@ object FirewallManager {
         }
     }
     
-    fun addFirewallRule(port: Int, protocol: String = "TCP"): Boolean {
+    fun addFirewallRule(port: Int, protocol: Protocol = Protocol.TCP): Boolean {
         if (!PlatformInfo.isWindows) {
             return true
         }
@@ -98,7 +105,7 @@ object FirewallManager {
             if (!finished) {
                 process.destroyForcibly()
                 Logger.w("FirewallManager", "添加防火墙规则超时，使用netsh重试")
-                return tryNetshFallback(port)
+                return tryNetshFallback(port, protocol)
             }
             
             val exitCode = process.exitValue()
@@ -107,7 +114,7 @@ object FirewallManager {
                 Logger.i("FirewallManager", "防火墙规则添加成功: MicYou-$port-$protocol")
                 true
             } else {
-                Logger.e("FirewallManager", "防火墙规则添加失败: $output")
+                Logger.e("FirewallManager", "防火墙规则添加失败 (exit=$exitCode): $output")
                 tryNetshFallback(port, protocol)
             }
         } catch (e: Exception) {
@@ -116,7 +123,7 @@ object FirewallManager {
         }
     }
     
-    private fun tryNetshFallback(port: Int, protocol: String = "TCP"): Boolean {
+    private fun tryNetshFallback(port: Int, protocol: Protocol = Protocol.TCP): Boolean {
         return try {
             val process = ProcessBuilder(
                 "netsh", "advfirewall", "firewall", "add", "rule",
@@ -139,10 +146,10 @@ object FirewallManager {
             val exitCode = process.exitValue()
             
             if (exitCode == 0) {
-                Logger.i("FirewallManager", "防火墙规则添加成功: MicYou-$port")
+                Logger.i("FirewallManager", "防火墙规则添加成功: MicYou-$port-$protocol")
                 true
             } else {
-                Logger.e("FirewallManager", "防火墙规则添加失败: $output")
+                Logger.e("FirewallManager", "防火墙规则添加失败 (exit=$exitCode): $output")
                 false
             }
         } catch (e: Exception) {
@@ -158,7 +165,7 @@ object FirewallManager {
         
         // 移除 TCP 和 UDP 规则
         var success = true
-        for (protocol in listOf("TCP", "UDP")) {
+        for (protocol in Protocol.values()) {
             try {
                 val process = ProcessBuilder(
                     "powershell.exe",
@@ -167,7 +174,15 @@ object FirewallManager {
                 ).redirectErrorStream(true).start()
                 
                 process.waitFor()
-                Logger.i("FirewallManager", "防火墙规则已移除: MicYou-$port-$protocol")
+                val exitCode = process.exitValue()
+                
+                if (exitCode == 0) {
+                    Logger.i("FirewallManager", "防火墙规则已移除: MicYou-$port-$protocol")
+                } else {
+                    val output = process.inputStream.bufferedReader().readText()
+                    Logger.w("FirewallManager", "移除防火墙规则失败 (exit=$exitCode): MicYou-$port-$protocol, 输出: $output")
+                    success = false
+                }
             } catch (e: Exception) {
                 Logger.e("FirewallManager", "移除防火墙规则时出错: MicYou-$port-$protocol", e)
                 success = false

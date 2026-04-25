@@ -104,7 +104,6 @@ class UdpConnectionHandler(
                     break
                 }
 
-                val data = packet.data.copyOf(packet.length)
                 val senderAddress = InetSocketAddress(packet.address, packet.port)
 
                 // 记录首个客户端地址
@@ -113,7 +112,7 @@ class UdpConnectionHandler(
                     Logger.i("UdpConnectionHandler", "UDP 客户端已连接: ${senderAddress.address.hostAddress}:${senderAddress.port}")
                 }
 
-                processUdpPacket(data)
+                processUdpPacket(packet.data, packet.offset, packet.length)
             }
         } catch (e: Exception) {
             if (currentCoroutineContext().isActive) {
@@ -126,17 +125,17 @@ class UdpConnectionHandler(
     }
 
     @OptIn(ExperimentalSerializationApi::class)
-    private suspend fun processUdpPacket(data: ByteArray) {
-        if (data.size < 8) {
+    private suspend fun processUdpPacket(data: ByteArray, offset: Int, length: Int) {
+        if (length < 8) {
             // 包太小，跳过
             return
         }
 
         // 解析魔数（4 字节大端）
-        val magic = ((data[0].toInt() and 0xFF) shl 24) or
-                    ((data[1].toInt() and 0xFF) shl 16) or
-                    ((data[2].toInt() and 0xFF) shl 8) or
-                    (data[3].toInt() and 0xFF)
+        val magic = ((data[offset].toInt() and 0xFF) shl 24) or
+                    ((data[offset + 1].toInt() and 0xFF) shl 16) or
+                    ((data[offset + 2].toInt() and 0xFF) shl 8) or
+                    (data[offset + 3].toInt() and 0xFF)
 
         if (magic != PACKET_MAGIC && magic != UDP_PACKET_MAGIC) {
             Logger.w("UdpConnectionHandler", "UDP 包魔数不匹配: 0x${magic.toString(16).uppercase()}")
@@ -144,20 +143,20 @@ class UdpConnectionHandler(
         }
 
         // 解析长度（4 字节大端）
-        val length = ((data[4].toInt() and 0xFF) shl 24) or
-                     ((data[5].toInt() and 0xFF) shl 16) or
-                     ((data[6].toInt() and 0xFF) shl 8) or
-                     (data[7].toInt() and 0xFF)
+        val payloadLength = ((data[offset + 4].toInt() and 0xFF) shl 24) or
+                     ((data[offset + 5].toInt() and 0xFF) shl 16) or
+                     ((data[offset + 6].toInt() and 0xFF) shl 8) or
+                     (data[offset + 7].toInt() and 0xFF)
 
-        if (length <= 0 || length > data.size - 8) {
-            Logger.w("UdpConnectionHandler", "UDP 包长度无效: $length")
+        if (payloadLength <= 0 || payloadLength > length - 8) {
+            Logger.w("UdpConnectionHandler", "UDP 包长度无效: $payloadLength")
             return
         }
 
-        val payload = data.copyOfRange(8, 8 + length)
+        val payloadStart = offset + 8
 
         try {
-            val wrapper: MessageWrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), payload)
+            val wrapper: MessageWrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), data.copyOfRange(payloadStart, payloadStart + payloadLength))
 
             // UDP 通道仅处理音频包
             val audioPacket = wrapper.audioPacket?.audioPacket
@@ -169,9 +168,15 @@ class UdpConnectionHandler(
                 } else {
                     val expected = (expectedSequenceNumber + 1) and 0xFFFFFFFF.toInt()
                     if (seqNum != expected) {
-                        val lost = ((seqNum - expected) and 0xFFFFFFFF.toInt())
-                        packetsLost += lost
-                        Logger.d("UdpConnectionHandler", "UDP 丢包检测: 期望 $expected, 收到 $seqNum, 丢失 $lost 包")
+                        if (seqNum > expected) {
+                            // 正常丢包：收到的序列号大于期望值
+                            val lost = ((seqNum - expected) and 0xFFFFFFFF.toInt())
+                            packetsLost += lost
+                            Logger.d("UdpConnectionHandler", "UDP 丢包检测: 期望 $expected, 收到 $seqNum, 丢失 $lost 包")
+                        } else {
+                            // 乱序包：收到的序列号小于期望值，不计算丢包
+                            Logger.d("UdpConnectionHandler", "UDP 乱序包: 期望 $expected, 收到 $seqNum (旧包)")
+                        }
                     }
                     expectedSequenceNumber = seqNum
                 }
