@@ -167,8 +167,10 @@ fun DesktopHomeEnhanced(
         cardVisible = true
     }
 
-    LaunchedEffect(isBluetoothDisabled, state.mode) {
-        if (isBluetoothDisabled && state.mode == ConnectionMode.Bluetooth) {
+    LaunchedEffect(state.mode) {
+        // 蓝牙已废弃，如果当前模式为蓝牙则自动切换到 Wifi
+        @Suppress("DEPRECATION")
+        if (state.mode == ConnectionMode.Bluetooth) {
             viewModel.setMode(ConnectionMode.Wifi)
         }
     }
@@ -573,23 +575,20 @@ private fun LeftPanel(
         ModeCard(
             selectedMode = state.mode,
             onModeSelected = { viewModel.setMode(it) },
-            isBluetoothDisabled = isBluetoothDisabled,
             strings = strings,
             cardOpacity = cardOpacity,
             hazeState = hazeState,
             enableHaze = state.backgroundSettings.enableHazeEffect
         )
         
-        if (state.mode != ConnectionMode.Bluetooth) {
-            PortCard(
-                port = state.port,
-                onPortChange = { viewModel.setPort(it) },
-                strings = strings,
-                cardOpacity = cardOpacity,
-                hazeState = hazeState,
-                enableHaze = state.backgroundSettings.enableHazeEffect
-            )
-        }
+        PortCard(
+            port = state.port,
+            onPortChange = { viewModel.setPort(it) },
+            strings = strings,
+            cardOpacity = cardOpacity,
+            hazeState = hazeState,
+            enableHaze = state.backgroundSettings.enableHazeEffect
+        )
         
         StatusCard(
             streamState = state.streamState,
@@ -607,7 +606,6 @@ private fun LeftPanel(
 private fun ModeCard(
     selectedMode: ConnectionMode,
     onModeSelected: (ConnectionMode) -> Unit,
-    isBluetoothDisabled: Boolean,
     strings: AppStrings,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
@@ -624,9 +622,8 @@ private fun ModeCard(
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(strings.connectionModeLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             
-            val modes = listOfNotNull(
+            val modes = listOf(
                 ConnectionMode.Wifi to (strings.modeWifi to Icons.Rounded.Wifi),
-                if (!isBluetoothDisabled) ConnectionMode.Bluetooth to (strings.modeBluetooth to Icons.Rounded.Bluetooth) else null,
                 ConnectionMode.Usb to (strings.modeUsb to Icons.Rounded.Usb)
             )
             

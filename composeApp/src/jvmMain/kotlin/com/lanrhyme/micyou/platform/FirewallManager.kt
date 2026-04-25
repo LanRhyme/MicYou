@@ -33,7 +33,7 @@ object FirewallManager {
         }
     }
     
-    fun isPortAllowed(port: Int): Boolean {
+    fun isPortAllowed(port: Int, protocol: String = "TCP"): Boolean {
         if (!PlatformInfo.isWindows) {
             return true
         }
@@ -47,7 +47,7 @@ object FirewallManager {
             val process = ProcessBuilder(
                 "powershell.exe",
                 "-Command",
-                "netsh advfirewall firewall show rule name=all | Select-String 'MicYou-$port'"
+                "netsh advfirewall firewall show rule name=all | Select-String 'MicYou-$port-$protocol'"
             ).redirectErrorStream(true).start()
             
             val output = process.inputStream.bufferedReader().readText()
@@ -59,14 +59,14 @@ object FirewallManager {
                 return false
             }
             
-            output.contains("MicYou-$port")
+            output.contains("MicYou-$port-$protocol")
         } catch (e: Exception) {
             Logger.e("FirewallManager", "检查防火墙规则失败", e)
             false
         }
     }
     
-    fun addFirewallRule(port: Int): Boolean {
+    fun addFirewallRule(port: Int, protocol: String = "TCP"): Boolean {
         if (!PlatformInfo.isWindows) {
             return true
         }
@@ -76,14 +76,14 @@ object FirewallManager {
             return true
         }
         
-        if (isPortAllowed(port)) {
-            Logger.d("FirewallManager", "防火墙规则已存在: MicYou-$port")
+        if (isPortAllowed(port, protocol)) {
+            Logger.d("FirewallManager", "防火墙规则已存在: MicYou-$port-$protocol")
             return true
         }
         
         return try {
             val command = """
-                New-NetFirewallRule -DisplayName "MicYou-$port" -Direction Inbound -LocalPort $port -Protocol TCP -Action Allow
+                New-NetFirewallRule -DisplayName "MicYou-$port-$protocol" -Direction Inbound -LocalPort $port -Protocol $protocol -Action Allow
             """.trimIndent()
             
             val process = ProcessBuilder(
@@ -104,26 +104,26 @@ object FirewallManager {
             val exitCode = process.exitValue()
             
             if (exitCode == 0) {
-                Logger.i("FirewallManager", "防火墙规则添加成功: MicYou-$port")
+                Logger.i("FirewallManager", "防火墙规则添加成功: MicYou-$port-$protocol")
                 true
             } else {
                 Logger.e("FirewallManager", "防火墙规则添加失败: $output")
-                tryNetshFallback(port)
+                tryNetshFallback(port, protocol)
             }
         } catch (e: Exception) {
             Logger.e("FirewallManager", "添加防火墙规则时出错", e)
-            tryNetshFallback(port)
+            tryNetshFallback(port, protocol)
         }
     }
     
-    private fun tryNetshFallback(port: Int): Boolean {
+    private fun tryNetshFallback(port: Int, protocol: String = "TCP"): Boolean {
         return try {
             val process = ProcessBuilder(
                 "netsh", "advfirewall", "firewall", "add", "rule",
-                "name=MicYou-$port",
+                "name=MicYou-$port-$protocol",
                 "dir=in",
                 "action=allow",
-                "protocol=TCP",
+                "protocol=$protocol",
                 "localport=$port"
             ).redirectErrorStream(true).start()
             
@@ -156,19 +156,23 @@ object FirewallManager {
             return true
         }
         
-        return try {
-            val process = ProcessBuilder(
-                "powershell.exe",
-                "-Command",
-                "Remove-NetFirewallRule -DisplayName 'MicYou-$port'"
-            ).redirectErrorStream(true).start()
-            
-            process.waitFor()
-            Logger.i("FirewallManager", "防火墙规则已移除: MicYou-$port")
-            true
-        } catch (e: Exception) {
-            Logger.e("FirewallManager", "移除防火墙规则时出错", e)
-            false
+        // 移除 TCP 和 UDP 规则
+        var success = true
+        for (protocol in listOf("TCP", "UDP")) {
+            try {
+                val process = ProcessBuilder(
+                    "powershell.exe",
+                    "-Command",
+                    "Remove-NetFirewallRule -DisplayName 'MicYou-$port-$protocol'"
+                ).redirectErrorStream(true).start()
+                
+                process.waitFor()
+                Logger.i("FirewallManager", "防火墙规则已移除: MicYou-$port-$protocol")
+            } catch (e: Exception) {
+                Logger.e("FirewallManager", "移除防火墙规则时出错: MicYou-$port-$protocol", e)
+                success = false
+            }
         }
+        return success
     }
 }

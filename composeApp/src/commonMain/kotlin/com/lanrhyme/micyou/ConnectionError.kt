@@ -29,6 +29,10 @@ enum class ConnectionErrorType {
     ProtocolError,           // 协议错误
     VersionMismatch,         // 版本不匹配
 
+    // UDP 相关错误
+    UdpPortBlocked,          // UDP 端口被防火墙阻止
+    UdpConnectionFailed,     // UDP 连接失败
+
     // 音频相关错误
     AudioDeviceError,        // 音频设备错误
     AudioFormatError,        // 音频格式不支持
@@ -425,6 +429,31 @@ object ConnectionErrorHelper {
                 ),
                 showHelpButton = true,
                 helpUrl = "https://github.com/LanRhyme/MicYou/issues"
+            )
+            
+            ConnectionErrorType.UdpPortBlocked -> ConnectionErrorDetails(
+                type = type,
+                originalMessage = originalMessage,
+                localizedTitle = errors.errorFirewallBlockedTitle,
+                localizedMessage = "UDP 音频端口被防火墙阻止。请确保 UDP 端口 ${port?.plus(1) ?: "6001"} 已放行。",
+                recoverySuggestions = listOf(
+                    errors.errorSuggestionAddFirewallRule,
+                    errors.errorSuggestionRunAsAdmin
+                ),
+                showHelpButton = true,
+                helpUrl = "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md#firewall"
+            )
+            
+            ConnectionErrorType.UdpConnectionFailed -> ConnectionErrorDetails(
+                type = type,
+                originalMessage = originalMessage,
+                localizedTitle = "UDP 连接失败",
+                localizedMessage = "无法建立 UDP 音频连接。请检查网络连接和防火墙设置。",
+                recoverySuggestions = listOf(
+                    errors.errorSuggestionCheckNetwork,
+                    errors.errorSuggestionCheckTargetRunning,
+                    "确保 UDP 端口 ${port?.plus(1) ?: "6001"} 未被阻止"
+                )
             )
         }
     }

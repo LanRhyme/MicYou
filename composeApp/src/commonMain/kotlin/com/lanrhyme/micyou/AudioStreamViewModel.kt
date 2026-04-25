@@ -72,7 +72,7 @@ class AudioStreamViewModel : ViewModel() {
     private fun loadSettings() {
         val savedModeName = settings.getString("connection_mode", ConnectionMode.Wifi.name)
         val savedMode = when (savedModeName) {
-            "WifiUdp" -> ConnectionMode.Bluetooth
+            "WifiUdp" -> ConnectionMode.Wifi // 旧 WifiUdp 设置映射到新的 Wifi（双协议）
             else -> try { ConnectionMode.valueOf(savedModeName) } catch(e: Exception) { ConnectionMode.Wifi }
         }
         
@@ -340,8 +340,10 @@ class AudioStreamViewModel : ViewModel() {
         // 异步检查防火墙（不阻塞启动）
         if (!isClient && mode == ConnectionMode.Wifi) {
             viewModelScope.launch {
-                if (!isPortAllowed(port, "TCP")) {
-                    Logger.w("AudioStreamViewModel", "Port $port is not allowed by firewall")
+                val tcpAllowed = isPortAllowed(port, "TCP")
+                val udpAllowed = isPortAllowed(port + UDP_PORT_OFFSET, "UDP")
+                if (!tcpAllowed || !udpAllowed) {
+                    Logger.w("AudioStreamViewModel", "Port $port (TCP) or ${port + UDP_PORT_OFFSET} (UDP) is not allowed by firewall")
                     _uiState.update { it.copy(showFirewallDialog = true, pendingFirewallPort = port) }
                 }
             }
@@ -523,18 +525,26 @@ class AudioStreamViewModel : ViewModel() {
 
     fun confirmAddFirewallRule() {
         val port = _uiState.value.pendingFirewallPort ?: return
+        val udpPort = port + UDP_PORT_OFFSET
         _uiState.update { it.copy(showFirewallDialog = false, pendingFirewallPort = null) }
         
         viewModelScope.launch {
-            val result = addFirewallRule(port, "TCP")
-            if (result.isSuccess) {
-                Logger.i("AudioStreamViewModel", "Firewall rule added successfully")
-                startStream() // 成功添加后重试启动串流
+            // 同时添加 TCP 和 UDP 防火墙规则
+            val tcpResult = addFirewallRule(port, "TCP")
+            val udpResult = addFirewallRule(udpPort, "UDP")
+            
+            if (tcpResult.isSuccess && udpResult.isSuccess) {
+                Logger.i("AudioStreamViewModel", "Firewall rules added successfully for TCP $port and UDP $udpPort")
             } else {
-                val error = result.exceptionOrNull()?.message ?: "Unknown error"
-                Logger.e("AudioStreamViewModel", "Failed to add firewall rule: $error")
-                _uiState.update { it.copy(errorMessage = "无法自动添加防火墙规则: $error\n请尝试以管理员身份运行程序，或手动在防火墙中放行 TCP $port 端口。") }
+                val tcpError = tcpResult.exceptionOrNull()?.message ?: "Unknown error"
+                val udpError = udpResult.exceptionOrNull()?.message ?: "Unknown error"
+                Logger.w("AudioStreamViewModel", "Failed to add firewall rules: TCP=$tcpError, UDP=$udpError")
+                // 防火墙规则添加失败不阻止音频流启动，仅显示警告
+                _uiState.update { it.copy(errorMessage = "无法自动添加防火墙规则: TCP $tcpError\nUDP $udpError\n音频流仍可正常工作。如需外部设备连接，请以管理员身份运行程序，或手动在防火墙中放行 TCP $port 和 UDP $udpPort 端口。") }
             }
+            
+            // 无论防火墙规则是否添加成功，都尝试启动音频流
+            startStream()
         }
     }
 

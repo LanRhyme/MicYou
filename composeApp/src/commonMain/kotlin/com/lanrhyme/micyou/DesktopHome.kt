@@ -154,8 +154,10 @@ fun DesktopHome(
         cardVisible = true
     }
 
-    LaunchedEffect(isBluetoothDisabled, state.mode) {
-        if (isBluetoothDisabled && state.mode == ConnectionMode.Bluetooth) {
+    LaunchedEffect(state.mode) {
+        // 蓝牙已废弃，如果当前模式为蓝牙则自动切换到 Wifi
+        @Suppress("DEPRECATION")
+        if (state.mode == ConnectionMode.Bluetooth) {
             viewModel.setMode(ConnectionMode.Wifi)
         }
     }
@@ -454,8 +456,8 @@ private fun NetworkConfigCard(
                         readOnly = true,
                         value = when (state.mode) {
                             ConnectionMode.Wifi -> strings.modeWifi
-                            ConnectionMode.Bluetooth -> strings.modeBluetooth
                             ConnectionMode.Usb -> strings.modeUsb
+                            else -> strings.modeWifi
                         },
                         onValueChange = {},
                         label = { Text(strings.connectionModeLabel) },
@@ -479,15 +481,6 @@ private fun NetworkConfigCard(
                                 expanded = false
                             }
                         )
-                        if (!isBluetoothDisabled) {
-                            DropdownMenuItem(
-                                text = { Text(strings.modeBluetooth) },
-                                onClick = {
-                                    viewModel.setMode(ConnectionMode.Bluetooth)
-                                    expanded = false
-                                }
-                            )
-                        }
                         DropdownMenuItem(
                             text = { Text(strings.modeUsb) },
                             onClick = {
@@ -499,7 +492,7 @@ private fun NetworkConfigCard(
                 }
 
                 AnimatedVisibility(
-                    visible = state.mode != ConnectionMode.Bluetooth,
+                    visible = true,
                     enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.9f),
                     exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.9f)
                 ) {

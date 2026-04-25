@@ -33,9 +33,13 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.protobuf.ProtoBuf
 import java.io.EOFException
 import java.io.OutputStream
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.coroutines.coroutineContext
@@ -133,6 +137,11 @@ actual class AudioEngine actual constructor() {
     
     // Channel for outgoing messages (Audio + Control)
     private var sendChannel: Channel<MessageWrapper>? = null
+    
+    // UDP 音频发送通道
+    private var udpSendChannel: Channel<MessageWrapper>? = null
+    private var udpSocket: DatagramSocket? = null
+    private var udpServerAddress: InetSocketAddress? = null
 
     @Volatile
     private var enableStreamingNotification: Boolean = true
@@ -292,6 +301,7 @@ actual class AudioEngine actual constructor() {
                         
                         // 网络设置
                         val selectorManager = SelectorManager(Dispatchers.IO)
+                        var tcpSocket: Socket? = null
                         
                         if (mode == ConnectionMode.Bluetooth) {
                             Logger.i("AudioEngine", "Connecting via Bluetooth to $ip")
@@ -331,7 +341,7 @@ actual class AudioEngine actual constructor() {
                             val targetIp = if (mode == ConnectionMode.Usb) "127.0.0.1" else ip
                             Logger.i("AudioEngine", "Connecting via TCP to $targetIp:$port")
                             val socketBuilder = aSocket(selectorManager)
-                            val socket = socketBuilder.tcp().connect(targetIp, port) {
+                            tcpSocket = socketBuilder.tcp().connect(targetIp, port) {
                                 // 优化 Socket 参数以应对 Wi-Fi 环境下的连接不稳
                                 keepAlive = true
                                 // 允许更长的等待时间
@@ -340,9 +350,25 @@ actual class AudioEngine actual constructor() {
                                 noDelay = true
                             }
                             Logger.i("AudioEngine", "TCP connected to $targetIp:$port")
-                            input = socket.openReadChannel()
-                            output = socket.openWriteChannel(autoFlush = true)
-                            closeConnection = { socket.close() }
+                            input = tcpSocket.openReadChannel()
+                            output = tcpSocket.openWriteChannel(autoFlush = true)
+                            
+                            // Wifi 模式：同时建立 UDP 音频通道
+                            if (mode == ConnectionMode.Wifi) {
+                                val udpPort = port + UDP_PORT_OFFSET
+                                Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
+                                udpSocket = DatagramSocket()
+                                udpSocket?.soTimeout = 0 // 非阻塞
+                                udpServerAddress = InetSocketAddress(targetIp, udpPort)
+                                Logger.i("AudioEngine", "UDP connected to $targetIp:$udpPort")
+                            }
+                            
+                            closeConnection = { 
+                                tcpSocket?.close()
+                                udpSocket?.close()
+                                udpSocket = null
+                                udpServerAddress = null
+                            }
                         }
 
                         // 握手
@@ -384,17 +410,21 @@ actual class AudioEngine actual constructor() {
                             }
                         }
 
-                        // --- Writer Loop (Send Channel -> Socket) ---
+                        // --- Writer Loop (Send Channel -> TCP Socket for control messages) ---
                         val writerJob = launch {
                             Logger.d("AudioEngine", "Writer loop started")
                             for (msg in channel) {
                                 try {
-                                    val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
-                                    val length = packetBytes.size
-                                    output.writeInt(PACKET_MAGIC)
-                                    output.writeInt(length)
-                                    output.writeFully(packetBytes)
-                                    output.flush()
+                                    // 仅通过 TCP 发送控制消息（静音/连接/插件同步）
+                                    if (msg.hasControlMessage()) {
+                                        val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
+                                        val length = packetBytes.size
+                                        output.writeInt(PACKET_MAGIC)
+                                        output.writeInt(length)
+                                        output.writeFully(packetBytes)
+                                        output.flush()
+                                    }
+                                    // 音频包通过 UDP 发送（在音频采集循环中处理）
                                 } catch (e: Exception) {
                                     Logger.e("AudioEngine", "Error writing to socket", e)
                                     break
@@ -495,7 +525,13 @@ actual class AudioEngine actual constructor() {
                                         audioPacket = AudioPacketMessageOrdered(sequenceNumber++, packet)
                                     )
                                     
-                                    sendChannel?.send(wrapper)
+                                    // Wifi 模式：音频包通过 UDP 发送
+                                    if (udpSocket != null && udpServerAddress != null) {
+                                        sendAudioPacketViaUdp(wrapper)
+                                    } else {
+                                        // 非 Wifi 模式（USB/蓝牙）：通过 TCP 发送
+                                        sendChannel?.send(wrapper)
+                                    }
                                 }
                             }
                         }
@@ -558,6 +594,37 @@ actual class AudioEngine actual constructor() {
             // Cancel job on failure
             job?.cancel()
             throw e
+        }
+    }
+    
+    /**
+     * 通过 UDP 发送音频数据包
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    private fun sendAudioPacketViaUdp(wrapper: MessageWrapper) {
+        try {
+            val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), wrapper)
+            val length = packetBytes.size
+            
+            // 构建 UDP 数据包：Magic (4B) + Length (4B) + Payload
+            val udpData = ByteArray(8 + length)
+            // 写入魔数（大端）
+            udpData[0] = (PACKET_MAGIC shr 24).toByte()
+            udpData[1] = (PACKET_MAGIC shr 16).toByte()
+            udpData[2] = (PACKET_MAGIC shr 8).toByte()
+            udpData[3] = PACKET_MAGIC.toByte()
+            // 写入长度（大端）
+            udpData[4] = (length shr 24).toByte()
+            udpData[5] = (length shr 16).toByte()
+            udpData[6] = (length shr 8).toByte()
+            udpData[7] = length.toByte()
+            // 写入负载
+            System.arraycopy(packetBytes, 0, udpData, 8, length)
+            
+            val udpPacket = DatagramPacket(udpData, udpData.size, udpServerAddress)
+            udpSocket?.send(udpPacket)
+        } catch (e: Exception) {
+            Logger.w("AudioEngine", "UDP 发送失败: ${e.message}")
         }
     }
     
