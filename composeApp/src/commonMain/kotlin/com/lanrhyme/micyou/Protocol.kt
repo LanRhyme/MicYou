@@ -66,23 +66,12 @@ data class PluginSyncMessage(
 )
 
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
-
-/** UDP 数据包魔数，用于快速识别音频数据包 */
 const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII
 
-/** UDP 端口偏移量：UDP 端口 = TCP 端口 + UDP_PORT_OFFSET */
+/** UDP 端口 = TCP 端口 + 1 */
 const val UDP_PORT_OFFSET = 1
 
-/**
- * 判断 MessageWrapper 是否为纯音频消息（应通过 UDP 发送）
- */
-fun MessageWrapper.isAudioOnly(): Boolean {
-    return audioPacket != null && connect == null && mute == null && pluginSync == null
-}
-
-/**
- * 判断 MessageWrapper 是否包含控制消息（应通过 TCP 发送）
- */
+/** 判断 MessageWrapper 是否包含控制消息（应通过 TCP 发送） */
 fun MessageWrapper.hasControlMessage(): Boolean {
     return connect != null || mute != null || pluginSync != null
 }

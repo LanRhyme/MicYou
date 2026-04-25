@@ -380,15 +380,9 @@ class AudioStreamViewModel : ViewModel() {
     }
     
     fun setIp(ip: String) {
-        if (_uiState.value.mode == ConnectionMode.Bluetooth) {
-            Logger.d("AudioStreamViewModel", "Setting Bluetooth address to $ip")
-            _uiState.update { it.copy(bluetoothAddress = ip) }
-            settings.putString("bluetooth_address", ip)
-        } else {
-            Logger.d("AudioStreamViewModel", "Setting IP to $ip")
-            _uiState.update { it.copy(ipAddress = ip) }
-            settings.putString("ip_address", ip)
-        }
+        Logger.d("AudioStreamViewModel", "Setting IP to $ip")
+        _uiState.update { it.copy(ipAddress = ip) }
+        settings.putString("ip_address", ip)
     }
 
     fun setPort(port: String) {

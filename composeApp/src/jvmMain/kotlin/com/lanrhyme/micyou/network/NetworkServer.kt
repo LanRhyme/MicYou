@@ -337,10 +337,9 @@ class NetworkServer(
             activeBtConnection?.close()
             activeBtConnection = null
             
-            // 清理 UDP 资源 - 使用非阻塞方式
+            // 同步停止 UDP 处理器
             udpHandler?.let { handler ->
-                // 在后台协程中停止，避免阻塞当前线程
-                serverScope.launch {
+                runBlocking {
                     try {
                         withTimeout(2000) {
                             handler.stop()

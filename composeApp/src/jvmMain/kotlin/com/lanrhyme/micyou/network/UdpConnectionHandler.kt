@@ -8,7 +8,6 @@ import kotlinx.serialization.protobuf.ProtoBuf
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 处理 UDP 音频数据连接（桌面端服务器）。
@@ -43,9 +42,9 @@ class UdpConnectionHandler(
     @Volatile
     private var expectedSequenceNumber = 0
     @Volatile
-    private var packetsReceived = 0
+    private var packetsReceived = 0L
     @Volatile
-    private var packetsLost = 0
+    private var packetsLost = 0L
 
     /**
      * 启动 UDP 接收循环。
@@ -137,7 +136,7 @@ class UdpConnectionHandler(
                     ((data[offset + 2].toInt() and 0xFF) shl 8) or
                     (data[offset + 3].toInt() and 0xFF)
 
-        if (magic != PACKET_MAGIC && magic != UDP_PACKET_MAGIC) {
+        if (magic != UDP_PACKET_MAGIC) {
             Logger.w("UdpConnectionHandler", "UDP 包魔数不匹配: 0x${magic.toString(16).uppercase()}")
             return
         }
@@ -163,7 +162,7 @@ class UdpConnectionHandler(
             if (audioPacket != null) {
                 // 序列号跟踪
                 val seqNum = wrapper.audioPacket.sequenceNumber
-                if (packetsReceived == 0) {
+                if (packetsReceived == 0L) {
                     expectedSequenceNumber = seqNum
                 } else {
                     val expected = (expectedSequenceNumber + 1) and 0xFFFFFFFF.toInt()
@@ -171,7 +170,7 @@ class UdpConnectionHandler(
                         if (seqNum > expected) {
                             // 正常丢包：收到的序列号大于期望值
                             val lost = ((seqNum - expected) and 0xFFFFFFFF.toInt())
-                            packetsLost += lost
+                            packetsLost += lost.toLong()
                             Logger.d("UdpConnectionHandler", "UDP 丢包检测: 期望 $expected, 收到 $seqNum, 丢失 $lost 包")
                         } else {
                             // 乱序包：收到的序列号小于期望值，不计算丢包
@@ -200,8 +199,8 @@ class UdpConnectionHandler(
     }
 
     data class UdpStats(
-        val packetsReceived: Int,
-        val packetsLost: Int,
+        val packetsReceived: Long,
+        val packetsLost: Long,
         val clientAddress: InetSocketAddress?
     ) {
         val lossRate: Double

@@ -154,9 +154,8 @@ fun DesktopHome(
         cardVisible = true
     }
 
+    // 蓝牙已废弃，自动迁移旧蓝牙设置到 Wifi
     LaunchedEffect(state.mode) {
-        // 蓝牙已废弃，如果当前模式为蓝牙则自动切换到 Wifi
-        @Suppress("DEPRECATION")
         if (state.mode == ConnectionMode.Bluetooth) {
             viewModel.setMode(ConnectionMode.Wifi)
         }
