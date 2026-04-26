@@ -353,7 +353,7 @@ actual class AudioEngine actual constructor() {
                             
                             // Wifi 模式：同时建立 UDP 音频通道
                             if (mode == ConnectionMode.Wifi) {
-                                val udpPort = port + UDP_PORT_OFFSET
+                                val udpPort = calculateUdpPort(port)
                                 Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
                                 udpSocket = DatagramSocket()
                                 udpServerAddress = InetSocketAddress(targetIp, udpPort)

@@ -341,9 +341,10 @@ class AudioStreamViewModel : ViewModel() {
         if (!isClient && mode == ConnectionMode.Wifi) {
             viewModelScope.launch {
                 val tcpAllowed = isPortAllowed(port, "TCP")
-                val udpAllowed = isPortAllowed(port + UDP_PORT_OFFSET, "UDP")
+                val udpPort = calculateUdpPort(port)
+                val udpAllowed = isPortAllowed(udpPort, "UDP")
                 if (!tcpAllowed || !udpAllowed) {
-                    Logger.w("AudioStreamViewModel", "Port $port (TCP) or ${port + UDP_PORT_OFFSET} (UDP) is not allowed by firewall")
+                    Logger.w("AudioStreamViewModel", "Port $port (TCP) or $udpPort (UDP) is not allowed by firewall")
                     _uiState.update { it.copy(showFirewallDialog = true, pendingFirewallPort = port) }
                 }
             }
@@ -519,7 +520,7 @@ class AudioStreamViewModel : ViewModel() {
 
     fun confirmAddFirewallRule() {
         val port = _uiState.value.pendingFirewallPort ?: return
-        val udpPort = port + UDP_PORT_OFFSET
+        val udpPort = calculateUdpPort(port)
         _uiState.update { it.copy(showFirewallDialog = false, pendingFirewallPort = null) }
         
         viewModelScope.launch {

@@ -439,7 +439,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = errors.errorFirewallBlockedTitle,
-                localizedMessage = "UDP 音频端口被防火墙阻止。请确保 UDP 端口 ${port?.plus(UDP_PORT_OFFSET) ?: "6001"} 已放行。",
+                localizedMessage = "UDP 音频端口被防火墙阻止。请确保 UDP 端口 ${port?.let { calculateUdpPort(it) } ?: "6001"} 已放行。",
                 recoverySuggestions = listOf(
                     errors.errorSuggestionAddFirewallRule,
                     errors.errorSuggestionRunAsAdmin

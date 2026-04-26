@@ -166,12 +166,7 @@ class NetworkServer(
      * UDP 负责：音频数据传输
      */
     private suspend fun runDualProtocolServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
-        val udpPort = port + UDP_PORT_OFFSET
-        if (udpPort !in 0..65535) {
-            val message = "无效的 UDP 端口: TCP 端口 $port + 偏移量 $UDP_PORT_OFFSET = $udpPort，结果超出有效范围 0..65535"
-            Logger.w("NetworkServer", message)
-            throw IllegalArgumentException(message)
-        }
+        val udpPort = calculateUdpPort(port)
         Logger.i("NetworkServer", "启动双协议服务器: TCP 端口 $port, UDP 端口 $udpPort")
 
         // 先启动 UDP 接收器
