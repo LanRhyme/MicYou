@@ -66,6 +66,29 @@ data class PluginSyncMessage(
 )
 
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
+const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII
+
+/** UDP 端口 = TCP 端口 + 1 */
+const val UDP_PORT_OFFSET = 1
+
+/**
+ * 计算 UDP 端口，带边界校验防止端口溢出。
+ * @param tcpPort TCP 端口号
+ * @return UDP 端口号
+ * @throws IllegalArgumentException 当计算结果超出有效端口范围 (0-65535)
+ */
+fun calculateUdpPort(tcpPort: Int): Int {
+    val udpPort = tcpPort + UDP_PORT_OFFSET
+    if (udpPort !in 0..65535) {
+        throw IllegalArgumentException("UDP 端口溢出: TCP 端口 $tcpPort + 偏移量 $UDP_PORT_OFFSET = $udpPort，超出有效范围 0-65535")
+    }
+    return udpPort
+}
+
+/** 判断 MessageWrapper 是否包含控制消息（应通过 TCP 发送） */
+fun MessageWrapper.hasControlMessage(): Boolean {
+    return connect != null || mute != null || pluginSync != null
+}
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable

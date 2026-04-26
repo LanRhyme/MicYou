@@ -12,7 +12,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 enum class ConnectionMode(val label: String) {
-    Wifi( "Wi-Fi (TCP)"),
+    Wifi("Wi-Fi"),
+    @Deprecated("Replaced by UDP+TCP dual protocol", level = DeprecationLevel.WARNING)
     Bluetooth("Bluetooth"),
     Usb("USB (ADB)")
 }

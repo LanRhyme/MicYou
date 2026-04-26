@@ -49,6 +49,9 @@ class NetworkServer(
     private var btNotifier: StreamConnectionNotifier? = null
     private var activeBtConnection: StreamConnection? = null
 
+    // UDP 资源
+    private var udpHandler: UdpConnectionHandler? = null
+
     // 当前活动的连接处理器
     private var activeHandler: ConnectionHandler? = null
 
@@ -76,7 +79,8 @@ class NetworkServer(
                         runBluetoothServer(startupComplete)
                     }
                 } else {
-                    runTcpServer(port, startupComplete)
+                    // Wifi 模式：同时启动 TCP + UDP 双协议
+                    runDualProtocolServer(port, startupComplete)
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -154,6 +158,30 @@ class NetworkServer(
 
     suspend fun sendPluginSync(plugins: List<PluginInfoMessage>, platform: String) {
         activeHandler?.sendPluginSync(plugins, platform)
+    }
+
+    /**
+     * 运行双协议服务器：TCP 控制通道 + UDP 音频通道
+     * TCP 负责：握手、控制消息（静音/插件同步）
+     * UDP 负责：音频数据传输
+     */
+    private suspend fun runDualProtocolServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
+        val udpPort = calculateUdpPort(port)
+        Logger.i("NetworkServer", "启动双协议服务器: TCP 端口 $port, UDP 端口 $udpPort")
+
+        // 先启动 UDP 接收器
+        udpHandler = UdpConnectionHandler(
+            port = udpPort,
+            onAudioPacketReceived = onAudioPacketReceived,
+            onError = { error ->
+                Logger.w("UdpConnectionHandler", "UDP 错误: $error")
+                // UDP 错误不中断连接，仅记录
+            }
+        )
+        udpHandler?.start()
+
+        // 然后启动 TCP 控制通道
+        runTcpServer(port, startupComplete)
     }
 
     private suspend fun runTcpServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
@@ -303,6 +331,20 @@ class NetworkServer(
             btNotifier = null
             activeBtConnection?.close()
             activeBtConnection = null
+            
+            // 同步停止 UDP 处理器
+            udpHandler?.let { handler ->
+                runBlocking {
+                    try {
+                        withTimeout(2000) {
+                            handler.stop()
+                        }
+                    } catch (e: Exception) {
+                        Logger.w("NetworkServer", "停止 UDP 处理器超时或出错: ${e.message}")
+                    }
+                }
+                udpHandler = null
+            }
             
             selectorManager?.close()
             selectorManager = null

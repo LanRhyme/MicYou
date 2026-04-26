@@ -98,12 +98,14 @@ actual fun copyToClipboard(text: String) {
 
 actual suspend fun isPortAllowed(port: Int, protocol: String): Boolean =
     withContext(Dispatchers.IO) {
-        FirewallManager.isPortAllowed(port)
+        val fwProtocol = runCatching { FirewallManager.Protocol.valueOf(protocol.uppercase()) }.getOrDefault(FirewallManager.Protocol.TCP)
+        FirewallManager.isPortAllowed(port, fwProtocol)
     }
 
 actual suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit> =
     withContext(Dispatchers.IO) {
-        if (FirewallManager.addFirewallRule(port)) {
+        val fwProtocol = runCatching { FirewallManager.Protocol.valueOf(protocol.uppercase()) }.getOrDefault(FirewallManager.Protocol.TCP)
+        if (FirewallManager.addFirewallRule(port, fwProtocol)) {
             Result.success(Unit)
         } else {
             Result.failure(Exception("Failed to add firewall rule"))

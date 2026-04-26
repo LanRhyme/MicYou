@@ -400,7 +400,6 @@ private fun ConnectionConfigCard(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 val modes = listOf(
                     ConnectionMode.Wifi to (strings.modeWifi to Icons.Rounded.Wifi),
-                    ConnectionMode.Bluetooth to (strings.modeBluetooth to Icons.Rounded.Bluetooth),
                     ConnectionMode.Usb to (strings.modeUsb to Icons.Rounded.Usb)
                 )
 
@@ -448,39 +447,30 @@ private fun ConnectionConfigCard(
 
             // IP/Port input
             AnimatedVisibility(
-                visible = isClient && state.mode != ConnectionMode.Usb || state.mode != ConnectionMode.Bluetooth,
+                visible = isClient && state.mode != ConnectionMode.Usb,
                 enter = fadeIn(tween(300)) + expandVertically(),
                 exit = fadeOut(tween(200)) + shrinkVertically()
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (isClient && state.mode != ConnectionMode.Usb) {
                         ShardTextField(
-                            value = when (state.mode) {
-                                ConnectionMode.Bluetooth -> state.bluetoothAddress
-                                else -> state.ipAddress
-                            },
+                            value = state.ipAddress,
                             onValueChange = { viewModel.setIp(it) },
-                            label = when (state.mode) {
-                                ConnectionMode.Bluetooth -> strings.bluetoothAddressLabel
-                                else -> strings.targetIpLabel
-                            },
-                            modifier = if (state.mode == ConnectionMode.Bluetooth) Modifier.fillMaxWidth()
-                            else Modifier.weight(1f),
+                            label = strings.targetIpLabel,
+                            modifier = Modifier.weight(1f),
                             singleLine = true,
                             textStyle = MaterialTheme.typography.bodySmall
                         )
                     }
-                    if (state.mode != ConnectionMode.Bluetooth) {
-                        ShardTextField(
-                            value = state.port,
-                            onValueChange = { viewModel.setPort(it) },
-                            label = strings.portLabel,
-                            modifier = if (isClient && state.mode != ConnectionMode.Usb)
-                                Modifier.width(100.dp) else Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodySmall
-                        )
-                    }
+                    ShardTextField(
+                        value = state.port,
+                        onValueChange = { viewModel.setPort(it) },
+                        label = strings.portLabel,
+                        modifier = if (isClient && state.mode != ConnectionMode.Usb)
+                            Modifier.width(100.dp) else Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }
