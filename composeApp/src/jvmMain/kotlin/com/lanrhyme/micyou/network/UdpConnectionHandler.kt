@@ -88,8 +88,7 @@ class UdpConnectionHandler(
                 socket.receiveBufferSize = 256 * 1024 // 256KB
                 Logger.i("UdpConnectionHandler", "UDP 接收器已启动，端口 $port")
             }
-
-            val buffer = ByteArray(Constants.MAX_PACKET_SIZE)
+    val buffer = ByteArray(Constants.MAX_PACKET_SIZE)
 
             while (currentCoroutineContext().isActive) {
                 val packet = DatagramPacket(buffer, buffer.size)
@@ -102,8 +101,7 @@ class UdpConnectionHandler(
                     }
                     break
                 }
-
-                val senderAddress = InetSocketAddress(packet.address, packet.port)
+    val senderAddress = InetSocketAddress(packet.address, packet.port)
 
                 // 记录首个客户端地址
                 if (clientAddress == null) {
@@ -151,8 +149,7 @@ class UdpConnectionHandler(
             Logger.w("UdpConnectionHandler", "UDP 包长度无效: $payloadLength")
             return
         }
-
-        val payloadStart = offset + 8
+    val payloadStart = offset + 8
 
         try {
             val wrapper: MessageWrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), data.copyOfRange(payloadStart, payloadStart + payloadLength))

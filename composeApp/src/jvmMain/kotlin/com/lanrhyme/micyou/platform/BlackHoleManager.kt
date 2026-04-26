@@ -41,8 +41,7 @@ object BlackHoleManager {
         try {
             val process = ProcessBuilder(SWITCH_AUDIO_COMMAND, "-a", "-t", "input", "-f", "json")
                 .redirectErrorStream(true).start()
-
-            val output = process.inputStream.bufferedReader().readText()
+    val output = process.inputStream.bufferedReader().readText()
             if (process.waitFor() == 0 && output.isNotBlank()) output else null
         } catch (e: Exception) {
             Logger.e("BlackHoleManager", "Failed when fetching device list in json", e)
@@ -61,7 +60,7 @@ object BlackHoleManager {
 
     private fun parseDevicesJson(json: String): List<AudioDevice> {
         val devices = mutableListOf<AudioDevice>()
-        var content = json.trim().removeSurrounding("[", "]")
+    var content = json.trim().removeSurrounding("[", "]")
 
         Regex("\\{[^}]+\\}").findAll(content).forEach { matchResult ->
             val objStr = matchResult.value
@@ -95,12 +94,11 @@ object BlackHoleManager {
         try {
             val process = ProcessBuilder(SWITCH_AUDIO_COMMAND, "-c", "-t", "input", "-f", "json")
                 .redirectErrorStream(true).start()
-
-            val output = process.inputStream.bufferedReader().readText()
+    val output = process.inputStream.bufferedReader().readText()
             if (process.waitFor() == 0 && output.isNotBlank()) {
                 val id = extractField(output, "id")
-                val name = extractField(output, "name")
-                val uid = extractField(output, "uid")
+    val name = extractField(output, "name")
+    val uid = extractField(output, "uid")
                 if (id != null && name != null) AudioDevice(id, name, uid ?: "") else null
             } else null
         } catch (e: Exception) {

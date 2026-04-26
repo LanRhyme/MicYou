@@ -16,7 +16,7 @@ actual fun openPluginFileChooser(scope: CoroutineScope, onResult: (String?) -> U
             val file = FileKit.openFilePicker(
                 type = FileKitType.File(extensions = listOf("zip", "jar"))
             )
-            val savedPath = file?.let { copyPluginToInternalStorage(it) }
+    val savedPath = file?.let { copyPluginToInternalStorage(it) }
             onResult(savedPath)
         } catch (e: Exception) {
             Logger.e("PluginFileChooser", "Failed to pick plugin file", e)
@@ -33,8 +33,7 @@ private suspend fun copyPluginToInternalStorage(file: PlatformFile): String? {
         if (!pluginDir.exists()) {
             pluginDir.mkdirs()
         }
-
-        val fileName = file.name
+    val fileName = file.name
         val outputFile = File(pluginDir, fileName)
         outputFile.writeBytes(file.readBytes())
 

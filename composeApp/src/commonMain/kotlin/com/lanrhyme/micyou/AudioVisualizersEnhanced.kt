@@ -158,14 +158,13 @@ private fun PeakIndicator(
 
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val radius = size.minDimension / 2 * 0.92f
+    val radius = size.minDimension / 2 * 0.92f
 
         // 峰值角度位置
         val peakAngle = -90f + 360f * animatedPeak
         val peakRad = toRadians(peakAngle)
-
-        val peakX = center.x + radius * cos(peakRad)
-        val peakY = center.y + radius * sin(peakRad)
+    val peakX = center.x + radius * cos(peakRad)
+    val peakY = center.y + radius * sin(peakRad)
 
         // 峰值点标记
         drawCircle(
@@ -207,15 +206,14 @@ private fun LevelHistoryChart(
         val width = size.width
         val height = size.height
         val padding = 4.dp.toPx()
-
-        val now = System.currentTimeMillis()
-        val timeRange = 10_000L // 10秒
+    val now = System.currentTimeMillis()
+    val timeRange = 10_000L // 10秒
 
         // 绘制 dB 刻度参考线
         val dbLevels = listOf(0f, -6f, -12f, -18f, -24f)
         for (db in dbLevels) {
             val normalized = 10f.pow(db / 20f)
-            val y = padding + (height - 2 * padding) * (1f - normalized)
+    val y = padding + (height - 2 * padding) * (1f - normalized)
 
             drawLine(
                 color = Color.Gray.copy(alpha = 0.3f),
@@ -230,7 +228,7 @@ private fun LevelHistoryChart(
         for ((index, sample) in samples.withIndex()) {
             val timeOffset = (now - sample.timestamp).toFloat() / timeRange
             val x = padding + (width - 2 * padding) * (1f - timeOffset.coerceIn(0f, 1f))
-            val y = padding + (height - 2 * padding) * (1f - sample.rms)
+    val y = padding + (height - 2 * padding) * (1f - sample.rms)
 
             if (index == 0) {
                 rmsPath.moveTo(x, y)
@@ -250,7 +248,7 @@ private fun LevelHistoryChart(
         for ((index, sample) in samples.withIndex()) {
             val timeOffset = (now - sample.timestamp).toFloat() / timeRange
             val x = padding + (width - 2 * padding) * (1f - timeOffset.coerceIn(0f, 1f))
-            val y = padding + (height - 2 * padding) * (1f - sample.peak)
+    val y = padding + (height - 2 * padding) * (1f - sample.peak)
 
             if (index == 0) {
                 peakPath.moveTo(x, y)

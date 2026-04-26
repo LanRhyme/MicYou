@@ -18,9 +18,8 @@ actual fun loadImageBitmap(path: String): ImageBitmap? {
             Logger.w("BackgroundImage", "Image file not found: $path")
             return null
         }
-        
-        val bytes = file.readBytes()
-        val image = Image.makeFromEncoded(bytes)
+    val bytes = file.readBytes()
+    val image = Image.makeFromEncoded(bytes)
         image.toComposeImageBitmap()
     } catch (e: Exception) {
         Logger.e("BackgroundImage", "Failed to load image: $path", e)

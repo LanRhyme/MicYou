@@ -27,7 +27,7 @@ class AndroidLogger(private val context: Context) : LoggerImpl {
         // File
         try {
             val timestamp = dateFormat.format(Date())
-            val logEntry = "$timestamp [$level][$tag] $message${throwable?.let { "\n${Log.getStackTraceString(it)}" } ?: ""}\n"
+    val logEntry = "$timestamp [$level][$tag] $message${throwable?.let { "\n${Log.getStackTraceString(it)}" } ?: ""}\n"
             FileOutputStream(logFile, true).use {
                 it.write(logEntry.toByteArray())
             }

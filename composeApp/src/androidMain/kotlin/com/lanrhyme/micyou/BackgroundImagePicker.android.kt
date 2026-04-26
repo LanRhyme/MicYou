@@ -15,7 +15,7 @@ actual object BackgroundImagePicker {
         scope.launch {
             try {
                 val file = FileKit.openFilePicker(type = FileKitType.Image)
-                val savedPath = file?.let { copyToInternalStorage(it) }
+    val savedPath = file?.let { copyToInternalStorage(it) }
                 onResult(savedPath)
             } catch (e: Exception) {
                 Logger.e("BackgroundImagePicker", "Failed to pick image", e)
@@ -28,13 +28,11 @@ actual object BackgroundImagePicker {
         return try {
             val context = AndroidContext.getContext() ?: return null
             val bytes = file.readBytes()
-
-            val backgroundDir = File(context.filesDir, "backgrounds")
+    val backgroundDir = File(context.filesDir, "backgrounds")
             if (!backgroundDir.exists()) {
                 backgroundDir.mkdirs()
             }
-
-            val extension = file.extension
+    val extension = file.extension
             val fileName = "custom_background.$extension"
             val outputFile = File(backgroundDir, fileName)
             outputFile.writeBytes(bytes)

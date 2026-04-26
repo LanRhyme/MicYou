@@ -36,8 +36,7 @@ class AudioOutputManager {
             true,
             false
         )
-        
-        val lineInfo = DataLine.Info(SourceDataLine::class.java, audioFormat)
+    val lineInfo = DataLine.Info(SourceDataLine::class.java, audioFormat)
         
         if (PlatformInfo.isLinux) {
             val success = initLinux(audioFormat, lineInfo)
@@ -67,11 +66,9 @@ class AudioOutputManager {
                 return false
             }
         }
-        
-        val sinkName = PipeWireManager.virtualSinkName
+    val sinkName = PipeWireManager.virtualSinkName
         Logger.i("AudioOutputManager", "Attempt to connect to the virtual sink: \$sinkName")
-        
-        val mixers = AudioSystem.getMixerInfo()
+    val mixers = AudioSystem.getMixerInfo()
         for (mixerInfo in mixers) {
             val mixerName = mixerInfo.name.lowercase()
             if (mixerName.contains("micyou") || mixerName.contains("virtual")) {
@@ -110,8 +107,7 @@ class AudioOutputManager {
             // 短暂等待以检测"立即退出"的失败场景
             // 若进程在短窗口后仍存活，视为启动成功并立即继续
             Thread.sleep(100)
-
-            val isProcessAlive = process.isAlive
+    val isProcessAlive = process.isAlive
 
             // 判断成功条件：
             // 1. 进程仍在运行 → 视为成功启动
@@ -135,7 +131,7 @@ class AudioOutputManager {
                 return true
             } else {
                 val exitInfo = try { "exit(${process.exitValue()})" } catch (e: Exception) { "exit(?)" }
-                val output = process.errorStream.bufferedReader().readText()
+    val output = process.errorStream.bufferedReader().readText()
                 Logger.e("AudioOutputManager", "pw-cat failed to start ($exitInfo): $output")
             }
         } catch (e: Exception) {
@@ -152,8 +148,7 @@ class AudioOutputManager {
             Logger.w("AudioOutputManager", "BlackHole not installed, reverting to default device")
             return false
         }
-        
-        val blackHoleMixer = findBlackHoleMixer(lineInfo)
+    val blackHoleMixer = findBlackHoleMixer(lineInfo)
         if (blackHoleMixer != null) {
             try {
                 outputLine = blackHoleMixer.getLine(lineInfo) as SourceDataLine
@@ -171,7 +166,7 @@ class AudioOutputManager {
     
     private fun findBlackHoleMixer(lineInfo: DataLine.Info): Mixer? {
         val blackHolePattern = Regex("BlackHole\\s*\\d*ch", RegexOption.IGNORE_CASE)
-        val mixers = AudioSystem.getMixerInfo()
+    val mixers = AudioSystem.getMixerInfo()
         
         for (mixerInfo in mixers) {
             if (blackHolePattern.matches(mixerInfo.name)) {
@@ -288,9 +283,9 @@ class AudioOutputManager {
         if (pwCatProcess != null) {
             return 0L
         }
-        val line = outputLine ?: return 0L
+    val line = outputLine ?: return 0L
         val bytesPerSecond = (line.format.sampleRate.toInt() * line.format.channels * 2).coerceAtLeast(1)
-        val queuedBytes = (line.bufferSize - line.available()).coerceAtLeast(0)
+    val queuedBytes = (line.bufferSize - line.available()).coerceAtLeast(0)
         return queuedBytes * 1000L / bytesPerSecond.toLong()
     }
     
@@ -334,8 +329,7 @@ class AudioOutputManager {
             // 短暂等待以检测"立即退出"的失败场景
             // 若进程在短窗口后仍存活，视为启动成功并立即继续
             Thread.sleep(100)
-
-            val isProcessAlive = process.isAlive
+    val isProcessAlive = process.isAlive
 
             // 判断成功条件：
             // 1. 进程仍在运行 → 视为成功启动
@@ -371,7 +365,7 @@ class AudioOutputManager {
         val audioFormat = AudioFormat(
             currentSampleRate.toFloat(), 16, currentChannelCount, true, false
         )
-        val lineInfo = DataLine.Info(SourceDataLine::class.java, audioFormat)
+    val lineInfo = DataLine.Info(SourceDataLine::class.java, audioFormat)
         
         try {
             val line = AudioSystem.getLine(lineInfo) as SourceDataLine

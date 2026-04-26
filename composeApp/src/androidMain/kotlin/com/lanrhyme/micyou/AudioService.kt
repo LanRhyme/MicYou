@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.IBinder
 import android.app.PendingIntent
 import androidx.core.app.NotificationCompat
+import org.jetbrains.compose.resources.getString
 
 class AudioService : Service() {
 
@@ -60,13 +61,13 @@ class AudioService : Service() {
 
     private fun createNotification(): Notification {
         val disconnectIntent = Intent(this, AudioService::class.java).apply { action = ACTION_DISCONNECT }
-        val disconnectPendingIntent = PendingIntent.getService(
+    val disconnectPendingIntent = PendingIntent.getService(
             this,
             0,
             disconnectIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val (title, text) = resolveNotificationText()
+    val (title, text) = resolveNotificationText()
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
@@ -93,7 +94,7 @@ class AudioService : Service() {
 
     private fun readSelectedLanguage(): AppLanguage {
         val prefs = getSharedPreferences("android_mic_prefs", Context.MODE_PRIVATE)
-        val saved = prefs.getString("language", AppLanguage.System.name)
+    val saved = prefs.getString("language", AppLanguage.System.name)
         return try {
             AppLanguage.valueOf(saved ?: AppLanguage.System.name)
         } catch (_: Exception) {
@@ -108,7 +109,7 @@ class AudioService : Service() {
                 "Audio Streaming Service",
                 NotificationManager.IMPORTANCE_LOW
             )
-            val manager = getSystemService(NotificationManager::class.java)
+    val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(serviceChannel)
         }
     }

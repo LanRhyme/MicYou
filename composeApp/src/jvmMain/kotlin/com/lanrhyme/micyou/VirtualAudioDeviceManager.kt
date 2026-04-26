@@ -8,8 +8,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.getString
 
 object VirtualAudioDeviceManager {
     private val _installProgress = MutableStateFlow<String?>(null)
@@ -40,8 +42,7 @@ object VirtualAudioDeviceManager {
                 handleMacOSInstallation()
             }
             PlatformInfo.OS.OTHER -> {
-                val strings = getStrings(getCurrentLanguage())
-                _installProgress.value = strings.installOsNotSupported
+                _installProgress.value = getString(Res.string.installOsNotSupported)
                 delay(3000)
                 _installProgress.value = null
             }
@@ -50,54 +51,49 @@ object VirtualAudioDeviceManager {
     }
     
     private suspend fun installLinuxVirtualDevice() {
-        val strings = getStrings(getCurrentLanguage())
-        
-        _installProgress.value = strings.installCheckingLinux
+        _installProgress.value = getString(Res.string.installCheckingLinux)
         
         try {
             if (PipeWireManager.isInstalled()) {
-                _installProgress.value = strings.installLinuxExists
+                _installProgress.value = getString(Res.string.installLinuxExists)
                 delay(1000)
-                _installProgress.value = strings.installConfigComplete
+                _installProgress.value = getString(Res.string.installConfigComplete)
                 delay(1000)
                 _installProgress.value = null
                 return
             }
             
-            _installProgress.value = strings.installCreatingDevice
-            
-            val success = PipeWireManager.setup()
+            _installProgress.value = getString(Res.string.installCreatingDevice)
+    val success = PipeWireManager.setup()
             
             if (success) {
-                _installProgress.value = strings.installDeviceCreated
+                _installProgress.value = getString(Res.string.installDeviceCreated)
                 delay(1000)
-                _installProgress.value = strings.installConfigComplete
+                _installProgress.value = getString(Res.string.installConfigComplete)
                 delay(1000)
                 _installProgress.value = null
             } else {
-                _installProgress.value = strings.installDeviceFailed
+                _installProgress.value = getString(Res.string.installDeviceFailed)
                 delay(3000)
                 _installProgress.value = null
             }
         } catch (e: Exception) {
             Logger.e("VirtualAudioDeviceManager", "Installation error: ${e.message}", e)
-            _installProgress.value = strings.installError.replace("%s", e.message ?: "Unknown error")
+            _installProgress.value = getString(Res.string.installError, e.message ?: "Unknown error")
             delay(2000)
             _installProgress.value = null
         }
     }
     
     private suspend fun handleMacOSInstallation() {
-        val strings = getStrings(getCurrentLanguage())
-        
         if (BlackHoleManager.isInstalled()) {
-            _installProgress.value = strings.blackHoleInstalled
+            _installProgress.value = getString(Res.string.blackHoleInstalled)
             delay(2000)
             _installProgress.value = null
         } else {
-            _installProgress.value = strings.blackHoleNotInstalled
+            _installProgress.value = getString(Res.string.blackHoleNotInstalled)
             delay(3000)
-            _installProgress.value = strings.blackHoleInstallHint
+            _installProgress.value = getString(Res.string.blackHoleInstallHint)
             delay(3000)
             _installProgress.value = null
         }
@@ -131,36 +127,23 @@ object VirtualAudioDeviceManager {
         }
 
         BlackHoleManager.saveCurrentInputDevice()
-
-        val json = BlackHoleManager.getInputDevicesJson()
+    val json = BlackHoleManager.getInputDevicesJson()
         if (json == null) {
             Logger.e("VirtualAudioDeviceManager", "macOS: Failed to load input device list")
             return
         }
-
-        val blackHoleDevice = BlackHoleManager.findBlackHoleInJson(json)
+    val blackHoleDevice = BlackHoleManager.findBlackHoleInJson(json)
         if (blackHoleDevice == null) {
             Logger.e("VirtualAudioDeviceManager", "macOS: Cannot find BlackHole virtual input device")
             return
         }
         
         Logger.i("VirtualAudioDeviceManager", "macOS: Found BlackHole virtual device: ${blackHoleDevice.name} (ID: ${blackHoleDevice.id})")
-
-        val success = BlackHoleManager.setDefaultInputDevice(blackHoleDevice.id)
+    val success = BlackHoleManager.setDefaultInputDevice(blackHoleDevice.id)
         if (success) {
             Logger.i("VirtualAudioDeviceManager", "macOS: Successfully set default microphone to BlackHole")
         } else {
             Logger.e("VirtualAudioDeviceManager", "macOS: Failed to set default microphone")
-        }
-    }
-    
-    private fun getCurrentLanguage(): AppLanguage {
-        val settings = SettingsFactory.getSettings()
-        val savedLanguageName = settings.getString("language", AppLanguage.System.name)
-        return try { 
-            AppLanguage.valueOf(savedLanguageName) 
-        } catch(e: Exception) { 
-            AppLanguage.System 
         }
     }
 }

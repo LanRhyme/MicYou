@@ -101,6 +101,8 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import micyou.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +111,6 @@ fun MobileHome(viewModel: MainViewModel) {
     val audioLevel by viewModel.audioLevels.collectAsState(initial = 0f)
     val platform = remember { getPlatform() }
     val isClient = platform.type == PlatformType.Android
-    val strings = LocalAppStrings.current
     val snackbarHostState = remember { SnackbarHostState() }
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
@@ -121,7 +122,6 @@ fun MobileHome(viewModel: MainViewModel) {
     BackHandlerCompat(enabled = showSettings) {
         showSettings = false
     }
-    
     val hazeState = if (state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground) {
         rememberHazeState()
     } else null
@@ -142,8 +142,7 @@ fun MobileHome(viewModel: MainViewModel) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-    ) { padding ->
+        containerColor = MaterialTheme.colorScheme.surfaceContainer) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             CustomBackground(
                 settings = state.backgroundSettings,
@@ -168,8 +167,7 @@ fun MobileHome(viewModel: MainViewModel) {
                         platform = platform,
                         state = state,
                         onOpenSettings = { showSettings = true },
-                        strings = strings,
-                        cardOpacity = state.backgroundSettings.cardOpacity,
+                                                cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState
                     )
                 }
@@ -183,8 +181,7 @@ fun MobileHome(viewModel: MainViewModel) {
                         state = state,
                         viewModel = viewModel,
                         isClient = isClient,
-                        strings = strings,
-                        cardOpacity = state.backgroundSettings.cardOpacity,
+                                                cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState
                     )
                 }
@@ -199,8 +196,7 @@ fun MobileHome(viewModel: MainViewModel) {
                         state = state,
                         viewModel = viewModel,
                         audioLevel = audioLevel,
-                        strings = strings,
-                        cardOpacity = state.backgroundSettings.cardOpacity,
+                                                cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState
                     )
                 }
@@ -213,8 +209,7 @@ fun MobileHome(viewModel: MainViewModel) {
                     MobileBottomBar(
                         state = state,
                         viewModel = viewModel,
-                        strings = strings,
-                        cardOpacity = state.backgroundSettings.cardOpacity,
+                                                cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState
                     )
                 }
@@ -276,7 +271,6 @@ private fun MobileHeaderSection(
     platform: Platform,
     state: AppUiState,
     onOpenSettings: () -> Unit,
-    strings: AppStrings,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null
 ) {
@@ -318,7 +312,7 @@ private fun MobileHeaderSection(
                     val color1 = MaterialTheme.colorScheme.primary
                     val color2 = MaterialTheme.colorScheme.tertiary
                     val infiniteTransition = rememberInfiniteTransition(label = "MobileTitleColor")
-                    val animatedColor by infiniteTransition.animateColor(
+    val animatedColor by infiniteTransition.animateColor(
                         initialValue = color1,
                         targetValue = color2,
                         animationSpec = infiniteRepeatable(
@@ -329,22 +323,21 @@ private fun MobileHeaderSection(
                     )
                     
                     Text(
-                        strings.appName,
+                        stringResource(Res.string.appName),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = animatedColor
                     )
                     Text(
-                        "${strings.ipLabel}${platform.ipAddress}",
+                        "${stringResource(Res.string.ipLabel)}${platform.ipAddress}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-            
-            val settingsInteractionSource = remember { MutableInteractionSource() }
-            val isSettingsPressed by settingsInteractionSource.collectIsPressedAsState()
-            val settingsScale by animateFloatAsState(
+    val settingsInteractionSource = remember { MutableInteractionSource() }
+    val isSettingsPressed by settingsInteractionSource.collectIsPressedAsState()
+    val settingsScale by animateFloatAsState(
                 targetValue = if (isSettingsPressed) 0.85f else 1f,
                 animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
             )
@@ -356,7 +349,7 @@ private fun MobileHeaderSection(
             ) {
                 Icon(
                     Icons.Rounded.Settings,
-                    contentDescription = strings.settingsTitle,
+                    contentDescription = stringResource(Res.string.settingsTitle),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -373,7 +366,6 @@ private fun ConnectionConfigCard(
     state: AppUiState,
     viewModel: MainViewModel,
     isClient: Boolean,
-    strings: AppStrings,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null
 ) {
@@ -391,7 +383,7 @@ private fun ConnectionConfigCard(
         ) {
             // Mode label
             Text(
-                strings.connectionModeLabel,
+                stringResource(Res.string.connectionModeLabel),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -399,8 +391,8 @@ private fun ConnectionConfigCard(
             // Mode selector - icon style like Desktop
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 val modes = listOf(
-                    ConnectionMode.Wifi to (strings.modeWifi to Icons.Rounded.Wifi),
-                    ConnectionMode.Usb to (strings.modeUsb to Icons.Rounded.Usb)
+                    ConnectionMode.Wifi to (stringResource(Res.string.modeWifi) to Icons.Rounded.Wifi),
+                    ConnectionMode.Usb to (stringResource(Res.string.modeUsb) to Icons.Rounded.Usb)
                 )
 
                 modes.forEach { (mode, info) ->
@@ -412,7 +404,7 @@ private fun ConnectionConfigCard(
                         else MaterialTheme.colorScheme.surfaceContainerHighest,
                         animationSpec = tween(200)
                     )
-                    val contentColor by animateColorAsState(
+    val contentColor by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                         animationSpec = tween(200)
@@ -456,7 +448,7 @@ private fun ConnectionConfigCard(
                         ShardTextField(
                             value = state.ipAddress,
                             onValueChange = { viewModel.setIp(it) },
-                            label = strings.targetIpLabel,
+                            label = stringResource(Res.string.targetIpLabel),
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             textStyle = MaterialTheme.typography.bodySmall
@@ -465,7 +457,7 @@ private fun ConnectionConfigCard(
                     ShardTextField(
                         value = state.port,
                         onValueChange = { viewModel.setPort(it) },
-                        label = strings.portLabel,
+                        label = stringResource(Res.string.portLabel),
                         modifier = if (isClient && state.mode != ConnectionMode.Usb)
                             Modifier.width(100.dp) else Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -484,7 +476,6 @@ private fun MainControlCard(
     state: AppUiState,
     viewModel: MainViewModel,
     audioLevel: Float,
-    strings: AppStrings,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null
 ) {
@@ -541,10 +532,10 @@ private fun MainControlCard(
                 
                 // Status text
                 val statusText = when (state.streamState) {
-                    StreamState.Idle -> strings.clickToStart
-                    StreamState.Connecting -> strings.statusConnecting
-                    StreamState.Streaming -> strings.statusStreaming
-                    StreamState.Error -> state.errorMessage ?: strings.statusError
+                    StreamState.Idle -> stringResource(Res.string.clickToStart)
+                    StreamState.Connecting -> stringResource(Res.string.statusConnecting)
+                    StreamState.Streaming -> stringResource(Res.string.statusStreaming)
+                    StreamState.Error -> state.errorMessage ?: stringResource(Res.string.statusError)
                 }
                 
                 Row(
@@ -621,9 +612,7 @@ private fun MainControlCard(
             MobileMainButton(
                 isRunning = isRunning,
                 isConnecting = isConnecting,
-                viewModel = viewModel,
-                strings = strings
-            )
+                viewModel = viewModel)
         }
     }
 }
@@ -634,7 +623,6 @@ private fun MainControlCard(
 private fun MobileBottomBar(
     state: AppUiState,
     viewModel: MainViewModel,
-    strings: AppStrings,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null
 ) {
@@ -657,24 +645,20 @@ private fun MobileBottomBar(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MobileMuteButton(
                     isMuted = state.isMuted,
-                    onToggle = { viewModel.toggleMute() },
-                    strings = strings
-                )
-                
-                val enabledPlugins = state.plugins.filter { it.isEnabled }
-                val pluginInteractionSource = remember { MutableInteractionSource() }
-                val isPluginPressed by pluginInteractionSource.collectIsPressedAsState()
-                val pluginScale by animateFloatAsState(
+                    onToggle = { viewModel.toggleMute() })
+    val enabledPlugins = state.plugins.filter { it.isEnabled }
+    val pluginInteractionSource = remember { MutableInteractionSource() }
+    val isPluginPressed by pluginInteractionSource.collectIsPressedAsState()
+    val pluginScale by animateFloatAsState(
                     targetValue = if (isPluginPressed) 0.9f else 1f,
                     animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
                 )
-                
-                val pluginBgColor by animateColorAsState(
+    val pluginBgColor by animateColorAsState(
                     targetValue = if (enabledPlugins.isNotEmpty()) MaterialTheme.colorScheme.primaryContainer
                     else MaterialTheme.colorScheme.surfaceContainerHighest,
                     animationSpec = tween(200)
                 )
-                val pluginContentColor by animateColorAsState(
+    val pluginContentColor by animateColorAsState(
                     targetValue = if (enabledPlugins.isNotEmpty()) MaterialTheme.colorScheme.onPrimaryContainer
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     animationSpec = tween(200)
@@ -692,7 +676,7 @@ private fun MobileBottomBar(
                     ) {
                         Icon(
                             Icons.Rounded.Extension,
-                            contentDescription = strings.pluginsSection,
+                            contentDescription = stringResource(Res.string.pluginsSection),
                             tint = pluginContentColor,
                             modifier = Modifier.size(18.dp)
                         )
@@ -706,8 +690,7 @@ private fun MobileBottomBar(
                     }
                 }
             }
-            
-            val dotColor by animateColorAsState(
+    val dotColor by animateColorAsState(
                 targetValue = when (state.streamState) {
                     StreamState.Idle -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                     StreamState.Connecting -> MaterialTheme.colorScheme.tertiary
@@ -716,7 +699,7 @@ private fun MobileBottomBar(
                 },
                 animationSpec = tween(300)
             )
-            val dotPulse = if (state.streamState == StreamState.Streaming)
+    val dotPulse = if (state.streamState == StreamState.Streaming)
                 rememberPulseAnimation(0.8f, 1.2f, 1200) else 1f
             
             Surface(
@@ -758,8 +741,7 @@ private fun MobileBottomBar(
 @Composable
 private fun MobileMuteButton(
     isMuted: Boolean,
-    onToggle: () -> Unit,
-    strings: AppStrings
+    onToggle: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -767,7 +749,6 @@ private fun MobileMuteButton(
         targetValue = if (isPressed) 0.9f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
     )
-    
     val bgColor by animateColorAsState(
         targetValue = if (isMuted) MaterialTheme.colorScheme.errorContainer
         else MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -796,7 +777,7 @@ private fun MobileMuteButton(
                 modifier = Modifier.size(18.dp)
             )
             Text(
-                if (isMuted) strings.unmuteLabel else strings.muteLabel,
+                if (isMuted) stringResource(Res.string.unmuteLabel) else stringResource(Res.string.muteLabel),
                 style = MaterialTheme.typography.labelMedium,
                 color = contentColor
             )
@@ -842,8 +823,7 @@ private fun MobileAudioVisualizer(
 private fun MobileMainButton(
     isRunning: Boolean,
     isConnecting: Boolean,
-    viewModel: MainViewModel,
-    strings: AppStrings
+    viewModel: MainViewModel
 ) {
     val buttonSize by animateDpAsState(
         targetValue = if (isRunning) 100.dp else 80.dp,
@@ -852,7 +832,6 @@ private fun MobileMainButton(
             stiffness = Spring.StiffnessLow
         )
     )
-    
     val buttonColor by animateColorAsState(
         targetValue = when {
             isRunning -> MaterialTheme.colorScheme.error
@@ -861,7 +840,6 @@ private fun MobileMainButton(
         },
         animationSpec = tween(400, easing = EasingFunctions.EaseInOutCubic)
     )
-    
     val infiniteTransition = rememberInfiniteTransition(label = "MobileButton")
     val angle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -880,7 +858,6 @@ private fun MobileMainButton(
         ),
         label = "BtnGlow"
     )
-    
     val pulseScale = if (isRunning) rememberPulseAnimation(0.96f, 1.04f, 900) else 1f
     
     val interactionSource = remember { MutableInteractionSource() }
@@ -949,7 +926,7 @@ private fun MobileMainButton(
             if (isConnecting) {
                 Icon(
                     Icons.Filled.Refresh,
-                    strings.statusConnecting,
+                    stringResource(Res.string.statusConnecting),
                     modifier = Modifier
                         .size(36.dp)
                         .graphicsLayer { rotationZ = angle }
@@ -957,7 +934,7 @@ private fun MobileMainButton(
             } else {
                 Icon(
                     if (isRunning) Icons.Filled.LinkOff else Icons.Filled.Link,
-                    contentDescription = if (isRunning) strings.stop else strings.start,
+                    contentDescription = if (isRunning) stringResource(Res.string.stop) else stringResource(Res.string.start),
                     modifier = Modifier.size(36.dp)
                 )
             }

@@ -48,7 +48,7 @@ object UlunasModelLoader {
         if (!userDir.exists()) {
             userDir.mkdirs()
         }
-        val modelFile = java.io.File(userDir, "ulunas.onnx")
+    val modelFile = java.io.File(userDir, "ulunas.onnx")
 
         // 如果已存在且有效，直接返回
         if (modelFile.exists() && modelFile.length() > 0) {
@@ -59,7 +59,7 @@ object UlunasModelLoader {
 
         // 从资源复制模型
         Logger.i("UlunasModelLoader", "Copying model from resources to: ${modelFile.absolutePath}")
-        val classLoader = this.javaClass.classLoader
+    val classLoader = this.javaClass.classLoader
         val resourceStream = classLoader.getResourceAsStream("ulunas.onnx")
             ?: throw IOException("Unable to find Ulunas model file: ulunas.onnx")
 
@@ -102,7 +102,6 @@ class NoiseReducer(
     private var ulunasProcessorRight: UlunasProcessor? = null
     private var ulunasFrameLeft: FloatArray = FloatArray(0)
     private var ulunasFrameRight: FloatArray = FloatArray(0)
-
     var speechProbability: Float? = null
         private set
 
@@ -120,15 +119,13 @@ class NoiseReducer(
     private fun processRNNoise(input: ShortArray, channelCount: Int) {
         if (denoiserLeft == null) denoiserLeft = Denoiser()
         if (channelCount >= 2 && denoiserRight == null) denoiserRight = Denoiser()
-
-        val framesPerChannel = input.size / channelCount
+    val framesPerChannel = input.size / channelCount
         val frameCount = framesPerChannel / frameSize
 
         if (frameCount > 0 && (channelCount == 1 || channelCount == 2)) {
             if (rnnoiseFrameLeft.size != frameSize) rnnoiseFrameLeft = ShortArray(frameSize)
             if (channelCount == 2 && rnnoiseFrameRight.size != frameSize) rnnoiseFrameRight = ShortArray(frameSize)
-            
-            val left = rnnoiseFrameLeft
+    val left = rnnoiseFrameLeft
             val right = if (channelCount == 2) rnnoiseFrameRight else null
             
             val denoiserL = denoiserLeft ?: return
@@ -143,7 +140,7 @@ class NoiseReducer(
                     for (i in 0 until frameSize) {
                         left[i] = input[base + i]
                     }
-                    val p = denoiserL.denoiseInPlace(left)
+    val p = denoiserL.denoiseInPlace(left)
                     for (i in 0 until frameSize) {
                         input[base + i] = left[i]
                     }
@@ -157,8 +154,8 @@ class NoiseReducer(
                         left[i] = input[idx]
                         rightArr[i] = input[idx + 1]
                     }
-                    val pL = denoiserL.denoiseInPlace(left)
-                    val pR = denoiserRightInst.denoiseInPlace(rightArr)
+    val pL = denoiserL.denoiseInPlace(left)
+    val pR = denoiserRightInst.denoiseInPlace(rightArr)
                     for (i in 0 until frameSize) {
                         val idx = base + i * 2
                         input[idx] = left[i]
@@ -179,8 +176,7 @@ class NoiseReducer(
         try {
             // 使用单例模型加载器获取路径，避免重复检查
             val modelPath = UlunasModelLoader.getModelPath()
-
-            val hopLength = frameSize
+    val hopLength = frameSize
 
             if (ulunasProcessorLeft == null) {
                 Logger.i("NoiseReducer", "Initializing Ulunas processor with cached model")
@@ -189,15 +185,13 @@ class NoiseReducer(
             if (channelCount >= 2 && ulunasProcessorRight == null) {
                 ulunasProcessorRight = UlunasProcessor(modelPath, 960, hopLength)
             }
-
-            val framesPerChannel = input.size / channelCount
+    val framesPerChannel = input.size / channelCount
             val frameCount = framesPerChannel / hopLength
 
             if (frameCount > 0 && (channelCount == 1 || channelCount == 2)) {
                 if (ulunasFrameLeft.size != hopLength) ulunasFrameLeft = FloatArray(hopLength)
                 if (channelCount == 2 && ulunasFrameRight.size != hopLength) ulunasFrameRight = FloatArray(hopLength)
-                
-                val left = ulunasFrameLeft
+    val left = ulunasFrameLeft
                 val right = if (channelCount == 2) ulunasFrameRight else null
                 
                 val processorL = ulunasProcessorLeft ?: return
@@ -209,7 +203,7 @@ class NoiseReducer(
                         for (i in 0 until hopLength) {
                             left[i] = input[base + i] / 32768.0f
                         }
-                        val processedLeft = processorL.process(left)
+    val processedLeft = processorL.process(left)
                         for (i in 0 until hopLength) {
                             // 使用 32768.0f 保持对称范围，避免量化误差
                             input[base + i] = (processedLeft[i] * 32768.0f).toInt().coerceIn(-32768, 32767).toShort()
@@ -222,8 +216,8 @@ class NoiseReducer(
                             left[i] = input[idx] / 32768.0f
                             rightArr[i] = input[idx + 1] / 32768.0f
                         }
-                        val processedLeft = processorL.process(left)
-                        val processedRight = processorRightInst.process(rightArr)
+    val processedLeft = processorL.process(left)
+    val processedRight = processorRightInst.process(rightArr)
                         for (i in 0 until hopLength) {
                             val idx = base + i * 2
                             // 使用 32768.0f 保持对称范围，避免量化误差

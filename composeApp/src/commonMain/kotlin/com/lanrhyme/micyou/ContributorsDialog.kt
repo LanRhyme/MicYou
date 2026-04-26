@@ -55,13 +55,20 @@ import org.jetbrains.compose.resources.decodeToImageBitmap
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Serializable
 data class GitHubContributor(
-    @SerialName("login") val login: String,
-    @SerialName("avatar_url") val avatarUrl: String,
-    @SerialName("html_url") val htmlUrl: String,
-    @SerialName("contributions") val contributions: Int
+    @SerialName("login")
+    val login: String,
+    @SerialName("avatar_url")
+    val avatarUrl: String,
+    @SerialName("html_url")
+    val htmlUrl: String,
+    @SerialName("contributions")
+    val contributions: Int
 )
 
 /**
@@ -80,9 +87,7 @@ private data class ContributorBubble(
 }
 
 @Composable
-fun ContributorsDialog(onDismiss: () -> Unit) {
-    val strings = LocalAppStrings.current
-    var bubbles by remember { mutableStateOf<List<ContributorBubble>>(emptyList()) }
+fun ContributorsDialog(onDismiss: () -> Unit) {    var bubbles by remember { mutableStateOf<List<ContributorBubble>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     val uriHandler = LocalUriHandler.current
@@ -94,7 +99,7 @@ fun ContributorsDialog(onDismiss: () -> Unit) {
                     json(Json { ignoreUnknownKeys = true; coerceInputValues = true })
                 }
             }
-            val response = client.get("https://api.github.com/repos/LanRhyme/MicYou/contributors") {
+    val response = client.get("https://api.github.com/repos/LanRhyme/MicYou/contributors") {
                 header(HttpHeaders.UserAgent, "MicYouApp")
                 header(HttpHeaders.Accept, "application/vnd.github+json")
             }
@@ -109,8 +114,7 @@ fun ContributorsDialog(onDismiss: () -> Unit) {
                         floatAmpX = 4f + Random.nextFloat() * 8f,
                         floatAmpY = 4f + Random.nextFloat() * 8f,
                         floatSpeedX = 0.6f + Random.nextFloat() * 0.8f,
-                        floatSpeedY = 0.7f + Random.nextFloat() * 0.9f,
-                    )
+                        floatSpeedY = 0.7f + Random.nextFloat() * 0.9f)
                 }
                 isLoading = false
 
@@ -119,7 +123,7 @@ fun ContributorsDialog(onDismiss: () -> Unit) {
                     launch(Dispatchers.IO) {
                         try {
                             val imgResponse = client.get(bubble.contributor.avatarUrl)
-                            val bytes = imgResponse.readBytes()
+    val bytes = imgResponse.readBytes()
                             bubble.bitmap = bytes.decodeToImageBitmap()
                         } catch (e: Exception) {
                             Logger.e("Contributors", "Failed to load avatar for ${bubble.contributor.login}", e)
@@ -166,7 +170,7 @@ fun ContributorsDialog(onDismiss: () -> Unit) {
                             strokeWidth = 3.dp
                         )
                         Text(
-                            strings.contributorsLoading,
+                            stringResource(Res.string.contributorsLoading),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -221,14 +225,14 @@ fun ContributorsDialog(onDismiss: () -> Unit) {
             ) {
                 Column {
                     Text(
-                        strings.contributorsLabel,
+                        stringResource(Res.string.contributorsLabel),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     if (bubbles.isNotEmpty()) {
                         Text(
-                            strings.contributorsPeopleCount.replace("%d", bubbles.size.toString()),
+                            stringResource(Res.string.contributorsCount, bubbles.size.toString()),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -244,7 +248,7 @@ fun ContributorsDialog(onDismiss: () -> Unit) {
                 ) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = strings.close,
+                        contentDescription = stringResource(Res.string.close),
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(18.dp)
                     )
@@ -283,7 +287,6 @@ private fun FloatingBubbleGrid(
     LaunchedEffect(Unit) {
         fadeAnim.animateTo(1f, animationSpec = tween(600))
     }
-
     val primaryColor = MaterialTheme.colorScheme.primary
     val secondaryContainerColor = MaterialTheme.colorScheme.secondaryContainer
     val onSecondaryContainerColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -329,7 +332,7 @@ private fun BubbleFlowLayout(
     val rows = remember(bubbles) {
         // Create staggered rows: alternate between 3 and 4 items per row for visual interest
         val result = mutableListOf<List<ContributorBubble>>()
-        var index = 0
+    var index = 0
         var rowSize = 3
         while (index < bubbles.size) {
             val end = min(index + rowSize, bubbles.size)

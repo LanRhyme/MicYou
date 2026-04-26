@@ -62,9 +62,8 @@ object BluetoothDiagnostics {
                 suggestions = listOf("Bluetooth diagnostics is only available on Linux with BlueZ")
             )
         }
-
-        val issues = mutableListOf<BluetoothIssue>()
-        val suggestions = mutableListOf<String>()
+    val issues = mutableListOf<BluetoothIssue>()
+    val suggestions = mutableListOf<String>()
 
         // 检查 BlueZ 是否安装
         val blueZInstalled = checkBlueZInstalled()
@@ -82,7 +81,7 @@ object BluetoothDiagnostics {
 
         // 检查蓝牙适配器
         val adapterInfo = getAdapterInfo()
-        val adapterPresent = adapterInfo != null
+    val adapterPresent = adapterInfo != null
         if (!adapterPresent) {
             issues.add(BluetoothIssue.AdapterNotFound)
             suggestions.add("Check if Bluetooth hardware is connected")
@@ -107,8 +106,7 @@ object BluetoothDiagnostics {
             issues.add(BluetoothIssue.RfcommInUse)
             suggestions.add("Release RFCOMM: sudo rfcomm release 0")
         }
-
-        val isAvailable = blueZInstalled && serviceRunning && adapterPresent && poweredOn
+    val isAvailable = blueZInstalled && serviceRunning && adapterPresent && poweredOn
 
         return BluetoothDiagnosis(
             isAvailable = isAvailable,
@@ -152,8 +150,8 @@ object BluetoothDiagnostics {
             val process = Runtime.getRuntime().exec(
                 arrayOf("systemctl", "is-active", "bluetooth")
             )
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-            val status = reader.readLine()?.trim() ?: ""
+    val reader = BufferedReader(InputStreamReader(process.inputStream))
+    val status = reader.readLine()?.trim() ?: ""
             process.waitFor()
             status == "active"
         } catch (e: Exception) {
@@ -171,16 +169,15 @@ object BluetoothDiagnostics {
     private fun getAdapterInfo(): Pair<String, String>? {
         return try {
             val process = Runtime.getRuntime().exec(arrayOf("hciconfig"))
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-
-            var address: String? = null
+    val reader = BufferedReader(InputStreamReader(process.inputStream))
+    var address: String? = null
             var name: String? = null
             var line: String?
 
             while (reader.readLine().also { line = it } != null) {
                 if (line?.contains("hci") == true) {
                     name = line?.split(":")?.firstOrNull()?.trim()
-                    val nextLine = reader.readLine()
+    val nextLine = reader.readLine()
                     if (nextLine?.contains("BD Address:") == true) {
                         address = nextLine.split("BD Address:")
                             .getOrNull(1)?.trim()?.split(" ")?.firstOrNull()
@@ -199,9 +196,8 @@ object BluetoothDiagnostics {
     private fun checkPoweredOn(): Boolean {
         return try {
             val process = Runtime.getRuntime().exec(arrayOf("hciconfig", "hci0"))
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-
-            var line: String?
+    val reader = BufferedReader(InputStreamReader(process.inputStream))
+    var line: String?
             while (reader.readLine().also { line = it } != null) {
                 if (line?.contains("UP", ignoreCase = true) == true) {
                     process.waitFor()
@@ -219,9 +215,8 @@ object BluetoothDiagnostics {
     private fun checkDiscoverable(): Boolean {
         return try {
             val process = Runtime.getRuntime().exec(arrayOf("hciconfig", "hci0"))
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-
-            var line: String?
+    val reader = BufferedReader(InputStreamReader(process.inputStream))
+    var line: String?
             while (reader.readLine().also { line = it } != null) {
                 if (line?.contains("PSCAN", ignoreCase = true) == true) {
                     process.waitFor()
@@ -239,10 +234,9 @@ object BluetoothDiagnostics {
     private fun getPairedDevices(): List<PairedDevice> {
         return try {
             val devices = mutableListOf<PairedDevice>()
-            val process = Runtime.getRuntime().exec(arrayOf("bluetoothctl", "paired-devices"))
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-
-            var line: String?
+    val process = Runtime.getRuntime().exec(arrayOf("bluetoothctl", "paired-devices"))
+    val reader = BufferedReader(InputStreamReader(process.inputStream))
+    var line: String?
             while (reader.readLine().also { line = it } != null) {
                 if (line?.startsWith("Device") == true) {
                     val parts = line!!.split(" ")

@@ -45,21 +45,18 @@ object WindowsAccentColorExtractor {
             process.inputStream.bufferedReader().use { reader ->
                 val output = reader.readText()
                 process.waitFor()
-
-                val match = REG_DWORD_REGEX.find(output)
+    val match = REG_DWORD_REGEX.find(output)
                 if (match != null) {
                     val hexValue = match.groupValues[1]
                     val rawValue = hexValue.toLong(16)
-
-                    val argb = if (convertAbgrToArgb) {
+    val argb = if (convertAbgrToArgb) {
                         // ABGR 转 ARGB: 保留 G 和 A，交换 R 和 B
                         abgrToArgb(rawValue)
                     } else {
                         rawValue
                     }
-
-                    val color = argbToColor(argb)
-                    val formatNote = if (convertAbgrToArgb) "ABGR" else "ARGB"
+    val color = argbToColor(argb)
+    val formatNote = if (convertAbgrToArgb) "ABGR" else "ARGB"
                     Logger.d("AccentColorExtractor", "$valueName: 0x$hexValue ($formatNote) -> ${color}")
                     color
                 } else {
@@ -82,8 +79,8 @@ object WindowsAccentColorExtractor {
     // 从 ARGB 值创建 Color 对象
     private fun argbToColor(argb: Long): Color {
         val r = ((argb shr 16) and 0xFF).toInt()
-        val g = ((argb shr 8) and 0xFF).toInt()
-        val b = (argb and 0xFF).toInt()
+    val g = ((argb shr 8) and 0xFF).toInt()
+    val b = (argb and 0xFF).toInt()
         return Color(r, g, b, 255)
     }
 }

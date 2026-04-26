@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.getString
 
 enum class ConnectionMode(val label: String) {
     Wifi("Wi-Fi"),
@@ -190,15 +193,7 @@ class MainViewModel : ViewModel() {
                     }
                 }
             },
-            appStringProvider = { key ->
-                val strings = getStrings(_uiState.value.language)
-                try {
-                    val field = AppStrings::class.java.getDeclaredField(key)
-                    field.get(strings) as? String ?: key
-                } catch (e: Exception) {
-                    key
-                }
-            }
+            appStringProvider = { it }
         )
         
         // Observe and merge states from all ViewModels
@@ -222,12 +217,10 @@ class MainViewModel : ViewModel() {
         // Observe update check results for user feedback
         viewModelScope.launch {
             updateViewModel.checkResultFlow.collect { result ->
-                result?.let {
-                    val strings = getStrings(_uiState.value.language)
-                    val message = when (it) {
-                        is UpdateCheckResult.UpdateAvailable -> strings.updateAvailableMsg.format(it.info.versionName)
-                        is UpdateCheckResult.NoUpdate -> strings.isLatestVersion
-                        is UpdateCheckResult.Error -> strings.updateCheckFailed.format(it.message)
+                result?.let {                    val message = when (it) {
+                        is UpdateCheckResult.UpdateAvailable -> getString(Res.string.updateAvailableMsg, it.info.versionName)
+                        is UpdateCheckResult.NoUpdate -> getString(Res.string.isLatestVersion)
+                        is UpdateCheckResult.Error -> getString(Res.string.updateCheckFailed, it.message)
                     }
                     _uiState.update { state -> state.copy(snackbarMessage = message) }
                 }
@@ -439,9 +432,7 @@ class MainViewModel : ViewModel() {
     
     // Update methods
     fun checkUpdateManual() {
-        viewModelScope.launch {
-            val strings = getStrings(_uiState.value.language)
-            _uiState.update { it.copy(snackbarMessage = strings.checkingUpdate) }
+        viewModelScope.launch {            _uiState.update { it.copy(snackbarMessage = getString(Res.string.checkingUpdate)) }
             updateViewModel.checkUpdateManual()
         }
     }

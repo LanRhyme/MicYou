@@ -25,7 +25,7 @@ class JVMPlatform: Platform {
     private fun getLocalIpAddresses(): List<String> {
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-            val candidates = mutableListOf<java.net.InetAddress>()
+    val candidates = mutableListOf<java.net.InetAddress>()
 
             while (interfaces.hasMoreElements()) {
                 val iface = interfaces.nextElement()
@@ -39,8 +39,7 @@ class JVMPlatform: Platform {
                     }
                 }
             }
-
-            val sortedCandidates = candidates.sortedByDescending { addr ->
+    val sortedCandidates = candidates.sortedByDescending { addr ->
                 val ip = addr.hostAddress
                 when {
                     ip.startsWith("192.168.") -> 100
@@ -51,8 +50,7 @@ class JVMPlatform: Platform {
                     else -> 0
                 }
             }
-            
-            val result = sortedCandidates.map { it.hostAddress }
+    val result = sortedCandidates.map { it.hostAddress }
             if (result.isNotEmpty()) return result
             
             return listOf(java.net.InetAddress.getLocalHost().hostAddress)

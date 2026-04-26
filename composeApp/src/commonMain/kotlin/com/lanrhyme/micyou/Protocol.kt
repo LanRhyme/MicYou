@@ -7,10 +7,14 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class AudioPacketMessage(
-    @ProtoNumber(1) val buffer: ByteArray,
-    @ProtoNumber(2) val sampleRate: Int,
-    @ProtoNumber(3) val channelCount: Int,
-    @ProtoNumber(4) val audioFormat: Int
+    @ProtoNumber(1)
+    val buffer: ByteArray,
+    @ProtoNumber(2)
+    val sampleRate: Int,
+    @ProtoNumber(3)
+    val channelCount: Int,
+    @ProtoNumber(4)
+    val audioFormat: Int
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -38,13 +42,16 @@ data class AudioPacketMessage(
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class AudioPacketMessageOrdered(
-    @ProtoNumber(1) val sequenceNumber: Int,
-    @ProtoNumber(2) val audioPacket: AudioPacketMessage
+    @ProtoNumber(1)
+    val sequenceNumber: Int,
+    @ProtoNumber(2)
+    val audioPacket: AudioPacketMessage
 )
 
 @Serializable
 data class MuteMessage(
-    @ProtoNumber(1) val isMuted: Boolean
+    @ProtoNumber(1)
+    val isMuted: Boolean
 )
 
 @Serializable
@@ -53,16 +60,21 @@ class ConnectMessage
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class PluginInfoMessage(
-    @ProtoNumber(1) val id: String,
-    @ProtoNumber(2) val name: String,
-    @ProtoNumber(3) val version: String
+    @ProtoNumber(1)
+    val id: String,
+    @ProtoNumber(2)
+    val name: String,
+    @ProtoNumber(3)
+    val version: String
 )
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class PluginSyncMessage(
-    @ProtoNumber(1) val plugins: List<PluginInfoMessage> = emptyList(),
-    @ProtoNumber(2) val platform: String = ""
+    @ProtoNumber(1)
+    val plugins: List<PluginInfoMessage> = emptyList(),
+    @ProtoNumber(2)
+    val platform: String = ""
 )
 
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
@@ -93,9 +105,13 @@ fun MessageWrapper.hasControlMessage(): Boolean {
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class MessageWrapper(
-    @ProtoNumber(1) val audioPacket: AudioPacketMessageOrdered? = null,
-    @ProtoNumber(2) val connect: ConnectMessage? = null,
-    @ProtoNumber(3) val mute: MuteMessage? = null,
-    @ProtoNumber(4) val pluginSync: PluginSyncMessage? = null
+    @ProtoNumber(1)
+    val audioPacket: AudioPacketMessageOrdered? = null,
+    @ProtoNumber(2)
+    val connect: ConnectMessage? = null,
+    @ProtoNumber(3)
+    val mute: MuteMessage? = null,
+    @ProtoNumber(4)
+    val pluginSync: PluginSyncMessage? = null
 )
 

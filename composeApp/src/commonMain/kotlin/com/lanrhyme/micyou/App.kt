@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Alignment
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun App(
@@ -42,23 +45,24 @@ fun App(
 
     // Use passed viewModel or create one
     val finalViewModel = viewModel ?: if (isClient) viewModel { MainViewModel() } else remember { MainViewModel() }
-
     val uiState by finalViewModel.uiState.collectAsState()
-    val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
-    val strings = getStrings(uiState.language)
+    val languageCode = uiState.language.code
+    
+    // Apply language changes to platform locale
+    LaunchedEffect(languageCode) {
+        setAppLocale(languageCode)
+    }
 
-    val updateInfo = uiState.updateInfo
-    val pocketMode = uiState.pocketMode
-    val useSystemTitleBar = uiState.useSystemTitleBar
-    // Only show first launch dialog after permission dialog is dismissed
-    val showFirstLaunchDialog = uiState.showFirstLaunchDialog && isPermissionDialogDismissed
-    val showVBCableDialog = uiState.showVBCableDialog
-    val vbcableInstallProgress = uiState.vbcableInstallProgress
+    key(languageCode) {
+        val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
+        val updateInfo = uiState.updateInfo
+        val pocketMode = uiState.pocketMode
+        val useSystemTitleBar = uiState.useSystemTitleBar
+        // Only show first launch dialog after permission dialog is dismissed
+        val showFirstLaunchDialog = uiState.showFirstLaunchDialog && isPermissionDialogDismissed
+        val showVBCableDialog = uiState.showVBCableDialog
+        val vbcableInstallProgress = uiState.vbcableInstallProgress
 
-    CompositionLocalProvider(
-        LocalAppStrings provides strings,
-        LocalPermissionStrings provides strings.permissions
-    ) {
         AppTheme(
             themeMode = uiState.themeMode,
             seedColor = seedColorObj,
@@ -117,15 +121,15 @@ fun App(
                             finalViewModel.dismissUpdateDialog()
                         }
                     },
-                    title = { Text(strings.updateTitle) },
+                    title = { Text(stringResource(Res.string.updateTitle)) },
                     text = {
                         Column {
                             if (isFailed) {
-                                Text(strings.updateDownloadFailed.replace("%s", updateError ?: ""))
+                                Text(stringResource(Res.string.updateDownloadFailed, updateError ?: ""))
                             } else if (isInstalling) {
-                                Text(strings.updateInstalling)
+                                Text(stringResource(Res.string.updateInstalling))
                             } else if (isDownloading) {
-                                Text(strings.updateDownloading)
+                                Text(stringResource(Res.string.updateDownloading))
                                 Spacer(Modifier.height(12.dp))
                                 LinearProgressIndicator(
                                     progress = { downloadProgress },
@@ -137,7 +141,7 @@ fun App(
                                     fontSize = 12.sp
                                 )
                             } else {
-                                Text(strings.updateMessage.replace("%s", updateInfo.versionName))
+                                Text(stringResource(Res.string.updateMessage, updateInfo.versionName))
 
                                 // Mirror source follows settings automatically. Keep only the expiration hint.
                                 if (useMirrorDownload && updateInfo.mirrorUrl != null) {
@@ -147,7 +151,7 @@ fun App(
                                         if (daysLeft in 1..7) {
                                             Spacer(Modifier.height(8.dp))
                                             Text(
-                                                strings.mirrorCdkExpiredWarning,
+                                                stringResource(Res.string.mirrorCdkExpiredWarning),
                                                 color = MaterialTheme.colorScheme.error,
                                                 fontSize = 12.sp
                                             )
@@ -162,20 +166,20 @@ fun App(
                             TextButton(onClick = {
                                 finalViewModel.openGitHubRelease()
                             }) {
-                                Text(strings.updateGoToGitHub)
+                                Text(stringResource(Res.string.updateGoToGitHub))
                             }
                         } else if (!isDownloading && !isInstalling) {
                             TextButton(onClick = {
                                 finalViewModel.downloadAndInstallUpdate()
                             }) {
-                                Text(strings.updateNow)
+                                Text(stringResource(Res.string.updateNow))
                             }
                         }
                     },
                     dismissButton = {
                         if (!isDownloading && !isInstalling) {
                             TextButton(onClick = { finalViewModel.dismissUpdateDialog() }) {
-                                Text(strings.updateLater)
+                                Text(stringResource(Res.string.updateLater))
                             }
                         }
                     }
@@ -186,7 +190,7 @@ fun App(
             if (showFirstLaunchDialog) {
                 AlertDialog(
                     onDismissRequest = { },
-                    title = { Text(strings.firstLaunchTitle) },
+                    title = { Text(stringResource(Res.string.firstLaunchTitle)) },
                     text = {
                         Column(
                             modifier = Modifier
@@ -196,14 +200,14 @@ fun App(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = strings.firstLaunchMessage,
+                                text = stringResource(Res.string.firstLaunchMessage),
                                 style = MaterialTheme.typography.bodyMedium
                             )
 
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = strings.firstLaunchQuickStartTitle,
+                                text = stringResource(Res.string.firstLaunchQuickStartTitle),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -217,12 +221,12 @@ fun App(
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Text(
-                                        text = strings.firstLaunchStep1Title,
+                                        text = stringResource(Res.string.firstLaunchStep1Title),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = strings.firstLaunchStep1Desc,
+                                        text = stringResource(Res.string.firstLaunchStep1Desc),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -237,20 +241,20 @@ fun App(
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Text(
-                                        text = strings.firstLaunchStep2Title,
+                                        text = stringResource(Res.string.firstLaunchStep2Title),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = strings.firstLaunchStep2WifiDesc,
+                                        text = stringResource(Res.string.firstLaunchStep2WifiDesc),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        text = strings.firstLaunchStep2BluetoothDesc,
+                                        text = stringResource(Res.string.firstLaunchStep2BluetoothDesc),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(
-                                        text = strings.firstLaunchStep2UsbDesc,
+                                        text = stringResource(Res.string.firstLaunchStep2UsbDesc),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -265,12 +269,12 @@ fun App(
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Text(
-                                        text = strings.firstLaunchStep3Title,
+                                        text = stringResource(Res.string.firstLaunchStep3Title),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = strings.firstLaunchStep3Desc,
+                                        text = stringResource(Res.string.firstLaunchStep3Desc),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -285,12 +289,12 @@ fun App(
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Text(
-                                        text = strings.firstLaunchStep4Title,
+                                        text = stringResource(Res.string.firstLaunchStep4Title),
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = strings.firstLaunchStep4Desc,
+                                        text = stringResource(Res.string.firstLaunchStep4Desc),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
@@ -302,12 +306,12 @@ fun App(
                             TextButton(onClick = {
                                 openUrl("https://www.bilibili.com/video/BV1MpNKz8ELw")
                             }) {
-                                Text(strings.firstLaunchVideoGuide)
+                                Text(stringResource(Res.string.firstLaunchVideoGuide))
                             }
                             TextButton(onClick = {
                                 openUrl("https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md")
                             }) {
-                                Text(strings.firstLaunchTextGuide)
+                                Text(stringResource(Res.string.firstLaunchTextGuide))
                             }
                         }
                     },
@@ -315,7 +319,7 @@ fun App(
                         TextButton(onClick = {
                             finalViewModel.dismissFirstLaunchDialog()
                         }) {
-                            Text(strings.firstLaunchGotItButton)
+                            Text(stringResource(Res.string.firstLaunchGotItButton))
                         }
                     }
                 )
@@ -325,10 +329,10 @@ fun App(
             if (showVBCableDialog) {
                 AlertDialog(
                     onDismissRequest = { finalViewModel.setShowVBCableDialog(false) },
-                    title = { Text(strings.vbcableDetectTitle) },
+                    title = { Text(stringResource(Res.string.vbcableDetectTitle)) },
                     text = {
                         Column {
-                            Text(strings.vbcableDetectMessage)
+                            Text(stringResource(Res.string.vbcableDetectMessage))
                         }
                     },
                     confirmButton = {
@@ -336,7 +340,7 @@ fun App(
                             finalViewModel.setShowVBCableDialog(false)
                             finalViewModel.startVBCableInstallation()
                         }) {
-                            Text(strings.vbcableAutoInstall)
+                            Text(stringResource(Res.string.vbcableAutoInstall))
                         }
                     },
                     dismissButton = {
@@ -345,12 +349,12 @@ fun App(
                                 openUrl("https://vb-audio.com/Cable/")
                                 finalViewModel.setShowVBCableDialog(false)
                             }) {
-                                Text(strings.vbcableManualDownload)
+                                Text(stringResource(Res.string.vbcableManualDownload))
                             }
                             TextButton(onClick = {
                                 finalViewModel.setShowVBCableDialog(false)
                             }) {
-                                Text(strings.vbcableSkip)
+                                Text(stringResource(Res.string.vbcableSkip))
                             }
                         }
                     }
@@ -361,7 +365,7 @@ fun App(
             if (vbcableInstallProgress != null) {
                 AlertDialog(
                     onDismissRequest = { },
-                    title = { Text(strings.installInstalling) },
+                    title = { Text(stringResource(Res.string.installInstalling)) },
                     text = {
                         Column {
                             Text(vbcableInstallProgress)
@@ -407,11 +411,9 @@ private fun ConnectionErrorDialog(
     onDismiss: () -> Unit,
     onRetry: () -> Unit
 ) {
-    val strings = LocalAppStrings.current
-    
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { 
+        title = {
             Text(
                 text = errorDetails.localizedTitle,
                 style = MaterialTheme.typography.titleMedium
@@ -431,17 +433,17 @@ private fun ConnectionErrorDialog(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                
+
                 // 恢复建议
                 if (errorDetails.recoverySuggestions.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = strings.errors.errorSuggestionsTitle,
+                        text = stringResource(Res.string.errorSuggestionsTitle),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                     )
-                    
+
                     errorDetails.recoverySuggestions.forEach { suggestion ->
                         Text(
                             text = suggestion,
@@ -451,7 +453,7 @@ private fun ConnectionErrorDialog(
                         )
                     }
                 }
-                
+
                 // 原始错误（可选，用于调试）
                 if (errorDetails.type == ConnectionErrorType.UnknownError) {
                     Spacer(Modifier.height(8.dp))
@@ -476,20 +478,20 @@ private fun ConnectionErrorDialog(
                         openUrl(errorDetails.helpUrl)
                         onDismiss()
                     }) {
-                        Text(strings.errors.errorDialogHelp)
+                        Text(stringResource(Res.string.errorDialogHelp))
                     }
                 }
-                
+
                 if (errorDetails.showRetryButton) {
                     TextButton(onClick = onRetry) {
-                        Text(strings.errors.errorDialogRetry)
+                        Text(stringResource(Res.string.errorDialogRetry))
                     }
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(strings.errors.errorDialogDismiss)
+                Text(stringResource(Res.string.errorDialogDismiss))
             }
         }
     )

@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.lanrhyme.micyou.ContextHelper
 import com.lanrhyme.micyou.Logger
 import java.io.File
+import org.jetbrains.compose.resources.getString
 
 class AndroidPluginStorage(
     override val pluginId: String,

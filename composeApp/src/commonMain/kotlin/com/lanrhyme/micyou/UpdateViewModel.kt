@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 
 data class UpdateUiState(
     val updateInfo: UpdateInfo? = null,
@@ -40,7 +41,7 @@ class UpdateViewModel : ViewModel() {
     fun checkUpdateManual() {
         viewModelScope.launch {
             _checkResultFlow.emit(null)
-            val result = checkUpdateInternal()
+    val result = checkUpdateInternal()
             _checkResultFlow.emit(result)
         }
     }
@@ -54,18 +55,15 @@ class UpdateViewModel : ViewModel() {
     fun downloadAndInstallUpdate(useMirror: Boolean) {
         val info = _uiState.value.updateInfo ?: return
         if (isPortableApp()) return openGitHubRelease()
-
-        val targetUrl = if (useMirror) info.mirrorUrl else info.githubRelease?.let { updateChecker.findAssetForPlatform(it)?.browserDownloadUrl }
+    val targetUrl = if (useMirror) info.mirrorUrl else info.githubRelease?.let { updateChecker.findAssetForPlatform(it)?.browserDownloadUrl }
         if (targetUrl == null) {
             info.githubRelease?.htmlUrl?.let { openUrl(it) }
             return dismissUpdateDialog()
         }
-
-        val qName = Regex("(?i)[?&](?:filename|file|name)=([^&]+)").find(targetUrl)?.groupValues?.get(1)?.substringAfterLast("/")
-        val pName = targetUrl.substringBefore("?").substringAfterLast("/").takeIf { it.contains(".") }
-        val ext = pName?.substringAfterLast(".", "") ?: qName?.substringAfterLast(".", "") ?: info.githubRelease?.let { updateChecker.findAssetForPlatform(it)?.name }?.substringAfterLast(".", "") ?: when(getMirrorOs()) { "windows" -> "exe"; "darwin" -> "dmg"; else -> "deb" }
-
-        val name = pName ?: qName?.takeIf { it.contains(".") } ?: "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}.${ext.takeIf { it.isNotBlank() } ?: "exe"}"
+    val qName = Regex("(?i)[?&](?:filename|file|name)=([^&]+)").find(targetUrl)?.groupValues?.get(1)?.substringAfterLast("/")
+    val pName = targetUrl.substringBefore("?").substringAfterLast("/").takeIf { it.contains(".") }
+    val ext = pName?.substringAfterLast(".", "") ?: qName?.substringAfterLast(".", "") ?: info.githubRelease?.let { updateChecker.findAssetForPlatform(it)?.name }?.substringAfterLast(".", "") ?: when(getMirrorOs()) { "windows" -> "exe"; "darwin" -> "dmg"; else -> "deb" }
+    val name = pName ?: qName?.takeIf { it.contains(".") } ?: "MicYou-${info.versionName}-${getMirrorOs()}-${getMirrorArch()}.${ext.takeIf { it.isNotBlank() } ?: "exe"}"
 
         _uiState.update { it.copy(updateDownloadState = UpdateDownloadState.Downloading, updateErrorMessage = null) }
         viewModelScope.launch {

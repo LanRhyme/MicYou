@@ -74,7 +74,7 @@ class AudioLevelHistory(
      */
     fun getAverageRms(seconds: Int): Float {
         val cutoff = System.currentTimeMillis() - (seconds * 1000L)
-        val relevantSamples = samples.filter { it.timestamp >= cutoff }
+    val relevantSamples = samples.filter { it.timestamp >= cutoff }
         if (relevantSamples.isEmpty()) return 0f
         return relevantSamples.sumOf { it.rms.toDouble() }.toFloat() / relevantSamples.size
     }

@@ -49,7 +49,7 @@ object JvmLogger : LoggerImpl {
             logWriter = null
             
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val archivedFile = File(logDir, "micyou_$timestamp.log")
+    val archivedFile = File(logDir, "micyou_$timestamp.log")
             
             currentFile.renameTo(archivedFile)
             
@@ -103,8 +103,7 @@ object JvmLogger : LoggerImpl {
     
     override fun log(level: LogLevel, tag: String, message: String, throwable: Throwable?) {
         checkAndRotate()
-        
-        val formattedMessage = formatMessage(level, tag, message)
+    val formattedMessage = formatMessage(level, tag, message)
         
         println(formattedMessage)
         

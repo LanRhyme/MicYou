@@ -1,4 +1,5 @@
 package com.lanrhyme.micyou
+import org.jetbrains.compose.resources.getString
 
 interface Settings {
     fun getString(key: String, defaultValue: String): String

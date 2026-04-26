@@ -27,6 +27,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 data class MissingPluginInfo(
     val id: String,
@@ -40,9 +43,7 @@ fun PluginSyncWarningDialog(
     missingPlugins: List<MissingPluginInfo>,
     onDismiss: () -> Unit,
     onOpenSettings: () -> Unit
-) {
-    val strings = LocalAppStrings.current
-    
+) {    
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = {
@@ -53,14 +54,14 @@ fun PluginSyncWarningDialog(
             )
         },
         title = {
-            Text(strings.pluginSyncWarningTitle)
+            Text(stringResource(Res.string.pluginSyncWarningTitle))
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    strings.pluginSyncWarningMessage,
+                    stringResource(Res.string.pluginSyncWarningMessage),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -72,19 +73,19 @@ fun PluginSyncWarningDialog(
                     modifier = Modifier.height((missingPlugins.size * 72 + 16).coerceAtMost(200).dp)
                 ) {
                     items(missingPlugins, key = { it.id }) { plugin ->
-                        MissingPluginItem(plugin, strings)
+                        MissingPluginItem(plugin)
                     }
                 }
             }
         },
         confirmButton = {
             Button(onClick = onOpenSettings) {
-                Text(strings.pluginsSection)
+                Text(stringResource(Res.string.pluginsSection))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(strings.close)
+                Text(stringResource(Res.string.close))
             }
         }
     )
@@ -92,8 +93,7 @@ fun PluginSyncWarningDialog(
 
 @Composable
 private fun MissingPluginItem(
-    plugin: MissingPluginInfo,
-    strings: AppStrings
+    plugin: MissingPluginInfo
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -122,12 +122,12 @@ private fun MissingPluginItem(
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    "${strings.versionLabel}: ${plugin.version}",
+                    "${stringResource(Res.string.versionLabel)}: ${plugin.version}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    "${strings.missingOn}: ${plugin.missingOnPlatform}",
+                    "${stringResource(Res.string.missingOn)}: ${plugin.missingOnPlatform}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error
                 )

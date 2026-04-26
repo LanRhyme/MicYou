@@ -40,7 +40,6 @@ object PresetColors {
     val BlueGrey = Color(0xFF575D7E)
     val Brown = Color(0xFF7D524A)
     val Grey = Color(0xFF5F6162)
-
     val allColors = listOf(Default, Pink, Red, Orange, Amber, Yellow, Lime, Green, Cyan, Teal, LightBlue, Blue, Indigo, Purple, DeepPurple, BlueGrey, Brown, Grey)
 }
 

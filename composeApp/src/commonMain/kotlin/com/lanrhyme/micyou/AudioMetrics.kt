@@ -80,7 +80,7 @@ data class AudioLevelData(
             while (i + 1 < buffer.size) {
                 val lo = buffer[i].toInt() and 0xFF
                 val hi = buffer[i + 1].toInt()
-                val sample = (hi shl 8) or lo
+    val sample = (hi shl 8) or lo
                 val normalized = sample / 32768.0
 
                 sum += normalized * normalized
@@ -92,7 +92,7 @@ data class AudioLevelData(
             if (count == 0) return SILENT
 
             val rms = sqrt(sum / count).toFloat().coerceIn(0f, 1f)
-            val peak = maxSample.toFloat().coerceIn(0f, 1f)
+    val peak = maxSample.toFloat().coerceIn(0f, 1f)
 
             return fromRmsAndPeak(rms, peak)
         }
@@ -112,10 +112,9 @@ data class AudioLevelData(
          */
         fun fromRmsAndPeak(rms: Float, peak: Float): AudioLevelData {
             val safeRms = rms.coerceIn(MIN_RMS, 1f)
-            val safePeak = peak.coerceIn(MIN_RMS, 1f)
-
-            val rmsDb = 20f * log10(safeRms)
-            val peakDb = 20f * log10(safePeak)
+    val safePeak = peak.coerceIn(MIN_RMS, 1f)
+    val rmsDb = 20f * log10(safeRms)
+    val peakDb = 20f * log10(safePeak)
 
             return AudioLevelData(
                 rms = rms.coerceIn(0f, 1f),

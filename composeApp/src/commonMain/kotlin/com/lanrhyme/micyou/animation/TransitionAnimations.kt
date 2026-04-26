@@ -154,7 +154,6 @@ fun BounceOnAppear(
         ),
         label = "BounceOffset"
     )
-    
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(300),
@@ -184,7 +183,6 @@ fun PopInPopOut(
         ),
         label = "PopScale"
     )
-    
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(200),
@@ -283,7 +281,6 @@ fun <T> AnimateValueChange(
             hasChanged = false
         }
     }
-    
     val scale by animateFloatAsState(
         targetValue = if (hasChanged) 1.05f else 1f,
         animationSpec = spring(
@@ -315,7 +312,7 @@ fun EntranceAnimation(
                 animationSpec = tween(400, delayMillis, EasingFunctions.EaseInOutCubic),
                 label = "EntranceAlpha"
             )
-            val scale by animateFloatAsState(
+    val scale by animateFloatAsState(
                 targetValue = if (visible) 1f else 0.9f,
                 animationSpec = tween(500, delayMillis, EasingFunctions.EaseOutBack),
                 label = "EntranceScale"
@@ -330,7 +327,7 @@ fun EntranceAnimation(
                 animationSpec = tween(400, delayMillis),
                 label = "SlideAlpha"
             )
-            val offsetY by animateFloatAsState(
+    val offsetY by animateFloatAsState(
                 targetValue = if (visible) 0f else 30f,
                 animationSpec = tween(500, delayMillis, EasingFunctions.EaseOutExpo),
                 label = "SlideOffset"
@@ -348,7 +345,7 @@ fun EntranceAnimation(
                 ),
                 label = "BounceScale"
             )
-            val alpha by animateFloatAsState(
+    val alpha by animateFloatAsState(
                 targetValue = if (visible) 1f else 0f,
                 animationSpec = tween(300, delayMillis),
                 label = "BounceAlpha"

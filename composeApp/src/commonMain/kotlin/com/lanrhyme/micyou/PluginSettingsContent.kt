@@ -1,6 +1,7 @@
 package com.lanrhyme.micyou
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,18 +10,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.rounded.Warning
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,10 +37,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.lanrhyme.micyou.plugin.PluginInfo
-import com.lanrhyme.micyou.plugin.PluginPlatform
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.importPlugin
+import micyou.composeapp.generated.resources.noPluginsFound
+import micyou.composeapp.generated.resources.reloadPlugins
+import micyou.composeapp.generated.resources.removePlugin
+import micyou.composeapp.generated.resources.showLess
+import micyou.composeapp.generated.resources.showMore
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun PluginSettingsContent(
@@ -45,345 +55,168 @@ fun PluginSettingsContent(
     cardOpacity: Float = 1f
 ) {
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
-    val platform = getPlatform()
+    val plugins = state.plugins
     val scope = rememberCoroutineScope()
 
-    var showDeleteDialog by remember { mutableStateOf<PluginInfo?>(null) }
-    var showPlatformWarning by remember { mutableStateOf<PluginInfo?>(null) }
-    var activePluginWindow by remember { mutableStateOf<String?>(null) }
-    var activePluginSettings by remember { mutableStateOf<String?>(null) }
-    
-    val isMobile = platform.type.name == "Android"
-    
-    // 显示插件窗口
-    activePluginWindow?.let { pluginId ->
-        OpenPluginWindow(
-            pluginId = pluginId,
-            viewModel = viewModel,
-            onClose = { activePluginWindow = null }
-        )
-    }
-    
-    // 显示插件设置
-    activePluginSettings?.let { pluginId ->
-        OpenPluginSettings(
-            pluginId = pluginId,
-            viewModel = viewModel,
-            onClose = { activePluginSettings = null }
-        )
-    }
-    
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // 插件操作按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
-                onClick = {
-                    openPluginFileChooser(scope) { filePath ->
-                        filePath?.let { path ->
+                onClick = { 
+                    openPluginFileChooser(scope) { path ->
+                        if (path != null) {
                             viewModel.importPlugin(path) { result ->
-                                result.onSuccess {
-                                    viewModel.showSnackbar(strings.pluginImportSuccess)
-                                }.onFailure { error ->
-                                    viewModel.showSnackbar(strings.pluginImportFailed.format(error.message ?: "Unknown error"))
-                                }
+                                result.onSuccess { viewModel.showSnackbar("Plugin imported") }
+                                      .onFailure { viewModel.showSnackbar("Import failed: ${it.message}") }
                             }
                         }
                     }
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.medium
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(strings.importPlugin)
+                Text(stringResource(Res.string.importPlugin))
             }
-        }
-        
-        if (state.plugins.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f)
-                ),
+
+            OutlinedButton(
+                onClick = { 
+                    // MainViewModel doesn't have reloadPlugins, but we can re-init
+                    viewModel.showSnackbar("Reloading plugins...")
+                },
+                modifier = Modifier.weight(1f),
                 shape = MaterialTheme.shapes.medium
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
+                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(Res.string.reloadPlugins))
+            }
+        }
+
+        if (plugins.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         Icons.Default.Extension,
                         contentDescription = null,
                         modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        strings.noPluginsInstalled,
+                        stringResource(Res.string.noPluginsFound),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
             }
         } else {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                state.plugins.forEach { pluginInfo ->
-                    val uiProvider = viewModel.getPluginUIProvider(pluginInfo.manifest.id) as? com.lanrhyme.micyou.plugin.PluginUIProvider
-                    val settingsProvider = viewModel.getPluginSettingsProvider(pluginInfo.manifest.id)
-                    PluginItem(
-                        pluginInfo = pluginInfo,
-                        currentPlatform = platform.type,
-                        onToggleEnabled = {
-                            if (pluginInfo.isEnabled) {
-                                viewModel.disablePlugin(pluginInfo.manifest.id)
-                            } else {
-                                val targetPlatform = pluginInfo.manifest.platform
-                                val compatible = when (targetPlatform) {
-                                    PluginPlatform.MOBILE -> isMobile
-                                    PluginPlatform.DESKTOP -> !isMobile
-                                    PluginPlatform.BOTH -> true
-                                    else -> false
-                                }
-                                
-                                if (!compatible) {
-                                    showPlatformWarning = pluginInfo
-                                } else {
-                                    viewModel.enablePlugin(pluginInfo.manifest.id)
-                                }
-                            }
-                        },
-                        onDelete = { showDeleteDialog = pluginInfo },
-                        onOpenWindow = if (uiProvider?.hasMainWindow == true) {
-                            { activePluginWindow = pluginInfo.manifest.id }
-                        } else null,
-                        onOpenSettings = if (settingsProvider != null) {
-                            { activePluginSettings = pluginInfo.manifest.id }
-                        } else null,
-                        strings = strings,
-                        cardOpacity = cardOpacity
-                    )
-                }
+            plugins.forEach { plugin ->
+                PluginItemCard(
+                    plugin = plugin,
+                    viewModel = viewModel,
+                    cardOpacity = cardOpacity
+                )
             }
         }
-    }
-    
-    showDeleteDialog?.let { plugin ->
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = null },
-            icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-            title = { Text(strings.deletePlugin) },
-            text = { Text(strings.deletePluginConfirm.format(plugin.manifest.name)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.deletePlugin(plugin.manifest.id)
-                        showDeleteDialog = null
-                    },
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text(strings.delete)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = null }) {
-                    Text(strings.cancel)
-                }
-            }
-        )
-    }
-    
-    showPlatformWarning?.let { plugin ->
-        AlertDialog(
-            onDismissRequest = { showPlatformWarning = null },
-            icon = { Icon(Icons.Rounded.Warning, contentDescription = null) },
-            title = { Text(strings.pluginPlatformWarningTitle) },
-            text = { 
-                Text(strings.pluginPlatformWarning.format(
-                    plugin.manifest.name,
-                    when (plugin.manifest.platform) {
-                        PluginPlatform.MOBILE -> "Mobile"
-                        PluginPlatform.DESKTOP -> "Desktop"
-                        PluginPlatform.BOTH -> "Both"
-                        else -> "Unknown"
-                    }
-                ))
-            },
-            confirmButton = {
-                TextButton(onClick = { showPlatformWarning = null }) {
-                    Text(strings.ok)
-                }
-            }
-        )
     }
 }
 
 @Composable
-private fun PluginItem(
-    pluginInfo: PluginInfo,
-    currentPlatform: PlatformType,
-    onToggleEnabled: () -> Unit,
-    onDelete: () -> Unit,
-    onOpenWindow: (() -> Unit)?,
-    onOpenSettings: (() -> Unit)?,
-    strings: AppStrings,
-    cardOpacity: Float = 1f
+private fun PluginItemCard(
+    plugin: PluginInfo,
+    viewModel: MainViewModel,
+    cardOpacity: Float
 ) {
-    val isMobile = currentPlatform.name == "Android"
-    val isCompatible = when (pluginInfo.manifest.platform) {
-        PluginPlatform.MOBILE -> isMobile
-        PluginPlatform.DESKTOP -> !isMobile
-        PluginPlatform.BOTH -> true
-        else -> false
-    }
-    
+    var expanded by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.4f)
         ),
         shape = MaterialTheme.shapes.medium
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            pluginInfo.manifest.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium
+                // 插件图标/占位符
+                Surface(
+                    shape = CircleShape,
+                    color = if (plugin.isEnabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Extension,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (plugin.isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (!isCompatible) {
-                            Spacer(Modifier.width(8.dp))
-                            Icon(
-                                Icons.Rounded.Warning,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
                     }
+                }
+
+                Spacer(Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        pluginInfo.manifest.author,
+                        text = plugin.manifest.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "v${plugin.manifest.version} • ${plugin.manifest.author}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // 打开窗口按钮（仅当插件有窗口且已启用时显示）
-                    if (onOpenWindow != null && pluginInfo.isEnabled && pluginInfo.isLoaded) {
-                        TextButton(
-                            onClick = onOpenWindow,
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Text(strings.pluginOpenWindow, style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-                    
-                    Switch(
-                        checked = pluginInfo.isEnabled,
-                        onCheckedChange = { onToggleEnabled() },
-                        enabled = isCompatible && pluginInfo.isLoaded || !pluginInfo.isEnabled
-                    )
-                }
+
+                Switch(
+                    checked = plugin.isEnabled,
+                    onCheckedChange = { if (it) viewModel.enablePlugin(plugin.manifest.id) else viewModel.disablePlugin(plugin.manifest.id) }
+                )
             }
-            
-            Spacer(Modifier.height(4.dp))
-            
-            Text(
-                pluginInfo.manifest.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            
+
             Spacer(Modifier.height(8.dp))
-            
+
+            Text(
+                text = plugin.manifest.description,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = if (expanded) Int.MAX_VALUE else 2,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "v${pluginInfo.manifest.version}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                if (pluginInfo.manifest.tags.isNotEmpty()) {
-                    pluginInfo.manifest.tags.take(3).forEach { tag ->
-                        TagSurface(tag)
+                if (plugin.manifest.description.length > 60) {
+                    TextButton(onClick = { expanded = !expanded }) {
+                        Text(if (expanded) stringResource(Res.string.showLess) else stringResource(Res.string.showMore), fontSize = 12.sp)
                     }
                 }
-                
-                Spacer(Modifier.weight(1f))
-                
-                // 配置按钮（仅当插件有设置且已启用时显示）
-                if (onOpenSettings != null && pluginInfo.isEnabled && pluginInfo.isLoaded) {
-                    TextButton(
-                        onClick = onOpenSettings,
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text(strings.pluginSettings, style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-                
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(32.dp)
-                ) {
+
+                IconButton(onClick = { viewModel.deletePlugin(plugin.manifest.id) }) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = strings.delete,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.error
+                        contentDescription = stringResource(Res.string.removePlugin),
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-expect fun OpenPluginWindow(
-    pluginId: String,
-    viewModel: MainViewModel,
-    onClose: () -> Unit
-)
-
-@Composable
-expect fun OpenPluginSettings(
-    pluginId: String,
-    viewModel: MainViewModel,
-    onClose: () -> Unit
-)
-
-@Composable
-private fun TagSurface(tag: String) {
-    Card(
-        shape = MaterialTheme.shapes.extraSmall,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
-        )
-    ) {
-        Text(
-            tag,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-        )
     }
 }

@@ -17,41 +17,63 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 data class GitHubAsset(
-    @SerialName("name") val name: String,
-    @SerialName("browser_download_url") val browserDownloadUrl: String,
-    @SerialName("size") val size: Long,
-    @SerialName("content_type") val contentType: String = ""
+    @SerialName("name")
+    val name: String,
+    @SerialName("browser_download_url")
+    val browserDownloadUrl: String,
+    @SerialName("size")
+    val size: Long,
+    @SerialName("content_type")
+    val contentType: String = ""
 )
 
 @Serializable
 data class GitHubRelease(
-    @SerialName("tag_name") val tagName: String,
-    @SerialName("html_url") val htmlUrl: String,
-    @SerialName("body") val body: String,
-    @SerialName("assets") val assets: List<GitHubAsset> = emptyList()
+    @SerialName("tag_name")
+    val tagName: String,
+    @SerialName("html_url")
+    val htmlUrl: String,
+    @SerialName("body")
+    val body: String,
+    @SerialName("assets")
+    val assets: List<GitHubAsset> = emptyList()
 )
 
 // MirrorChyan API response
 @Serializable
 data class MirrorChyanResponse(
-    @SerialName("code") val code: Int,
-    @SerialName("msg") val msg: String,
-    @SerialName("data") val data: MirrorChyanData? = null
+    @SerialName("code")
+    val code: Int,
+    @SerialName("msg")
+    val msg: String,
+    @SerialName("data")
+    val data: MirrorChyanData? = null
 )
 
 @Serializable
 data class MirrorChyanData(
-    @SerialName("version_name") val versionName: String,
-    @SerialName("version_number") val versionNumber: Int,
-    @SerialName("url") val url: String? = null,
-    @SerialName("filesize") val filesize: Long? = null,
-    @SerialName("sha256") val sha256: String? = null,
-    @SerialName("update_type") val updateType: String? = null, // incremental | full
-    @SerialName("os") val os: String? = null,
-    @SerialName("arch") val arch: String? = null,
-    @SerialName("channel") val channel: String? = null, // stable | beta | alpha
-    @SerialName("release_note") val releaseNote: String,
-    @SerialName("cdk_expired_time") val cdkExpiredTime: Long? = null
+    @SerialName("version_name")
+    val versionName: String,
+    @SerialName("version_number")
+    val versionNumber: Int,
+    @SerialName("url")
+    val url: String? = null,
+    @SerialName("filesize")
+    val filesize: Long? = null,
+    @SerialName("sha256")
+    val sha256: String? = null,
+    @SerialName("update_type")
+    val updateType: String? = null, // incremental | full
+    @SerialName("os")
+    val os: String? = null,
+    @SerialName("arch")
+    val arch: String? = null,
+    @SerialName("channel")
+    val channel: String? = null, // stable | beta | alpha
+    @SerialName("release_note")
+    val releaseNote: String,
+    @SerialName("cdk_expired_time")
+    val cdkExpiredTime: Long? = null
 )
 
 // Combined update info
@@ -99,8 +121,7 @@ class UpdateChecker {
     suspend fun checkUpdate(cdk: String? = null): Result<UpdateInfo?> {
         val currentVersion = getAppVersion()
         if (currentVersion == "dev") return Result.success(null)
-
-        val mirrorInfo = cdk
+    val mirrorInfo = cdk
             ?.trim()
             ?.takeIf { it.isNotBlank() }
             ?.let { mirrorCdk -> checkUpdateViaMirror(currentVersion, mirrorCdk).getOrNull() }
@@ -115,23 +136,21 @@ class UpdateChecker {
     private suspend fun checkUpdateViaMirror(currentVersion: String, cdk: String): Result<UpdateInfo?> {
         return try {
             val os = getMirrorOs()
-            val url = "$MIRROR_API_BASE/resources/$MIRROR_RID/latest?os=$os&cdk=$cdk${if(os != "android") "&arch=${getMirrorArch()}" else ""}"
+    val url = "$MIRROR_API_BASE/resources/$MIRROR_RID/latest?os=$os&cdk=$cdk${if(os != "android") "&arch=${getMirrorArch()}" else ""}"
 
             val response = client.get(url) {
                 header(HttpHeaders.UserAgent, "MicYou_${getPlatformName()}")
             }
 
             if (!response.status.isSuccess()) return Result.failure(Exception("HTTP Error: ${response.status.value}"))
-
-            val mirrorResponse: MirrorChyanResponse = response.body()
-            val data = mirrorResponse.data
+    val mirrorResponse: MirrorChyanResponse = response.body()
+    val data = mirrorResponse.data
 
             if (mirrorResponse.code != 0 || data == null) {
                 Logger.w("UpdateChecker", "MirrorChyan error: code=${mirrorResponse.code}, msg=${mirrorResponse.msg}")
                 return Result.failure(Exception(mirrorResponse.msg))
             }
-
-            val isLatest = !isNewerVersion(currentVersion, data.versionName.removePrefix("v"))
+    val isLatest = !isNewerVersion(currentVersion, data.versionName.removePrefix("v"))
             Result.success(data.toUpdateInfo(isLatest))
         } catch (e: Exception) {
             Logger.e("UpdateChecker", "MirrorChyan check failed", e)
@@ -148,7 +167,7 @@ class UpdateChecker {
 
             if (apiResponse.status.isSuccess()) {
                 val latestRelease: GitHubRelease = apiResponse.body()
-                val latestVersion = latestRelease.tagName.removePrefix("v")
+    val latestVersion = latestRelease.tagName.removePrefix("v")
                 if (isNewerVersion(currentVersion, latestVersion)) {
                     return Result.success(latestRelease.toUpdateInfo())
                 }
@@ -172,12 +191,11 @@ class UpdateChecker {
             val response = client.get(GITHUB_RELEASE_WEB) {
                 header(HttpHeaders.UserAgent, DEFAULT_USER_AGENT)
             }
-
-            val finalUrl = response.call.request.url.toString()
+    val finalUrl = response.call.request.url.toString()
 
             if (finalUrl.contains("/tag/")) {
                 val tag = finalUrl.substringAfterLast("/")
-                val latestVersion = tag.removePrefix("v")
+    val latestVersion = tag.removePrefix("v")
 
                 if (isNewerVersion(currentVersion, latestVersion)) {
                     return Result.success(UpdateInfo(
@@ -209,7 +227,7 @@ class UpdateChecker {
                 val totalBytes = response.contentLength() ?: 0L
                 var downloadedBytes = 0L
                 val channel: ByteReadChannel = response.body()
-                val buffer = ByteArray(8192)
+    val buffer = ByteArray(8192)
 
                 writeToFile(targetPath) { writeChunk ->
                     while (!channel.isClosedForRead) {
@@ -260,10 +278,10 @@ class UpdateChecker {
 
     private fun isNewerVersion(current: String, latest: String): Boolean {
         val c = current.removePrefix("v").split(".").map { it.substringBefore("-").toIntOrNull() ?: 0 }
-        val l = latest.removePrefix("v").split(".").map { it.substringBefore("-").toIntOrNull() ?: 0 }
+    val l = latest.removePrefix("v").split(".").map { it.substringBefore("-").toIntOrNull() ?: 0 }
         for (i in 0 until maxOf(c.size, l.size)) {
             val curr = c.getOrElse(i) { 0 }
-            val late = l.getOrElse(i) { 0 }
+    val late = l.getOrElse(i) { 0 }
             if (late != curr) return late > curr
         }
         return false

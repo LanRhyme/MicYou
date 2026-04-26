@@ -4,7 +4,6 @@ object PlatformInfo {
     enum class OS {
         WINDOWS, LINUX, MACOS, OTHER
     }
-    
     val currentOS: OS by lazy {
         val osName = System.getProperty("os.name", "").lowercase()
         when {
@@ -14,7 +13,6 @@ object PlatformInfo {
             else -> OS.OTHER
         }
     }
-    
     val isWindows: Boolean get() = currentOS == OS.WINDOWS
     val isLinux: Boolean get() = currentOS == OS.LINUX
     val isMacOS: Boolean get() = currentOS == OS.MACOS
@@ -22,7 +20,6 @@ object PlatformInfo {
     enum class Arch {
         X86_64, ARM64, X86, OTHER
     }
-
     val currentArch: Arch by lazy {
         val arch = System.getProperty("os.arch", "").lowercase()
         when {
@@ -32,7 +29,6 @@ object PlatformInfo {
             else -> Arch.OTHER
         }
     }
-
     val isX64: Boolean get() = currentArch == Arch.X86_64
     val isX86: Boolean get() = currentArch == Arch.X86
     val isArm64: Boolean get() = currentArch == Arch.ARM64

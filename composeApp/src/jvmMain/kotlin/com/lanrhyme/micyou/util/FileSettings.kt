@@ -7,6 +7,7 @@ import java.util.Properties
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
+import org.jetbrains.compose.resources.getString
 
 /**
  * 文件持久化设置存储，支持延迟写入优化。

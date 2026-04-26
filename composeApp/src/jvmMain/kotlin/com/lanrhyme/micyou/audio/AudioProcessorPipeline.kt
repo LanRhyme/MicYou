@@ -93,15 +93,12 @@ class AudioProcessorPipeline {
 
         // 6. 重采样
         resamplerEffect.updatePlaybackRatio(queuedDurationMs)
-        
-        val maxOutputShorts = ((processed.size / playbackRatioLowerBound) + 16).toInt()
-        val neededBytes = maxOutputShorts * 2
+    val maxOutputShorts = ((processed.size / playbackRatioLowerBound) + 16).toInt()
+    val neededBytes = maxOutputShorts * 2
         ensureOutputBufferCapacity(neededBytes)
-        
-        val outputBuffer = scratchResultByteBuffer
+    val outputBuffer = scratchResultByteBuffer
         outputBuffer.clear()
-
-        val processedShortCount = resamplerEffect.processToByteBuffer(processed, channelCount, outputBuffer)
+    val processedShortCount = resamplerEffect.processToByteBuffer(processed, channelCount, outputBuffer)
 
         return scratchResultBuffer.copyOf(processedShortCount * 2)
     }
@@ -138,7 +135,7 @@ class AudioProcessorPipeline {
             val newSize = (shortsSize * config.bufferGrowthFactor).toInt().coerceAtLeast(shortsSize)
             scratchShorts = ShortArray(newSize)
         }
-        val shorts = scratchShorts
+    val shorts = scratchShorts
 
         when (format) {
             6, 24 -> { // PCM_24BIT (24-bit Little Endian, signed)
@@ -160,7 +157,7 @@ class AudioProcessorPipeline {
                                ((buffer[byteIndex + 1].toInt() and 0xFF) shl 8) or
                                ((buffer[byteIndex + 2].toInt() and 0xFF) shl 16) or
                                ((buffer[byteIndex + 3].toInt() and 0xFF) shl 24)
-                    val sample = Float.fromBits(bits)
+    val sample = Float.fromBits(bits)
                     // Clamp and convert to 16-bit PCM
                     // 使用 32768.0f 以保持对称范围 (-1.0 ~ 1.0 -> -32768 ~ 32767)
                     // 避免因使用 32767 导致的正向信号略微衰减产生量化噪声

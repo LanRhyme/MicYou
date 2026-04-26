@@ -92,7 +92,7 @@ class UlunasProcessor(
             }
 
             env = OrtEnvironment.getEnvironment()
-            val options = OrtSession.SessionOptions()
+    val options = OrtSession.SessionOptions()
 
             // 性能优化配置
             options.setIntraOpNumThreads(1)
@@ -138,7 +138,7 @@ class UlunasProcessor(
             val w2 = window[i + hopLength]
             sumSquared += w1 * w1 + w2 * w2
         }
-        val avgGain = sumSquared / hopLength
+    val avgGain = sumSquared / hopLength
         // 返回补偿因子：1 / sqrt(avgGain) 用于补偿双重加窗的衰减
         return if (avgGain > 0.001f) 1.0f / sqrt(avgGain) else 1.0f
     }
@@ -205,8 +205,7 @@ class UlunasProcessor(
         // fftBuffer[0] = DC (实数)
         // fftBuffer[1] = Nyquist (实数，当 n 为偶数时)
         // fftBuffer[2*i] = 实部, fftBuffer[2*i+1] = 虚部 (i=1..n/2-1)
-        
-        val specSize = frameSize / 2 + 1
+    val specSize = frameSize / 2 + 1
         
         // 转换为 [batch, freq_bins, 1, 2] 格式 (实部, 虚部)
         // modelInput 布局: [freq_bins][real, imag]

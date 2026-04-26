@@ -45,7 +45,6 @@ fun CustomBackground(
     if (!settings.hasCustomBackground) {
         return
     }
-    
     val imageBitmap = remember(settings.imagePath) {
         loadImageBitmap(settings.imagePath)
     }

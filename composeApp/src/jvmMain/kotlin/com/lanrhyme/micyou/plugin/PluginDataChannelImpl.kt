@@ -93,7 +93,7 @@ class PluginDataChannelImpl(
                 }
                 DataChannelMode.Udp -> {
                     val socket = udpSocket ?: return@withContext Result.failure(Exception("Not bound"))
-                    val packet = DatagramPacket(data, data.size)
+    val packet = DatagramPacket(data, data.size)
                     socket.send(packet)
                 }
             }
@@ -109,7 +109,7 @@ class PluginDataChannelImpl(
             DataChannelMode.Tcp -> {
                 val socket = tcpSocket ?: return@flow
                 val input = socket.getInputStream()
-                val buffer = ByteArray(config.bufferSize)
+    val buffer = ByteArray(config.bufferSize)
                 while (_isConnected.value && !socket.isClosed) {
                     try {
                         val bytesRead = withContext(Dispatchers.IO) { input.read(buffer) }
@@ -129,7 +129,7 @@ class PluginDataChannelImpl(
             DataChannelMode.Udp -> {
                 val socket = udpSocket ?: return@flow
                 val buffer = ByteArray(config.bufferSize)
-                val packet = DatagramPacket(buffer, buffer.size)
+    val packet = DatagramPacket(buffer, buffer.size)
                 while (_isConnected.value && !socket.isClosed) {
                     try {
                         withContext(Dispatchers.IO) { socket.receive(packet) }
@@ -180,12 +180,11 @@ class PluginDataChannelProviderImpl : PluginDataChannelProvider {
 
     override fun createChannel(id: String, config: DataChannelConfig): PluginDataChannel {
         val validScope = getValidScope()
-        val existing = channels[id]
+    val existing = channels[id]
         if (existing != null) {
             validScope.launch { existing.close() }
         }
-
-        val channel = PluginDataChannelImpl(id, config)
+    val channel = PluginDataChannelImpl(id, config)
         channels[id] = channel
         return channel
     }

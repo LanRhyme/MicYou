@@ -75,6 +75,9 @@ import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * M3 Expressive 风格的手机端设置页面
@@ -86,12 +89,9 @@ fun MobileSettingsPage(
     viewModel: MainViewModel,
     onClose: () -> Unit,
     hazeState: HazeState?
-) {
-    val strings = LocalAppStrings.current
-    val state by viewModel.uiState.collectAsState()
+) {    val state by viewModel.uiState.collectAsState()
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val platform = getPlatform()
-
     val backgroundColor = MaterialTheme.colorScheme.surfaceContainer
     val topBarBackgroundColor = backgroundColor.copy(alpha = 0.8f)
     // 独立的 HazeState 用于顶部导航栏毛玻璃效果
@@ -133,7 +133,7 @@ fun MobileSettingsPage(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        strings.generalSection,
+                        stringResource(Res.string.generalSection),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -156,7 +156,7 @@ fun MobileSettingsPage(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        strings.appearanceSection,
+                        stringResource(Res.string.appearanceSection),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -180,7 +180,7 @@ fun MobileSettingsPage(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            strings.audioSection,
+                            stringResource(Res.string.audioSection),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
@@ -204,7 +204,7 @@ fun MobileSettingsPage(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        strings.pluginsSection,
+                        stringResource(Res.string.pluginsSection),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -227,7 +227,7 @@ fun MobileSettingsPage(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        strings.aboutSection,
+                        stringResource(Res.string.aboutSection),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -258,14 +258,14 @@ fun MobileSettingsPage(
             TopAppBar(
                 title = {
                     Text(
-                        strings.settingsTitle,
+                        stringResource(Res.string.settingsTitle),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = strings.close)
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(Res.string.close))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -279,9 +279,7 @@ fun MobileSettingsPage(
             MirrorCdkDialog(
                 cdk = state.mirrorCdk,
                 onDismiss = { viewModel.dismissMirrorCdkDialog() },
-                onConfirm = { cdk -> viewModel.confirmMirrorCdk(cdk) },
-                strings = strings
-            )
+                onConfirm = { cdk -> viewModel.confirmMirrorCdk(cdk) })
         }
     }
 }
@@ -292,9 +290,7 @@ fun MobileSettingsPage(
 @Composable
 private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
     val platform = getPlatform()
-
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
     val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
@@ -306,7 +302,7 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
     // 语言选择
     items.add { isFirst, isLast ->
         ExpressiveSettingsDropdownItem(
-            headline = strings.languageLabel,
+            headline = stringResource(Res.string.languageLabel),
             selected = state.language,
             options = AppLanguage.entries.toList(),
             labelProvider = { it.label },
@@ -323,7 +319,7 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
     if (platform.type == PlatformType.Android) {
         items.add { isFirst, isLast ->
             ExpressiveSettingsSwitchItem(
-                headline = strings.enableStreamingNotificationLabel,
+                headline = stringResource(Res.string.enableStreamingNotificationLabel),
                 checked = state.enableStreamingNotification,
                 onCheckedChange = { viewModel.setEnableStreamingNotification(it) },
                 isFirst = isFirst,
@@ -336,8 +332,8 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
 
         items.add { isFirst, isLast ->
             ExpressiveSettingsSwitchItem(
-                headline = strings.keepScreenOnLabel,
-                supporting = strings.keepScreenOnDesc,
+                headline = stringResource(Res.string.keepScreenOnLabel),
+                supporting = stringResource(Res.string.keepScreenOnDesc),
                 checked = state.keepScreenOn,
                 onCheckedChange = { viewModel.setKeepScreenOn(it) },
                 isFirst = isFirst,
@@ -352,8 +348,8 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
     // 全平台通用设置
     items.add { isFirst, isLast ->
         ExpressiveSettingsSwitchItem(
-            headline = strings.autoCheckUpdateLabel,
-            supporting = strings.autoCheckUpdateDesc,
+            headline = stringResource(Res.string.autoCheckUpdateLabel),
+            supporting = stringResource(Res.string.autoCheckUpdateDesc),
             checked = state.autoCheckUpdate,
             onCheckedChange = { viewModel.setAutoCheckUpdate(it) },
             isFirst = isFirst,
@@ -366,8 +362,8 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
 
     items.add { isFirst, isLast ->
         ExpressiveSettingsSwitchItem(
-            headline = strings.mirrorDownloadLabel,
-            supporting = strings.mirrorDownloadDesc,
+            headline = stringResource(Res.string.mirrorDownloadLabel),
+            supporting = stringResource(Res.string.mirrorDownloadDesc),
             checked = state.useMirrorDownload,
             onCheckedChange = { viewModel.setUseMirrorDownload(it) },
             isFirst = isFirst,
@@ -394,14 +390,11 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
 @Composable
 private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
     val platform = getPlatform()
-
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
     val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
     val containerColor = baseContainerColor.copy(alpha = cardOpacity)
-
     val seedColors = listOf(
         0xFF1565C0L, // Ocean Blue
         0xFF6750A4L, // M3 Purple
@@ -425,7 +418,7 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            Text(strings.themeLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(Res.string.themeLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(ThemeMode.entries) { mode ->
@@ -434,9 +427,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
                         onClick = { viewModel.setThemeMode(mode) },
                         label = {
                             Text(when(mode) {
-                                ThemeMode.System -> strings.themeSystem
-                                ThemeMode.Light -> strings.themeLight
-                                ThemeMode.Dark -> strings.themeDark
+                                ThemeMode.System -> stringResource(Res.string.themeSystem)
+                                ThemeMode.Light -> stringResource(Res.string.themeLight)
+                                ThemeMode.Dark -> stringResource(Res.string.themeDark)
                             })
                         },
                         leadingIcon = {
@@ -452,8 +445,8 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
     if (platform.type == PlatformType.Android || isDynamicColorSupported()) {
         items.add { isFirst, isLast ->
             ExpressiveSettingsSwitchItem(
-                headline = strings.useDynamicColorLabel,
-                supporting = strings.useDynamicColorDesc,
+                headline = stringResource(Res.string.useDynamicColorLabel),
+                supporting = stringResource(Res.string.useDynamicColorDesc),
                 checked = state.useDynamicColor,
                 onCheckedChange = { viewModel.setUseDynamicColor(it) },
                 isFirst = isFirst,
@@ -468,8 +461,8 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
     // OLED 纯黑
     items.add { isFirst, isLast ->
         ExpressiveSettingsSwitchItem(
-            headline = strings.oledPureBlackLabel,
-            supporting = strings.oledPureBlackDesc,
+            headline = stringResource(Res.string.oledPureBlackLabel),
+            supporting = stringResource(Res.string.oledPureBlackDesc),
             checked = state.oledPureBlack,
             onCheckedChange = { viewModel.setOledPureBlack(it) },
             isFirst = isFirst,
@@ -499,7 +492,7 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = strings.dynamicColorEnabledHint,
+                            text = stringResource(Res.string.dynamicColorEnabledHint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
@@ -509,9 +502,9 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
                 }
             }
         ) {
-            Text(strings.themeColorLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(Res.string.themeColorLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
-            val isSeedColorEnabled = !state.useDynamicColor
+    val isSeedColorEnabled = !state.useDynamicColor
             val displayColor = if (state.useDynamicColor) {
                 MaterialTheme.colorScheme.primary.toArgb().toLong() and 0xFFFFFFFF
             } else {
@@ -522,7 +515,7 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
                 presetColors = seedColors,
                 onColorSelected = { viewModel.setSeedColor(it) },
                 enabled = isSeedColorEnabled,
-                disabledHint = strings.dynamicColorEnabledHint,
+                disabledHint = stringResource(Res.string.dynamicColorEnabledHint),
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -537,8 +530,8 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            Text(strings.expressive.paletteStyleLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Text(strings.expressive.paletteStyleDesc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(Res.string.paletteStyleLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(Res.string.paletteStyleDesc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(PaletteStyle.entries) { style ->
@@ -560,8 +553,8 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
     // Expressive Shapes
     items.add { isFirst, isLast ->
         ExpressiveSettingsSwitchItem(
-            headline = strings.expressive.useExpressiveShapesLabel,
-            supporting = strings.expressive.useExpressiveShapesDesc,
+            headline = stringResource(Res.string.useExpressiveShapesLabel),
+            supporting = stringResource(Res.string.useExpressiveShapesDesc),
             checked = state.useExpressiveShapes,
             onCheckedChange = { viewModel.setUseExpressiveShapes(it) },
             isFirst = isFirst,
@@ -581,7 +574,7 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            Text(strings.visualizerStyleLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(Res.string.visualizerStyleLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(VisualizerStyle.entries) { style ->
@@ -590,12 +583,12 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
                         onClick = { viewModel.setVisualizerStyle(style) },
                         label = {
                             Text(when(style) {
-                                VisualizerStyle.VolumeRing -> strings.visualizerStyleVolumeRing
-                                VisualizerStyle.Ripple -> strings.visualizerStyleRipple
-                                VisualizerStyle.Bars -> strings.visualizerStyleBars
-                                VisualizerStyle.Wave -> strings.visualizerStyleWave
-                                VisualizerStyle.Glow -> strings.visualizerStyleGlow
-                                VisualizerStyle.Particles -> strings.visualizerStyleParticles
+                                VisualizerStyle.VolumeRing -> stringResource(Res.string.visualizerStyleVolumeRing)
+                                VisualizerStyle.Ripple -> stringResource(Res.string.visualizerStyleRipple)
+                                VisualizerStyle.Bars -> stringResource(Res.string.visualizerStyleBars)
+                                VisualizerStyle.Wave -> stringResource(Res.string.visualizerStyleWave)
+                                VisualizerStyle.Glow -> stringResource(Res.string.visualizerStyleGlow)
+                                VisualizerStyle.Particles -> stringResource(Res.string.visualizerStyleParticles)
                             })
                         },
                         leadingIcon = {
@@ -616,7 +609,7 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
             hazeState = hazeState,
             enableHaze = enableHaze
         ) {
-            Text(strings.backgroundSettingsLabel, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(stringResource(Res.string.backgroundSettingsLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(8.dp))
 
             Row(
@@ -627,35 +620,35 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
                     onClick = { viewModel.pickBackgroundImage() },
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(strings.selectBackgroundImage)
+                    Text(stringResource(Res.string.selectBackgroundImage))
                 }
                 if (state.backgroundSettings.hasCustomBackground) {
                     OutlinedButton(
                         onClick = { viewModel.clearBackgroundImage() },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(strings.clearBackgroundImage)
+                        Text(stringResource(Res.string.clearBackgroundImage))
                     }
                 }
             }
 
             if (state.backgroundSettings.hasCustomBackground) {
                 Spacer(Modifier.height(8.dp))
-                Text("${strings.backgroundBrightnessLabel}: ${(state.backgroundSettings.brightness * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                Text("${stringResource(Res.string.backgroundBrightnessLabel)}: ${(state.backgroundSettings.brightness * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
                 Slider(
                     value = state.backgroundSettings.brightness,
                     onValueChange = { viewModel.setBackgroundBrightness(it) },
                     valueRange = 0f..1f
                 )
 
-                Text("${strings.backgroundBlurLabel}: ${state.backgroundSettings.blurRadius.toInt()}px", style = MaterialTheme.typography.bodySmall)
+                Text("${stringResource(Res.string.backgroundBlurLabel)}: ${state.backgroundSettings.blurRadius.toInt()}px", style = MaterialTheme.typography.bodySmall)
                 Slider(
                     value = state.backgroundSettings.blurRadius,
                     onValueChange = { viewModel.setBackgroundBlur(it) },
                     valueRange = 0f..50f
                 )
 
-                Text("${strings.cardOpacityLabel}: ${(state.backgroundSettings.cardOpacity * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                Text("${stringResource(Res.string.cardOpacityLabel)}: ${(state.backgroundSettings.cardOpacity * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
                 Slider(
                     value = state.backgroundSettings.cardOpacity,
                     onValueChange = { viewModel.setCardOpacity(it) },
@@ -668,8 +661,8 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(strings.enableHazeEffectLabel, style = MaterialTheme.typography.bodySmall)
-                        Text(strings.enableHazeEffectDesc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(Res.string.enableHazeEffectLabel), style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(Res.string.enableHazeEffectDesc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Switch(
                         checked = state.backgroundSettings.enableHazeEffect,
@@ -696,8 +689,6 @@ private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: Ha
 @Composable
 private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
-
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
     val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
@@ -725,14 +716,14 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
                     Text(
-                        strings.autoConfigLabel,
+                        stringResource(Res.string.autoConfigLabel),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        strings.autoConfigDesc,
+                        stringResource(Res.string.autoConfigDesc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -744,13 +735,12 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
             }
         }
     }
-
     val manualSettingsEnabled = !state.isAutoConfig
 
     // 采样率
     items.add { isFirst, isLast ->
         ExpressiveAudioDropdownItem(
-            headline = strings.sampleRateLabel,
+            headline = stringResource(Res.string.sampleRateLabel),
             selected = "${state.sampleRate.value} Hz",
             options = SampleRate.entries.map { "${it.value} Hz" },
             onSelect = { index -> viewModel.setSampleRate(SampleRate.entries[index]) },
@@ -766,7 +756,7 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
     // 声道数
     items.add { isFirst, isLast ->
         ExpressiveAudioDropdownItem(
-            headline = strings.channelCountLabel,
+            headline = stringResource(Res.string.channelCountLabel),
             selected = state.channelCount.label,
             options = ChannelCount.entries.map { it.label },
             onSelect = { index -> viewModel.setChannelCount(ChannelCount.entries[index]) },
@@ -782,7 +772,7 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
     // 音频格式
     items.add { isFirst, isLast ->
         ExpressiveAudioDropdownItem(
-            headline = strings.audioFormatLabel,
+            headline = stringResource(Res.string.audioFormatLabel),
             selected = state.audioFormat.label,
             options = AudioFormat.entries.map { it.label },
             onSelect = { index -> viewModel.setAudioFormat(AudioFormat.entries[index]) },
@@ -906,9 +896,7 @@ private fun ExpressiveAudioSourceItem(
     enableHaze: Boolean = false
 ) {
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
     var expanded by remember { mutableStateOf(false) }
-
     val audioSourceOptions = getAudioSourceOptions()
     val currentSource = audioSourceOptions.find { it.name == state.androidAudioSourceName } ?: audioSourceOptions.firstOrNull()
 
@@ -927,7 +915,7 @@ private fun ExpressiveAudioSourceItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = strings.audioSourceLabel,
+                text = stringResource(Res.string.audioSourceLabel),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
@@ -980,8 +968,6 @@ private fun ExpressiveAudioSourceItem(
 @Composable
 private fun ExpressivePluginSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
-
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
     val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
@@ -994,7 +980,7 @@ private fun ExpressivePluginSettings(viewModel: MainViewModel, hazeState: HazeSt
         hazeState = hazeState,
         enableHaze = enableHaze
     ) {
-        Text(strings.pluginsSection, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        Text(stringResource(Res.string.pluginsSection), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(12.dp))
         PluginSettingsContent(viewModel, state.backgroundSettings.cardOpacity)
     }
@@ -1006,11 +992,9 @@ private fun ExpressivePluginSettings(viewModel: MainViewModel, hazeState: HazeSt
 @Composable
 private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeState?) {
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
     val uriHandler = LocalUriHandler.current
     var showLicenseDialog by remember { mutableStateOf(false) }
     var showContributorsDialog by remember { mutableStateOf(false) }
-
     val cardOpacity = state.backgroundSettings.cardOpacity
     val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
     val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
@@ -1023,11 +1007,11 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
     if (showLicenseDialog) {
         AlertDialog(
             onDismissRequest = { showLicenseDialog = false },
-            title = { Text(strings.licensesTitle) },
+            title = { Text(stringResource(Res.string.licensesTitle)) },
             text = { OpenSourceLibrariesList() },
             confirmButton = {
                 TextButton(onClick = { showLicenseDialog = false }) {
-                    Text(strings.close)
+                    Text(stringResource(Res.string.close))
                 }
             }
         )
@@ -1055,7 +1039,7 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
                 Icon(Icons.Rounded.Person, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(strings.developerLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Text(stringResource(Res.string.developerLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
                     Text("LanRhyme、ChinsaaWei", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -1082,7 +1066,7 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
                 Icon(Icons.Rounded.Language, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(strings.githubRepoLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Text(stringResource(Res.string.githubRepoLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "https://github.com/LanRhyme/MicYou",
@@ -1114,9 +1098,9 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
                 Icon(Icons.Rounded.People, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(strings.contributorsLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Text(stringResource(Res.string.contributorsLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
-                    Text(strings.contributorsDesc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(Res.string.contributorsDesc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -1143,13 +1127,13 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
                     Icon(Icons.Rounded.Info, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(16.dp))
                     Column {
-                        Text(strings.versionLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Text(stringResource(Res.string.versionLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                         Spacer(Modifier.height(4.dp))
                         Text(getAppVersion(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 TextButton(onClick = { viewModel.checkUpdateManual() }) {
-                    Text(strings.checkUpdate)
+                    Text(stringResource(Res.string.checkUpdate))
                 }
             }
         }
@@ -1174,9 +1158,9 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
                 Icon(Icons.Rounded.Description, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(strings.openSourceLicense, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Text(stringResource(Res.string.openSourceLicense), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
-                    Text(strings.viewLibraries, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(Res.string.viewLibraries), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -1190,9 +1174,11 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
             onClick = {
                 viewModel.exportLog { path ->
                     if (path != null) {
-                        viewModel.showSnackbar(strings.logExported.replace("%s", path))
+                        val message = "Log exported to: $path"
+                        viewModel.showSnackbar(message)
                     } else {
-                        viewModel.showSnackbar(strings.logExportFailed)
+                        val message = "Log export failed"
+                        viewModel.showSnackbar(message)
                     }
                 }
             },
@@ -1209,9 +1195,9 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
                 Icon(Icons.AutoMirrored.Rounded.TextSnippet, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(strings.exportLog, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Text(stringResource(Res.string.exportLog), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(4.dp))
-                    Text(strings.exportLogDesc, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(Res.string.exportLogDesc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -1235,10 +1221,10 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
         shape = MaterialTheme.shapes.large
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(strings.softwareIntro, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Text(stringResource(Res.string.softwareIntro), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
             Spacer(Modifier.height(8.dp))
             Text(
-                strings.introText,
+                stringResource(Res.string.introText),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
@@ -1250,26 +1236,25 @@ private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeSta
 private fun MirrorCdkDialog(
     cdk: String,
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-    strings: AppStrings
+    onConfirm: (String) -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
     var inputCdk by remember { mutableStateOf(cdk) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(strings.mirrorCdkLabel) },
+        title = { Text(stringResource(Res.string.mirrorCdkLabel)) },
         text = {
             Column {
                 Text(
-                    text = strings.mirrorCdkDesc,
+                    text = stringResource(Res.string.mirrorCdkDesc),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = inputCdk,
                     onValueChange = { inputCdk = it },
-                    placeholder = { Text(strings.mirrorCdkPlaceholder) },
+                    placeholder = { Text(stringResource(Res.string.mirrorCdkPlaceholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -1278,14 +1263,14 @@ private fun MirrorCdkDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Start
                 ) {
+                    val langLabel = stringResource(Res.string.languageLabel)
                     Text(
-                        text = strings.mirrorCdkGetLink,
+                        text = stringResource(Res.string.mirrorCdkGetLink),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         textDecoration = TextDecoration.Underline,
                         modifier = Modifier.clickable {
-                            val lang = strings.languageLabel
-                            val url = if (lang.contains("中文") || lang.contains("简体") || lang.contains("繁體") || lang.contains("粤语")) {
+                            val url = if (langLabel.contains("中文") || langLabel.contains("简体") || langLabel.contains("繁體") || langLabel.contains("粤语")) {
                                 "https://mirrorchyan.com/zh/get-start"
                             } else {
                                 "https://mirrorchyan.com/en/get-start"
@@ -1293,6 +1278,7 @@ private fun MirrorCdkDialog(
                             uriHandler.openUri(url)
                         }
                     )
+
                 }
             }
         },
@@ -1301,12 +1287,12 @@ private fun MirrorCdkDialog(
                 onClick = { onConfirm(inputCdk) },
                 enabled = inputCdk.isNotBlank()
             ) {
-                Text(strings.ok)
+                Text(stringResource(Res.string.ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(strings.cancel)
+                Text(stringResource(Res.string.cancel))
             }
         }
     )

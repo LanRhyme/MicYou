@@ -9,6 +9,7 @@ import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import org.jetbrains.compose.resources.getString
 
 /**
  * Android 应用上下文持有者。
@@ -74,19 +75,19 @@ class AndroidSettings(private val context: Context) : Settings {
             context.contentResolver,
             AndroidSecureSettings.Secure.ANDROID_ID
         ).orEmpty()
-        val seed = "${context.packageName}:$androidId:mirror_cdk_v1"
+    val seed = "${context.packageName}:$androidId:mirror_cdk_v1"
         MessageDigest.getInstance("SHA-256").digest(seed.toByteArray(Charsets.UTF_8))
     }
 
     private fun encryptMirrorCdk(value: String): String? = runCatching {
         val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val key = SecretKeySpec(mirrorKeyBytes, "AES")
-        val gcmSpec = GCMParameterSpec(128, iv)
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    val key = SecretKeySpec(mirrorKeyBytes, "AES")
+    val gcmSpec = GCMParameterSpec(128, iv)
         cipher.init(Cipher.ENCRYPT_MODE, key, gcmSpec)
-        val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
-        val ivEncoded = Base64.encodeToString(iv, Base64.NO_WRAP)
-        val dataEncoded = Base64.encodeToString(encrypted, Base64.NO_WRAP)
+    val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+    val ivEncoded = Base64.encodeToString(iv, Base64.NO_WRAP)
+    val dataEncoded = Base64.encodeToString(encrypted, Base64.NO_WRAP)
         "$ENC_PREFIX$ivEncoded:$dataEncoded"
     }.getOrElse {
         Logger.e("AndroidSettings", "Failed to encrypt mirror CDK", it)
@@ -95,16 +96,16 @@ class AndroidSettings(private val context: Context) : Settings {
 
     private fun decryptMirrorCdk(value: String): String? = runCatching {
         val payload = value.removePrefix(ENC_PREFIX)
-        val parts = payload.split(":")
+    val parts = payload.split(":")
         if (parts.size != 2) return null
 
         val iv = Base64.decode(parts[0], Base64.NO_WRAP)
-        val encrypted = Base64.decode(parts[1], Base64.NO_WRAP)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val key = SecretKeySpec(mirrorKeyBytes, "AES")
-        val gcmSpec = GCMParameterSpec(128, iv)
+    val encrypted = Base64.decode(parts[1], Base64.NO_WRAP)
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    val key = SecretKeySpec(mirrorKeyBytes, "AES")
+    val gcmSpec = GCMParameterSpec(128, iv)
         cipher.init(Cipher.DECRYPT_MODE, key, gcmSpec)
-        val plain = cipher.doFinal(encrypted)
+    val plain = cipher.doFinal(encrypted)
         plain.toString(Charsets.UTF_8)
     }.getOrElse {
         Logger.e("AndroidSettings", "Failed to decrypt mirror CDK", it)
@@ -134,8 +135,7 @@ class AndroidSettings(private val context: Context) : Settings {
                 prefs.edit().putString(key, value).apply()
                 return
             }
-
-            val encrypted = encryptMirrorCdk(value)
+    val encrypted = encryptMirrorCdk(value)
             if (encrypted != null) {
                 prefs.edit().putString(key, encrypted).apply()
             }

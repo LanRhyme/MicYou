@@ -9,6 +9,7 @@ import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import org.jetbrains.compose.resources.getString
 
 object JvmSettings : Settings {
     private val appDir: File = File(System.getProperty("user.dir"))
@@ -32,13 +33,13 @@ object JvmSettings : Settings {
 
     private fun encryptMirrorCdk(value: String): String? = runCatching {
         val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val key = SecretKeySpec(mirrorKeyBytes, "AES")
-        val gcmSpec = GCMParameterSpec(128, iv)
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    val key = SecretKeySpec(mirrorKeyBytes, "AES")
+    val gcmSpec = GCMParameterSpec(128, iv)
         cipher.init(Cipher.ENCRYPT_MODE, key, gcmSpec)
-        val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
-        val ivEncoded = Base64.getEncoder().encodeToString(iv)
-        val dataEncoded = Base64.getEncoder().encodeToString(encrypted)
+    val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+    val ivEncoded = Base64.getEncoder().encodeToString(iv)
+    val dataEncoded = Base64.getEncoder().encodeToString(encrypted)
         "$ENC_PREFIX$ivEncoded:$dataEncoded"
     }.getOrElse {
         Logger.e("JvmSettings", "Failed to encrypt mirror CDK", it)
@@ -47,16 +48,16 @@ object JvmSettings : Settings {
 
     private fun decryptMirrorCdk(value: String): String? = runCatching {
         val payload = value.removePrefix(ENC_PREFIX)
-        val parts = payload.split(":")
+    val parts = payload.split(":")
         if (parts.size != 2) return null
 
         val iv = Base64.getDecoder().decode(parts[0])
-        val encrypted = Base64.getDecoder().decode(parts[1])
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val key = SecretKeySpec(mirrorKeyBytes, "AES")
-        val gcmSpec = GCMParameterSpec(128, iv)
+    val encrypted = Base64.getDecoder().decode(parts[1])
+    val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+    val key = SecretKeySpec(mirrorKeyBytes, "AES")
+    val gcmSpec = GCMParameterSpec(128, iv)
         cipher.init(Cipher.DECRYPT_MODE, key, gcmSpec)
-        val plain = cipher.doFinal(encrypted)
+    val plain = cipher.doFinal(encrypted)
         plain.toString(Charsets.UTF_8)
     }.getOrElse {
         Logger.e("JvmSettings", "Failed to decrypt mirror CDK", it)
@@ -67,8 +68,7 @@ object JvmSettings : Settings {
         if (key != MIRROR_CDK_KEY) {
             return fileSettings.getString(key, defaultValue)
         }
-
-        val raw = fileSettings.getString(key, MISSING_MARKER)
+    val raw = fileSettings.getString(key, MISSING_MARKER)
         if (raw == MISSING_MARKER || raw.isBlank()) {
             return defaultValue
         }
@@ -90,8 +90,7 @@ object JvmSettings : Settings {
                 fileSettings.putString(key, value)
                 return
             }
-
-            val encrypted = encryptMirrorCdk(value)
+    val encrypted = encryptMirrorCdk(value)
             if (encrypted != null) {
                 fileSettings.putString(key, encrypted)
             }

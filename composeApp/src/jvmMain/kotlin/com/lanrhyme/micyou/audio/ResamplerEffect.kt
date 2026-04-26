@@ -10,7 +10,6 @@ class ResamplerEffect : AudioEffect {
     private var resamplePrevFrame: ShortArray = ShortArray(0)
     private var scratchResampledShorts: ShortArray = ShortArray(0)
     private val lock = Any()
-    
     var playbackRatioIntegral: Double = 0.0
         private set
 
@@ -21,8 +20,7 @@ class ResamplerEffect : AudioEffect {
             if (abs(playbackRatio - 1.0) < 0.00005) {
                 return ProcessResult(input, input.size)
             }
-            
-            val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
+    val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
             return ProcessResult(scratchResampledShorts.copyOf(processedShortCount), processedShortCount)
         }
     }
@@ -33,8 +31,7 @@ class ResamplerEffect : AudioEffect {
                 lastProcessLength = input.size
                 return input
             }
-            
-            val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
+    val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
             lastProcessLength = processedShortCount
             
             return scratchResampledShorts.copyOf(processedShortCount)
@@ -47,13 +44,11 @@ class ResamplerEffect : AudioEffect {
                 output.asShortBuffer().put(input)
                 return input.size
             }
-            
-            val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
+    val processedShortCount = resampleInterleavedShorts(input, channelCount, playbackRatio)
             output.asShortBuffer().put(scratchResampledShorts, 0, processedShortCount)
             return processedShortCount
         }
     }
-    
     var lastProcessLength: Int = 0
         private set
     
@@ -91,19 +86,17 @@ class ResamplerEffect : AudioEffect {
             }
             resamplePosFrames = 1.0
         }
-
-        val effectiveFrames = inputFrames + 1
+    val effectiveFrames = inputFrames + 1
         var outFrames = 0
         var pos = resamplePosFrames
         
         val estimatedOutFrames = ((inputFrames.toDouble() / ratio) + 4.0).toInt().coerceAtLeast(8)
-        val neededShorts = estimatedOutFrames * channelCount
+    val neededShorts = estimatedOutFrames * channelCount
         if (scratchResampledShorts.size < neededShorts) {
             scratchResampledShorts = ShortArray(neededShorts)
         }
-        
-        val maxPossibleOutFrames = ((effectiveFrames - pos) / ratio + 2).toInt()
-        val safeBufferSize = maxOf(estimatedOutFrames, maxPossibleOutFrames) * channelCount
+    val maxPossibleOutFrames = ((effectiveFrames - pos) / ratio + 2).toInt()
+    val safeBufferSize = maxOf(estimatedOutFrames, maxPossibleOutFrames) * channelCount
         if (scratchResampledShorts.size < safeBufferSize) {
             scratchResampledShorts = ShortArray(safeBufferSize)
         }
@@ -120,21 +113,19 @@ class ResamplerEffect : AudioEffect {
             val base = pos.toInt()
             if (base + 1 >= effectiveFrames) break
             val frac = pos - base.toDouble()
-
-            val outBase = outFrames * channelCount
+    val outBase = outFrames * channelCount
             
             for (c in 0 until channelCount) {
                 val s0 = sample(base, c)
-                val s1 = sample(base + 1, c)
-                val v = (s0 + (s1 - s0) * frac).toInt().coerceIn(-32768, 32767)
+    val s1 = sample(base + 1, c)
+    val v = (s0 + (s1 - s0) * frac).toInt().coerceIn(-32768, 32767)
                 scratchResampledShorts[outBase + c] = v.toShort()
             }
 
             outFrames++
             pos += ratio
         }
-
-        val lastFrameOffset = (inputFrames - 1) * channelCount
+    val lastFrameOffset = (inputFrames - 1) * channelCount
         for (c in 0 until channelCount) {
             resamplePrevFrame[c] = processedShorts[lastFrameOffset + c]
         }

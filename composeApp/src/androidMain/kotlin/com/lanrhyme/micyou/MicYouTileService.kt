@@ -22,7 +22,7 @@ class MicYouTileService : TileService() {
             updateTile()
         } else {
             Toast.makeText(this, R.string.qs_toast_connecting, Toast.LENGTH_SHORT).show()
-            val intent = Intent(this, MainActivity::class.java).apply {
+    val intent = Intent(this, MainActivity::class.java).apply {
                 action = MainActivity.ACTION_QUICK_START
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }

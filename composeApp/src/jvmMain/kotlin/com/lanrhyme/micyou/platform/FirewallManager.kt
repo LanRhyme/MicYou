@@ -24,9 +24,8 @@ object FirewallManager {
                 "-Command",
                 "(Get-NetFirewallProfile -Profile Domain,Public,Private | Where-Object {\$_.Enabled -eq \$true}).Count -gt 0"
             ).redirectErrorStream(true).start()
-            
-            val output = process.inputStream.bufferedReader().readText().trim()
-            val finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    val output = process.inputStream.bufferedReader().readText().trim()
+    val finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             
             if (!finished) {
                 process.destroyForcibly()
@@ -57,9 +56,8 @@ object FirewallManager {
                 "-Command",
                 "netsh advfirewall firewall show rule name=all | Select-String 'MicYou-$port-$protocol'"
             ).redirectErrorStream(true).start()
-            
-            val micYouOutput = micYouRuleProcess.inputStream.bufferedReader().readText()
-            val micYouFinished = micYouRuleProcess.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    val micYouOutput = micYouRuleProcess.inputStream.bufferedReader().readText()
+    val micYouFinished = micYouRuleProcess.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             
             if (micYouFinished && micYouOutput.contains("MicYou-$port-$protocol")) {
                 Logger.d("FirewallManager", "找到 MicYou 特定规则: MicYou-$port-$protocol")
@@ -79,17 +77,15 @@ object FirewallManager {
                 if (${'$'}rules) { Write-Output 'ALLOWED' } else { Write-Output 'BLOCKED' }
                 """.trimIndent()
             ).redirectErrorStream(true).start()
-            
-            val checkOutput = checkProcess.inputStream.bufferedReader().readText().trim()
-            val checkFinished = checkProcess.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    val checkOutput = checkProcess.inputStream.bufferedReader().readText().trim()
+    val checkFinished = checkProcess.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             
             if (!checkFinished) {
                 checkProcess.destroyForcibly()
                 Logger.w("FirewallManager", "端口检查超时，视为未放行")
                 return false
             }
-            
-            val isAllowed = checkOutput.contains("ALLOWED")
+    val isAllowed = checkOutput.contains("ALLOWED")
             Logger.d("FirewallManager", "端口 $port ($protocol) 检查结果: $checkOutput, 允许: $isAllowed")
             isAllowed
         } catch (e: Exception) {
@@ -117,23 +113,20 @@ object FirewallManager {
             val command = """
                 New-NetFirewallRule -DisplayName "MicYou-$port-$protocol" -Direction Inbound -LocalPort $port -Protocol $protocol -Action Allow
             """.trimIndent()
-            
-            val process = ProcessBuilder(
+    val process = ProcessBuilder(
                 "powershell.exe",
                 "-Command",
                 command
             ).redirectErrorStream(true).start()
-            
-            val output = process.inputStream.bufferedReader().readText()
-            val finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    val output = process.inputStream.bufferedReader().readText()
+    val finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             
             if (!finished) {
                 process.destroyForcibly()
                 Logger.w("FirewallManager", "添加防火墙规则超时，使用netsh重试")
                 return tryNetshFallback(port, protocol)
             }
-            
-            val exitCode = process.exitValue()
+    val exitCode = process.exitValue()
             
             if (exitCode == 0) {
                 Logger.i("FirewallManager", "防火墙规则添加成功: MicYou-$port-$protocol")
@@ -158,17 +151,15 @@ object FirewallManager {
                 "protocol=$protocol",
                 "localport=$port"
             ).redirectErrorStream(true).start()
-            
-            val output = process.inputStream.bufferedReader().readText()
-            val finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+    val output = process.inputStream.bufferedReader().readText()
+    val finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             
             if (!finished) {
                 process.destroyForcibly()
                 Logger.e("FirewallManager", "netsh添加防火墙规则超时")
                 return false
             }
-            
-            val exitCode = process.exitValue()
+    val exitCode = process.exitValue()
             
             if (exitCode == 0) {
                 Logger.i("FirewallManager", "防火墙规则添加成功: MicYou-$port-$protocol")
@@ -199,7 +190,7 @@ object FirewallManager {
                 ).redirectErrorStream(true).start()
                 
                 process.waitFor()
-                val exitCode = process.exitValue()
+    val exitCode = process.exitValue()
                 
                 if (exitCode == 0) {
                     Logger.i("FirewallManager", "防火墙规则已移除: MicYou-$port-$protocol")

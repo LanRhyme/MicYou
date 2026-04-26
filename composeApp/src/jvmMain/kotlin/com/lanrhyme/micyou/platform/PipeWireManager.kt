@@ -122,9 +122,8 @@ object PipeWireManager {
                 "audio.position=[FL FR]",
                 "monitor.mode=disabled"
             ).redirectErrorStream(true).start()
-            
-            val output = process.inputStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
+    val output = process.inputStream.bufferedReader().readText()
+    val exitCode = process.waitFor()
             
             if (exitCode == 0 || output.contains("created") || output.contains("bound")) {
                 val idMatch = Regex("(\\d+)").find(output)
@@ -156,8 +155,7 @@ object PipeWireManager {
             // 短暂等待以检测"立即退出"的失败场景
             // 若进程在短窗口后仍存活，视为启动成功并立即继续
             Thread.sleep(100)
-
-            val isProcessAlive = process.isAlive
+    val isProcessAlive = process.isAlive
 
             // 判断成功条件：
             // 1. 进程仍在运行 → 视为成功启动
@@ -198,9 +196,8 @@ object PipeWireManager {
                 "Props",
                 "{media.role=Communication device.intended-roles=Communication}"
             ).redirectErrorStream(true).start()
-            
-            val output = process.inputStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
+    val output = process.inputStream.bufferedReader().readText()
+    val exitCode = process.waitFor()
             
             if (exitCode == 0) {
                 Logger.i("PipeWireManager", "Virtual Sink hidden")
@@ -226,14 +223,12 @@ object PipeWireManager {
             ).redirectErrorStream(true).start()
             
             process.waitFor()
-            
-            val setDefaultProcess = ProcessBuilder(
+    val setDefaultProcess = ProcessBuilder(
                 "wpctl", "set-default",
                 "@$SOURCE_NAME"
             ).redirectErrorStream(true).start()
-            
-            val output = setDefaultProcess.inputStream.bufferedReader().readText()
-            val exitCode = setDefaultProcess.waitFor()
+    val output = setDefaultProcess.inputStream.bufferedReader().readText()
+    val exitCode = setDefaultProcess.waitFor()
             
             if (exitCode == 0) {
                 Logger.i("PipeWireManager", "Default source set successfully")
@@ -254,9 +249,8 @@ object PipeWireManager {
                 "pactl", "set-default-source",
                 SOURCE_NAME
             ).redirectErrorStream(true).start()
-            
-            val output = process.inputStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
+    val output = process.inputStream.bufferedReader().readText()
+    val exitCode = process.waitFor()
             
             if (exitCode == 0) {
                 Logger.i("PipeWireManager", "Default source set using pactl")
@@ -302,9 +296,8 @@ object PipeWireManager {
             val process = ProcessBuilder("pw-cli", "destroy", nodeId)
                 .redirectErrorStream(true)
                 .start()
-            
-            val output = process.inputStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
+    val output = process.inputStream.bufferedReader().readText()
+    val exitCode = process.waitFor()
             
             if (exitCode == 0) {
                 Logger.d("PipeWireManager", "$description destroyed (id: $nodeId)")
@@ -321,9 +314,8 @@ object PipeWireManager {
             val process = ProcessBuilder("pw-cli", "destroy", nodeName)
                 .redirectErrorStream(true)
                 .start()
-            
-            val output = process.inputStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
+    val output = process.inputStream.bufferedReader().readText()
+    val exitCode = process.waitFor()
             
             if (exitCode == 0 || output.contains("not found") || output.contains("No such")) {
                 Logger.d("PipeWireManager", "$description destroyed or not found (name: $nodeName)")
@@ -342,8 +334,7 @@ object PipeWireManager {
             val process = ProcessBuilder("pw-cli", "list-objects")
                 .redirectErrorStream(true)
                 .start()
-            
-            val output = process.inputStream.bufferedReader().readText()
+    val output = process.inputStream.bufferedReader().readText()
             process.waitFor()
             
             output.contains(SINK_NAME) && output.contains(SOURCE_NAME)

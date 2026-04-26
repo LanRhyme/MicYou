@@ -17,7 +17,7 @@ class VADEffect : AudioEffect {
         // 计算所需置信度 (阈值越高，需要的置信度越低？反之亦然？)
         // 阈值 0 -> 灵敏度 0 -> 需要 1.0 置信度 (几乎不可能触发)
         // 阈值 100 -> 灵敏度 1.0 -> 需要 0.0 置信度 (总是触发)
-        val sensitivity = vadThreshold.coerceIn(0, 100) / 100f
+    val sensitivity = vadThreshold.coerceIn(0, 100) / 100f
         val requiredConfidence = 1f - sensitivity
         
         // 检查是否有语音
@@ -28,7 +28,7 @@ class VADEffect : AudioEffect {
                 val n = s.toDouble() / 32768.0
                 sum += n * n
             }
-            val rms = if (input.isNotEmpty()) sqrt(sum / input.size.toDouble()).toFloat() else 0f
+    val rms = if (input.isNotEmpty()) sqrt(sum / input.size.toDouble()).toFloat() else 0f
             rms >= (requiredConfidence * 0.12f) // 0.12 是一个经验值
         }
         

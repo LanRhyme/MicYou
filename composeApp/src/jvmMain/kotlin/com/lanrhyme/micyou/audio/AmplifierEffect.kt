@@ -16,7 +16,7 @@ class AmplifierEffect : AudioEffect {
 
         for (i in input.indices) {
             val sample = input[i].toInt()
-            val amplified = (sample * multiplier).toInt()
+    val amplified = (sample * multiplier).toInt()
             input[i] = amplified.coerceIn(-32768, 32767).toShort()
         }
         return input

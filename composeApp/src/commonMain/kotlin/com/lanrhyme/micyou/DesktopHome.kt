@@ -109,6 +109,9 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,14 +127,11 @@ fun DesktopHome(
     val state by viewModel.uiState.collectAsState()
     val audioLevel by viewModel.audioLevels.collectAsState(initial = 0f)
     val platform = remember { getPlatform() }
-    
-    val strings = LocalAppStrings.current
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
     
     var visible by remember { mutableStateOf(false) }
     var cardVisible by remember { mutableStateOf(false) }
-    
     val hazeState = if (state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground) {
         rememberHazeState()
     } else null
@@ -164,7 +164,7 @@ fun DesktopHome(
     if (state.installMessage != null) {
         AlertDialog(
             onDismissRequest = { },
-            title = { Text(strings.systemConfigTitle) },
+            title = { Text(stringResource(Res.string.systemConfigTitle)) },
             text = {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -181,7 +181,7 @@ fun DesktopHome(
     if (state.showFirewallDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissFirewallDialog() },
-            title = { Text(strings.firewallTitle) },
+            title = { Text(stringResource(Res.string.firewallTitle)) },
             text = { 
                 Column(
                     modifier = Modifier
@@ -190,19 +190,19 @@ fun DesktopHome(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = strings.firewallMessage.replace("%d", state.pendingFirewallPort?.toString() ?: ""),
+                        text = stringResource(Res.string.firewallMessage, state.pendingFirewallPort?.toString() ?: ""),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             },
             confirmButton = {
                 Button(onClick = { viewModel.confirmAddFirewallRule() }) {
-                    Text(strings.firewallConfirm)
+                    Text(stringResource(Res.string.firewallConfirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissFirewallDialog() }) {
-                    Text(strings.firewallDismiss)
+                    Text(stringResource(Res.string.firewallDismiss))
                 }
             }
         )
@@ -243,7 +243,7 @@ fun DesktopHome(
                         state = state,
                         viewModel = viewModel,
                         platform = platform,
-                        strings = strings,
+
                         isBluetoothDisabled = isBluetoothDisabled
                     )
                 }
@@ -261,9 +261,7 @@ fun DesktopHome(
                     ControlCenter(
                         state = state,
                         viewModel = viewModel,
-                        audioLevel = audioLevel,
-                        strings = strings
-                    )
+                        audioLevel = audioLevel)
                 }
 
                 AnimatedCard(
@@ -279,9 +277,7 @@ fun DesktopHome(
                         viewModel = viewModel,
                         onMinimize = onMinimize,
                         onClose = onClose,
-                        onOpenSettings = onOpenSettings,
-                        strings = strings
-                    )
+                        onOpenSettings = onOpenSettings)
                 }
             }
         }
@@ -358,7 +354,6 @@ private fun NetworkConfigCard(
     state: AppUiState,
     viewModel: MainViewModel,
     platform: Platform,
-    strings: AppStrings,
     isBluetoothDisabled: Boolean
 ) {
     var titleVisible by remember { mutableStateOf(false) }
@@ -400,13 +395,13 @@ private fun NetworkConfigCard(
             ) {
                 Box {
                     var showIpList by remember { mutableStateOf(false) }
-                    val currentIps = remember(showIpList) {
+    val currentIps = remember(showIpList) {
                         if (showIpList) platform.ipAddresses else emptyList()
                     }
 
                     SelectionContainer {
                         Text(
-                            "${strings.ipLabel}${platform.ipAddress}",
+                            "${stringResource(Res.string.ipLabel)}${platform.ipAddress}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.clickable { showIpList = true }
@@ -454,12 +449,12 @@ private fun NetworkConfigCard(
                         modifier = Modifier.menuAnchor().fillMaxWidth().height(60.dp),
                         readOnly = true,
                         value = when (state.mode) {
-                            ConnectionMode.Wifi -> strings.modeWifi
-                            ConnectionMode.Usb -> strings.modeUsb
-                            else -> strings.modeWifi
+                            ConnectionMode.Wifi -> stringResource(Res.string.modeWifi)
+                            ConnectionMode.Usb -> stringResource(Res.string.modeUsb)
+                            else -> stringResource(Res.string.modeWifi)
                         },
                         onValueChange = {},
-                        label = { Text(strings.connectionModeLabel) },
+                        label = { Text(stringResource(Res.string.connectionModeLabel)) },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         },
@@ -474,14 +469,14 @@ private fun NetworkConfigCard(
                         shape = MaterialTheme.shapes.medium
                     ) {
                         DropdownMenuItem(
-                            text = { Text(strings.modeWifi) },
+                            text = { Text(stringResource(Res.string.modeWifi)) },
                             onClick = {
                                 viewModel.setMode(ConnectionMode.Wifi)
                                 expanded = false
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text(strings.modeUsb) },
+                            text = { Text(stringResource(Res.string.modeUsb)) },
                             onClick = {
                                 viewModel.setMode(ConnectionMode.Usb)
                                 expanded = false
@@ -498,7 +493,7 @@ private fun NetworkConfigCard(
                     OutlinedTextField(
                         value = state.port,
                         onValueChange = { viewModel.setPort(it) },
-                        label = { Text(strings.portLabel) },
+                        label = { Text(stringResource(Res.string.portLabel)) },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp),
                         textStyle = MaterialTheme.typography.bodySmall,
                         singleLine = true,
@@ -514,8 +509,7 @@ private fun NetworkConfigCard(
 private fun ControlCenter(
     state: AppUiState,
     viewModel: MainViewModel,
-    audioLevel: Float,
-    strings: AppStrings
+    audioLevel: Float
 ) {
     var contentVisible by remember { mutableStateOf(false) }
     
@@ -551,8 +545,7 @@ private fun ControlCenter(
                 isRunning = isRunning,
                 isConnecting = isConnecting,
                 viewModel = viewModel,
-                strings = strings,
-                visible = contentVisible
+                                visible = contentVisible
             )
         }
     }
@@ -593,7 +586,6 @@ private fun MainControlButton(
     isRunning: Boolean,
     isConnecting: Boolean,
     viewModel: MainViewModel,
-    strings: AppStrings,
     visible: Boolean
 ) {
     val buttonSize by animateDpAsState(
@@ -603,7 +595,6 @@ private fun MainControlButton(
             stiffness = Spring.StiffnessLow
         )
     )
-    
     val buttonColor by animateColorAsState(
         targetValue = when {
             isRunning -> MaterialTheme.colorScheme.error
@@ -612,7 +603,6 @@ private fun MainControlButton(
         },
         animationSpec = tween(400, easing = EasingFunctions.EaseInOutCubic)
     )
-    
     val infiniteTransition = rememberInfiniteTransition(label = "ButtonAnimation")
     val angle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -622,7 +612,6 @@ private fun MainControlButton(
         ),
         label = "SpinnerAngle"
     )
-    
     val pulseScale = if (isRunning) rememberPulseAnimation(0.97f, 1.03f, 800) else 1f
     
     val interactionSource = remember { MutableInteractionSource() }
@@ -634,7 +623,6 @@ private fun MainControlButton(
             stiffness = Spring.StiffnessMedium
         )
     )
-    
     val buttonAlpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(400, easing = EasingFunctions.EaseOutExpo)
@@ -697,7 +685,7 @@ private fun MainControlButton(
             if (isConnecting) {
                 Icon(
                     Icons.Filled.Refresh,
-                    strings.statusConnecting,
+                    stringResource(Res.string.statusConnecting),
                     modifier = Modifier
                         .size(32.dp)
                         .graphicsLayer { rotationZ = angle }
@@ -705,7 +693,7 @@ private fun MainControlButton(
             } else {
                 Icon(
                     if (isRunning) Icons.Filled.LinkOff else Icons.Filled.Link,
-                    contentDescription = if (isRunning) strings.stop else strings.start,
+                    contentDescription = if (isRunning) stringResource(Res.string.stop) else stringResource(Res.string.start),
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -719,8 +707,7 @@ private fun StatusControlPanel(
     viewModel: MainViewModel,
     onMinimize: () -> Unit,
     onClose: () -> Unit,
-    onOpenSettings: () -> Unit,
-    strings: AppStrings
+    onOpenSettings: () -> Unit
 ) {
     var contentVisible by remember { mutableStateOf(false) }
     var showPluginPopup by remember { mutableStateOf(false) }
@@ -753,7 +740,7 @@ private fun StatusControlPanel(
                     content = {
                         Icon(
                             Icons.Filled.Minimize,
-                            strings.minimize,
+                            stringResource(Res.string.minimize),
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -764,7 +751,7 @@ private fun StatusControlPanel(
                     content = {
                         Icon(
                             Icons.Filled.Close,
-                            strings.close,
+                            stringResource(Res.string.close),
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
                         )
@@ -787,13 +774,12 @@ private fun StatusControlPanel(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val statusText = when (state.streamState) {
-                    StreamState.Idle -> strings.statusIdle
-                    StreamState.Connecting -> strings.statusConnecting
-                    StreamState.Streaming -> strings.statusStreaming
-                    StreamState.Error -> strings.statusError
+                    StreamState.Idle -> stringResource(Res.string.statusIdle)
+                    StreamState.Connecting -> stringResource(Res.string.statusConnecting)
+                    StreamState.Streaming -> stringResource(Res.string.statusStreaming)
+                    StreamState.Error -> stringResource(Res.string.statusError)
                 }
-                
-                val statusColor by animateColorAsState(
+    val statusColor by animateColorAsState(
                     targetValue = when (state.streamState) {
                         StreamState.Idle -> MaterialTheme.colorScheme.onSurfaceVariant
                         StreamState.Connecting -> MaterialTheme.colorScheme.tertiary
@@ -802,8 +788,7 @@ private fun StatusControlPanel(
                     },
                     animationSpec = tween(300)
                 )
-                
-                val statusScale = rememberPulseAnimation(0.98f, 1.02f, 1500)
+    val statusScale = rememberPulseAnimation(0.98f, 1.02f, 1500)
                 
                 Text(
                     statusText,
@@ -822,7 +807,7 @@ private fun StatusControlPanel(
                         
                         if (errorMsg.contains("adb reverse")) {
                             val parts = errorMsg.split("\n")
-                            val errorTitle = parts.firstOrNull() ?: errorMsg
+    val errorTitle = parts.firstOrNull() ?: errorMsg
                             val cmd = parts.drop(1).joinToString("\n").substringAfter("：").trim()
                             
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -882,13 +867,12 @@ private fun StatusControlPanel(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val muteInteractionSource = remember { MutableInteractionSource() }
-                val isMutePressed by muteInteractionSource.collectIsPressedAsState()
-                val muteScale by animateFloatAsState(
+    val isMutePressed by muteInteractionSource.collectIsPressedAsState()
+    val muteScale by animateFloatAsState(
                     targetValue = if (isMutePressed) 0.85f else 1f,
                     animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
                 )
-                
-                val muteColor by animateColorAsState(
+    val muteColor by animateColorAsState(
                     targetValue = if (state.isMuted)
                         MaterialTheme.colorScheme.error
                     else
@@ -910,20 +894,19 @@ private fun StatusControlPanel(
                     ) {
                         Icon(
                             if (state.isMuted) Icons.Filled.MicOff else Icons.Filled.Mic,
-                            contentDescription = if (state.isMuted) strings.unmuteLabel else strings.muteLabel,
+                            contentDescription = if (state.isMuted) stringResource(Res.string.unmuteLabel) else stringResource(Res.string.muteLabel),
                             modifier = Modifier.size(20.dp),
                             tint = muteColor
                         )
                     }
-                    
-                    val enabledPlugins = state.plugins.filter { it.isEnabled }
-                    val pluginInteractionSource = remember { MutableInteractionSource() }
-                    val isPluginPressed by pluginInteractionSource.collectIsPressedAsState()
-                    val pluginScale by animateFloatAsState(
+    val enabledPlugins = state.plugins.filter { it.isEnabled }
+    val pluginInteractionSource = remember { MutableInteractionSource() }
+    val isPluginPressed by pluginInteractionSource.collectIsPressedAsState()
+    val pluginScale by animateFloatAsState(
                         targetValue = if (isPluginPressed) 0.85f else 1f,
                         animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
                     )
-                    val pluginColor by animateColorAsState(
+    val pluginColor by animateColorAsState(
                         targetValue = if (enabledPlugins.isNotEmpty()) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                         animationSpec = tween(300, easing = EasingFunctions.EaseInOutCubic)
@@ -943,7 +926,7 @@ private fun StatusControlPanel(
                         ) {
                             Icon(
                                 Icons.Filled.Extension,
-                                contentDescription = strings.pluginsSection,
+                                contentDescription = stringResource(Res.string.pluginsSection),
                                 modifier = Modifier.size(20.dp),
                                 tint = pluginColor
                             )
@@ -956,7 +939,7 @@ private fun StatusControlPanel(
                         content = {
                             Icon(
                                 Icons.Rounded.Settings,
-                                contentDescription = strings.settingsTitle,
+                                contentDescription = stringResource(Res.string.settingsTitle),
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )

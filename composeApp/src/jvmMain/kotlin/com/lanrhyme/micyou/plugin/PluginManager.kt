@@ -55,16 +55,16 @@ class PluginManager(
 
     fun scanPlugins() {
         Logger.i("PluginManager", "Scanning plugins in: ${pluginsDir.absolutePath}")
-        val pluginList = mutableListOf<PluginInfo>()
-        val dirs = pluginsDir.listFiles()?.filter { it.isDirectory && !it.name.startsWith("temp_") }
+    val pluginList = mutableListOf<PluginInfo>()
+    val dirs = pluginsDir.listFiles()?.filter { it.isDirectory && !it.name.startsWith("temp_") }
         Logger.d("PluginManager", "Found ${dirs?.size ?: 0} plugin directories")
         dirs?.forEach { pluginDir ->
             Logger.d("PluginManager", "Checking directory: ${pluginDir.name}")
-            val manifestFile = File(pluginDir, "plugin.json")
+    val manifestFile = File(pluginDir, "plugin.json")
             if (manifestFile.exists()) {
                 try {
                     val manifest = json.decodeFromString<PluginManifest>(manifestFile.readText())
-                    val iconFile = File(pluginDir, "icon.png")
+    val iconFile = File(pluginDir, "icon.png")
                     pluginList.add(
                         PluginInfo(
                             manifest = manifest,
@@ -105,13 +105,12 @@ class PluginManager(
                 }
             }
             Logger.d("PluginManager", "Extracted zip file to temp directory")
-
-            var manifestFile = File(tempDir, "plugin.json")
-            var pluginRootDir = tempDir
+    var manifestFile = File(tempDir, "plugin.json")
+    var pluginRootDir = tempDir
 
             if (!manifestFile.exists()) {
                 Logger.d("PluginManager", "plugin.json not in root, searching recursively")
-                val found = findPluginManifest(tempDir)
+    val found = findPluginManifest(tempDir)
                 if (found != null) {
                     manifestFile = found.second
                     pluginRootDir = found.first
@@ -124,17 +123,16 @@ class PluginManager(
                 tempDir.deleteRecursively()
                 return Result.failure(Exception("plugin.json not found - make sure the plugin package contains a valid plugin.json file"))
             }
-
-            val manifest = json.decodeFromString<PluginManifest>(manifestFile.readText())
+    val manifest = json.decodeFromString<PluginManifest>(manifestFile.readText())
             Logger.i("PluginManager", "Found plugin: ${manifest.id} - ${manifest.name} v${manifest.version}")
-            val targetDir = File(pluginsDir, manifest.id.replace(".", "_"))
+    val targetDir = File(pluginsDir, manifest.id.replace(".", "_"))
 
             if (targetDir.exists()) {
                 val existingManifestFile = File(targetDir, "plugin.json")
                 if (existingManifestFile.exists()) {
                     try {
                         val existingManifest = json.decodeFromString<PluginManifest>(existingManifestFile.readText())
-                        val comparison = compareVersions(manifest.version, existingManifest.version)
+    val comparison = compareVersions(manifest.version, existingManifest.version)
                         
                         if (comparison > 0) {
                             Logger.i("PluginManager", "Updating plugin ${manifest.id} from v${existingManifest.version} to v${manifest.version}")
@@ -160,9 +158,8 @@ class PluginManager(
                     targetDir.deleteRecursively()
                 }
             }
-
-            val jarFile = File(pluginRootDir, "plugin.jar")
-            val hasJarInRoot = jarFile.exists()
+    val jarFile = File(pluginRootDir, "plugin.jar")
+    val hasJarInRoot = jarFile.exists()
             
             if (!hasJarInRoot) {
                 val jarsInDir = pluginRootDir.listFiles()?.filter { it.extension == "jar" }
@@ -175,8 +172,7 @@ class PluginManager(
                     Logger.d("PluginManager", "Copied source JAR as plugin.jar")
                 }
             }
-
-            val renamed = pluginRootDir.renameTo(targetDir)
+    val renamed = pluginRootDir.renameTo(targetDir)
             if (!renamed) {
                 Logger.w("PluginManager", "renameTo failed, using copy instead")
                 targetDir.mkdirs()
@@ -188,8 +184,7 @@ class PluginManager(
             }
             Logger.i("PluginManager", "Moved plugin to: ${targetDir.absolutePath}")
             scanPlugins()
-
-            val pluginInfo = _plugins.value.find { it.manifest.id == manifest.id }
+    val pluginInfo = _plugins.value.find { it.manifest.id == manifest.id }
                 ?: return Result.failure(Exception("Failed to find imported plugin"))
 
             Logger.i("PluginManager", "Successfully imported plugin: ${manifest.id}")
@@ -208,22 +203,20 @@ class PluginManager(
             if (loadedPlugins.containsKey(pluginId)) {
                 return Result.success(Unit)
             }
-
-            val pluginDir = File(info.installPath)
-            val jarFile = File(pluginDir, "plugin.jar")
+    val pluginDir = File(info.installPath)
+    val jarFile = File(pluginDir, "plugin.jar")
             if (!jarFile.exists()) {
                 return Result.failure(Exception("plugin.jar not found"))
             }
-
-            val classLoader = URLClassLoader(arrayOf(jarFile.toURI().toURL()), javaClass.classLoader)
+    val classLoader = URLClassLoader(arrayOf(jarFile.toURI().toURL()), javaClass.classLoader)
             classLoaders[pluginId] = classLoader
 
             val pluginClass = classLoader.loadClass(info.manifest.mainClass)
-            val plugin = pluginClass.getDeclaredConstructor().newInstance() as Plugin
+    val plugin = pluginClass.getDeclaredConstructor().newInstance() as Plugin
 
             val pluginDataDir = File(pluginDir, "data")
             pluginDataDir.mkdirs()
-            val context = PluginStorage(
+    val context = PluginStorage(
                 pluginId = pluginId,
                 dataDir = pluginDataDir,
                 pluginInstallDir = pluginDir,
@@ -273,8 +266,7 @@ class PluginManager(
     fun deletePlugin(pluginId: String): Result<Unit> {
         return try {
             disablePlugin(pluginId)
-
-            val info = _plugins.value.find { it.manifest.id == pluginId }
+    val info = _plugins.value.find { it.manifest.id == pluginId }
                 ?: return Result.failure(Exception("Plugin not found: $pluginId"))
 
             File(info.installPath).deleteRecursively()
@@ -335,9 +327,8 @@ class PluginManager(
 
     private fun compareVersions(version1: String, version2: String): Int {
         val parts1 = version1.split(".")
-        val parts2 = version2.split(".")
-        
-        val maxLength = maxOf(parts1.size, parts2.size)
+    val parts2 = version2.split(".")
+    val maxLength = maxOf(parts1.size, parts2.size)
         
         for (i in 0 until maxLength) {
             val v1 = parts1.getOrNull(i)?.toIntOrNull() ?: 0

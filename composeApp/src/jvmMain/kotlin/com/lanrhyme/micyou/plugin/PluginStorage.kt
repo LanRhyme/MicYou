@@ -3,6 +3,7 @@ package com.lanrhyme.micyou.plugin
 import com.lanrhyme.micyou.Logger
 import com.lanrhyme.micyou.util.FileSettings
 import java.io.File
+import org.jetbrains.compose.resources.getString
 
 class PluginStorage(
     override val pluginId: String,

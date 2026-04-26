@@ -64,8 +64,7 @@ fun ShardTextField(
     leadingIcon: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
     supportingText: @Composable (() -> Unit)? = null,
-    cornerRadius: Dp = 14.dp,
-) {
+    cornerRadius: Dp = 14.dp) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
     
@@ -114,10 +113,8 @@ fun ShardTextField(
         },
         animationSpec = tween(250)
     )
-    
     val textColor = if (enabled) MaterialTheme.colorScheme.onSurface
     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-    
     val shape = RoundedCornerShape(cornerRadius)
     
     Column(modifier = modifier) {

@@ -93,7 +93,7 @@ class ConnectionHandler(
     private suspend fun performHandshake(): Boolean {
         try {
             val check1Packet = input.readPacket(CHECK_1.length)
-            val check1String = check1Packet.readText()
+    val check1String = check1Packet.readText()
             
             if (check1String != CHECK_1) {
                 Logger.e("ConnectionHandler", "握手失败: 收到 $check1String")
@@ -120,8 +120,8 @@ class ConnectionHandler(
         for (msg in channel) {
             try {
                 @OptIn(ExperimentalSerializationApi::class)
-                val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
-                val length = packetBytes.size
+    val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
+    val length = packetBytes.size
                 output.writeInt(PACKET_MAGIC)
                 output.writeInt(length)
                 output.writeFully(packetBytes)
@@ -147,8 +147,7 @@ class ConnectionHandler(
                     }
                 }
             }
-
-            val length = input.readInt()
+    val length = input.readInt()
 
             // 包大小验证：保持稳健性，跳过异常包而不是断开连接
             // 2MB 限制防止内存溢出，但不会因为单个异常包就断开整个连接
@@ -166,8 +165,7 @@ class ConnectionHandler(
                 Logger.d("ConnectionHandler", "Received empty packet, skipping")
                 continue
             }
-
-            val packetBytes = ByteArray(length)
+    val packetBytes = ByteArray(length)
             input.readFully(packetBytes)
 
             try {
@@ -176,8 +174,7 @@ class ConnectionHandler(
                 if (wrapper.mute != null) {
                     onMuteStateChanged(wrapper.mute.isMuted)
                 }
-
-                val audioPacket = wrapper.audioPacket?.audioPacket
+    val audioPacket = wrapper.audioPacket?.audioPacket
                 if (audioPacket != null) {
                     onAudioPacketReceived(audioPacket)
                 }

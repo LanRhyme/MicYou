@@ -109,6 +109,9 @@ import com.lanrhyme.micyou.theme.ExpressiveSwitch
 import com.lanrhyme.micyou.theme.SuperRoundedShape
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * 可复用的设置项容器组件
@@ -206,10 +209,8 @@ fun DesktopSettings(
     onClose: () -> Unit
 ) {
     val platform = getPlatform()
-    
     val snackbarHostState = remember { SnackbarHostState() }
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
     
@@ -221,7 +222,6 @@ fun DesktopSettings(
     // 页面进入动画状态
     var visible by remember { mutableStateOf(false) }
     var contentVisible by remember { mutableStateOf(false) }
-    
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(400, easing = EasingFunctions.EaseOutExpo),
@@ -285,7 +285,6 @@ fun DesktopSettings(
 @Composable
 fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible: Boolean, hazeState: HazeState?) {
     var currentSection by remember { mutableStateOf(SettingsSection.General) }
-    val strings = LocalAppStrings.current
     val state by viewModel.uiState.collectAsState()
     val cardOpacity = state.backgroundSettings.cardOpacity
     
@@ -318,12 +317,12 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible:
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = strings.close,
+                                contentDescription = stringResource(Res.string.close),
                                 modifier = Modifier.size(22.dp)
                             )
                         }
                         Text(
-                            strings.settingsTitle,
+                            stringResource(Res.string.settingsTitle),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium
@@ -345,11 +344,11 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible:
                         SettingsSection.Plugins -> Icons.Rounded.Extension
                         SettingsSection.About -> Icons.Rounded.Info
                     }
-                    val isSelected = currentSection == section
+    val isSelected = currentSection == section
 
                     NavigationItem(
                         icon = icon,
-                        label = section.getLabel(strings),
+                        label = section.getLabel(),
                         isSelected = isSelected,
                         onClick = { currentSection = section }
                     )
@@ -369,7 +368,7 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible:
             ) {
                 // 标题区域
                 Text(
-                    currentSection.getLabel(strings),
+                    currentSection.getLabel(),
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
@@ -411,7 +410,6 @@ private fun NavigationItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    
     val backgroundColor by animateColorAsState(
         targetValue = when {
             isSelected -> MaterialTheme.colorScheme.secondaryContainer
@@ -421,7 +419,6 @@ private fun NavigationItem(
         animationSpec = tween(200),
         label = "navBackground"
     )
-    
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 1.02f else 1f,
         animationSpec = spring(
@@ -430,7 +427,6 @@ private fun NavigationItem(
         ),
         label = "navScale"
     )
-    
     val iconTint by animateColorAsState(
         targetValue = when {
             isSelected -> MaterialTheme.colorScheme.primary
@@ -440,7 +436,6 @@ private fun NavigationItem(
         animationSpec = tween(200),
         label = "navIconTint"
     )
-    
     val textColor by animateColorAsState(
         targetValue = when {
             isSelected -> MaterialTheme.colorScheme.onSecondaryContainer
@@ -516,9 +511,7 @@ private fun NavigationItem(
 fun VBCableManagementSection(
     cardOpacity: Float,
     viewModel: MainViewModel
-) {
-    val strings = LocalAppStrings.current
-    val state by viewModel.uiState.collectAsState()
+) {    val state by viewModel.uiState.collectAsState()
     val isInstalled = isVirtualDeviceInstalled()
     val installProgress = state.vbcableInstallProgress
     val isInstalling = installProgress != null
@@ -536,12 +529,12 @@ fun VBCableManagementSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    strings.vbcableSettingsLabel,
+                    stringResource(Res.string.vbcableSettingsLabel),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    if (isInstalled) strings.vbcableInstalled else strings.vbcableNotInstalled,
+                    if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableNotInstalled),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (isInstalled) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -570,7 +563,7 @@ fun VBCableManagementSection(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isInstalled) strings.vbcableInstalled else strings.vbcableInstall)
+                    Text(if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableInstall))
                 }
             }
         }
@@ -590,7 +583,6 @@ fun MobileLayout(viewModel: MainViewModel, onClose: () -> Unit, hazeState: HazeS
 fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsState()
     val platform = getPlatform()
-    val strings = LocalAppStrings.current
     val cardOpacity = state.backgroundSettings.cardOpacity
 
     // 预设种子颜色 - Material Design 3 Expressive 精选配色
@@ -610,7 +602,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
             SettingsSection.General -> {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SettingsDropdownItem(
-                        headline = strings.languageLabel,
+                        headline = stringResource(Res.string.languageLabel),
                         selected = state.language,
                         options = AppLanguage.entries.toList(),
                         labelProvider = { it.label },
@@ -620,15 +612,15 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
 
                     if (platform.type == PlatformType.Android) {
                         SettingsSwitchItem(
-                            headline = strings.enableStreamingNotificationLabel,
+                            headline = stringResource(Res.string.enableStreamingNotificationLabel),
                             checked = state.enableStreamingNotification,
                             onCheckedChange = { viewModel.setEnableStreamingNotification(it) },
                             cardOpacity = cardOpacity
                         )
 
                         SettingsSwitchItem(
-                            headline = strings.keepScreenOnLabel,
-                            supporting = strings.keepScreenOnDesc,
+                            headline = stringResource(Res.string.keepScreenOnLabel),
+                            supporting = stringResource(Res.string.keepScreenOnDesc),
                             checked = state.keepScreenOn,
                             onCheckedChange = { viewModel.setKeepScreenOn(it) },
                             cardOpacity = cardOpacity
@@ -640,43 +632,42 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
 
                     if (platform.type == PlatformType.Desktop) {
                         SettingsSwitchItem(
-                            headline = strings.autoStartLabel,
-                            supporting = strings.autoStartDesc,
+                            headline = stringResource(Res.string.autoStartLabel),
+                            supporting = stringResource(Res.string.autoStartDesc),
                             checked = state.autoStart,
                             onCheckedChange = { viewModel.setAutoStart(it) },
                             cardOpacity = cardOpacity
                         )
+    val closeActionLabels = mapOf(
+                            CloseAction.Prompt to stringResource(Res.string.closeActionPrompt),
+                            CloseAction.Minimize to stringResource(Res.string.closeActionMinimize),
+                            CloseAction.Exit to stringResource(Res.string.closeActionExit)
+                        )
                         SettingsDropdownItem(
-                            headline = strings.closeActionLabel,
+                            headline = stringResource(Res.string.closeActionLabel),
                             selected = state.closeAction,
                             options = CloseAction.entries.toList(),
-                            labelProvider = { action ->
-                                when (action) {
-                                    CloseAction.Prompt -> strings.closeActionPrompt
-                                    CloseAction.Minimize -> strings.closeActionMinimize
-                                    CloseAction.Exit -> strings.closeActionExit
-                                }
-                            },
+                            labelProvider = { action -> closeActionLabels[action] ?: "" },
                             onSelect = { viewModel.setCloseAction(it) },
                             cardOpacity = cardOpacity
                         )
                         SettingsSwitchItem(
-                            headline = strings.pocketModeLabel,
-                            supporting = strings.pocketModeDesc,
+                            headline = stringResource(Res.string.pocketModeLabel),
+                            supporting = stringResource(Res.string.pocketModeDesc),
                             checked = state.pocketMode,
                             onCheckedChange = { viewModel.setPocketMode(it) },
                             cardOpacity = cardOpacity
                         )
                         SettingsSwitchItem(
-                            headline = strings.useSystemTitleBarLabel,
-                            supporting = strings.useSystemTitleBarDesc,
+                            headline = stringResource(Res.string.useSystemTitleBarLabel),
+                            supporting = stringResource(Res.string.useSystemTitleBarDesc),
                             checked = state.useSystemTitleBar,
                             onCheckedChange = { viewModel.setUseSystemTitleBar(it) },
                             cardOpacity = cardOpacity
                         )
                         SettingsSwitchItem(
-                            headline = strings.floatingWindowLabel,
-                            supporting = strings.floatingWindowDesc,
+                            headline = stringResource(Res.string.floatingWindowLabel),
+                            supporting = stringResource(Res.string.floatingWindowDesc),
                             checked = state.floatingWindowEnabled,
                             onCheckedChange = { viewModel.setFloatingWindowEnabled(it) },
                             cardOpacity = cardOpacity
@@ -685,8 +676,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
 
                     // Auto check update toggle (all platforms)
                     SettingsSwitchItem(
-                        headline = strings.autoCheckUpdateLabel,
-                        supporting = strings.autoCheckUpdateDesc,
+                        headline = stringResource(Res.string.autoCheckUpdateLabel),
+                        supporting = stringResource(Res.string.autoCheckUpdateDesc),
                         checked = state.autoCheckUpdate,
                         onCheckedChange = { viewModel.setAutoCheckUpdate(it) },
                         cardOpacity = cardOpacity
@@ -694,8 +685,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
 
                     // Mirror download toggle
                     SettingsSwitchItem(
-                        headline = strings.mirrorDownloadLabel,
-                        supporting = strings.mirrorDownloadDesc,
+                        headline = stringResource(Res.string.mirrorDownloadLabel),
+                        supporting = stringResource(Res.string.mirrorDownloadDesc),
                         checked = state.useMirrorDownload,
                         onCheckedChange = { viewModel.setUseMirrorDownload(it) },
                         cardOpacity = cardOpacity
@@ -718,7 +709,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(strings.themeLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(Res.string.themeLabel), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(ThemeMode.entries) { mode ->
                                     FilterChip(
@@ -726,9 +717,9 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                         onClick = { viewModel.setThemeMode(mode) },
                                         label = { 
                                             Text(when(mode) {
-                                                ThemeMode.System -> strings.themeSystem
-                                                ThemeMode.Light -> strings.themeLight
-                                                ThemeMode.Dark -> strings.themeDark
+                                                ThemeMode.System -> stringResource(Res.string.themeSystem)
+                                                ThemeMode.Light -> stringResource(Res.string.themeLight)
+                                                ThemeMode.Dark -> stringResource(Res.string.themeDark)
                                             }) 
                                         },
                                         leadingIcon = {
@@ -743,8 +734,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     // 动态取色选项：Android 和 Windows 支持
                     if (platform.type == PlatformType.Android || isDynamicColorSupported()) {
                         SettingsSwitchItem(
-                            headline = strings.useDynamicColorLabel,
-                            supporting = strings.useDynamicColorDesc,
+                            headline = stringResource(Res.string.useDynamicColorLabel),
+                            supporting = stringResource(Res.string.useDynamicColorDesc),
                             checked = state.useDynamicColor,
                             onCheckedChange = { viewModel.setUseDynamicColor(it) },
                             cardOpacity = cardOpacity
@@ -752,8 +743,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     }
 
                     SettingsSwitchItem(
-                        headline = strings.oledPureBlackLabel,
-                        supporting = strings.oledPureBlackDesc,
+                        headline = stringResource(Res.string.oledPureBlackLabel),
+                        supporting = stringResource(Res.string.oledPureBlackDesc),
                         checked = state.oledPureBlack,
                         onCheckedChange = { viewModel.setOledPureBlack(it) },
                         cardOpacity = cardOpacity
@@ -766,8 +757,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(strings.themeColorLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                            val isSeedColorEnabled = !state.useDynamicColor
+                            Text(stringResource(Res.string.themeColorLabel), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+    val isSeedColorEnabled = !state.useDynamicColor
                             // 当开启动态取色时，显示当前实际应用的主题主色（动态颜色）
                             val displayColor = if (state.useDynamicColor) {
                                 MaterialTheme.colorScheme.primary.toArgb().toLong() and 0xFFFFFFFF
@@ -779,7 +770,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 presetColors = seedColors,
                                 onColorSelected = { viewModel.setSeedColor(it) },
                                 enabled = isSeedColorEnabled,
-                                disabledHint = strings.dynamicColorEnabledHint,
+                                disabledHint = stringResource(Res.string.dynamicColorEnabledHint),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -794,7 +785,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = strings.dynamicColorEnabledHint,
+                                    text = stringResource(Res.string.dynamicColorEnabledHint),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     textAlign = TextAlign.Center,
@@ -812,8 +803,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(strings.expressive.paletteStyleLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                            Text(strings.expressive.paletteStyleDesc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(Res.string.paletteStyleLabel), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(Res.string.paletteStyleDesc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(com.lanrhyme.micyou.theme.PaletteStyle.entries) { style ->
                                     FilterChip(
@@ -833,8 +824,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
 
                     // Expressive Style toggles
                     SettingsSwitchItem(
-                        headline = strings.expressive.useExpressiveShapesLabel,
-                        supporting = strings.expressive.useExpressiveShapesDesc,
+                        headline = stringResource(Res.string.useExpressiveShapesLabel),
+                        supporting = stringResource(Res.string.useExpressiveShapesDesc),
                         checked = state.useExpressiveShapes,
                         onCheckedChange = { viewModel.setUseExpressiveShapes(it) },
                         cardOpacity = cardOpacity
@@ -847,7 +838,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(strings.visualizerStyleLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(Res.string.visualizerStyleLabel), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(VisualizerStyle.entries) { style ->
                                     FilterChip(
@@ -855,12 +846,12 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                         onClick = { viewModel.setVisualizerStyle(style) },
                                         label = { 
                                             Text(when(style) {
-                                                VisualizerStyle.VolumeRing -> strings.visualizerStyleVolumeRing
-                                                VisualizerStyle.Ripple -> strings.visualizerStyleRipple
-                                                VisualizerStyle.Bars -> strings.visualizerStyleBars
-                                                VisualizerStyle.Wave -> strings.visualizerStyleWave
-                                                VisualizerStyle.Glow -> strings.visualizerStyleGlow
-                                                VisualizerStyle.Particles -> strings.visualizerStyleParticles
+                                                VisualizerStyle.VolumeRing -> stringResource(Res.string.visualizerStyleVolumeRing)
+                                                VisualizerStyle.Ripple -> stringResource(Res.string.visualizerStyleRipple)
+                                                VisualizerStyle.Bars -> stringResource(Res.string.visualizerStyleBars)
+                                                VisualizerStyle.Wave -> stringResource(Res.string.visualizerStyleWave)
+                                                VisualizerStyle.Glow -> stringResource(Res.string.visualizerStyleGlow)
+                                                VisualizerStyle.Particles -> stringResource(Res.string.visualizerStyleParticles)
                                             }) 
                                         },
                                         leadingIcon = {
@@ -879,7 +870,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(strings.backgroundSettingsLabel, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(stringResource(Res.string.backgroundSettingsLabel), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                             
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -889,14 +880,14 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                     onClick = { viewModel.pickBackgroundImage() },
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Text(strings.selectBackgroundImage)
+                                    Text(stringResource(Res.string.selectBackgroundImage))
                                 }
                                 if (state.backgroundSettings.hasCustomBackground) {
                                     OutlinedButton(
                                         onClick = { viewModel.clearBackgroundImage() },
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Text(strings.clearBackgroundImage)
+                                        Text(stringResource(Res.string.clearBackgroundImage))
                                     }
                                 }
                             }
@@ -904,7 +895,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                             if (state.backgroundSettings.hasCustomBackground) {
                                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                                     Text(
-                                        "${strings.backgroundBrightnessLabel}: ${(state.backgroundSettings.brightness * 100).toInt()}%",
+                                        "${stringResource(Res.string.backgroundBrightnessLabel)}: ${(state.backgroundSettings.brightness * 100).toInt()}%",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Slider(
@@ -916,7 +907,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 
                                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                                     Text(
-                                        "${strings.backgroundBlurLabel}: ${state.backgroundSettings.blurRadius.toInt()}px",
+                                        "${stringResource(Res.string.backgroundBlurLabel)}: ${state.backgroundSettings.blurRadius.toInt()}px",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Slider(
@@ -928,7 +919,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 
                                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                                     Text(
-                                        "${strings.cardOpacityLabel}: ${(state.backgroundSettings.cardOpacity * 100).toInt()}%",
+                                        "${stringResource(Res.string.cardOpacityLabel)}: ${(state.backgroundSettings.cardOpacity * 100).toInt()}%",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Slider(
@@ -944,8 +935,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column {
-                                        Text(strings.enableHazeEffectLabel, style = MaterialTheme.typography.bodyMedium)
-                                        Text(strings.enableHazeEffectDesc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        Text(stringResource(Res.string.enableHazeEffectLabel), style = MaterialTheme.typography.bodyMedium)
+                                        Text(stringResource(Res.string.enableHazeEffectDesc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     Switch(
                                         checked = state.backgroundSettings.enableHazeEffect,
@@ -967,8 +958,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
-                                headlineContent = { Text(strings.autoConfigLabel) },
-                                supportingContent = { Text(strings.autoConfigDesc) },
+                                headlineContent = { Text(stringResource(Res.string.autoConfigLabel)) },
+                                supportingContent = { Text(stringResource(Res.string.autoConfigDesc)) },
                                 trailingContent = {
                                     Switch(
                                         checked = state.isAutoConfig,
@@ -979,8 +970,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
                         }
-                        
-                        val manualSettingsEnabled = !state.isAutoConfig
+    val manualSettingsEnabled = !state.isAutoConfig
                         
                         Box(
                             modifier = Modifier
@@ -989,7 +979,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
-                                headlineContent = { Text(strings.sampleRateLabel) },
+                                headlineContent = { Text(stringResource(Res.string.sampleRateLabel)) },
                                 trailingContent = {
                                     var expanded by remember { mutableStateOf(false) }
                                     Box {
@@ -1018,7 +1008,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
-                                headlineContent = { Text(strings.channelCountLabel) },
+                                headlineContent = { Text(stringResource(Res.string.channelCountLabel)) },
                                 trailingContent = {
                                     var expanded by remember { mutableStateOf(false) }
                                     Box {
@@ -1047,7 +1037,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
-                                headlineContent = { Text(strings.audioFormatLabel) },
+                                headlineContent = { Text(stringResource(Res.string.audioFormatLabel)) },
                                 trailingContent = {
                                     var expanded by remember { mutableStateOf(false) }
                                     Box {
@@ -1077,11 +1067,11 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
-                                headlineContent = { Text(strings.audioSourceLabel) },
+                                headlineContent = { Text(stringResource(Res.string.audioSourceLabel)) },
                                 trailingContent = {
                                     var expanded by remember { mutableStateOf(false) }
-                                    val audioSourceOptions = getAudioSourceOptions()
-                                    val currentSource = audioSourceOptions.find { it.name == state.androidAudioSourceName } ?: audioSourceOptions.firstOrNull()
+    val audioSourceOptions = getAudioSourceOptions()
+    val currentSource = audioSourceOptions.find { it.name == state.androidAudioSourceName } ?: audioSourceOptions.firstOrNull()
                                     if (audioSourceOptions.isNotEmpty() && currentSource != null) {
                                         Box {
                                             TextButton(onClick = { expanded = true }) { Text(currentSource.label) }
@@ -1122,7 +1112,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(strings.gainLabel, style = MaterialTheme.typography.bodyMedium)
+                                Text(stringResource(Res.string.gainLabel), style = MaterialTheme.typography.bodyMedium)
 
                                 Slider(
                                     value = state.amplification,
@@ -1130,8 +1120,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                     valueRange = -50.0f..50.0f,
                                     modifier = Modifier.weight(1f)
                                 )
-
-                                val gainText = if (state.amplification >= 0) "+${state.amplification.toInt()} dB" else "${state.amplification.toInt()} dB"
+    val gainText = if (state.amplification >= 0) "+${state.amplification.toInt()} dB" else "${state.amplification.toInt()} dB"
                                 Text(
                                     gainText,
                                     style = MaterialTheme.typography.bodySmall,
@@ -1149,7 +1138,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
-                                headlineContent = { Text(strings.enableNsLabel) },
+                                headlineContent = { Text(stringResource(Res.string.enableNsLabel)) },
                                 trailingContent = { 
                                     Switch(
                                         checked = state.enableNS, 
@@ -1173,8 +1162,8 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(strings.nsTypeLabel, style = MaterialTheme.typography.bodyMedium)
-                                        var showHelp by remember { mutableStateOf(false) }
+                                        Text(stringResource(Res.string.nsTypeLabel), style = MaterialTheme.typography.bodyMedium)
+    var showHelp by remember { mutableStateOf(false) }
                                         IconButton(onClick = { showHelp = true }) {
                                             Icon(Icons.Default.Info, contentDescription = "Help", modifier = Modifier.size(20.dp))
                                         }
@@ -1201,7 +1190,6 @@ fun VBCableManagementSection(
     viewModel: MainViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
     val isInstalled = isVirtualDeviceInstalled()
     
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1219,7 +1207,7 @@ fun VBCableManagementSection(
                 )
                 
                 Text(
-                    if (isInstalled) strings.vbcableInstalled else strings.vbcableNotInstalled,
+                    if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableNotInstalled),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1235,7 +1223,7 @@ fun VBCableManagementSection(
                     ) {
                         Icon(Icons.Rounded.InstallDesktop, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (isInstalled) strings.vbcableInstalled else strings.vbcableInstall)
+                        Text(if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableInstall))
                     }
                 }
                 
@@ -1269,7 +1257,7 @@ fun VBCableManagementSection(
                                 .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
-                                headlineContent = { Text(strings.enableDereverbLabel) },
+                                headlineContent = { Text(stringResource(Res.string.enableDereverbLabel)) },
                                 trailingContent = { 
                                     Switch(
                                         checked = state.enableDereverb, 
@@ -1288,7 +1276,7 @@ fun VBCableManagementSection(
                                     .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("${strings.dereverbLevelLabel}: ${(state.dereverbLevel * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                                    Text("${stringResource(Res.string.dereverbLevelLabel)}: ${(state.dereverbLevel * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
                                     Slider(
                                         value = state.dereverbLevel,
                                         onValueChange = { viewModel.setDereverbLevel(it) },
@@ -1306,7 +1294,7 @@ fun VBCableManagementSection(
                                 .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
-                                headlineContent = { Text(strings.enableAgcLabel) },
+                                headlineContent = { Text(stringResource(Res.string.enableAgcLabel)) },
                                 trailingContent = { 
                                     Switch(
                                         checked = state.enableAGC, 
@@ -1325,7 +1313,7 @@ fun VBCableManagementSection(
                                     .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("${strings.agcTargetLabel}: ${state.agcTargetLevel}", style = MaterialTheme.typography.bodySmall)
+                                    Text("${stringResource(Res.string.agcTargetLabel)}: ${state.agcTargetLevel}", style = MaterialTheme.typography.bodySmall)
                                     Slider(
                                         value = state.agcTargetLevel.toFloat(),
                                         onValueChange = { viewModel.setAgcTargetLevel(it.toInt()) },
@@ -1343,7 +1331,7 @@ fun VBCableManagementSection(
                                 .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                         ) {
                             ListItem(
-                                headlineContent = { Text(strings.enableVadLabel) },
+                                headlineContent = { Text(stringResource(Res.string.enableVadLabel)) },
                                 trailingContent = { 
                                     Switch(
                                         checked = state.enableVAD, 
@@ -1362,7 +1350,7 @@ fun VBCableManagementSection(
                                     .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("${strings.vadThresholdLabel}: ${state.vadThreshold}", style = MaterialTheme.typography.bodySmall)
+                                    Text("${stringResource(Res.string.vadThresholdLabel)}: ${state.vadThreshold}", style = MaterialTheme.typography.bodySmall)
                                     Slider(
                                         value = state.vadThreshold.toFloat(),
                                         onValueChange = { viewModel.setVadThreshold(it.toInt()) },
@@ -1384,8 +1372,8 @@ fun VBCableManagementSection(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(strings.audioEnhanced.performanceLabel, style = MaterialTheme.typography.titleSmall)
-                                    var showPerformanceHelp by remember { mutableStateOf(false) }
+                                    Text(stringResource(Res.string.performanceLabel), style = MaterialTheme.typography.titleSmall)
+    var showPerformanceHelp by remember { mutableStateOf(false) }
                                     IconButton(onClick = { showPerformanceHelp = true }) {
                                         Icon(Icons.Default.Info, contentDescription = "Help", modifier = Modifier.size(20.dp))
                                     }
@@ -1397,9 +1385,9 @@ fun VBCableManagementSection(
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     items(listOf("Default", "Low Latency", "High Quality")) { mode ->
                                         val modeLabel = when (mode) {
-                                            "Low Latency" -> strings.audioEnhanced.performanceLowLatency
-                                            "High Quality" -> strings.audioEnhanced.performanceHighQuality
-                                            else -> strings.audioEnhanced.performanceDefault
+                                            "Low Latency" -> stringResource(Res.string.performanceLowLatency)
+                                            "High Quality" -> stringResource(Res.string.performanceHighQuality)
+                                            else -> stringResource(Res.string.performanceDefault)
                                         }
                                         FilterChip(
                                             selected = state.performanceMode == mode,
@@ -1419,7 +1407,7 @@ fun VBCableManagementSection(
             SettingsSection.About -> {
                 val uriHandler = LocalUriHandler.current
                 var showLicenseDialog by remember { mutableStateOf(false) }
-                var showContributorsDialog by remember { mutableStateOf(false) }
+    var showContributorsDialog by remember { mutableStateOf(false) }
 
                 if (showContributorsDialog) {
                     ContributorsDialog(onDismiss = { showContributorsDialog = false })
@@ -1428,11 +1416,11 @@ fun VBCableManagementSection(
                 if (showLicenseDialog) {
                     AlertDialog(
                         onDismissRequest = { showLicenseDialog = false },
-                        title = { Text(strings.licensesTitle) },
+                        title = { Text(stringResource(Res.string.licensesTitle)) },
                         text = { OpenSourceLibrariesList() },
                         confirmButton = {
                             TextButton(onClick = { showLicenseDialog = false }) {
-                                Text(strings.close)
+                                Text(stringResource(Res.string.close))
                             }
                         }
                     )
@@ -1446,7 +1434,7 @@ fun VBCableManagementSection(
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
-                            headlineContent = { Text(strings.developerLabel) },
+                            headlineContent = { Text(stringResource(Res.string.developerLabel)) },
                             supportingContent = { Text("LanRhyme、ChinsaaWei") },
                             leadingContent = { Icon(Icons.Rounded.Person, null,modifier = Modifier.size(24.dp)) },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -1459,7 +1447,7 @@ fun VBCableManagementSection(
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
-                            headlineContent = { Text(strings.githubRepoLabel) },
+                            headlineContent = { Text(stringResource(Res.string.githubRepoLabel)) },
                             supportingContent = { 
                                 Text(
                                     "https://github.com/LanRhyme/MicYou",
@@ -1479,8 +1467,8 @@ fun VBCableManagementSection(
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
-                            headlineContent = { Text(strings.contributorsLabel) },
-                            supportingContent = { Text(strings.contributorsDesc) },
+                            headlineContent = { Text(stringResource(Res.string.contributorsLabel)) },
+                            supportingContent = { Text(stringResource(Res.string.contributorsDesc)) },
                             leadingContent = { Icon(Icons.Rounded.People, null,modifier = Modifier.size(24.dp)) },
                             modifier = Modifier.clickable { showContributorsDialog = true },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -1493,12 +1481,12 @@ fun VBCableManagementSection(
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
-                            headlineContent = { Text(strings.versionLabel) },
+                            headlineContent = { Text(stringResource(Res.string.versionLabel)) },
                             supportingContent = { Text(getAppVersion()) },
                             leadingContent = { Icon(Icons.Rounded.Info, null,modifier = Modifier.size(24.dp)) },
                             trailingContent = {
                                 TextButton(onClick = { viewModel.checkUpdateManual() }) {
-                                    Text(strings.checkUpdate)
+                                    Text(stringResource(Res.string.checkUpdate))
                                 }
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -1511,8 +1499,8 @@ fun VBCableManagementSection(
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
-                            headlineContent = { Text(strings.openSourceLicense) },
-                            supportingContent = { Text(strings.viewLibraries) },
+                            headlineContent = { Text(stringResource(Res.string.openSourceLicense)) },
+                            supportingContent = { Text(stringResource(Res.string.viewLibraries)) },
                             leadingContent = { Icon(Icons.Rounded.Description, null,modifier = Modifier.size(24.dp)) },
                             modifier = Modifier.clickable { showLicenseDialog = true },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
@@ -1525,15 +1513,15 @@ fun VBCableManagementSection(
                             .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
                     ) {
                         ListItem(
-                            headlineContent = { Text(strings.exportLog) },
-                            supportingContent = { Text(strings.exportLogDesc) },
+                            headlineContent = { Text(stringResource(Res.string.exportLog)) },
+                            supportingContent = { Text(stringResource(Res.string.exportLogDesc)) },
                             leadingContent = { Icon(Icons.AutoMirrored.Rounded.TextSnippet, null,modifier = Modifier.size(24.dp)) },
                             modifier = Modifier.clickable {
                                 viewModel.exportLog { path ->
                                     if (path != null) {
-                                        viewModel.showSnackbar(strings.logExported.replace("%s", path))
+                                        viewModel.showSnackbar("Log exported to: $path")
                                     } else {
-                                        viewModel.showSnackbar(strings.logExportFailed)
+                                        viewModel.showSnackbar("Log export failed")
                                     }
                                 }
                             },
@@ -1551,10 +1539,10 @@ fun VBCableManagementSection(
                     shape = MaterialTheme.shapes.medium
                 ) {
                      Column(modifier = Modifier.padding(16.dp)) {
-                        Text(strings.softwareIntro, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text(stringResource(Res.string.softwareIntro), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            strings.introText,
+                            stringResource(Res.string.introText),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
@@ -1569,19 +1557,19 @@ fun VBCableManagementSection(
         MirrorCdkDialog(
             cdk = state.mirrorCdk,
             onDismiss = { viewModel.dismissMirrorCdkDialog() },
-            onConfirm = { cdk -> viewModel.confirmMirrorCdk(cdk) },
-            strings = strings
+            onConfirm = { cdk -> viewModel.confirmMirrorCdk(cdk) }
         )
     }
 }
 
-fun SettingsSection.getLabel(strings: AppStrings): String {
+@Composable
+fun SettingsSection.getLabel(): String {
     return when (this) {
-        SettingsSection.General -> strings.generalSection
-        SettingsSection.Appearance -> strings.appearanceSection
-        SettingsSection.Audio -> strings.audioSection
-        SettingsSection.Plugins -> strings.pluginsSection
-        SettingsSection.About -> strings.aboutSection
+        SettingsSection.General -> stringResource(Res.string.generalSection)
+        SettingsSection.Appearance -> stringResource(Res.string.appearanceSection)
+        SettingsSection.Audio -> stringResource(Res.string.audioSection)
+        SettingsSection.Plugins -> stringResource(Res.string.pluginsSection)
+        SettingsSection.About -> stringResource(Res.string.aboutSection)
     }
 }
 
@@ -1589,26 +1577,25 @@ fun SettingsSection.getLabel(strings: AppStrings): String {
 private fun MirrorCdkDialog(
     cdk: String,
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-    strings: AppStrings
+    onConfirm: (String) -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
     var inputCdk by remember { mutableStateOf(cdk) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(strings.mirrorCdkLabel) },
+        title = { Text(stringResource(Res.string.mirrorCdkLabel)) },
         text = {
             Column {
                 Text(
-                    text = strings.mirrorCdkDesc,
+                    text = stringResource(Res.string.mirrorCdkDesc),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(16.dp))
                 OutlinedTextField(
                     value = inputCdk,
                     onValueChange = { inputCdk = it },
-                    placeholder = { Text(strings.mirrorCdkPlaceholder) },
+                    placeholder = { Text(stringResource(Res.string.mirrorCdkPlaceholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -1617,14 +1604,14 @@ private fun MirrorCdkDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Start
                 ) {
+                    val langLabel = stringResource(Res.string.languageLabel)
                     Text(
-                        text = strings.mirrorCdkGetLink,
+                        text = stringResource(Res.string.mirrorCdkGetLink),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         textDecoration = TextDecoration.Underline,
                         modifier = Modifier.clickable {
-                            val lang = strings.languageLabel
-                            val url = if (lang.contains("中文") || lang.contains("简体") || lang.contains("繁體") || lang.contains("粤语")) {
+                            val url = if (langLabel.contains("中文") || langLabel.contains("简体") || langLabel.contains("繁體") || langLabel.contains("粤语")) {
                                 "https://mirrorchyan.com/zh/get-start"
                             } else {
                                 "https://mirrorchyan.com/en/get-start"
@@ -1640,12 +1627,12 @@ private fun MirrorCdkDialog(
                 onClick = { onConfirm(inputCdk) },
                 enabled = inputCdk.isNotBlank()
             ) {
-                Text(strings.ok)
+                Text(stringResource(Res.string.ok))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(strings.cancel)
+                Text(stringResource(Res.string.cancel))
             }
         }
     )
@@ -1656,8 +1643,6 @@ private fun MirrorCdkDialog(
  */
 @Composable
 fun NoiseReductionHelpPopup(onDismiss: () -> Unit) {
-    val strings = LocalAppStrings.current
-
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -1681,7 +1666,7 @@ fun NoiseReductionHelpPopup(onDismiss: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            strings.nsAlgorithmHelpTitle,
+                            stringResource(Res.string.nsAlgorithmHelpTitle),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -1698,9 +1683,9 @@ fun NoiseReductionHelpPopup(onDismiss: () -> Unit) {
 
                     // RNNoise
                     AlgorithmInfoItem(
-                        title = strings.nsAlgorithmRNNoiseTitle,
-                        description = strings.nsAlgorithmRNNoiseDesc,
-                        recommendation = strings.nsAlgorithmRecommended,
+                        title = stringResource(Res.string.nsAlgorithmRNNoiseTitle),
+                        description = stringResource(Res.string.nsAlgorithmRNNoiseDesc),
+                        recommendation = stringResource(Res.string.nsAlgorithmRecommended),
                         isRecommended = true
                     )
 
@@ -1708,9 +1693,9 @@ fun NoiseReductionHelpPopup(onDismiss: () -> Unit) {
 
                     // Ulunas (ONNX)
                     AlgorithmInfoItem(
-                        title = strings.nsAlgorithmUlnasTitle,
-                        description = strings.nsAlgorithmUlnasDesc,
-                        recommendation = strings.nsAlgorithmAlternative,
+                        title = stringResource(Res.string.nsAlgorithmUlnasTitle),
+                        description = stringResource(Res.string.nsAlgorithmUlnasDesc),
+                        recommendation = stringResource(Res.string.nsAlgorithmAlternative),
                         isRecommended = true
                     )
 
@@ -1718,9 +1703,9 @@ fun NoiseReductionHelpPopup(onDismiss: () -> Unit) {
 
                     // Speexdsp
                     AlgorithmInfoItem(
-                        title = strings.nsAlgorithmSpeexdspTitle,
-                        description = strings.nsAlgorithmSpeexdspDesc,
-                        recommendation = strings.nsAlgorithmLightweight,
+                        title = stringResource(Res.string.nsAlgorithmSpeexdspTitle),
+                        description = stringResource(Res.string.nsAlgorithmSpeexdspDesc),
+                        recommendation = stringResource(Res.string.nsAlgorithmLightweight),
                         isRecommended = false
                     )
 
@@ -1731,7 +1716,7 @@ fun NoiseReductionHelpPopup(onDismiss: () -> Unit) {
                         onClick = onDismiss,
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text(strings.nsAlgorithmCloseButton)
+                        Text(stringResource(Res.string.nsAlgorithmCloseButton))
                     }
                 }
             }
@@ -1783,8 +1768,6 @@ private fun AlgorithmInfoItem(
  */
 @Composable
 fun PerformanceModeHelpPopup(onDismiss: () -> Unit) {
-    val strings = LocalAppStrings.current
-
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -1808,7 +1791,7 @@ fun PerformanceModeHelpPopup(onDismiss: () -> Unit) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            strings.audioEnhanced.performanceInfoTitle,
+                            stringResource(Res.string.performanceInfoTitle),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -1824,7 +1807,7 @@ fun PerformanceModeHelpPopup(onDismiss: () -> Unit) {
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        strings.audioEnhanced.performanceInfoDescription,
+                        stringResource(Res.string.performanceInfoDescription),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1833,9 +1816,9 @@ fun PerformanceModeHelpPopup(onDismiss: () -> Unit) {
 
                     // Default
                     PerformanceModeInfoItem(
-                        title = strings.audioEnhanced.performanceDefault,
-                        description = strings.audioEnhanced.performanceDefaultDescription,
-                        recommendation = strings.nsAlgorithmRecommended,
+                        title = stringResource(Res.string.performanceDefault),
+                        description = stringResource(Res.string.performanceDefaultDescription),
+                        recommendation = stringResource(Res.string.nsAlgorithmRecommended),
                         isRecommended = true
                     )
 
@@ -1843,8 +1826,8 @@ fun PerformanceModeHelpPopup(onDismiss: () -> Unit) {
 
                     // Low Latency
                     PerformanceModeInfoItem(
-                        title = strings.audioEnhanced.performanceLowLatency,
-                        description = strings.audioEnhanced.performanceLowLatencyDescription,
+                        title = stringResource(Res.string.performanceLowLatency),
+                        description = stringResource(Res.string.performanceLowLatencyDescription),
                         recommendation = "",
                         isRecommended = false
                     )
@@ -1853,8 +1836,8 @@ fun PerformanceModeHelpPopup(onDismiss: () -> Unit) {
 
                     // High Quality
                     PerformanceModeInfoItem(
-                        title = strings.audioEnhanced.performanceHighQuality,
-                        description = strings.audioEnhanced.performanceHighQualityDescription,
+                        title = stringResource(Res.string.performanceHighQuality),
+                        description = stringResource(Res.string.performanceHighQualityDescription),
                         recommendation = "",
                         isRecommended = false
                     )
@@ -1866,7 +1849,7 @@ fun PerformanceModeHelpPopup(onDismiss: () -> Unit) {
                         onClick = onDismiss,
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text(strings.nsAlgorithmCloseButton)
+                        Text(stringResource(Res.string.nsAlgorithmCloseButton))
                     }
                 }
             }
@@ -1919,7 +1902,6 @@ private fun VBCableManagementSection(
     viewModel: MainViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
-    val strings = LocalAppStrings.current
     val isInstalled = isVirtualDeviceInstalled()
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1937,7 +1919,7 @@ private fun VBCableManagementSection(
                 )
 
                 Text(
-                    if (isInstalled) strings.vbcableInstalled else strings.vbcableNotInstalled,
+                    if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableNotInstalled),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1953,7 +1935,7 @@ private fun VBCableManagementSection(
                     ) {
                         Icon(Icons.Rounded.InstallDesktop, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (isInstalled) strings.vbcableInstalled else strings.vbcableInstall)
+                        Text(if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableInstall))
                     }
                 }
 

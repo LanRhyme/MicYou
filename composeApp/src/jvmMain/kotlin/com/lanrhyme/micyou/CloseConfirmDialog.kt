@@ -22,6 +22,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun CloseConfirmDialog(
@@ -31,8 +34,6 @@ fun CloseConfirmDialog(
     rememberCloseAction: Boolean,
     onRememberChange: (Boolean) -> Unit
 ) {
-    val strings = LocalAppStrings.current
-
     Card(
         modifier = Modifier.fillMaxSize(),
         shape = RoundedCornerShape(16.dp),
@@ -44,13 +45,13 @@ fun CloseConfirmDialog(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = strings.closeConfirmTitle,
+                text = stringResource(Res.string.closeConfirmTitle),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = strings.closeConfirmMessage,
+                text = stringResource(Res.string.closeConfirmMessage),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -67,20 +68,20 @@ fun CloseConfirmDialog(
                     onCheckedChange = { onRememberChange(it) },
                     interactionSource = remember { MutableInteractionSource() }
                 )
-                Text(strings.closeConfirmRemember, style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(Res.string.closeConfirmRemember), style = MaterialTheme.typography.bodySmall)
             }
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text(strings.closeConfirmCancel)
+                    Text(stringResource(Res.string.closeConfirmCancel))
                 }
                 Button(onClick = onMinimize) {
-                    Text(strings.closeConfirmMinimize)
+                    Text(stringResource(Res.string.closeConfirmMinimize))
                 }
                 TextButton(onClick = onExit) {
-                    Text(strings.closeConfirmExit)
+                    Text(stringResource(Res.string.closeConfirmExit))
                 }
             }
         }

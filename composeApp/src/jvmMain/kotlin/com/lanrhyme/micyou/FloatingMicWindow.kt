@@ -46,7 +46,6 @@ fun FloatingMicWindow(
         isStreaming -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
     }
-
     val mouseListener = remember(window) {
         object : MouseAdapter() {
             private var dragStartX = 0
@@ -131,7 +130,6 @@ private fun FloatingAudioVisualizer(
     color: Color
 ) {
     val safeAudioLevel = audioLevel.coerceIn(0f, 1f)
-
     val infiniteTransition = rememberInfiniteTransition(label = "wave")
     val wavePhase by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -144,7 +142,7 @@ private fun FloatingAudioVisualizer(
 
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2 * 0.85f
+    val baseRadius = min(size.width, size.height) / 2 * 0.85f
         val strokeWidth = 4.dp.toPx()
 
         drawCircle(
@@ -153,8 +151,7 @@ private fun FloatingAudioVisualizer(
             center = center,
             style = Stroke(width = strokeWidth)
         )
-
-        val sweepAngle = 360f * safeAudioLevel
+    val sweepAngle = 360f * safeAudioLevel
         drawArc(
             color = color,
             startAngle = -90f,
@@ -164,20 +161,18 @@ private fun FloatingAudioVisualizer(
             size = Size(baseRadius * 2, baseRadius * 2),
             style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
         )
-
-        val barCount = 8
+    val barCount = 8
         for (i in 0 until barCount) {
             val angle = (i.toFloat() / barCount) * 360f + wavePhase
             val radians = Math.toRadians(angle.toDouble()).toFloat()
-
-            val dynamicLevel = safeAudioLevel * (0.3f + 0.7f * sin(angle * 0.1f + wavePhase * 0.02f))
-            val barHeight = baseRadius * 0.12f * dynamicLevel
+    val dynamicLevel = safeAudioLevel * (0.3f + 0.7f * sin(angle * 0.1f + wavePhase * 0.02f))
+    val barHeight = baseRadius * 0.12f * dynamicLevel
 
             val innerRadius = baseRadius * 0.4f
             val startX = center.x + innerRadius * cos(radians)
-            val startY = center.y + innerRadius * sin(radians)
-            val endX = center.x + (innerRadius + barHeight) * cos(radians)
-            val endY = center.y + (innerRadius + barHeight) * sin(radians)
+    val startY = center.y + innerRadius * sin(radians)
+    val endX = center.x + (innerRadius + barHeight) * cos(radians)
+    val endY = center.y + (innerRadius + barHeight) * sin(radians)
 
             drawLine(
                 color = color.copy(alpha = 0.5f * safeAudioLevel),
@@ -206,7 +201,7 @@ private fun MutedVisualizer(
 ) {
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2 * 0.85f
+    val baseRadius = min(size.width, size.height) / 2 * 0.85f
         val strokeWidth = 4.dp.toPx()
 
         drawCircle(
@@ -215,8 +210,7 @@ private fun MutedVisualizer(
             center = center,
             style = Stroke(width = strokeWidth)
         )
-
-        val slashLength = baseRadius * 0.7f
+    val slashLength = baseRadius * 0.7f
         drawLine(
             color = color,
             start = Offset(center.x - slashLength * 0.7f, center.y - slashLength * 0.7f),
@@ -234,7 +228,7 @@ private fun IdleVisualizer(
 ) {
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2 * 0.85f
+    val baseRadius = min(size.width, size.height) / 2 * 0.85f
         val strokeWidth = 4.dp.toPx()
 
         drawCircle(

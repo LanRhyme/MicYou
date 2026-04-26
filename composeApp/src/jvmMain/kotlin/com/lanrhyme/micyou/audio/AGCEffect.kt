@@ -67,14 +67,14 @@ class AGCEffect : AudioEffect {
             val sample = s.toDouble() / SHORT_MAX_VALUE
             sumSquares += sample * sample
         }
-        val rms = sqrt(sumSquares / input.size.toDouble())
+    val rms = sqrt(sumSquares / input.size.toDouble())
 
         // 目标 RMS (标准化到 0.0-1.0)
-        val targetRms = (agcTargetLevel.toDouble() / SHORT_MAX_VALUE.toDouble()).coerceIn(TARGET_RMS_MIN.toDouble(), TARGET_RMS_MAX.toDouble())
+    val targetRms = (agcTargetLevel.toDouble() / SHORT_MAX_VALUE.toDouble()).coerceIn(TARGET_RMS_MIN.toDouble(), TARGET_RMS_MAX.toDouble())
 
         if (rms > RMS_MIN_THRESHOLD) {
             val error = targetRms / (rms + EPSILON)
-            val desiredGain = error.toFloat().coerceIn(MIN_GAIN_LIMIT, MAX_GAIN_LIMIT)
+    val desiredGain = error.toFloat().coerceIn(MIN_GAIN_LIMIT, MAX_GAIN_LIMIT)
 
             if (agcEnvelope == 0f) {
                 agcEnvelope = INITIAL_ENVELOPE
@@ -91,8 +91,7 @@ class AGCEffect : AudioEffect {
             // 静音时缓慢恢复到默认增益
             agcEnvelope = agcEnvelope * (1f - AGC_SILENT_RECOVERY_RATE) + SILENT_TARGET_GAIN * AGC_SILENT_RECOVERY_RATE
         }
-
-        val finalGain = agcEnvelope.coerceIn(MIN_OUTPUT_GAIN, MAX_OUTPUT_GAIN)
+    val finalGain = agcEnvelope.coerceIn(MIN_OUTPUT_GAIN, MAX_OUTPUT_GAIN)
 
         // 应用增益
         for (i in input.indices) {

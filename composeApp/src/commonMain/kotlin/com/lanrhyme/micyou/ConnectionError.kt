@@ -1,5 +1,9 @@
 package com.lanrhyme.micyou
 
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.getString
+
 /**
  * 连接错误类型枚举
  * 用于分类不同的连接失败原因，提供更精确的错误信息和恢复建议
@@ -170,10 +174,9 @@ object ConnectionErrorHelper {
     /**
      * 生成详细的错误信息（需要配合 Localization）
      */
-    fun generateErrorDetails(
+    suspend fun generateErrorDetails(
         type: ConnectionErrorType,
         originalMessage: String,
-        errors: ErrorStrings,
         mode: ConnectionMode,
         port: Int? = null,
         ip: String? = null
@@ -182,59 +185,59 @@ object ConnectionErrorHelper {
             ConnectionErrorType.NetworkTimeout -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorNetworkTimeoutTitle,
-                localizedMessage = errors.errorNetworkTimeoutMessage,
+                localizedTitle = getString(Res.string.errorNetworkTimeoutTitle),
+                localizedMessage = getString(Res.string.errorNetworkTimeoutMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionCheckNetwork,
-                    errors.errorSuggestionCheckTargetRunning,
-                    errors.errorSuggestionTryDifferentPort
+                    getString(Res.string.errorSuggestionCheckNetwork),
+                    getString(Res.string.errorSuggestionCheckTargetRunning),
+                    getString(Res.string.errorSuggestionTryDifferentPort)
                 )
             )
             
             ConnectionErrorType.PortInUse -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorPortInUseTitle,
-                localizedMessage = errors.errorPortInUseMessage.replace("%d", port?.toString() ?: "6000"),
+                localizedTitle = getString(Res.string.errorPortInUseTitle),
+                localizedMessage = getString(Res.string.errorPortInUseMessage, port?.toString() ?: "6000"),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionChangePort,
-                    errors.errorSuggestionCheckOtherApps
+                    getString(Res.string.errorSuggestionChangePort),
+                    getString(Res.string.errorSuggestionCheckOtherApps)
                 )
             )
             
             ConnectionErrorType.ConnectionRefused -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorConnectionRefusedTitle,
+                localizedTitle = getString(Res.string.errorConnectionRefusedTitle),
                 localizedMessage = if (mode == ConnectionMode.Wifi) 
-                    errors.errorConnectionRefusedWifiMessage.replace("%s", ip ?: "")
-                else errors.errorConnectionRefusedMessage,
+                    getString(Res.string.errorConnectionRefusedWifiMessage, ip ?: "")
+                else getString(Res.string.errorConnectionRefusedMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionCheckServerRunning,
-                    errors.errorSuggestionCheckServerConfig
+                    getString(Res.string.errorSuggestionCheckServerRunning),
+                    getString(Res.string.errorSuggestionCheckServerConfig)
                 )
             )
             
             ConnectionErrorType.NetworkUnreachable -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorNetworkUnreachableTitle,
-                localizedMessage = errors.errorNetworkUnreachableMessage.replace("%s", ip ?: ""),
+                localizedTitle = getString(Res.string.errorNetworkUnreachableTitle),
+                localizedMessage = getString(Res.string.errorNetworkUnreachableMessage, ip ?: ""),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionCheckNetworkConnection,
-                    errors.errorSuggestionVerifyIpAddress,
-                    errors.errorSuggestionCheckWifiConnected
+                    getString(Res.string.errorSuggestionCheckNetworkConnection),
+                    getString(Res.string.errorSuggestionVerifyIpAddress),
+                    getString(Res.string.errorSuggestionCheckWifiConnected)
                 )
             )
             
             ConnectionErrorType.FirewallBlocked -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorFirewallBlockedTitle,
-                localizedMessage = errors.errorFirewallBlockedMessage.replace("%d", port?.toString() ?: "6000"),
+                localizedTitle = getString(Res.string.errorFirewallBlockedTitle),
+                localizedMessage = getString(Res.string.errorFirewallBlockedMessage, port?.toString() ?: "6000"),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionAddFirewallRule,
-                    errors.errorSuggestionRunAsAdmin
+                    getString(Res.string.errorSuggestionAddFirewallRule),
+                    getString(Res.string.errorSuggestionRunAsAdmin)
                 ),
                 showHelpButton = true,
                 helpUrl = "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md#firewall"
@@ -243,65 +246,65 @@ object ConnectionErrorHelper {
             ConnectionErrorType.PermissionDenied -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorPermissionDeniedTitle,
-                localizedMessage = errors.errorPermissionDeniedMessage,
+                localizedTitle = getString(Res.string.errorPermissionDeniedTitle),
+                localizedMessage = getString(Res.string.errorPermissionDeniedMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionRunAsAdmin,
-                    errors.errorSuggestionCheckAntivirus
+                    getString(Res.string.errorSuggestionRunAsAdmin),
+                    getString(Res.string.errorSuggestionCheckAntivirus)
                 )
             )
             
             ConnectionErrorType.DeviceNotFound -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorDeviceNotFoundTitle,
-                localizedMessage = errors.errorDeviceNotFoundMessage,
+                localizedTitle = getString(Res.string.errorDeviceNotFoundTitle),
+                localizedMessage = getString(Res.string.errorDeviceNotFoundMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionEnableBluetooth,
-                    errors.errorSuggestionPairDevice
+                    getString(Res.string.errorSuggestionEnableBluetooth),
+                    getString(Res.string.errorSuggestionPairDevice)
                 )
             )
             
             ConnectionErrorType.BluetoothDisabled -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorBluetoothDisabledTitle,
-                localizedMessage = errors.errorBluetoothDisabledMessage,
+                localizedTitle = getString(Res.string.errorBluetoothDisabledTitle),
+                localizedMessage = getString(Res.string.errorBluetoothDisabledMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionEnableBluetooth
+                    getString(Res.string.errorSuggestionEnableBluetooth)
                 )
             )
 
             ConnectionErrorType.BluetoothServiceUnavailable -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorBluetoothServiceUnavailableTitle,
-                localizedMessage = errors.errorBluetoothServiceUnavailableMessage,
+                localizedTitle = getString(Res.string.errorBluetoothServiceUnavailableTitle),
+                localizedMessage = getString(Res.string.errorBluetoothServiceUnavailableMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionStartBluetoothService,
-                    errors.errorSuggestionCheckBluetoothDaemon
+                    getString(Res.string.errorSuggestionStartBluetoothService),
+                    getString(Res.string.errorSuggestionCheckBluetoothDaemon)
                 )
             )
 
             ConnectionErrorType.BluetoothAdapterNotFound -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorBluetoothAdapterNotFoundTitle,
-                localizedMessage = errors.errorBluetoothAdapterNotFoundMessage,
+                localizedTitle = getString(Res.string.errorBluetoothAdapterNotFoundTitle),
+                localizedMessage = getString(Res.string.errorBluetoothAdapterNotFoundMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionCheckBluetoothHardware,
-                    errors.errorSuggestionCheckUsbBluetooth
+                    getString(Res.string.errorSuggestionCheckBluetoothHardware),
+                    getString(Res.string.errorSuggestionCheckUsbBluetooth)
                 )
             )
 
             ConnectionErrorType.BlueZNotInstalled -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorBlueZNotInstalledTitle,
-                localizedMessage = errors.errorBlueZNotInstalledMessage,
+                localizedTitle = getString(Res.string.errorBlueZNotInstalledTitle),
+                localizedMessage = getString(Res.string.errorBlueZNotInstalledMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionInstallBlueZ,
-                    errors.errorSuggestionCheckBlueZService
+                    getString(Res.string.errorSuggestionInstallBlueZ),
+                    getString(Res.string.errorSuggestionCheckBlueZService)
                 ),
                 showHelpButton = true,
                 helpUrl = "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md#bluetooth-linux"
@@ -310,11 +313,11 @@ object ConnectionErrorHelper {
             ConnectionErrorType.RfcommBindFailed -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorRfcommBindFailedTitle,
-                localizedMessage = errors.errorRfcommBindFailedMessage,
+                localizedTitle = getString(Res.string.errorRfcommBindFailedTitle),
+                localizedMessage = getString(Res.string.errorRfcommBindFailedMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionReleaseRfcomm,
-                    errors.errorSuggestionRunAsAdmin
+                    getString(Res.string.errorSuggestionReleaseRfcomm),
+                    getString(Res.string.errorSuggestionRunAsAdmin)
                 )
             )
             
@@ -323,13 +326,13 @@ object ConnectionErrorHelper {
                 ConnectionErrorDetails(
                     type = type,
                     originalMessage = originalMessage,
-                    localizedTitle = errors.errorUsbConnectionFailedTitle,
-                    localizedMessage = errors.errorUsbConnectionFailedMessage,
+                    localizedTitle = getString(Res.string.errorUsbConnectionFailedTitle),
+                    localizedMessage = getString(Res.string.errorUsbConnectionFailedMessage),
                     recoverySuggestions = buildList {
-                        add(errors.errorSuggestionCheckUsbCable)
-                        add(errors.errorSuggestionEnableUsbDebugging)
+                        add(getString(Res.string.errorSuggestionCheckUsbCable))
+                        add(getString(Res.string.errorSuggestionEnableUsbDebugging))
                         if (command != null) {
-                            add(errors.errorSuggestionRunAdbCommand.replace("%s", command))
+                            add(getString(Res.string.errorSuggestionRunAdbCommand, command))
                         }
                     },
                     showHelpButton = true,
@@ -342,12 +345,12 @@ object ConnectionErrorHelper {
                 ConnectionErrorDetails(
                     type = type,
                     originalMessage = originalMessage,
-                    localizedTitle = errors.errorAdbCommandFailedTitle,
-                    localizedMessage = errors.errorAdbCommandFailedMessage,
+                    localizedTitle = getString(Res.string.errorAdbCommandFailedTitle),
+                    localizedMessage = getString(Res.string.errorAdbCommandFailedMessage),
                     recoverySuggestions = buildList {
-                        add(errors.errorSuggestionCheckAdbInstalled)
+                        add(getString(Res.string.errorSuggestionCheckAdbInstalled))
                         if (command != null) {
-                            add(errors.errorSuggestionRunAdbManually.replace("%s", command))
+                            add(getString(Res.string.errorSuggestionRunAdbManually, command))
                         }
                     },
                     showHelpButton = true,
@@ -358,55 +361,55 @@ object ConnectionErrorHelper {
             ConnectionErrorType.HandshakeFailed -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorHandshakeFailedTitle,
-                localizedMessage = errors.errorHandshakeFailedMessage,
+                localizedTitle = getString(Res.string.errorHandshakeFailedTitle),
+                localizedMessage = getString(Res.string.errorHandshakeFailedMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionVersionMatch,
-                    errors.errorSuggestionRestartApp
+                    getString(Res.string.errorSuggestionVersionMatch),
+                    getString(Res.string.errorSuggestionRestartApp)
                 )
             )
             
             ConnectionErrorType.ProtocolError -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorProtocolErrorTitle,
-                localizedMessage = errors.errorProtocolErrorMessage,
+                localizedTitle = getString(Res.string.errorProtocolErrorTitle),
+                localizedMessage = getString(Res.string.errorProtocolErrorMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionRestartApp,
-                    errors.errorSuggestionCheckVersion
+                    getString(Res.string.errorSuggestionRestartApp),
+                    getString(Res.string.errorSuggestionCheckVersion)
                 )
             )
             
             ConnectionErrorType.AudioDeviceError -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorAudioDeviceTitle,
-                localizedMessage = errors.errorAudioDeviceMessage,
+                localizedTitle = getString(Res.string.errorAudioDeviceTitle),
+                localizedMessage = getString(Res.string.errorAudioDeviceMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionCheckAudioDevice,
-                    errors.errorSuggestionRestartApp
+                    getString(Res.string.errorSuggestionCheckAudioDevice),
+                    getString(Res.string.errorSuggestionRestartApp)
                 )
             )
             
             ConnectionErrorType.AudioFormatError -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorAudioFormatTitle,
-                localizedMessage = errors.errorAudioFormatMessage,
+                localizedTitle = getString(Res.string.errorAudioFormatTitle),
+                localizedMessage = getString(Res.string.errorAudioFormatMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionChangeAudioConfig,
-                    errors.errorSuggestionUseDefaultConfig
+                    getString(Res.string.errorSuggestionChangeAudioConfig),
+                    getString(Res.string.errorSuggestionUseDefaultConfig)
                 )
             )
             
             ConnectionErrorType.VersionMismatch -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorVersionMismatchTitle,
-                localizedMessage = errors.errorVersionMismatchMessage,
+                localizedTitle = getString(Res.string.errorVersionMismatchTitle),
+                localizedMessage = getString(Res.string.errorVersionMismatchMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionUpdateApp,
-                    errors.errorSuggestionCheckVersion
+                    getString(Res.string.errorSuggestionUpdateApp),
+                    getString(Res.string.errorSuggestionCheckVersion)
                 ),
                 showHelpButton = true,
                 helpUrl = "https://github.com/LanRhyme/MicYou/releases"
@@ -415,21 +418,21 @@ object ConnectionErrorHelper {
             ConnectionErrorType.AdminPrivilegeRequired -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorAdminPrivilegeTitle,
-                localizedMessage = errors.errorAdminPrivilegeMessage,
+                localizedTitle = getString(Res.string.errorAdminPrivilegeTitle),
+                localizedMessage = getString(Res.string.errorAdminPrivilegeMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionRunAsAdmin
+                    getString(Res.string.errorSuggestionRunAsAdmin)
                 )
             )
             
             ConnectionErrorType.UnknownError -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorUnknownTitle,
-                localizedMessage = errors.errorUnknownMessage.replace("%s", originalMessage),
+                localizedTitle = getString(Res.string.errorUnknownTitle),
+                localizedMessage = getString(Res.string.errorUnknownMessage, originalMessage),
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionRestartApp,
-                    errors.errorSuggestionCheckLogs
+                    getString(Res.string.errorSuggestionRestartApp),
+                    getString(Res.string.errorSuggestionCheckLogs)
                 ),
                 showHelpButton = true,
                 helpUrl = "https://github.com/LanRhyme/MicYou/issues"
@@ -438,11 +441,11 @@ object ConnectionErrorHelper {
             ConnectionErrorType.UdpPortBlocked -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = errors.errorFirewallBlockedTitle,
+                localizedTitle = getString(Res.string.errorFirewallBlockedTitle),
                 localizedMessage = "UDP 音频端口被防火墙阻止。请确保 UDP 端口 ${port?.let { calculateUdpPort(it) } ?: "6001"} 已放行。",
                 recoverySuggestions = listOf(
-                    errors.errorSuggestionAddFirewallRule,
-                    errors.errorSuggestionRunAsAdmin
+                    getString(Res.string.errorSuggestionAddFirewallRule),
+                    getString(Res.string.errorSuggestionRunAsAdmin)
                 ),
                 showHelpButton = true,
                 helpUrl = "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md#firewall"

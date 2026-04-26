@@ -77,14 +77,13 @@ class MainActivity : ComponentActivity() {
         Logger.i("MainActivity", "App started")
 
         FileKit.init(this)
-
-        val shouldQuickStart = intent?.action == ACTION_QUICK_START
+    val shouldQuickStart = intent?.action == ACTION_QUICK_START
 
         // Initialize permission state
         currentPermissionsState.value = getRequiredPermissions(this)
 
         // Show permission dialog first if needed (before first launch dialog)
-        val needsPermissions = shouldShowPermissionDialog()
+    val needsPermissions = shouldShowPermissionDialog()
         if (needsPermissions) {
             permissionDialogState.value = true
         } else {
@@ -94,10 +93,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val appViewModel: MainViewModel = viewModel()
-            val keepScreenOn by appViewModel.uiState.collectAsState().let { state ->
+    val keepScreenOn by appViewModel.uiState.collectAsState().let { state ->
                 derivedStateOf { state.value.keepScreenOn }
             }
-            val streamState by appViewModel.uiState.collectAsState().let { state ->
+    val streamState by appViewModel.uiState.collectAsState().let { state ->
                 derivedStateOf { state.value.streamState }
             }
 
@@ -124,11 +123,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-
-            val themeMode by appViewModel.uiState.collectAsState().let { state ->
+    val themeMode by appViewModel.uiState.collectAsState().let { state ->
                 derivedStateOf { state.value.themeMode }
             }
-            val isDark = isDarkThemeActive(themeMode)
+    val isDark = isDarkThemeActive(themeMode)
 
             DisposableEffect(isDark) {
                 this@MainActivity.enableEdgeToEdge(

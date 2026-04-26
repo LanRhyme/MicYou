@@ -15,8 +15,7 @@ object AdbManager {
             }
             adbPath = null
         }
-        
-        val pathEnv = System.getenv("PATH") ?: return null
+    val pathEnv = System.getenv("PATH") ?: return null
         val pathSeparator = if (PlatformInfo.isWindows) ";" else ":"
         val adbExecutable = if (PlatformInfo.isWindows) "adb.exe" else "adb"
         
@@ -28,8 +27,7 @@ object AdbManager {
                 return adbPath
             }
         }
-        
-        val commonPaths = if (PlatformInfo.isWindows) {
+    val commonPaths = if (PlatformInfo.isWindows) {
             listOf(
                 "${System.getenv("LOCALAPPDATA")}\\Android\\Sdk\\platform-tools\\adb.exe",
                 "${System.getenv("USERPROFILE")}\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe",
@@ -67,9 +65,8 @@ object AdbManager {
             val process = ProcessBuilder(adb, "reverse", "tcp:$port", "tcp:$port")
                 .redirectErrorStream(true)
                 .start()
-            
-            val output = process.inputStream.bufferedReader().readText()
-            val exitCode = process.waitFor()
+    val output = process.inputStream.bufferedReader().readText()
+    val exitCode = process.waitFor()
             
             if (exitCode == 0 && output.contains("error", ignoreCase = true).not()) {
                 Logger.i("AdbManager", "ADB reverse 成功: $port")
@@ -95,9 +92,8 @@ object AdbManager {
             val process = ProcessBuilder(adb, "version")
                 .redirectErrorStream(true)
                 .start()
-            
-            val reader = BufferedReader(InputStreamReader(process.inputStream))
-            val firstLine = reader.readLine()
+    val reader = BufferedReader(InputStreamReader(process.inputStream))
+    val firstLine = reader.readLine()
             process.waitFor()
             
             firstLine

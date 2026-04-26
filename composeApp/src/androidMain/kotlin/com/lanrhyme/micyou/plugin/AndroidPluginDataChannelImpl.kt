@@ -90,7 +90,7 @@ class AndroidPluginDataChannelImpl(
                 }
                 DataChannelMode.Udp -> {
                     val socket = udpSocket ?: return@withContext Result.failure(Exception("Not bound"))
-                    val packet = DatagramPacket(data, data.size)
+    val packet = DatagramPacket(data, data.size)
                     socket.send(packet)
                 }
             }
@@ -106,7 +106,7 @@ class AndroidPluginDataChannelImpl(
             DataChannelMode.Tcp -> {
                 val socket = tcpSocket ?: return@flow
                 val input = socket.getInputStream()
-                val buffer = ByteArray(config.bufferSize)
+    val buffer = ByteArray(config.bufferSize)
                 while (_isConnected.value && !socket.isClosed) {
                     try {
                         val bytesRead = withContext(Dispatchers.IO) { input.read(buffer) }
@@ -126,7 +126,7 @@ class AndroidPluginDataChannelImpl(
             DataChannelMode.Udp -> {
                 val socket = udpSocket ?: return@flow
                 val buffer = ByteArray(config.bufferSize)
-                val packet = DatagramPacket(buffer, buffer.size)
+    val packet = DatagramPacket(buffer, buffer.size)
                 while (_isConnected.value && !socket.isClosed) {
                     try {
                         withContext(Dispatchers.IO) { socket.receive(packet) }
@@ -165,8 +165,7 @@ class AndroidPluginDataChannelProvider : PluginDataChannelProvider {
         if (existing != null) {
             scope.launch { existing.close() }
         }
-        
-        val channel = AndroidPluginDataChannelImpl(id, config)
+    val channel = AndroidPluginDataChannelImpl(id, config)
         channels[id] = channel
         return channel
     }

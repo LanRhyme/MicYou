@@ -31,8 +31,7 @@ class PluginSecurityManager(
         if (!permissions.contains("storage")) {
             return false
         }
-
-        val path = perm.name
+    val path = perm.name
         val action = perm.actions
 
         for (allowedPath in allowedPaths) {

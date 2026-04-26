@@ -24,6 +24,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * 设置项容器组件 (与 DesktopSettings.kt 中保持一致)
@@ -110,7 +113,6 @@ actual fun hasAllRequiredPermissions(permissions: List<PermissionState>): Boolea
 @Composable
 actual fun AndroidPermissionManagementSection(cardOpacity: Float) {
     var showPermissionDialog by remember { mutableStateOf(false) }
-    val permissionStrings = LocalPermissionStrings.current
     val activity = LocalContext.current as? ComponentActivity
 
     // Use rememberLauncherForActivityResult to handle permission requests
@@ -119,7 +121,6 @@ actual fun AndroidPermissionManagementSection(cardOpacity: Float) {
     ) { _ ->
         // Permissions result handled - the dialog will refresh permissions on next render
     }
-
     var permissions by remember { mutableStateOf<List<PermissionState>>(emptyList()) }
 
     // Refresh permissions whenever showPermissionDialog changes to true
@@ -135,7 +136,6 @@ actual fun AndroidPermissionManagementSection(cardOpacity: Float) {
             permissions = getRequiredPermissions(activity)
         }
     }
-
     val grantedCount = permissions.count { it.isGranted }
     val totalCount = permissions.size
     val hasAllRequired = hasAllRequiredPermissions(permissions)
@@ -147,16 +147,16 @@ actual fun AndroidPermissionManagementSection(cardOpacity: Float) {
     ) {
         ListItem(
             headlineContent = {
-                Text(permissionStrings.permissionManagementLabel)
+                Text(stringResource(Res.string.permissionManagementLabel))
             },
             supportingContent = {
                 Text(
                     text = if (totalCount == 0) {
-                        permissionStrings.permissionChecking
+                        stringResource(Res.string.permissionChecking)
                     } else if (hasAllRequired) {
-                        permissionStrings.permissionAllGrantedStatus.format(grantedCount, totalCount)
+                        stringResource(Res.string.permissionAllGrantedStatus, grantedCount, totalCount)
                     } else {
-                        permissionStrings.permissionMissingWarning.format(grantedCount, totalCount)
+                        stringResource(Res.string.permissionMissingWarning, grantedCount, totalCount)
                     }
                 )
             },
@@ -184,7 +184,6 @@ actual fun PermissionDialog(
     onDismiss: () -> Unit,
     onRequestPermissions: (List<String>) -> Unit
 ) {
-    val strings = LocalPermissionStrings.current
     val activity = LocalContext.current as? ComponentActivity
     var currentPermissions by remember { mutableStateOf(permissions) }
 
@@ -204,7 +203,6 @@ actual fun PermissionDialog(
             currentPermissions = getRequiredPermissions(activity)
         }
     }
-
     val hasRequiredPermissions = hasAllRequiredPermissions(currentPermissions)
     val ungrantedPermissions = currentPermissions.filter { !it.isGranted }
 
@@ -215,7 +213,7 @@ actual fun PermissionDialog(
                 onDismiss()
             }
         },
-        title = { Text(strings.permissionDialogTitle) },
+        title = { Text(stringResource(Res.string.permissionDialogTitle)) },
         text = {
             Column(
                 modifier = Modifier
@@ -225,7 +223,7 @@ actual fun PermissionDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = strings.permissionDialogMessage,
+                    text = stringResource(Res.string.permissionDialogMessage),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -236,7 +234,6 @@ actual fun PermissionDialog(
                 currentPermissions.forEach { permission ->
                     PermissionCard(
                         permission = permission,
-                        strings = strings,
                         onRequestPermission = { perm ->
                             permissionLauncher.launch(arrayOf(perm))
                         }
@@ -247,7 +244,7 @@ actual fun PermissionDialog(
         confirmButton = {
             if (hasRequiredPermissions) {
                 TextButton(onClick = onDismiss) {
-                    Text(strings.permissionAllGranted)
+                    Text(stringResource(Res.string.permissionAllGranted))
                 }
             } else {
                 Button(onClick = {
@@ -256,7 +253,7 @@ actual fun PermissionDialog(
                         permissionLauncher.launch(toRequest.toTypedArray())
                     }
                 }) {
-                    Text(strings.permissionRequestButton)
+                    Text(stringResource(Res.string.permissionRequestButton))
                 }
             }
         }
@@ -269,7 +266,6 @@ actual fun PermissionDialog(
 @Composable
 private fun PermissionCard(
     permission: PermissionState,
-    strings: PermissionStrings,
     onRequestPermission: (String) -> Unit
 ) {
     val icon: ImageVector = when (permission.type) {
@@ -278,21 +274,18 @@ private fun PermissionCard(
         PermissionType.BLUETOOTH_SCAN -> Icons.Default.Bluetooth
         PermissionType.POST_NOTIFICATIONS -> Icons.Default.Notifications
     }
-
     val label = when (permission.type) {
-        PermissionType.RECORD_AUDIO -> strings.permissionRecordAudioLabel
-        PermissionType.BLUETOOTH_CONNECT -> strings.permissionBluetoothConnectLabel
-        PermissionType.BLUETOOTH_SCAN -> strings.permissionBluetoothScanLabel
-        PermissionType.POST_NOTIFICATIONS -> strings.permissionPostNotificationsLabel
+        PermissionType.RECORD_AUDIO -> stringResource(Res.string.permissionRecordAudioLabel)
+        PermissionType.BLUETOOTH_CONNECT -> stringResource(Res.string.permissionBluetoothConnectLabel)
+        PermissionType.BLUETOOTH_SCAN -> stringResource(Res.string.permissionBluetoothScanLabel)
+        PermissionType.POST_NOTIFICATIONS -> stringResource(Res.string.permissionPostNotificationsLabel)
     }
-
     val description = when (permission.type) {
-        PermissionType.RECORD_AUDIO -> strings.permissionRecordAudioDesc
-        PermissionType.BLUETOOTH_CONNECT -> strings.permissionBluetoothConnectDesc
-        PermissionType.BLUETOOTH_SCAN -> strings.permissionBluetoothScanDesc
-        PermissionType.POST_NOTIFICATIONS -> strings.permissionPostNotificationsDesc
+        PermissionType.RECORD_AUDIO -> stringResource(Res.string.permissionRecordAudioDesc)
+        PermissionType.BLUETOOTH_CONNECT -> stringResource(Res.string.permissionBluetoothConnectDesc)
+        PermissionType.BLUETOOTH_SCAN -> stringResource(Res.string.permissionBluetoothScanDesc)
+        PermissionType.POST_NOTIFICATIONS -> stringResource(Res.string.permissionPostNotificationsDesc)
     }
-
     val canRequest = !permission.isGranted
 
     Card(
@@ -333,9 +326,9 @@ private fun PermissionCard(
                 // 必选/可选标记
                 Text(
                     text = if (permission.type.isRequired) {
-                        strings.permissionRequired
+                        stringResource(Res.string.permissionRequired)
                     } else {
-                        strings.permissionOptional
+                        stringResource(Res.string.permissionOptional)
                     },
                     style = MaterialTheme.typography.labelSmall,
                     color = if (permission.type.isRequired) {

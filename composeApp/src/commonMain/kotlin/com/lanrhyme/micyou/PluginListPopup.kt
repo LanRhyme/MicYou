@@ -33,6 +33,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.lanrhyme.micyou.plugin.PluginInfo
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun PluginListPopup(
@@ -42,9 +45,7 @@ fun PluginListPopup(
     onOpenPluginWindow: (String) -> Unit,
     onOpenSettings: () -> Unit,
     viewModel: MainViewModel
-) {
-    val strings = LocalAppStrings.current
-    val enabledPlugins = plugins.filter { it.isEnabled }
+) {    val enabledPlugins = plugins.filter { it.isEnabled }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -64,12 +65,12 @@ fun PluginListPopup(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        strings.pluginsSection,
+                        stringResource(Res.string.pluginsSection),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     TextButton(onClick = onOpenSettings) {
-                        Text(strings.settingsTitle)
+                        Text(stringResource(Res.string.settingsTitle))
                     }
                 }
 
@@ -89,7 +90,7 @@ fun PluginListPopup(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            strings.noPluginsInstalled,
+                            stringResource(Res.string.noPluginsInstalled),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -126,9 +127,7 @@ private fun PluginPopupItem(
     pluginInfo: PluginInfo,
     hasUI: Boolean,
     onClick: () -> Unit
-) {
-    val strings = LocalAppStrings.current
-    Card(
+) {    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(

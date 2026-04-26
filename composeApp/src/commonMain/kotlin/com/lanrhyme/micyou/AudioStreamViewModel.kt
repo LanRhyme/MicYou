@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.getString
 
 data class AudioStreamUiState(
     val mode: ConnectionMode = ConnectionMode.Wifi,
@@ -71,46 +74,35 @@ class AudioStreamViewModel : ViewModel() {
 
     private fun loadSettings() {
         val savedModeName = settings.getString("connection_mode", ConnectionMode.Wifi.name)
-        val savedMode = when (savedModeName) {
+    val savedMode = when (savedModeName) {
             "WifiUdp" -> ConnectionMode.Wifi // 旧 WifiUdp 设置映射到新的 Wifi（双协议）
             else -> try { ConnectionMode.valueOf(savedModeName) } catch(e: Exception) { ConnectionMode.Wifi }
         }
-        
-        val savedIp = settings.getString("ip_address", "192.168.1.5")
-        val savedPort = settings.getString("port", "6000")
-        val savedMonitoring = false
+    val savedIp = settings.getString("ip_address", "192.168.1.5")
+    val savedPort = settings.getString("port", "6000")
+    val savedMonitoring = false
         settings.putBoolean("monitoring_enabled", false)
-
-        val savedSampleRateName = settings.getString("sample_rate", SampleRate.Rate48000.name)
-        val savedSampleRate = try { SampleRate.valueOf(savedSampleRateName) } catch(e: Exception) { SampleRate.Rate48000 }
-
-        val savedChannelCountName = settings.getString("channel_count", ChannelCount.Stereo.name)
-        val savedChannelCount = try { ChannelCount.valueOf(savedChannelCountName) } catch(e: Exception) { ChannelCount.Stereo }
-
-        val savedAudioFormatName = settings.getString("audio_format", AudioFormat.PCM_FLOAT.name)
-        val savedAudioFormat = try { AudioFormat.valueOf(savedAudioFormatName) } catch(e: Exception) { AudioFormat.PCM_FLOAT }
-
-        val savedNS = settings.getBoolean("enable_ns", false)
-        val savedNSTypeName = settings.getString("ns_type", NoiseReductionType.Ulunas.name)
-        val savedNSType = try { NoiseReductionType.valueOf(savedNSTypeName) } catch(e: Exception) { NoiseReductionType.Ulunas }
-        
-        val savedAGC = settings.getBoolean("enable_agc", false)
-        val savedAGCTarget = settings.getInt("agc_target", 32000)
-        
-        val savedVAD = settings.getBoolean("enable_vad", false)
-        val savedVADThreshold = settings.getInt("vad_threshold", 10)
-        
-        val savedDereverb = settings.getBoolean("enable_dereverb", false)
-        val savedDereverbLevel = settings.getFloat("dereverb_level", 0.5f)
-
-        val savedAmplification = settings.getFloat("amplification", 15.0f)
-
-        val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Unprocessed")
-        val savedBluetoothAddress = settings.getString("bluetooth_address", "")
-        val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
-
-        val savedPerformanceMode = settings.getString("performance_mode", "Default")
-        val savedBufferSizeMultiplier = settings.getFloat("buffer_size_multiplier", 1.0f)
+    val savedSampleRateName = settings.getString("sample_rate", SampleRate.Rate48000.name)
+    val savedSampleRate = try { SampleRate.valueOf(savedSampleRateName) } catch(e: Exception) { SampleRate.Rate48000 }
+    val savedChannelCountName = settings.getString("channel_count", ChannelCount.Stereo.name)
+    val savedChannelCount = try { ChannelCount.valueOf(savedChannelCountName) } catch(e: Exception) { ChannelCount.Stereo }
+    val savedAudioFormatName = settings.getString("audio_format", AudioFormat.PCM_FLOAT.name)
+    val savedAudioFormat = try { AudioFormat.valueOf(savedAudioFormatName) } catch(e: Exception) { AudioFormat.PCM_FLOAT }
+    val savedNS = settings.getBoolean("enable_ns", false)
+    val savedNSTypeName = settings.getString("ns_type", NoiseReductionType.Ulunas.name)
+    val savedNSType = try { NoiseReductionType.valueOf(savedNSTypeName) } catch(e: Exception) { NoiseReductionType.Ulunas }
+    val savedAGC = settings.getBoolean("enable_agc", false)
+    val savedAGCTarget = settings.getInt("agc_target", 32000)
+    val savedVAD = settings.getBoolean("enable_vad", false)
+    val savedVADThreshold = settings.getInt("vad_threshold", 10)
+    val savedDereverb = settings.getBoolean("enable_dereverb", false)
+    val savedDereverbLevel = settings.getFloat("dereverb_level", 0.5f)
+    val savedAmplification = settings.getFloat("amplification", 15.0f)
+    val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Unprocessed")
+    val savedBluetoothAddress = settings.getString("bluetooth_address", "")
+    val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
+    val savedPerformanceMode = settings.getString("performance_mode", "Default")
+    val savedBufferSizeMultiplier = settings.getFloat("buffer_size_multiplier", 1.0f)
 
         _uiState.update {
             it.copy(
@@ -233,12 +225,12 @@ class AudioStreamViewModel : ViewModel() {
 
     fun startStream() {
         Logger.i("AudioStreamViewModel", "Starting stream")
-        val mode = _uiState.value.mode
+    val mode = _uiState.value.mode
         val ip = if (mode == ConnectionMode.Bluetooth) _uiState.value.bluetoothAddress else _uiState.value.ipAddress
 
         // 端口验证：确保端口在有效范围内 (1-65535)
-        val rawPort = _uiState.value.port.toIntOrNull()
-        val port = when {
+    val rawPort = _uiState.value.port.toIntOrNull()
+    val port = when {
             rawPort == null -> {
                 Logger.w("AudioStreamViewModel", "Invalid port format: ${_uiState.value.port}, using default 6000")
                 6000
@@ -289,8 +281,7 @@ class AudioStreamViewModel : ViewModel() {
                 Logger.w("AudioStreamViewModel", "Bluetooth MAC address format may be invalid: $ip")
             }
         }
-
-        val isClient = getPlatform().type == PlatformType.Android
+    val isClient = getPlatform().type == PlatformType.Android
         val sampleRate = _uiState.value.sampleRate
         val channelCount = _uiState.value.channelCount
         val audioFormat = _uiState.value.audioFormat
@@ -310,17 +301,15 @@ class AudioStreamViewModel : ViewModel() {
                 
                 // 分析错误并生成详细错误信息
                 val errorType = ConnectionErrorHelper.analyzeError(e, mode)
-                val savedLanguageName = settings.getString("language", AppLanguage.System.name)
-                val language = try { 
-                    AppLanguage.valueOf(savedLanguageName) 
-                } catch (ex: Exception) { 
-                    AppLanguage.System 
+    val savedLanguageName = settings.getString("language", AppLanguage.System.name)
+    val language = try {
+                    AppLanguage.valueOf(savedLanguageName)
+                } catch (ex: Exception) {
+                    AppLanguage.System
                 }
-                val strings = getStrings(language)
-                val errorDetails = ConnectionErrorHelper.generateErrorDetails(
+    val errorDetails = ConnectionErrorHelper.generateErrorDetails(
                     type = errorType,
                     originalMessage = e.message ?: "Unknown error",
-                    errors = strings.errors,
                     mode = mode,
                     port = port,
                     ip = ip
@@ -341,8 +330,8 @@ class AudioStreamViewModel : ViewModel() {
         if (!isClient && mode == ConnectionMode.Wifi) {
             viewModelScope.launch {
                 val tcpAllowed = isPortAllowed(port, "TCP")
-                val udpPort = calculateUdpPort(port)
-                val udpAllowed = isPortAllowed(udpPort, "UDP")
+    val udpPort = calculateUdpPort(port)
+    val udpAllowed = isPortAllowed(udpPort, "UDP")
                 if (!tcpAllowed || !udpAllowed) {
                     Logger.w("AudioStreamViewModel", "Port $port (TCP) or $udpPort (UDP) is not allowed by firewall")
                     _uiState.update { it.copy(showFirewallDialog = true, pendingFirewallPort = port) }
@@ -358,7 +347,7 @@ class AudioStreamViewModel : ViewModel() {
 
     fun setMode(mode: ConnectionMode) {
         Logger.i("AudioStreamViewModel", "Setting connection mode to $mode")
-        val platformType = getPlatform().type
+    val platformType = getPlatform().type
         val current = _uiState.value
 
         val updatedPort = if (platformType == PlatformType.Android && mode == ConnectionMode.Usb) {
@@ -389,7 +378,7 @@ class AudioStreamViewModel : ViewModel() {
     fun setPort(port: String) {
         // 验证端口输入
         val portInt = port.toIntOrNull()
-        val validatedPort = when {
+    val validatedPort = when {
             port.isBlank() -> "6000" // 空值使用默认端口
             portInt == null -> {
                 Logger.w("AudioStreamViewModel", "Invalid port format: $port, keeping current value")
@@ -526,7 +515,7 @@ class AudioStreamViewModel : ViewModel() {
         viewModelScope.launch {
             // 同时添加 TCP 和 UDP 防火墙规则
             val tcpResult = addFirewallRule(port, "TCP")
-            val udpResult = addFirewallRule(udpPort, "UDP")
+    val udpResult = addFirewallRule(udpPort, "UDP")
             
             if (tcpResult.isSuccess && udpResult.isSuccess) {
                 Logger.i("AudioStreamViewModel", "Firewall rules added successfully for TCP $port and UDP $udpPort")

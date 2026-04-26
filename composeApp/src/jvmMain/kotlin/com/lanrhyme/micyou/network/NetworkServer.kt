@@ -243,9 +243,8 @@ class NetworkServer(
                 val localDevice = LocalDevice.getLocalDevice()
                 localDevice.discoverable = DiscoveryAgent.GIAC
                 Logger.i("NetworkServer", "本地蓝牙: ${localDevice.friendlyName} ${localDevice.bluetoothAddress}")
-                
-                val uuid = UUID("0000110100001000800000805F9B34FB", false)
-                val url = "btspp://localhost:$uuid;name=MicYouServer"
+    val uuid = UUID("0000110100001000800000805F9B34FB", false)
+    val url = "btspp://localhost:$uuid;name=MicYouServer"
                 
                 btNotifier = Connector.open(url) as StreamConnectionNotifier
                 Logger.i("NetworkServer", "蓝牙服务已启动: $url")
@@ -257,9 +256,8 @@ class NetworkServer(
                     val connection = btNotifier?.acceptAndOpen() ?: break
                     activeBtConnection = connection
                     Logger.i("NetworkServer", "接受蓝牙连接")
-                    
-                    val input = connection.openInputStream().toByteReadChannel()
-                    val output = connection.openOutputStream().toByteWriteChannel(this)
+    val input = connection.openInputStream().toByteReadChannel()
+    val output = connection.openOutputStream().toByteWriteChannel(this)
                     
                     handleConnection(
                         input = input,

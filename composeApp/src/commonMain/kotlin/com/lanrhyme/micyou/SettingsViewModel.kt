@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
 
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.System,
@@ -48,57 +49,47 @@ class SettingsViewModel : ViewModel() {
 
     private fun loadSettings() {
         val savedThemeModeName = settings.getString("theme_mode", ThemeMode.System.name)
-        val savedThemeMode = try { ThemeMode.valueOf(savedThemeModeName) } catch(e: Exception) { ThemeMode.System }
-
-        val savedSeedColor = settings.getLong("seed_color", 0xFF4A672D)
-        val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
-        val savedOledPureBlack = settings.getBoolean("oled_pure_black", false)
-
-        val savedPaletteStyleName = settings.getString("palette_style", PaletteStyle.TonalSpot.name)
-        val savedPaletteStyle = try { PaletteStyle.valueOf(savedPaletteStyleName) } catch(e: Exception) { PaletteStyle.TonalSpot }
-
-        val savedUseExpressiveShapes = settings.getBoolean("use_expressive_shapes", true)
-
-        val initialLanguage = try { 
+    val savedThemeMode = try { ThemeMode.valueOf(savedThemeModeName) } catch(e: Exception) { ThemeMode.System }
+    val savedSeedColor = settings.getLong("seed_color", 0xFF4A672D)
+    val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
+    val savedOledPureBlack = settings.getBoolean("oled_pure_black", false)
+    val savedPaletteStyleName = settings.getString("palette_style", PaletteStyle.TonalSpot.name)
+    val savedPaletteStyle = try { PaletteStyle.valueOf(savedPaletteStyleName) } catch(e: Exception) { PaletteStyle.TonalSpot }
+    val savedUseExpressiveShapes = settings.getBoolean("use_expressive_shapes", true)
+    val initialLanguage = try { 
             AppLanguage.valueOf(settings.getString("language", AppLanguage.System.name)) 
         } catch(e: Exception) { 
             AppLanguage.System 
         }
-        
-        val savedAutoStart = settings.getBoolean("auto_start", false)
-        val savedEnableStreamingNotification = settings.getBoolean("enable_streaming_notification", true)
-        val savedKeepScreenOn = settings.getBoolean("keep_screen_on", false)
-        val savedMinimizeToTray = settings.getBoolean("minimize_to_tray", true)
-        
-        val savedCloseActionName = settings.getString("close_action", CloseAction.Prompt.name)
-        val savedCloseAction = try {
+    val savedAutoStart = settings.getBoolean("auto_start", false)
+    val savedEnableStreamingNotification = settings.getBoolean("enable_streaming_notification", true)
+    val savedKeepScreenOn = settings.getBoolean("keep_screen_on", false)
+    val savedMinimizeToTray = settings.getBoolean("minimize_to_tray", true)
+    val savedCloseActionName = settings.getString("close_action", CloseAction.Prompt.name)
+    val savedCloseAction = try {
             CloseAction.valueOf(savedCloseActionName)
         } catch (e: Exception) {
             CloseAction.Prompt
         }
-        
-        val savedPocketMode = settings.getBoolean("pocket_mode", false)
-        val savedVisualizerStyleName = settings.getString("visualizer_style", VisualizerStyle.VolumeRing.name)
-        val savedVisualizerStyle = try {
+    val savedPocketMode = settings.getBoolean("pocket_mode", false)
+    val savedVisualizerStyleName = settings.getString("visualizer_style", VisualizerStyle.VolumeRing.name)
+    val savedVisualizerStyle = try {
             VisualizerStyle.valueOf(savedVisualizerStyleName)
         } catch (e: Exception) {
             VisualizerStyle.VolumeRing
         }
-        
-        val savedBackgroundImagePath = settings.getString("background_image_path", "")
-        val savedBackgroundBrightness = settings.getFloat("background_brightness", 0.5f)
-        val savedBackgroundBlur = settings.getFloat("background_blur", 0f)
-        val savedCardOpacity = settings.getFloat("card_opacity", 1f)
-        val savedEnableHazeEffect = settings.getBoolean("enable_haze_effect", false)
-        
-        val savedFloatingWindowEnabled = settings.getBoolean("floating_window_enabled", false)
-        val savedAutoCheckUpdate = settings.getBoolean("auto_check_update", true)
-        val savedUseMirrorDownload = settings.getBoolean("use_mirror_download", false)
-        val savedMirrorCdk = settings.getString("mirror_cdk", "")
-        val savedUseSystemTitleBar = settings.getBoolean("use_system_title_bar", false)
-        
-        val hasLaunchedBefore = settings.getBoolean("has_launched_before", false)
-        val shouldShowFirstLaunchDialog = !hasLaunchedBefore
+    val savedBackgroundImagePath = settings.getString("background_image_path", "")
+    val savedBackgroundBrightness = settings.getFloat("background_brightness", 0.5f)
+    val savedBackgroundBlur = settings.getFloat("background_blur", 0f)
+    val savedCardOpacity = settings.getFloat("card_opacity", 1f)
+    val savedEnableHazeEffect = settings.getBoolean("enable_haze_effect", false)
+    val savedFloatingWindowEnabled = settings.getBoolean("floating_window_enabled", false)
+    val savedAutoCheckUpdate = settings.getBoolean("auto_check_update", true)
+    val savedUseMirrorDownload = settings.getBoolean("use_mirror_download", false)
+    val savedMirrorCdk = settings.getString("mirror_cdk", "")
+    val savedUseSystemTitleBar = settings.getBoolean("use_system_title_bar", false)
+    val hasLaunchedBefore = settings.getBoolean("has_launched_before", false)
+    val shouldShowFirstLaunchDialog = !hasLaunchedBefore
         if (shouldShowFirstLaunchDialog) {
             settings.putBoolean("has_launched_before", true)
         }

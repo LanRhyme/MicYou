@@ -52,7 +52,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
-import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Error
@@ -108,18 +107,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lanrhyme.micyou.animation.EasingFunctions
-import com.lanrhyme.micyou.plugin.PluginInfo
 import com.lanrhyme.micyou.theme.SuperRoundedShape
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import micyou.composeapp.generated.resources.Res
-import micyou.composeapp.generated.resources.icon_pip
 import org.jetbrains.compose.resources.painterResource
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import micyou.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,7 +134,6 @@ fun DesktopHomeEnhanced(
     val state by viewModel.uiState.collectAsState()
     val audioLevel by viewModel.audioLevels.collectAsState(initial = 0f)
     val platform = remember { getPlatform() }
-    val strings = LocalAppStrings.current
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
     
@@ -144,7 +142,6 @@ fun DesktopHomeEnhanced(
     var showPluginPopup by remember { mutableStateOf(false) }
     var activePluginWindow by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
-    
     val hazeState = if (state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground) {
         rememberHazeState()
     } else null
@@ -177,7 +174,7 @@ fun DesktopHomeEnhanced(
     if (state.installMessage != null) {
         AlertDialog(
             onDismissRequest = { },
-            title = { Text(strings.systemConfigTitle) },
+            title = { Text(stringResource(Res.string.systemConfigTitle)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
@@ -191,7 +188,7 @@ fun DesktopHomeEnhanced(
     if (state.showFirewallDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissFirewallDialog() },
-            title = { Text(strings.firewallTitle) },
+            title = { Text(stringResource(Res.string.firewallTitle)) },
             text = { 
                 Column(
                     modifier = Modifier
@@ -200,13 +197,21 @@ fun DesktopHomeEnhanced(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = strings.firewallMessage.replace("%d", state.pendingFirewallPort?.toString() ?: ""),
+                        text = stringResource(Res.string.firewallMessage, state.pendingFirewallPort?.toString() ?: ""),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             },
-            confirmButton = { Button(onClick = { viewModel.confirmAddFirewallRule() }) { Text(strings.firewallConfirm) } },
-            dismissButton = { TextButton(onClick = { viewModel.dismissFirewallDialog() }) { Text(strings.firewallDismiss) } }
+            confirmButton = { 
+                Button(onClick = { viewModel.confirmAddFirewallRule() }) { 
+                    Text(stringResource(Res.string.firewallConfirm)) 
+                } 
+            },
+            dismissButton = { 
+                TextButton(onClick = { viewModel.dismissFirewallDialog() }) { 
+                    Text(stringResource(Res.string.firewallDismiss)) 
+                } 
+            }
         )
     }
 
@@ -229,7 +234,6 @@ fun DesktopHomeEnhanced(
                     state = state,
                     onMinimize = onMinimize,
                     onClose = onClose,
-                    strings = strings,
                     cardOpacity = state.backgroundSettings.cardOpacity,
                     hazeState = hazeState,
                     visible = cardVisible,
@@ -241,7 +245,6 @@ fun DesktopHomeEnhanced(
                         state = state,
                         viewModel = viewModel,
                         isBluetoothDisabled = isBluetoothDisabled,
-                        strings = strings,
                         modifier = Modifier.weight(0.38f),
                         cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState,
@@ -253,7 +256,6 @@ fun DesktopHomeEnhanced(
                         state = state,
                         viewModel = viewModel,
                         audioLevel = audioLevel,
-                        strings = strings,
                         modifier = Modifier.weight(0.62f),
                         cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState,
@@ -267,7 +269,6 @@ fun DesktopHomeEnhanced(
                     viewModel = viewModel,
                     onOpenSettings = { showSettings = true },
                     onShowPluginPopup = { showPluginPopup = true },
-                    strings = strings,
                     cardOpacity = state.backgroundSettings.cardOpacity,
                     hazeState = hazeState,
                     visible = cardVisible,
@@ -329,7 +330,6 @@ private fun HeaderSection(
     state: AppUiState,
     onMinimize: () -> Unit,
     onClose: () -> Unit,
-    strings: AppStrings,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
     visible: Boolean = false,
@@ -387,7 +387,7 @@ private fun HeaderSection(
                     val color2 = MaterialTheme.colorScheme.tertiary
                     
                     val infiniteTransition = rememberInfiniteTransition(label = "DesktopTitleColor")
-                    val animatedColor by infiniteTransition.animateColor(
+    val animatedColor by infiniteTransition.animateColor(
                         initialValue = color1,
                         targetValue = color2,
                         animationSpec = infiniteRepeatable(
@@ -406,10 +406,9 @@ private fun HeaderSection(
                     Text("Server", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            
-            val ipList = platform.ipAddresses
+    val ipList = platform.ipAddresses
             val lazyListState = rememberLazyListState()
-            val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
             
             Surface(
                 shape = MaterialTheme.shapes.small,
@@ -467,11 +466,10 @@ private fun HeaderSection(
                             }
                         }
                     }
-                    
-                    val showLeftFade by remember {
+    val showLeftFade by remember {
                         derivedStateOf { lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0 }
                     }
-                    val showRightFade by remember {
+    val showRightFade by remember {
                         derivedStateOf {
                             val layoutInfo = lazyListState.layoutInfo
                             if (layoutInfo.totalItemsCount == 0) false
@@ -538,7 +536,6 @@ private fun LeftPanel(
     state: AppUiState,
     viewModel: MainViewModel,
     isBluetoothDisabled: Boolean,
-    strings: AppStrings,
     modifier: Modifier = Modifier,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
@@ -574,7 +571,6 @@ private fun LeftPanel(
         ModeCard(
             selectedMode = state.mode,
             onModeSelected = { viewModel.setMode(it) },
-            strings = strings,
             cardOpacity = cardOpacity,
             hazeState = hazeState,
             enableHaze = state.backgroundSettings.enableHazeEffect
@@ -583,7 +579,6 @@ private fun LeftPanel(
         PortCard(
             port = state.port,
             onPortChange = { viewModel.setPort(it) },
-            strings = strings,
             cardOpacity = cardOpacity,
             hazeState = hazeState,
             enableHaze = state.backgroundSettings.enableHazeEffect
@@ -592,7 +587,6 @@ private fun LeftPanel(
         StatusCard(
             streamState = state.streamState,
             errorMessage = state.errorMessage,
-            strings = strings,
             modifier = Modifier.weight(1f),
             cardOpacity = cardOpacity,
             hazeState = hazeState,
@@ -605,7 +599,6 @@ private fun LeftPanel(
 private fun ModeCard(
     selectedMode: ConnectionMode,
     onModeSelected: (ConnectionMode) -> Unit,
-    strings: AppStrings,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
     enableHaze: Boolean = false
@@ -619,11 +612,10 @@ private fun ModeCard(
         enabled = enableHaze
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(strings.connectionModeLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            
-            val modes = listOf(
-                ConnectionMode.Wifi to (strings.modeWifi to Icons.Rounded.Wifi),
-                ConnectionMode.Usb to (strings.modeUsb to Icons.Rounded.Usb)
+            Text(stringResource(Res.string.connectionModeLabel), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val modes = listOf(
+                ConnectionMode.Wifi to (stringResource(Res.string.modeWifi) to Icons.Rounded.Wifi),
+                ConnectionMode.Usb to (stringResource(Res.string.modeUsb) to Icons.Rounded.Usb)
             )
             
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -635,7 +627,7 @@ private fun ModeCard(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
                         animationSpec = tween(200)
                     )
-                    val contentColor by animateColorAsState(
+    val contentColor by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                         animationSpec = tween(200)
                     )
@@ -669,7 +661,6 @@ private fun ModeCard(
 private fun PortCard(
     port: String,
     onPortChange: (String) -> Unit,
-    strings: AppStrings,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
     enableHaze: Boolean = false
@@ -683,7 +674,7 @@ private fun PortCard(
         enabled = enableHaze
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(strings.portLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(Res.string.portLabel), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             ShardTextField(
                 value = port,
                 onValueChange = onPortChange,
@@ -699,7 +690,6 @@ private fun PortCard(
 private fun StatusCard(
     streamState: StreamState,
     errorMessage: String?,
-    strings: AppStrings,
     modifier: Modifier = Modifier,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
@@ -748,10 +738,10 @@ private fun StatusCard(
             Spacer(Modifier.height(8.dp))
             Text(
                 when (streamState) {
-                    StreamState.Idle -> strings.statusIdle
-                    StreamState.Connecting -> strings.statusConnecting
-                    StreamState.Streaming -> strings.statusStreaming
-                    StreamState.Error -> strings.statusError
+                    StreamState.Idle -> stringResource(Res.string.statusIdle)
+                    StreamState.Connecting -> stringResource(Res.string.statusConnecting)
+                    StreamState.Streaming -> stringResource(Res.string.statusStreaming)
+                    StreamState.Error -> stringResource(Res.string.statusError)
                 },
                 style = MaterialTheme.typography.labelLarge,
                 color = statusColor,
@@ -786,7 +776,6 @@ private fun CenterPanel(
     state: AppUiState,
     viewModel: MainViewModel,
     audioLevel: Float,
-    strings: AppStrings,
     modifier: Modifier = Modifier,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
@@ -809,7 +798,6 @@ private fun CenterPanel(
         targetValue = if (visible) 0f else 30f,
         animationSpec = tween(500, delayMillis, easing = EasingFunctions.EaseOutExpo)
     )
-
     val isRunning = state.streamState == StreamState.Streaming
     val isConnecting = state.streamState == StreamState.Connecting
 
@@ -869,7 +857,7 @@ private fun CenterPanel(
                     .padding(top = buttonSize + 24.dp)
             ) {
                 Text(
-                    when { isRunning -> strings.statusStreaming; isConnecting -> strings.statusConnecting; else -> strings.clickToStart },
+                    when { isRunning -> stringResource(Res.string.statusStreaming); isConnecting -> stringResource(Res.string.statusConnecting); else -> stringResource(Res.string.clickToStart) },
                     style = MaterialTheme.typography.labelMedium,
                     color = buttonColor,
                     fontWeight = FontWeight.Medium
@@ -901,7 +889,6 @@ private fun AudioVisualizer(
     style: VisualizerStyle = VisualizerStyle.Ripple
 ) {
     val safeAudioLevel = audioLevel.coerceIn(0f, 1f)
-    
     val infiniteTransition = rememberInfiniteTransition(label = "AudioViz")
     val breathScale by infiniteTransition.animateFloat(
         initialValue = 0.98f, targetValue = 1.02f,
@@ -943,7 +930,7 @@ private fun VolumeRingVisualizer(
     
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2 * 0.85f
+    val baseRadius = min(size.width, size.height) / 2 * 0.85f
         val strokeWidth = 8.dp.toPx()
         
         drawCircle(
@@ -952,8 +939,7 @@ private fun VolumeRingVisualizer(
             center = center,
             style = Stroke(width = strokeWidth)
         )
-        
-        val sweepAngle = 360f * animatedLevel
+    val sweepAngle = 360f * animatedLevel
         val startAngle = -90f
         
         drawArc(
@@ -968,8 +954,8 @@ private fun VolumeRingVisualizer(
         
         if (audioLevel > 0.05f) {
             val endAngleRad = Math.toRadians((startAngle + sweepAngle).toDouble()).toFloat()
-            val dotX = center.x + baseRadius * cos(endAngleRad)
-            val dotY = center.y + baseRadius * sin(endAngleRad)
+    val dotX = center.x + baseRadius * cos(endAngleRad)
+    val dotY = center.y + baseRadius * sin(endAngleRad)
             
             drawCircle(
                 color = color.copy(alpha = 0.9f),
@@ -977,23 +963,21 @@ private fun VolumeRingVisualizer(
                 center = Offset(dotX, dotY)
             )
         }
-        
-        val tickCount = 60
+    val tickCount = 60
         for (i in 0 until tickCount) {
             val tickAngle = -90f + (i.toFloat() / tickCount) * 360f
             val tickAngleRad = Math.toRadians(tickAngle.toDouble()).toFloat()
-            val tickProgress = i.toFloat() / tickCount
+    val tickProgress = i.toFloat() / tickCount
             
             val innerRadius = baseRadius - strokeWidth * 0.5f
             val outerRadius = baseRadius + strokeWidth * 0.5f
             
             val tickAlpha = if (tickProgress <= animatedLevel) 0.4f else 0.1f
             val tickLength = if (i % 5 == 0) 6.dp.toPx() else 3.dp.toPx()
-            
-            val startX = center.x + innerRadius * cos(tickAngleRad)
-            val startY = center.y + innerRadius * sin(tickAngleRad)
-            val endX = center.x + (outerRadius + tickLength) * cos(tickAngleRad)
-            val endY = center.y + (outerRadius + tickLength) * sin(tickAngleRad)
+    val startX = center.x + innerRadius * cos(tickAngleRad)
+    val startY = center.y + innerRadius * sin(tickAngleRad)
+    val endX = center.x + (outerRadius + tickLength) * cos(tickAngleRad)
+    val endY = center.y + (outerRadius + tickLength) * sin(tickAngleRad)
             
             drawLine(
                 color = color.copy(alpha = tickAlpha),
@@ -1002,8 +986,7 @@ private fun VolumeRingVisualizer(
                 strokeWidth = if (i % 5 == 0) 2.dp.toPx() else 1.dp.toPx()
             )
         }
-        
-        val glowRadius = baseRadius * 0.6f * animatedLevel
+    val glowRadius = baseRadius * 0.6f * animatedLevel
         if (glowRadius > 0) {
             drawCircle(
                 color = color.copy(alpha = 0.1f * animatedLevel),
@@ -1025,24 +1008,23 @@ private fun RippleVisualizer(
 ) {
     Canvas(modifier = modifier.graphicsLayer { scaleX = breathScale; scaleY = breathScale }) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2
+    val baseRadius = min(size.width, size.height) / 2
         
         for (i in 0..3) {
             val waveRadius = baseRadius * (0.55f + i * 0.12f * audioLevel)
-            val alpha = (0.35f - i * 0.08f) * audioLevel
+    val alpha = (0.35f - i * 0.08f) * audioLevel
             drawCircle(
                 color = color.copy(alpha = alpha.coerceIn(0f, 1f)),
                 radius = waveRadius, center = center,
                 style = Stroke(width = (2.5f - i * 0.4f).dp.toPx())
             )
         }
-        
-        val barCount = 32
+    val barCount = 32
         for (i in 0 until barCount) {
             val angle = (i.toFloat() / barCount) * 360f + wavePhase
             val radians = Math.toRadians(angle.toDouble()).toFloat()
-            val dynamicLevel = audioLevel * (0.5f + 0.5f * sin(angle * 0.05f + wavePhase * 0.02f))
-            val barHeight = baseRadius * 0.12f * dynamicLevel
+    val dynamicLevel = audioLevel * (0.5f + 0.5f * sin(angle * 0.05f + wavePhase * 0.02f))
+    val barHeight = baseRadius * 0.12f * dynamicLevel
             val innerRadius = baseRadius * 0.5f
             
             drawLine(
@@ -1056,7 +1038,7 @@ private fun RippleVisualizer(
         repeat(6) { i ->
             val progress = i.toFloat() / 6
             val glowRadius = baseRadius * 0.25f * (1f + progress * 0.5f)
-            val alpha = glowAlpha * (1f - progress) * audioLevel
+    val alpha = glowAlpha * (1f - progress) * audioLevel
             drawCircle(color.copy(alpha = alpha.coerceIn(0f, 0.25f)), glowRadius, center)
         }
     }
@@ -1071,16 +1053,15 @@ private fun BarsVisualizer(
 ) {
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2
+    val baseRadius = min(size.width, size.height) / 2
         
         val barCount = 48
         for (i in 0 until barCount) {
             val angle = (i.toFloat() / barCount) * 360f
             val radians = Math.toRadians(angle.toDouble()).toFloat()
-            
-            val normalizedAngle = (angle + wavePhase) % 360f
+    val normalizedAngle = (angle + wavePhase) % 360f
             val dynamicLevel = audioLevel * (0.3f + 0.7f * abs(sin(normalizedAngle * 0.03f + wavePhase * 0.015f)))
-            val barHeight = baseRadius * 0.35f * dynamicLevel
+    val barHeight = baseRadius * 0.35f * dynamicLevel
             
             val innerRadius = baseRadius * 0.35f
             val barWidth = (2.5f * (1f + dynamicLevel * 0.5f)).dp.toPx()
@@ -1092,8 +1073,7 @@ private fun BarsVisualizer(
                 strokeWidth = barWidth, cap = StrokeCap.Round
             )
         }
-        
-        val innerGlowRadius = baseRadius * 0.3f
+    val innerGlowRadius = baseRadius * 0.3f
         drawCircle(
             color.copy(alpha = audioLevel * 0.15f),
             innerGlowRadius,
@@ -1111,24 +1091,22 @@ private fun WaveVisualizer(
 ) {
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2
+    val baseRadius = min(size.width, size.height) / 2
         
         for (waveIndex in 0..2) {
             val waveRadius = baseRadius * (0.4f + waveIndex * 0.15f)
-            val waveAmplitude = baseRadius * 0.08f * audioLevel * (1f - waveIndex * 0.25f)
-            
-            val path = androidx.compose.ui.graphics.Path()
-            val segments = 72
+    val waveAmplitude = baseRadius * 0.08f * audioLevel * (1f - waveIndex * 0.25f)
+    val path = androidx.compose.ui.graphics.Path()
+    val segments = 72
             
             for (i in 0..segments) {
                 val angle = (i.toFloat() / segments) * 360f
                 val radians = Math.toRadians(angle.toDouble()).toFloat()
-                
-                val waveOffset = waveAmplitude * sin(angle * 0.1f + wavePhase * 0.05f + waveIndex * 1.5f)
-                val r = waveRadius + waveOffset
+    val waveOffset = waveAmplitude * sin(angle * 0.1f + wavePhase * 0.05f + waveIndex * 1.5f)
+    val r = waveRadius + waveOffset
                 
                 val x = center.x + r * cos(radians)
-                val y = center.y + r * sin(radians)
+    val y = center.y + r * sin(radians)
                 
                 if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
             }
@@ -1159,23 +1137,21 @@ private fun GlowVisualizer(
 ) {
     Canvas(modifier = modifier.graphicsLayer { scaleX = breathScale; scaleY = breathScale }) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2
+    val baseRadius = min(size.width, size.height) / 2
         
         repeat(12) { i ->
             val progress = i.toFloat() / 12
             val glowRadius = baseRadius * (0.2f + progress * 0.6f) * (1f + audioLevel * 0.3f)
-            val alpha = (glowAlpha * (1f - progress * 0.8f) * audioLevel).coerceIn(0f, 0.35f)
+    val alpha = (glowAlpha * (1f - progress * 0.8f) * audioLevel).coerceIn(0f, 0.35f)
             drawCircle(color.copy(alpha = alpha), glowRadius, center)
         }
-        
-        val coreRadius = baseRadius * 0.15f * (1f + audioLevel * 0.5f)
+    val coreRadius = baseRadius * 0.15f * (1f + audioLevel * 0.5f)
         drawCircle(color.copy(alpha = 0.6f * audioLevel), coreRadius, center)
-        
-        val rayCount = 8
+    val rayCount = 8
         for (i in 0 until rayCount) {
             val angle = (i.toFloat() / rayCount) * 360f
             val radians = Math.toRadians(angle.toDouble()).toFloat()
-            val rayLength = baseRadius * 0.4f * audioLevel
+    val rayLength = baseRadius * 0.4f * audioLevel
             
             drawLine(
                 color = color.copy(alpha = 0.3f * audioLevel),
@@ -1196,7 +1172,7 @@ private fun ParticlesVisualizer(
 ) {
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2
+    val baseRadius = min(size.width, size.height) / 2
         
         val particleCount = 36
         for (i in 0 until particleCount) {
@@ -1204,24 +1180,20 @@ private fun ParticlesVisualizer(
             val angleOffset = sin(wavePhase * 0.02f + i * 0.5f) * 15f
             val angle = baseAngle + angleOffset
             val radians = Math.toRadians(angle.toDouble()).toFloat()
-            
-            val distanceVariation = sin(wavePhase * 0.03f + i * 0.3f) * 0.3f
+    val distanceVariation = sin(wavePhase * 0.03f + i * 0.3f) * 0.3f
             val baseDistance = baseRadius * (0.35f + distanceVariation)
-            val distance = baseDistance * (0.5f + audioLevel * 0.8f)
-            
-            val x = center.x + distance * cos(radians)
-            val y = center.y + distance * sin(radians)
-            
-            val particleSize = (3f + audioLevel * 4f * abs(sin(wavePhase * 0.02f + i))).dp.toPx()
-            val alpha = (0.3f + audioLevel * 0.5f).coerceIn(0f, 1f)
+    val distance = baseDistance * (0.5f + audioLevel * 0.8f)
+    val x = center.x + distance * cos(radians)
+    val y = center.y + distance * sin(radians)
+    val particleSize = (3f + audioLevel * 4f * abs(sin(wavePhase * 0.02f + i))).dp.toPx()
+    val alpha = (0.3f + audioLevel * 0.5f).coerceIn(0f, 1f)
             
             drawCircle(
                 color = color.copy(alpha = alpha),
                 radius = particleSize / 2,
                 center = Offset(x, y)
             )
-            
-            val trailLength = baseRadius * 0.1f * audioLevel
+    val trailLength = baseRadius * 0.1f * audioLevel
             drawLine(
                 color = color.copy(alpha = alpha * 0.5f),
                 start = Offset(x, y),
@@ -1260,7 +1232,7 @@ private fun ConnectingAnimation(
     
     Canvas(modifier = modifier.graphicsLayer { scaleX = pulse; scaleY = pulse }) {
         val center = Offset(size.width / 2, size.height / 2)
-        val radius = min(size.width, size.height) / 2
+    val radius = min(size.width, size.height) / 2
         
         for (i in 0..2) {
             val arcAngle = rotation + i * 120f
@@ -1286,7 +1258,6 @@ private fun MainControlButton(
         targetValue = if (isRunning) 72.dp else 64.dp,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
     )
-    
     val buttonColor by animateColorAsState(
         targetValue = when {
             isRunning -> MaterialTheme.colorScheme.error
@@ -1295,14 +1266,12 @@ private fun MainControlButton(
         },
         animationSpec = tween(350)
     )
-    
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
         targetValue = if (isPressed) 0.9f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
     )
-    
     val infiniteTransition = rememberInfiniteTransition(label = "BtnGlow")
     val glowAlpha by infiniteTransition.animateFloat(
         initialValue = 0.25f, targetValue = 0.55f,
@@ -1334,8 +1303,7 @@ private fun MainControlButton(
                     isRunning -> Icons.Filled.LinkOff
                     else -> Icons.Filled.Link
                 },
-                null, modifier = Modifier.size(28.dp),
-            )
+                null, modifier = Modifier.size(28.dp))
         }
     }
 }
@@ -1346,7 +1314,6 @@ private fun BottomBar(
     viewModel: MainViewModel,
     onOpenSettings: () -> Unit,
     onShowPluginPopup: () -> Unit,
-    strings: AppStrings,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,
     visible: Boolean = false,
@@ -1368,7 +1335,6 @@ private fun BottomBar(
         targetValue = if (visible) 0f else 30f,
         animationSpec = tween(500, delayMillis, easing = EasingFunctions.EaseOutExpo)
     )
-    
     val enabledPlugins = state.plugins.filter { it.isEnabled }
     val pluginInteractionSource = remember { MutableInteractionSource() }
     val isPluginPressed by pluginInteractionSource.collectIsPressedAsState()
@@ -1407,13 +1373,11 @@ private fun BottomBar(
             ) {
                 MuteButton(
                     isMuted = state.isMuted,
-                    onToggle = { viewModel.toggleMute() },
-                    strings = strings
+                    onToggle = { viewModel.toggleMute() }
                 )
                 MonitorButton(
                     isMonitoring = state.monitoringEnabled,
-                    onToggle = { viewModel.setMonitoringEnabled(!state.monitoringEnabled) },
-                    strings = strings
+                    onToggle = { viewModel.setMonitoringEnabled(!state.monitoringEnabled) }
                 )
             }
             
@@ -1434,7 +1398,7 @@ private fun BottomBar(
                     ) {
                         Icon(
                             Icons.Filled.Extension,
-                            contentDescription = strings.pluginsSection,
+                            contentDescription = stringResource(Res.string.pluginsSection),
                             modifier = Modifier.size(18.dp),
                             tint = pluginColor
                         )
@@ -1444,7 +1408,7 @@ private fun BottomBar(
                 IconButton(onClick = onOpenSettings, modifier = Modifier.size(32.dp)) {
                     Icon(
                         Icons.Rounded.Settings,
-                        contentDescription = strings.settingsTitle,
+                        contentDescription = stringResource(Res.string.settingsTitle),
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1457,8 +1421,7 @@ private fun BottomBar(
 @Composable
 private fun MuteButton(
     isMuted: Boolean,
-    onToggle: () -> Unit,
-    strings: AppStrings
+    onToggle: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -1466,7 +1429,6 @@ private fun MuteButton(
         targetValue = if (isPressed) 0.9f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
     )
-    
     val bgColor by animateColorAsState(
         targetValue = if (isMuted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
         animationSpec = tween(200)
@@ -1491,7 +1453,7 @@ private fun MuteButton(
                 null, tint = contentColor, modifier = Modifier.size(16.dp)
             )
             Text(
-                if (isMuted) strings.unmuteLabel else strings.muteLabel,
+                if (isMuted) stringResource(Res.string.unmuteLabel) else stringResource(Res.string.muteLabel),
                 style = MaterialTheme.typography.labelSmall, color = contentColor
             )
         }
@@ -1501,8 +1463,7 @@ private fun MuteButton(
 @Composable
 private fun MonitorButton(
     isMonitoring: Boolean,
-    onToggle: () -> Unit,
-    strings: AppStrings
+    onToggle: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -1510,7 +1471,6 @@ private fun MonitorButton(
         targetValue = if (isPressed) 0.9f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
     )
-    
     val bgColor by animateColorAsState(
         targetValue = if (isMonitoring) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
         animationSpec = tween(200)
@@ -1535,7 +1495,7 @@ private fun MonitorButton(
                 null, tint = contentColor, modifier = Modifier.size(16.dp)
             )
             Text(
-                strings.monitoringLabel,
+                stringResource(Res.string.monitoringLabel),
                 style = MaterialTheme.typography.labelSmall, color = contentColor
             )
         }

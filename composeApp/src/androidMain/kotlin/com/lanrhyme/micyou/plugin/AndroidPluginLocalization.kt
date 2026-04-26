@@ -4,6 +4,9 @@ import com.lanrhyme.micyou.Logger
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import micyou.composeapp.generated.resources.*
+import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.getString
 
 class AndroidPluginLocalization(
     private val pluginId: String,
@@ -58,7 +61,7 @@ class AndroidPluginLocalization(
 
     override fun reload() {
         stringCache.clear()
-        val i18nDir = File(pluginDir, "i18n")
+    val i18nDir = File(pluginDir, "i18n")
         if (!i18nDir.exists() || !i18nDir.isDirectory) {
             return
         }
@@ -69,7 +72,7 @@ class AndroidPluginLocalization(
             val langCode = file.name.removePrefix("strings_").removeSuffix(".json")
             try {
                 val content = file.readText()
-                val strings = json.decodeFromString<Map<String, String>>(content)
+    val strings = json.decodeFromString<Map<String, String>>(content)
                 stringCache[langCode] = strings
                 Logger.d("AndroidPluginLocalization", "Loaded strings for $pluginId/$langCode: ${strings.size} entries")
             } catch (e: Exception) {

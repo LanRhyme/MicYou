@@ -37,7 +37,7 @@ fun AnimatedGlowingCircle(
             .clipToBounds()
     ) {
         val center = Offset(size.width / 2, size.height / 2)
-        val baseRadius = min(size.width, size.height) / 2 * 0.8f
+    val baseRadius = min(size.width, size.height) / 2 * 0.8f
         
         if (isAnimating && audioLevel > 0.01f) {
             drawAudioWaveform(
@@ -140,15 +140,12 @@ private fun DrawScope.drawCircularVisualizer(
     repeat(barCount) { i ->
         val angle = (i.toFloat() / barCount) * 360f + time
         val radians = Math.toRadians(angle.toDouble()).toFloat()
-        
-        val barHeight = baseRadius * 0.3f * audioLevel * (0.5f + 0.5f * sin(angle * 0.1f + time * 0.02f))
-        
-        val startX = center.x + baseRadius * cos(radians)
-        val startY = center.y + baseRadius * sin(radians)
-        val endX = center.x + (baseRadius + barHeight) * cos(radians)
-        val endY = center.y + (baseRadius + barHeight) * sin(radians)
-        
-        val alpha = 0.3f + 0.7f * audioLevel
+    val barHeight = baseRadius * 0.3f * audioLevel * (0.5f + 0.5f * sin(angle * 0.1f + time * 0.02f))
+    val startX = center.x + baseRadius * cos(radians)
+    val startY = center.y + baseRadius * sin(radians)
+    val endX = center.x + (baseRadius + barHeight) * cos(radians)
+    val endY = center.y + (baseRadius + barHeight) * sin(radians)
+    val alpha = 0.3f + 0.7f * audioLevel
         drawLine(
             color = color.copy(alpha = alpha),
             start = Offset(startX, startY),
@@ -168,7 +165,6 @@ private fun DrawScope.drawWaveVisualizer(
     val amplitude = size.height * 0.15f * audioLevel
     val frequency = 3f
     val pi = PI.toFloat()
-    
     val path = Path().apply {
         moveTo(0f, size.height / 2)
         
@@ -197,7 +193,7 @@ private fun DrawScope.drawBarsVisualizer(
     
     repeat(barCount) { i ->
         val barHeight = size.height * audioLevel * (0.3f + 0.7f * Math.random().toFloat())
-        val x = i * barWidth + spacing / 2
+    val x = i * barWidth + spacing / 2
         
         drawRoundRect(
             color = color.copy(alpha = 0.7f),
@@ -221,7 +217,7 @@ fun GradientProgressIndicator(
     
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-        val radius = min(size.width, size.height) / 2 - strokeWidth.toPx()
+    val radius = min(size.width, size.height) / 2 - strokeWidth.toPx()
         
         drawCircle(
             color = backgroundColor,
@@ -258,8 +254,7 @@ fun ShimmerEffect(
         val startX = -shimmerWidth + shimmerProgress * (size.width + shimmerWidth)
         
         drawRect(color = baseColor)
-        
-        val gradient = Brush.linearGradient(
+    val gradient = Brush.linearGradient(
             colors = listOf(
                 baseColor,
                 highlightColor,
@@ -337,8 +332,7 @@ fun AnimatedBorder(
             modifier = Modifier.matchParentSize()
         ) {
             val strokeWidth = borderWidth.toPx()
-            
-            val brush = Brush.sweepGradient(
+    val brush = Brush.sweepGradient(
                 colors = listOf(
                     borderColor.copy(alpha = 0.1f),
                     borderColor,

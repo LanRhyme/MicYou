@@ -33,6 +33,8 @@ import java.awt.Font
 import java.awt.Toolkit
 import javax.swing.UIManager
 import kotlin.system.exitProcess
+import micyou.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalResourceApi::class)
 fun main() {
@@ -66,9 +68,8 @@ fun main() {
         if (PlatformInfo.isMacOS) {
             fontName = "SF Pro Display"
         }
-        
-        val font = Font(fontName, Font.PLAIN, 12)
-        val keys = arrayOf(
+    val font = Font(fontName, Font.PLAIN, 12)
+    val keys = arrayOf(
             "MenuItem.font", "Menu.font", "PopupMenu.font", 
             "CheckBoxMenuItem.font", "RadioButtonMenuItem.font",
             "Label.font", "Button.font", "ToolTip.font"
@@ -86,8 +87,8 @@ fun main() {
     Logger.i("Main", "App started")
     application {
         val viewModel = remember { MainViewModel() }
-        var isVisible by remember { mutableStateOf(true) }
-        var showSettingsWindow by remember { mutableStateOf(false) }
+    var isVisible by remember { mutableStateOf(true) }
+    var showSettingsWindow by remember { mutableStateOf(false) }
 
         // Helper function for app exit with timeout protection
         val exitApp: () -> Unit = {
@@ -98,37 +99,34 @@ fun main() {
             }
             exitProcess(0)
         }
-
-        val uiState by viewModel.uiState.collectAsState()
-        val strings = getStrings(uiState.language)
-        val isStreaming = uiState.streamState == StreamState.Streaming || uiState.streamState == StreamState.Connecting
+    val uiState by viewModel.uiState.collectAsState()
+    val isStreaming = uiState.streamState == StreamState.Streaming || uiState.streamState == StreamState.Connecting
 
         val icon = painterResource(Res.drawable.app_icon)
         
         Tray(
             icon = Res.drawable.app_icon,
-            tooltip = strings.appName
+            tooltip = stringResource(Res.string.appName)
         ) {
             Item(
-                label = if (isVisible) strings.trayHide else strings.trayShow
+                label = if (isVisible) stringResource(Res.string.trayHide) else stringResource(Res.string.trayShow)
             ) {
                 isVisible = !isVisible
             }
 
             Item(
-                label = if (isStreaming) strings.stop else strings.start
+                label = if (isStreaming) stringResource(Res.string.stop) else stringResource(Res.string.start)
             ) {
                 viewModel.toggleStream()
             }
 
             Item(
-                label = strings.trayExit
+                label = stringResource(Res.string.trayExit)
             ) {
                 exitApp()
             }
         }
-
-        val windowWidth = if (uiState.pocketMode) 650.dp else 850.dp
+    val windowWidth = if (uiState.pocketMode) 650.dp else 850.dp
         val windowHeight = if (uiState.pocketMode) 300.dp else 650.dp
         val windowState = rememberWindowState(
             width = windowWidth,
@@ -145,7 +143,7 @@ fun main() {
             Window(
                 onCloseRequest = { viewModel.handleCloseRequest(onExit = exitApp, onHide = { isVisible = false }) },
                 state = windowState,
-                title = strings.appName,
+                title = stringResource(Res.string.appName),
                 icon = icon,
                 undecorated = !uiState.useSystemTitleBar,
                 transparent = !uiState.useSystemTitleBar,
@@ -184,15 +182,14 @@ fun main() {
             Window(
                 onCloseRequest = { viewModel.setShowCloseConfirmDialog(false) },
                 state = closeConfirmState,
-                title = strings.closeConfirmTitle,
+                title = stringResource(Res.string.closeConfirmTitle),
                 icon = icon,
                 undecorated = true,
                 transparent = true,
                 resizable = false
             ) {
                 val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
-                CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(
+                AppTheme(
                     themeMode = uiState.themeMode,
                     seedColor = seedColorObj,
                     useDynamicColor = uiState.useDynamicColor,
@@ -200,14 +197,13 @@ fun main() {
                     paletteStyle = uiState.paletteStyle,
                     useExpressiveShapes = uiState.useExpressiveShapes
                 ) {
-                        CloseConfirmDialog(
-                            onDismiss = { viewModel.setShowCloseConfirmDialog(false) },
-                            onMinimize = { viewModel.confirmCloseAction(CloseAction.Minimize, uiState.rememberCloseAction, onExit = exitApp, onHide = { isVisible = false }) },
-                            onExit = { viewModel.confirmCloseAction(CloseAction.Exit, uiState.rememberCloseAction, onExit = exitApp, onHide = { isVisible = false }) },
-                            rememberCloseAction = uiState.rememberCloseAction,
-                            onRememberChange = { viewModel.setRememberCloseAction(it) }
-                        )
-                    }
+                    CloseConfirmDialog(
+                        onDismiss = { viewModel.setShowCloseConfirmDialog(false) },
+                        onMinimize = { viewModel.confirmCloseAction(CloseAction.Minimize, uiState.rememberCloseAction, onExit = exitApp, onHide = { isVisible = false }) },
+                        onExit = { viewModel.confirmCloseAction(CloseAction.Exit, uiState.rememberCloseAction, onExit = exitApp, onHide = { isVisible = false }) },
+                        rememberCloseAction = uiState.rememberCloseAction,
+                        onRememberChange = { viewModel.setRememberCloseAction(it) }
+                    )
                 }
             }
         }
@@ -217,14 +213,13 @@ fun main() {
             Window(
                 onCloseRequest = { showSettingsWindow = false },
                 state = settingsWindowState,
-                title = strings.settingsTitle,
+                title = stringResource(Res.string.settingsTitle),
                 icon = icon,
                 undecorated = false,
                 resizable = true
             ) {
                 val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
-                CompositionLocalProvider(LocalAppStrings provides strings) {
-                    AppTheme(
+                AppTheme(
                     themeMode = uiState.themeMode,
                     seedColor = seedColorObj,
                     useDynamicColor = uiState.useDynamicColor,
@@ -232,22 +227,20 @@ fun main() {
                     paletteStyle = uiState.paletteStyle,
                     useExpressiveShapes = uiState.useExpressiveShapes
                 ) {
-                        DesktopSettings(viewModel = viewModel, onClose = { showSettingsWindow = false })
-                    }
+                    DesktopSettings(viewModel = viewModel, onClose = { showSettingsWindow = false })
                 }
             }
         }
 
         if (uiState.floatingWindowEnabled) {
-            FloatingMicWindowContainer(viewModel = viewModel, strings = strings)
+            FloatingMicWindowContainer(viewModel = viewModel)
         }
     }
 }
 
 @Composable
 private fun FloatingMicWindowContainer(
-    viewModel: MainViewModel,
-    strings: AppStrings
+    viewModel: MainViewModel
 ) {
     val screenSize = Toolkit.getDefaultToolkit().screenSize
 
@@ -275,21 +268,19 @@ private fun FloatingMicWindowContainer(
             window.setLocation(screenSize.width - 60, 60)
         }
 
-        CompositionLocalProvider(LocalAppStrings provides strings) {
-            AppTheme(
-                themeMode = themeMode,
-                seedColor = seedColorObj,
-                useDynamicColor = useDynamicColor,
-                oledPureBlack = oledPureBlack,
-                paletteStyle = paletteStyle,
-                useExpressiveShapes = useExpressiveShapes
-            ) {
-                FloatingMicWindow(
-                    viewModel = viewModel,
-                    window = window,
-                    onClose = { viewModel.setFloatingWindowEnabled(false) }
-                )
-            }
+        AppTheme(
+            themeMode = themeMode,
+            seedColor = seedColorObj,
+            useDynamicColor = useDynamicColor,
+            oledPureBlack = oledPureBlack,
+            paletteStyle = paletteStyle,
+            useExpressiveShapes = useExpressiveShapes
+        ) {
+            FloatingMicWindow(
+                viewModel = viewModel,
+                window = window,
+                onClose = { viewModel.setFloatingWindowEnabled(false) }
+            )
         }
     }
 }
