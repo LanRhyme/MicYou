@@ -1,8 +1,11 @@
 <div align="center">
-
+  
   <h1>MicYou</h1>
-
+  
   <img src="./img/app_icon.png" width="128" height="128" />
+
+  <br>
+  <br>
 
   <a href="https://hellogithub.com/repository/LanRhyme/MicYou" target="_blank">
     <img src="https://api.hellogithub.com/v1/widgets/recommend.svg?rid=14f1a7bc70dc4b3daa2b4668200286e3&claim_uid=amtBSAcKnxJLEiN&theme=neutral" alt="Featured｜HelloGitHub" style="width: 250px; height: 54px;" width="250" height="54" /></a>
