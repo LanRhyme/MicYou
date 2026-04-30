@@ -98,7 +98,7 @@
     <string name="errorDialogHelp">睇說明</string>
     <string name="errorDialogRetry">試多次</string>
     <string name="errorDialogTitle">連線錯誤</string>
-    <string name="errorFirewallBlockedMessage">埠口 %d 俾 Windows 防火牆擋住。請加防火牆規則或者以管理員身份行應用程式。</string>
+    <string name="errorFirewallBlockedMessage">埠口 %s 俾 Windows 防火牆擋住。請加防火牆規則或者以管理員身份行應用程式。</string>
     <string name="errorFirewallBlockedTitle">防火牆擋住咗</string>
     <string name="errorHandshakeFailedMessage">同目標裝置握手失敗。咁可能係版本唔夾或者協定錯誤。</string>
     <string name="errorHandshakeFailedTitle">握手失敗</string>
@@ -108,7 +108,7 @@
     <string name="errorNetworkUnreachableTitle">網路去唔到</string>
     <string name="errorPermissionDeniedMessage">權限唔夠，做唔到呢個操作。請以管理員身份行應用程式。</string>
     <string name="errorPermissionDeniedTitle">權限唔夠</string>
-    <string name="errorPortInUseMessage">埠口 %d 已經俾其他應用程式用緊。請揀過另一個埠口或者閂咗用緊嗰個應用程式。</string>
+    <string name="errorPortInUseMessage">埠口 %s 已經俾其他應用程式用緊。請揀過另一個埠口或者閂咗用緊嗰個應用程式。</string>
     <string name="errorPortInUseTitle">埠口俾人用咗</string>
     <string name="errorProtocolErrorMessage">通訊嗰陣發生協定錯誤。請重開兩邊嘅應用程式。</string>
     <string name="errorProtocolErrorTitle">協定錯誤</string>
@@ -161,7 +161,7 @@
     <string name="expressiveStyleLabel">表達性樣式</string>
     <string name="firewallConfirm">試吓加</string>
     <string name="firewallDismiss">是但啦</string>
-    <string name="firewallMessage">埠口 %d 似乎未畀 Windows 防火牆放行。咁樣可能搞到 Android 裝置冇辦法經 Wi-Fi 連線。\n\n試唔試吓自動加返條防火牆規則？（要管理員權限）</string>
+    <string name="firewallMessage">埠口 %s 似乎未畀 Windows 防火牆放行。咁樣可能搞到 Android 裝置冇辦法經 Wi-Fi 連線。\n\n試唔試吓自動加返條防火牆規則？（要管理員權限）</string>
     <string name="firewallTitle">防火牆檢查</string>
     <string name="firstLaunchGotItButton">我很清楚點樣使用</string>
     <string name="firstLaunchGuideButton">等我睇下使用指南</string>

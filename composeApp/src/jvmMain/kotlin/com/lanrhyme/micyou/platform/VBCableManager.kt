@@ -482,7 +482,7 @@ object VBCableManager {
     val userMessage = when (errorType) {
                 VBCableInstallError.UacDenied -> getString(Res.string.vbcableAdminRequired)
                 VBCableInstallError.InstallationTimeout -> getString(Res.string.vbcableInstallTimeout)
-                else -> getString(Res.string.installError, e.message ?: "Unknown error")
+                else -> String.format(getString(Res.string.installError), e.message ?: "Unknown error")
             }
             
             progressCallback(userMessage)

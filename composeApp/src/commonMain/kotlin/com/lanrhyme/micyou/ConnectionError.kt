@@ -198,7 +198,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = getString(Res.string.errorPortInUseTitle),
-                localizedMessage = getString(Res.string.errorPortInUseMessage, port?.toString() ?: "6000"),
+                localizedMessage = String.format(getString(Res.string.errorPortInUseMessage), port?.toString() ?: "6000"),
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionChangePort),
                     getString(Res.string.errorSuggestionCheckOtherApps)
@@ -210,7 +210,7 @@ object ConnectionErrorHelper {
                 originalMessage = originalMessage,
                 localizedTitle = getString(Res.string.errorConnectionRefusedTitle),
                 localizedMessage = if (mode == ConnectionMode.Wifi) 
-                    getString(Res.string.errorConnectionRefusedWifiMessage, ip ?: "")
+                    String.format(getString(Res.string.errorConnectionRefusedWifiMessage), ip ?: "")
                 else getString(Res.string.errorConnectionRefusedMessage),
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionCheckServerRunning),
@@ -222,7 +222,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = getString(Res.string.errorNetworkUnreachableTitle),
-                localizedMessage = getString(Res.string.errorNetworkUnreachableMessage, ip ?: ""),
+                localizedMessage = String.format(getString(Res.string.errorNetworkUnreachableMessage), ip ?: ""),
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionCheckNetworkConnection),
                     getString(Res.string.errorSuggestionVerifyIpAddress),
@@ -234,7 +234,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = getString(Res.string.errorFirewallBlockedTitle),
-                localizedMessage = getString(Res.string.errorFirewallBlockedMessage, port?.toString() ?: "6000"),
+                localizedMessage = String.format(getString(Res.string.errorFirewallBlockedMessage), port?.toString() ?: "6000"),
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionAddFirewallRule),
                     getString(Res.string.errorSuggestionRunAsAdmin)
@@ -332,7 +332,7 @@ object ConnectionErrorHelper {
                         add(getString(Res.string.errorSuggestionCheckUsbCable))
                         add(getString(Res.string.errorSuggestionEnableUsbDebugging))
                         if (command != null) {
-                            add(getString(Res.string.errorSuggestionRunAdbCommand, command))
+                            add(String.format(getString(Res.string.errorSuggestionRunAdbCommand), command))
                         }
                     },
                     showHelpButton = true,
@@ -350,7 +350,7 @@ object ConnectionErrorHelper {
                     recoverySuggestions = buildList {
                         add(getString(Res.string.errorSuggestionCheckAdbInstalled))
                         if (command != null) {
-                            add(getString(Res.string.errorSuggestionRunAdbManually, command))
+                            add(String.format(getString(Res.string.errorSuggestionRunAdbManually), command))
                         }
                     },
                     showHelpButton = true,
@@ -429,7 +429,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = getString(Res.string.errorUnknownTitle),
-                localizedMessage = getString(Res.string.errorUnknownMessage, originalMessage),
+                localizedMessage = String.format(getString(Res.string.errorUnknownMessage), originalMessage),
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionRestartApp),
                     getString(Res.string.errorSuggestionCheckLogs)

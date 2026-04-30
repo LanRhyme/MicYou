@@ -190,7 +190,7 @@ fun DesktopHome(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = stringResource(Res.string.firewallMessage, state.pendingFirewallPort?.toString() ?: ""),
+                        text = String.format(stringResource(Res.string.firewallMessage), state.pendingFirewallPort?.toString() ?: ""),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

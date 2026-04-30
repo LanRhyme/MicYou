@@ -1520,7 +1520,7 @@ fun VBCableManagementSection(
                             modifier = Modifier.clickable {
                                 viewModel.exportLog { path ->
                                     if (path != null) {
-                                        viewModel.showSnackbar(kotlinx.coroutines.runBlocking { getString(Res.string.logExported, path) })
+                                        viewModel.showSnackbar(kotlinx.coroutines.runBlocking { String.format(getString(Res.string.logExported), path) })
                                     } else {
                                         viewModel.showSnackbar(kotlinx.coroutines.runBlocking { getString(Res.string.logExportFailed) })
                                     }

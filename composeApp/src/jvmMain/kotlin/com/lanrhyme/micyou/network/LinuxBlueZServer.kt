@@ -49,7 +49,7 @@ class LinuxBlueZServer(
                 } catch (e: Exception) {
                     Logger.e("LinuxBlueZServer", "服务器致命错误", e)
                     _state.value = StreamState.Error
-                    _lastError.value = getString(Res.string.errorServerGeneric, e.message ?: "")
+                    _lastError.value = String.format(getString(Res.string.errorServerGeneric), e.message ?: "")
                 } finally {
                     cleanup()
                     if (_state.value != StreamState.Error) {
@@ -90,7 +90,7 @@ class LinuxBlueZServer(
                     Logger.e("LinuxBlueZServer", "蓝牙服务器错误: ${e.message}")
                     if (_state.value != StreamState.Connecting) {
                         _state.value = StreamState.Error
-                        _lastError.value = getString(Res.string.errorBluetoothGeneric, e.message ?: "")
+                        _lastError.value = String.format(getString(Res.string.errorBluetoothGeneric), e.message ?: "")
                         delay(5000)
                         _state.value = StreamState.Connecting
                     }

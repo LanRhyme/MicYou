@@ -218,9 +218,9 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             updateViewModel.checkResultFlow.collect { result ->
                 result?.let {                    val message = when (it) {
-                        is UpdateCheckResult.UpdateAvailable -> getString(Res.string.updateAvailableMsg, it.info.versionName)
+                        is UpdateCheckResult.UpdateAvailable -> String.format(getString(Res.string.updateAvailableMsg), it.info.versionName)
                         is UpdateCheckResult.NoUpdate -> getString(Res.string.isLatestVersion)
-                        is UpdateCheckResult.Error -> getString(Res.string.updateCheckFailed, it.message)
+                        is UpdateCheckResult.Error -> String.format(getString(Res.string.updateCheckFailed), it.message)
                     }
                     _uiState.update { state -> state.copy(snackbarMessage = message) }
                 }
@@ -411,7 +411,7 @@ class MainViewModel : ViewModel() {
                 installVBCable()
             } catch (e: Exception) {
                 Logger.e("MainViewModel", "VB-Cable installation failed: ${e.message}", e)
-                showSnackbar(getString(Res.string.vbcableInstallFailed, e.message ?: ""))
+                showSnackbar(String.format(getString(Res.string.vbcableInstallFailed), e.message ?: ""))
             } finally {
                 _uiState.update { it.copy(showVBCableDialog = false) }
             }

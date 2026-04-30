@@ -95,7 +95,7 @@ class NetworkServer(
             } catch (e: Exception) {
                 Logger.e("NetworkServer", "服务器致命错误", e)
                 _state.value = StreamState.Error
-                _lastError.value = getString(Res.string.errorServerGeneric, e.message ?: "")
+                _lastError.value = String.format(getString(Res.string.errorServerGeneric), e.message ?: "")
                 startupComplete.completeExceptionally(e)
             } finally {
                 cleanup()
@@ -217,7 +217,7 @@ class NetworkServer(
                 )
             }
         } catch (e: BindException) {
-            val msg = getString(Res.string.errorPortInUseMessage, port)
+            val msg = String.format(getString(Res.string.errorPortInUseMessage), port)
             Logger.e("NetworkServer", msg, e)
             _lastError.value = msg
             _state.value = StreamState.Error
@@ -230,14 +230,14 @@ class NetworkServer(
                 _state.value = StreamState.Error
                 throw Exception(msg, e)
             } else {
-                val msg = getString(Res.string.errorSocketError, e.message ?: "")
+                val msg = String.format(getString(Res.string.errorSocketError), e.message ?: "")
                 Logger.e("NetworkServer", msg, e)
                 _lastError.value = msg
                 _state.value = StreamState.Error
                 throw Exception(msg, e)
             }
         } catch (e: Exception) {
-            val msg = getString(Res.string.errorServerGeneric, e.message ?: "")
+            val msg = String.format(getString(Res.string.errorServerGeneric), e.message ?: "")
             Logger.e("NetworkServer", msg, e)
             _lastError.value = msg
             _state.value = StreamState.Error
@@ -277,7 +277,7 @@ class NetworkServer(
                     )
                 }
             } catch (e: javax.bluetooth.BluetoothStateException) {
-                val msg = getString(Res.string.errorBluetoothUnavailable, e.message ?: "")
+                val msg = String.format(getString(Res.string.errorBluetoothUnavailable), e.message ?: "")
                 Logger.e("NetworkServer", msg, e)
                 _state.value = StreamState.Error
                 _lastError.value = msg
@@ -287,7 +287,7 @@ class NetworkServer(
                     Logger.e("NetworkServer", "蓝牙服务器错误", e)
                     if (_state.value != StreamState.Connecting) {
                         _state.value = StreamState.Error
-                        _lastError.value = getString(Res.string.errorBluetoothGeneric, e.message ?: "")
+                        _lastError.value = String.format(getString(Res.string.errorBluetoothGeneric), e.message ?: "")
                         delay(5000) // 重试延迟
                         _state.value = StreamState.Connecting
                     }

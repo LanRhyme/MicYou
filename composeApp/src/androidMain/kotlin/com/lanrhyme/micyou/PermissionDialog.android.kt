@@ -154,9 +154,9 @@ actual fun AndroidPermissionManagementSection(cardOpacity: Float) {
                     text = if (totalCount == 0) {
                         stringResource(Res.string.permissionChecking)
                     } else if (hasAllRequired) {
-                        stringResource(Res.string.permissionAllGrantedStatus, grantedCount, totalCount)
+                        String.format(stringResource(Res.string.permissionAllGrantedStatus), grantedCount, totalCount)
                     } else {
-                        stringResource(Res.string.permissionMissingWarning, grantedCount, totalCount)
+                        String.format(stringResource(Res.string.permissionMissingWarning), grantedCount, totalCount)
                     }
                 )
             },

@@ -98,7 +98,7 @@
     <string name="errorDialogHelp">看帮助喵~</string>
     <string name="errorDialogRetry">重试喵~</string>
     <string name="errorDialogTitle">连接错误喵~ (ToT)</string>
-    <string name="errorFirewallBlockedMessage">端口 %d 被防火墙阻止喵~请添加防火墙规则或以管理员身份运行应用喵~ (・_・;)</string>
+    <string name="errorFirewallBlockedMessage">端口 %s 被防火墙阻止喵~请添加防火墙规则或以管理员身份运行应用喵~ (・_・;)</string>
     <string name="errorFirewallBlockedTitle">防火墙挡住了喵~</string>
     <string name="errorHandshakeFailedMessage">与目标设备握手失败喵~这可能表示版本不匹配或协议错误喵~</string>
     <string name="errorHandshakeFailedTitle">握手失败喵~</string>
@@ -108,7 +108,7 @@
     <string name="errorNetworkUnreachableTitle">网络不可达喵~</string>
     <string name="errorPermissionDeniedMessage">权限不足喵~请以管理员身份运行应用喵~</string>
     <string name="errorPermissionDeniedTitle">权限不够喵~</string>
-    <string name="errorPortInUseMessage">端口 %d 已被其他应用占用喵~请选择其他端口或关闭占用该端口的应用喵~ (×_×;)</string>
+    <string name="errorPortInUseMessage">端口 %s 已被其他应用占用喵~请选择其他端口或关闭占用该端口的应用喵~ (×_×;)</string>
     <string name="errorPortInUseTitle">端口被占用喵~</string>
     <string name="errorProtocolErrorMessage">通信过程中发生协议错误喵~请重启两端应用喵~</string>
     <string name="errorProtocolErrorTitle">协议错误喵~</string>
@@ -161,7 +161,7 @@
     <string name="expressiveStyleLabel">表达性样式喵~</string>
     <string name="firewallConfirm">尝试添加规则喵~</string>
     <string name="firewallDismiss">忽略喵~</string>
-    <string name="firewallMessage">端口 %d 未被 Windows 防火墙允许喵~这可能会阻止安卓设备通过 Wi-Fi 连接喵~\n\n要尝试为此端口添加防火墙规则吗喵？(需要管理员权限) (・_・;)</string>
+    <string name="firewallMessage">端口 %s 未被 Windows 防火墙允许喵~这可能会阻止安卓设备通过 Wi-Fi 连接喵~\n\n要尝试为此端口添加防火墙规则吗喵？(需要管理员权限) (・_・;)</string>
     <string name="firewallTitle">防火墙检查喵~ 🧱</string>
     <string name="firstLaunchGotItButton">猫猫知道怎么使用喵~</string>
     <string name="firstLaunchGuideButton">看看使用指南喵~</string>

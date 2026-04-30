@@ -237,7 +237,7 @@ actual class AudioEngine actual constructor() {
 
                         // 检查 minBufSize 是否有效，某些设备可能不支持 PCM_FLOAT
                         if (minBufSize <= 0 || minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
-                            val msg = getString(Res.string.errorAudioFormatNotSupported, audioFormat.label, androidAudioFormat.toString(), androidSampleRate)
+                            val msg = String.format(getString(Res.string.errorAudioFormatNotSupported), audioFormat.label, androidAudioFormat.toString(), androidSampleRate)
                             Logger.e("AudioEngine", msg + ", minBufSize=$minBufSize")
                             _state.value = StreamState.Error
                             _lastError.value = msg
@@ -542,7 +542,7 @@ actual class AudioEngine actual constructor() {
                             
                             val errorMsg = when {
                                 e is java.net.ConnectException && e.message?.contains("Connection refused", ignoreCase = true) == true ->
-                                    getString(Res.string.connectionRejected, port)
+                                    String.format(getString(Res.string.connectionRejected), port)
                                 e is java.net.SocketTimeoutException ->
                                     getString(Res.string.connectionTimeout)
                                 e is java.net.NoRouteToHostException ->

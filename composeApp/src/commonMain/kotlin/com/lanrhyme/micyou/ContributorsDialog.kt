@@ -232,7 +232,7 @@ fun ContributorsDialog(onDismiss: () -> Unit) {    var bubbles by remember { mut
                     )
                     if (bubbles.isNotEmpty()) {
                         Text(
-                            stringResource(Res.string.contributorsCount, bubbles.size.toString()),
+                            String.format(stringResource(Res.string.contributorsCount), bubbles.size.toString()),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

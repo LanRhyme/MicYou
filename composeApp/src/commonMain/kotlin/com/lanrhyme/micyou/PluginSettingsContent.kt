@@ -77,7 +77,7 @@ fun PluginSettingsContent(
                                 result.onSuccess {
                                     scope.launch { viewModel.showSnackbar(getString(Res.string.pluginImportSuccess)) }
                                 }.onFailure {
-                                    scope.launch { viewModel.showSnackbar(getString(Res.string.pluginImportFailed, it.message ?: "")) }
+                                    scope.launch { viewModel.showSnackbar(String.format(getString(Res.string.pluginImportFailed), it.message ?: "")) }
                                 }
                             }
                         }

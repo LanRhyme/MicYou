@@ -87,9 +87,9 @@ class ConnectionHandler(
                             getString(Res.string.connectionPipeBroken)
                         e.message?.contains("Socket closed", ignoreCase = true) == true ->
                             getString(Res.string.connectionSocketClosed)
-                        else -> getString(Res.string.connectionError, e.message ?: "")
+                        else -> String.format(getString(Res.string.connectionError), e.message ?: "")
                     }
-                    else -> getString(Res.string.connectionError, e.message ?: "")
+                    else -> String.format(getString(Res.string.connectionError), e.message ?: "")
                 }
                 Logger.e("ConnectionHandler", errorMsg, e)
                 onError(errorMsg)

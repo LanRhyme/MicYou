@@ -120,7 +120,7 @@
     <string name="errorDialogHelp">View Help</string>
     <string name="errorDialogRetry">Retry</string>
     <string name="errorDialogTitle">Connection Error</string>
-    <string name="errorFirewallBlockedMessage">Port %d is blocked by Windows Firewall. Please add a firewall rule or run the application as administrator.</string>
+    <string name="errorFirewallBlockedMessage">Port %s is blocked by Windows Firewall. Please add a firewall rule or run the application as administrator.</string>
     <string name="errorFirewallBlockedTitle">Firewall Blocked</string>
     <string name="errorHandshakeFailedMessage">Handshake failed with the target device. This may indicate a version mismatch or protocol error.</string>
     <string name="errorHandshakeFailedDetailed">Handshake failed: verification with the target device failed. This may be due to a version mismatch or protocol error. Please ensure both devices are using the same version of MicYou.</string>
@@ -132,7 +132,7 @@
     <string name="errorPermissionDeniedMessage">Insufficient permissions to perform this operation. Please run the application as administrator.</string>
     <string name="errorRecordingPermissionDenied">Recording permission denied</string>
     <string name="errorPermissionDeniedTitle">Permission Denied</string>
-    <string name="errorPortInUseMessage">Port %d is already in use by another application. Please choose a different port or close the conflicting application.</string>
+    <string name="errorPortInUseMessage">Port %s is already in use by another application. Please choose a different port or close the conflicting application.</string>
     <string name="errorPortInUseTitle">Port Already in Use</string>
     <string name="errorProtocolErrorMessage">A protocol error occurred during communication. Please restart both applications.</string>
     <string name="errorProtocolErrorTitle">Protocol Error</string>
@@ -187,7 +187,7 @@
     <string name="expressiveStyleLabel">Expressive Style</string>
     <string name="firewallConfirm">Try Add Rule</string>
     <string name="firewallDismiss">Ignore</string>
-    <string name="firewallMessage">Port %d is not allowed by Windows Firewall. This may prevent Android devices from connecting via Wi-Fi.\n\nWould you like to try adding a firewall rule for this port? (Requires Administrator privileges)</string>
+    <string name="firewallMessage">Port %s is not allowed by Windows Firewall. This may prevent Android devices from connecting via Wi-Fi.\n\nWould you like to try adding a firewall rule for this port? (Requires Administrator privileges)</string>
     <string name="firewallTitle">Firewall Check</string>
     <string name="firstLaunchGotItButton">I know how to use it</string>
     <string name="firstLaunchGuideButton">View Usage Guide</string>

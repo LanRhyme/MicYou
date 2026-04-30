@@ -98,7 +98,7 @@
     <string name="errorDialogHelp">檢視說明</string>
     <string name="errorDialogRetry">重試</string>
     <string name="errorDialogTitle">連線錯誤</string>
-    <string name="errorFirewallBlockedMessage">連接埠 %d 被 Windows 防火牆封鎖。請新增防火牆規則或以管理員身分執行應用程式。</string>
+    <string name="errorFirewallBlockedMessage">連接埠 %s 被 Windows 防火牆封鎖。請新增防火牆規則或以管理員身分執行應用程式。</string>
     <string name="errorFirewallBlockedTitle">防火牆封鎖</string>
     <string name="errorHandshakeFailedMessage">與目標裝置握手失敗。這可能表示版本不相符或通訊協定錯誤。</string>
     <string name="errorHandshakeFailedTitle">握手失敗</string>
@@ -108,7 +108,7 @@
     <string name="errorNetworkUnreachableTitle">網路無法連線</string>
     <string name="errorPermissionDeniedMessage">權限不足，無法執行此操作。請以管理員身分執行應用程式。</string>
     <string name="errorPermissionDeniedTitle">權限不足</string>
-    <string name="errorPortInUseMessage">連接埠 %d 已被其他應用程式占用。請選擇其他連接埠或關閉占用該連接埠的應用程式。</string>
+    <string name="errorPortInUseMessage">連接埠 %s 已被其他應用程式占用。請選擇其他連接埠或關閉占用該連接埠的應用程式。</string>
     <string name="errorPortInUseTitle">連接埠已被占用</string>
     <string name="errorProtocolErrorMessage">通訊過程中發生通訊協定錯誤。請重新啟動兩端應用程式。</string>
     <string name="errorProtocolErrorTitle">通訊協定錯誤</string>
@@ -161,7 +161,7 @@
     <string name="expressiveStyleLabel">表達性樣式</string>
     <string name="firewallConfirm">嘗試新增</string>
     <string name="firewallDismiss">忽略</string>
-    <string name="firewallMessage">連接埠 %d 似乎未被 Windows 防火牆放行。這可能會導致 Android 裝置無法透過 Wi-Fi 連線。\n\n是否嘗試自動新增防火牆規則？（需要管理員權限）</string>
+    <string name="firewallMessage">連接埠 %s 似乎未被 Windows 防火牆放行。這可能會導致 Android 裝置無法透過 Wi-Fi 連線。\n\n是否嘗試自動新增防火牆規則？（需要管理員權限）</string>
     <string name="firewallTitle">防火牆檢查</string>
     <string name="firstLaunchGotItButton">我很清楚怎麼使用</string>
     <string name="firstLaunchGuideButton">讓我看看使用指南</string>

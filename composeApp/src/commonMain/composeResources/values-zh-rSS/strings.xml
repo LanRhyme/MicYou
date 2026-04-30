@@ -98,7 +98,7 @@
     <string name="errorDialogHelp">去查看帮助文档</string>
     <string name="errorDialogRetry">再去试一次</string>
     <string name="errorDialogTitle">连接错误项目标题项</string>
-    <string name="errorFirewallBlockedMessage">港口 %d 被窗户防火墙阻挡。请新增防火墙规则或以管理者身份执行应用程式。</string>
+    <string name="errorFirewallBlockedMessage">港口 %s 被窗户防火墙阻挡。请新增防火墙规则或以管理者身份执行应用程式。</string>
     <string name="errorFirewallBlockedTitle">防火墙阻挡项目</string>
     <string name="errorHandshakeFailedMessage">与目标装置握手失败。这可能表示版本不匹配或通讯协定错误。</string>
     <string name="errorHandshakeFailedTitle">握手失败项目</string>
@@ -108,7 +108,7 @@
     <string name="errorNetworkUnreachableTitle">网络无法到达项目</string>
     <string name="errorPermissionDeniedMessage">权限不足以执行此操作。请以管理者身份执行应用程式。</string>
     <string name="errorPermissionDeniedTitle">权限被拒绝项目</string>
-    <string name="errorPortInUseMessage">港口 %d 已被其他应用程式占用。请选择其他港口或关闭占用该港口的应用程式。</string>
+    <string name="errorPortInUseMessage">港口 %s 已被其他应用程式占用。请选择其他港口或关闭占用该港口的应用程式。</string>
     <string name="errorPortInUseTitle">港口被占用项目</string>
     <string name="errorProtocolErrorMessage">通讯过程中发生通讯协定错误。请重新启动两端应用程式。</string>
     <string name="errorProtocolErrorTitle">通讯协定错误项目</string>
@@ -161,7 +161,7 @@
     <string name="expressiveStyleLabel">表达性样式项目项</string>
     <string name="firewallConfirm">尝试去添加规则吧</string>
     <string name="firewallDismiss">忽略掉吧</string>
-    <string name="firewallMessage">端口 %d 不被 窗户 防火墙允许。 这可能阻止安卓设备通过 无线保真度 连接。\n\n你想尝试为这个端口添加防火墙规则吗？(需要管理者权限)</string>
+    <string name="firewallMessage">端口 %s 不被 窗户 防火墙允许。 这可能阻止安卓设备通过 无线保真度 连接。\n\n你想尝试为这个端口添加防火墙规则吗？(需要管理者权限)</string>
     <string name="firewallTitle">防火墙检查标题项</string>
     <string name="firstLaunchGotItButton">我知道怎么用项</string>
     <string name="firstLaunchGuideButton">让我看看使用指南</string>

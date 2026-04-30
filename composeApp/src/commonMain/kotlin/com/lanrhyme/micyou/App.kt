@@ -124,7 +124,7 @@ fun App(
                     text = {
                         Column {
                             if (isFailed) {
-                                Text(stringResource(Res.string.updateDownloadFailed, updateError ?: ""))
+                                Text(String.format(stringResource(Res.string.updateDownloadFailed), updateError ?: ""))
                             } else if (isInstalling) {
                                 Text(stringResource(Res.string.updateInstalling))
                             } else if (isDownloading) {
@@ -140,7 +140,7 @@ fun App(
                                     fontSize = 12.sp
                                 )
                             } else {
-                                Text(stringResource(Res.string.updateMessage, updateInfo.versionName))
+                                Text(String.format(stringResource(Res.string.updateMessage), updateInfo.versionName))
 
                                 // Mirror source follows settings automatically. Keep only the expiration hint.
                                 if (useMirrorDownload && updateInfo.mirrorUrl != null) {

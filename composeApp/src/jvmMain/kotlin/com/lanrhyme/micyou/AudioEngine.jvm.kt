@@ -187,7 +187,7 @@ actual class AudioEngine actual constructor() {
             if (AdbManager.runAdbReverse(port)) {
                 Logger.i("AudioEngine", "ADB reverse 成功，USB 隧道已建立")
             } else {
-                val errorMsg = getString(Res.string.errorAdbReverseFailed, port)
+                val errorMsg = String.format(getString(Res.string.errorAdbReverseFailed), port)
                 Logger.e("AudioEngine", errorMsg)
                 _lastError.value = errorMsg
                 _state.value = StreamState.Error
