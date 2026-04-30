@@ -15,10 +15,10 @@ plugins {
 
 tasks.register<CheckLocalizationTask>("checkLocalization") {
     group = "verification"
-    description = "Checks localization JSON files for missing, extra, or empty keys using en and zh as base locales."
-    i18nDir.set(layout.projectDirectory.dir("composeApp/src/commonMain/composeResources/files/i18n"))
-    baseLocale.set("en")
-    baseLocales.set(listOf("en", "zh"))
+    description = "Checks localization strings.xml files for missing, extra, or empty keys using en and zh as base locales."
+    resDir.set(layout.projectDirectory.dir("composeApp/src/commonMain/composeResources"))
+    baseLocale.set("")
+    baseLocales.set(listOf("", "zh"))
 }
 
 tasks.register("installGitHooks") {

@@ -40,7 +40,7 @@
 
 ## 國際化（i18n）
 
-MicYou 支援多國語言，並具備強大的翻譯系統。我們歡迎貢獻者將 MicYou 翻譯成您的母語！
+MicYou 使用 Compose Multiplatform Resources 進行本地化。所有使用者可見的字串儲存在 `strings.xml` 檔案中。我們歡迎貢獻者將 MicYou 翻譯成您的母語！
 
 ### 透過 Crowdin 翻譯（推薦）
 
@@ -64,19 +64,20 @@ git clone https://github.com/LanRhyme/MicYou.git
 cd MicYou
 ```
 
-2. 複製英文翻譯檔案作為範本：
+2. 建立新的 `strings.xml` 檔案：
 ```bash
-cp composeApp/src/commonMain/composeResources/files/i18n/strings_en.json composeApp/src/commonMain/composeResources/files/i18n/strings_xx.json
+mkdir -p composeApp/src/commonMain/composeResources/values-xx
+cp composeApp/src/commonMain/composeResources/values/strings.xml composeApp/src/commonMain/composeResources/values-xx/strings.xml
 ```
 將 `xx` 替換為您的語言代碼（例如，法語為 `fr`，西班牙語為 `es`）。
 
-3. 編輯新的 JSON 檔案，翻譯所有字串值，同時保持鍵不變：
-```json
-{
-  "appName": "MicYou",
-  "ipLabel": "IP: ",
-  ...
-}
+3. 編輯新的 `strings.xml` 檔案，翻譯所有字串值，同時保持鍵不變：
+```xml
+<resources>
+    <string name="appName">MicYou</string>
+    <string name="ipLabel">IP : </string>
+    <!-- ... -->
+</resources>
 ```
 
 4. 在 [Localization.kt](composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/Localization.kt) 檔案中註冊新語言：
@@ -89,16 +90,17 @@ enum class AppLanguage(val label: String, val code: String) {
 }
 ```
 
-同時更新 `getStrings()` 函式以處理您的語言：
+### 在程式碼中使用字串
+
 ```kotlin
-fun getStrings(language: AppLanguage): AppStrings {
-    val langCode = when (language) {
-        // ... 現有情況 ...
-        AppLanguage.French -> "fr"
-        // ...
-    }
-    // ...
-}
+// 在 @Composable 上下文中
+Text(stringResource(Res.string.myKey))
+
+// 在 suspend 上下文中
+val text = getString(Res.string.myKey)
+
+// 帶格式化參數（%s, %d, %1$s 為位置參數）
+Text(stringResource(Res.string.myFormattedKey, arg1))
 ```
 
 ### 測試翻譯
@@ -121,19 +123,45 @@ fun getStrings(language: AppLanguage): AppStrings {
 
 ### 翻譯工作流程
 
-- **來源語言**：英文（`strings_en.json`）
-- **位置**：`composeApp/src/commonMain/composeResources/files/i18n/`
-- **檔案格式**：JSON
-- **目前已支援**：5+ 種語言，包括中文（簡體、繁體、粵語）
+- **來源語言（必須保持同步）**：英文（`values/strings.xml`）和簡體中文（`values-zh/strings.xml`）
+- **位置**：`composeApp/src/commonMain/composeResources/values*/strings.xml`
+- **檔案格式**：Android strings.xml
+- **目前已支援**：6 種語言，包括中文（簡體、繁體、粵語）
+
+### 翻譯更新流程（GitHub 工作流程）
+
+當您新增或修改翻譯時，請按照以下順序操作：
+
+1. 先更新兩個來源語言檔案：
+```
+composeApp/src/commonMain/composeResources/values/strings.xml      (英文)
+composeApp/src/commonMain/composeResources/values-zh/strings.xml   (簡體中文)
+```
+
+2. 再更新其他語言檔案（`values-*/strings.xml`），確保鍵集合一致。
+
+3. 本地執行翻譯校驗：
+```bash
+./gradlew checkLocalization
+```
+
+4. 建議先執行一次鉤子安裝，讓每次提交前自動檢查：
+```bash
+./gradlew installGitHooks
+```
+
+5. 僅在 `checkLocalization` 通過後再提交。
+
+預提交鉤子會執行 `checkLocalization`，若鍵不一致或值為空會阻止提交。
 
 ### 特殊語言變體
 
 某些語言具有特殊變體：
-- `strings_zh.json` - 簡體中文
-- `strings_zh_tw.json` - 繁體中文（台灣）
-- `strings_zh_hk.json` - 粵語（香港）
-- `strings_zh_hard.json` - 中文（困難 - 彩蛋）
-- `strings_cat.json` - 貓語言（彩蛋）
+- `values-zh/` - 簡體中文
+- `values-zh-rTW/` - 繁體中文（台灣）
+- `values-zh-rHK/` - 粵語（香港）
+- `values-zh-rSS/` - 中文硬核模式（彩蛋）
+- `values-ca/` - 貓貓語（彩蛋）
 
 ### 貢獻翻譯
 

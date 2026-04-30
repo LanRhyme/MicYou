@@ -1,11 +1,5 @@
 package com.lanrhyme.micyou.build
 
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonObject
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
@@ -15,11 +9,12 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.TaskAction
 import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 
 abstract class CheckLocalizationTask : DefaultTask() {
 
     @get:InputDirectory
-    abstract val i18nDir: DirectoryProperty
+    abstract val resDir: DirectoryProperty
 
     @get:Input
     abstract val baseLocale: Property<String>
@@ -29,17 +24,20 @@ abstract class CheckLocalizationTask : DefaultTask() {
 
     @TaskAction
     fun run() {
-        val directory = i18nDir.get().asFile
-        val files = directory
-            .listFiles { file -> file.isFile && file.name.startsWith("strings_") && file.name.endsWith(".json") }
-            ?.sortedBy { it.name }
+        val directory = resDir.get().asFile
+        val stringsFiles = directory.listFiles { file ->
+            file.isDirectory && file.name.startsWith("values") && File(file, "strings.xml").exists()
+        }?.map { dir ->
+            val locale = if (dir.name == "values") "" else dir.name.removePrefix("values-")
+            locale to File(dir, "strings.xml")
+        }?.sortedBy { it.first }
             .orEmpty()
 
-        if (files.isEmpty()) {
-            throw GradleException("No localization files found under: ${directory.absolutePath}")
+        if (stringsFiles.isEmpty()) {
+            throw GradleException("No strings.xml files found under: ${directory.absolutePath}")
         }
 
-        val localeToFile = files.associateBy { localeFromFile(it) }
+        val localeToFile = stringsFiles.toMap()
         val configuredBaseLocales = baseLocales.orNull
             ?.map { it.trim() }
             ?.filter { it.isNotEmpty() }
@@ -56,12 +54,12 @@ abstract class CheckLocalizationTask : DefaultTask() {
         for (base in bases) {
             if (!localeToFile.containsKey(base)) {
                 throw GradleException(
-                    "Base locale file strings_${base}.json was not found. Available locales: ${localeToFile.keys.sorted().joinToString(", ")}",
+                    "Base locale 'values${if (base.isEmpty()) "" else "-$base"}/strings.xml' not found. Available: ${localeToFile.keys.sorted().joinToString(", ") { if (it.isEmpty()) "values" else "values-$it" }}"
                 )
             }
         }
 
-        val localeMaps = localeToFile.mapValues { (_, file) -> parseJson(file) }
+        val localeMaps = localeToFile.mapValues { (_, file) -> parseStringsXml(file) }
         val primaryBase = bases.first()
         val primaryBaseFile = localeToFile.getValue(primaryBase)
         val primaryBaseMap = localeMaps.getValue(primaryBase)
@@ -73,7 +71,7 @@ abstract class CheckLocalizationTask : DefaultTask() {
 
         val emptyPrimaryBaseKeys = primaryBaseMap.filterValues { it.isBlank() }.keys.sorted()
         if (emptyPrimaryBaseKeys.isNotEmpty()) {
-            issues += "[${primaryBaseFile.name}] Empty values in base locale (${emptyPrimaryBaseKeys.size}): ${emptyPrimaryBaseKeys.joinToString(", ")}"
+            issues += "[${primaryBaseFile.parentFile.name}/strings.xml] Empty values in base locale (${emptyPrimaryBaseKeys.size}): ${emptyPrimaryBaseKeys.joinToString(", ")}"
         }
 
         for (base in bases.drop(1)) {
@@ -83,16 +81,16 @@ abstract class CheckLocalizationTask : DefaultTask() {
             val emptyInBase = baseMap.filterValues { it.isBlank() }.keys.sorted()
 
             if (missingInBase.isNotEmpty()) {
-                issues += "[${baseFile.name}] Missing keys required by base locales (${missingInBase.size}): ${missingInBase.joinToString(", ")}" 
+                issues += "[${baseFile.parentFile.name}/strings.xml] Missing keys required by base locales (${missingInBase.size}): ${missingInBase.joinToString(", ")}"
             }
             if (emptyInBase.isNotEmpty()) {
-                issues += "[${baseFile.name}] Empty values in base locale (${emptyInBase.size}): ${emptyInBase.joinToString(", ")}" 
+                issues += "[${baseFile.parentFile.name}/strings.xml] Empty values in base locale (${emptyInBase.size}): ${emptyInBase.joinToString(", ")}"
             }
         }
 
         val missingInPrimaryBase = (baseKeyUnion - primaryBaseMap.keys).sorted()
         if (missingInPrimaryBase.isNotEmpty()) {
-            issues += "[${primaryBaseFile.name}] Missing keys required by base locales (${missingInPrimaryBase.size}): ${missingInPrimaryBase.joinToString(", ")}" 
+            issues += "[${primaryBaseFile.parentFile.name}/strings.xml] Missing keys required by base locales (${missingInPrimaryBase.size}): ${missingInPrimaryBase.joinToString(", ")}"
         }
 
         for ((locale, map) in localeMaps) {
@@ -104,13 +102,13 @@ abstract class CheckLocalizationTask : DefaultTask() {
             val emptyValues = map.filterValues { it.isBlank() }.keys.sorted()
 
             if (missing.isNotEmpty()) {
-                issues += "[${file.name}] Missing keys (${missing.size}): ${missing.joinToString(", ")}" 
+                issues += "[${file.parentFile.name}/strings.xml] Missing keys (${missing.size}): ${missing.joinToString(", ")}"
             }
             if (extra.isNotEmpty()) {
-                issues += "[${file.name}] Extra keys (${extra.size}): ${extra.joinToString(", ")}" 
+                issues += "[${file.parentFile.name}/strings.xml] Extra keys (${extra.size}): ${extra.joinToString(", ")}"
             }
             if (emptyValues.isNotEmpty()) {
-                issues += "[${file.name}] Empty values (${emptyValues.size}): ${emptyValues.joinToString(", ")}" 
+                issues += "[${file.parentFile.name}/strings.xml] Empty values (${emptyValues.size}): ${emptyValues.joinToString(", ")}"
             }
         }
 
@@ -121,48 +119,24 @@ abstract class CheckLocalizationTask : DefaultTask() {
         }
 
         logger.lifecycle(
-            "Localization check passed. Files: ${files.size}, base locales: ${bases.joinToString(",")}, keys: ${baseKeyUnion.size}.",
+            "Localization check passed. Locales: ${stringsFiles.size}, base: ${bases.joinToString(",")}, keys: ${baseKeyUnion.size}."
         )
     }
 
-    private fun localeFromFile(file: File): String =
-        file.name.removePrefix("strings_").removeSuffix(".json")
-
-    private fun parseJson(file: File): Map<String, String> {
-        val root = try {
-            Json.parseToJsonElement(file.readText()).jsonObject
-        } catch (e: Exception) {
-            throw GradleException("Failed to parse JSON in ${file.name}: ${e.message}", e)
-        }
-
+    private fun parseStringsXml(file: File): Map<String, String> {
         val result = linkedMapOf<String, String>()
-        flatten(root, "", file.name, result)
-        return result
-    }
-
-    private fun flatten(node: JsonElement, prefix: String, fileName: String, out: MutableMap<String, String>) {
-        when (node) {
-            is JsonObject -> {
-                for ((key, value) in node) {
-                    val nextPrefix = if (prefix.isEmpty()) key else "$prefix.$key"
-                    flatten(value, nextPrefix, fileName, out)
-                }
+        try {
+            val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
+            val strings = doc.getElementsByTagName("string")
+            for (i in 0 until strings.length) {
+                val node = strings.item(i)
+                val name = node.attributes.getNamedItem("name")?.nodeValue ?: continue
+                val value = node.textContent ?: ""
+                result[name] = value
             }
-
-            is JsonArray -> {
-                throw GradleException("Value of key '$prefix' in $fileName is a JSON array. Arrays are not supported in localization files.")
-            }
-
-            is JsonPrimitive -> {
-                if (!node.isString) {
-                    throw GradleException("Value of key '$prefix' in $fileName must be a JSON string.")
-                }
-                out[prefix] = node.content
-            }
-
-            else -> {
-                throw GradleException("Unsupported JSON value at key '$prefix' in $fileName.")
-            }
+        } catch (e: Exception) {
+            throw GradleException("Failed to parse ${file.parentFile.name}/strings.xml: ${e.message}", e)
         }
+        return result
     }
 }
