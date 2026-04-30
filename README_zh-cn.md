@@ -1,37 +1,23 @@
 <div align="center">
-
+  
   <h1>MicYou</h1>
-
+  
   <img src="./img/app_icon.png" width="128" height="128" />
+
+  <br>
+  <br>
+
+  <a href="https://hellogithub.com/repository/LanRhyme/MicYou" target="_blank">
+    <img src="https://api.hellogithub.com/v1/widgets/recommend.svg?rid=14f1a7bc70dc4b3daa2b4668200286e3&claim_uid=amtBSAcKnxJLEiN&theme=neutral" alt="Featured｜HelloGitHub" style="width: 250px; height: 54px;" width="250" height="54" /></a>eutral" alt="Featured｜HelloGitHub" style="width: 250px; height: 54px;" width="250" height="54" /></a>
 
   <b>简体中文</b> | <a href="./README_zh-tw.md">繁體中文</a> | <a href="./README.md">English</a>
 
-  <a href="https://github.com/LanRhyme/MicYou/blob/master/LICENSE">
-    <img alt="LICENSE" src="https://img.shields.io/badge/license-GPLv3-green"></a>
-  <a href="https://github.com/LanRhyme/MicYou/stargazers">
-    <img alt="Github Stars" src="https://img.shields.io/github/stars/LanRhyme/MicYou?style=flat&logo=github&logoColor=white"></a>
-  <a href="https://github.com/LanRhyme/MicYou/releases/latest">
-    <img alt="GitHub Release" src="https://img.shields.io/github/v/release/LanRhyme/MicYou?logo=github"></a>
   <a href="https://aur.archlinux.org/packages/micyou-bin">
     <img alt="AUR Version" src="https://img.shields.io/aur/version/micyou-bin?logo=archlinux&label=micyou-bin"></a>
-  <a href="https://crowdin.com/project/micyou" target="_blank" rel="noopener noreferrer">
-    <img alt="Crowdin" src="https://badges.crowdin.net/micyou/localized.svg"></a>
   <a href="https://qm.qq.com/q/V16hPpWPKO">
     <img alt="QQ" src="https://img.shields.io/badge/QQ-995452107-12B7F5?style=flat&logo=qq&logoColor=white"></a>
   <a href="https://t.me/MicYouChannel">
     <img alt="TG" src="https://img.shields.io/badge/Telegram-@MicYouChannel-2CA5E0?style=flat&logo=telegram&logoColor=white"></a>
-
-  <h6>技术栈</h6>
-
-  <img alt="Kotlin" src="https://img.shields.io/badge/kotlin-%237F52FF.svg?style=for-the-badge&logo=kotlin&logoColor=white" />
-  <img alt="Jetpack Compose" src="https://img.shields.io/badge/Jetpack_Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white">
-
-  <h6>受支持的平台</h6>
-
-  <img alt="Android" src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" />
-  <img alt="Windows" src="https://custom-icon-badges.demolab.com/badge/Windows-0078D6?&style=for-the-badge&logo=windows11&logoColor=white" />
-  <img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" />
-  <img alt="macOS" src="https://img.shields.io/badge/mac%20os-000000?style=for-the-badge&logo=apple&logoColor=F0F0F0" />
 
   <h6>赞助我</h6>
 
