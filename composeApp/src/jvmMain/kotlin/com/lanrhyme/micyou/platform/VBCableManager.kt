@@ -389,7 +389,7 @@ object VBCableManager {
             }
             
             Logger.i("VBCableManager", "Waiting for device initialization...")
-            progressCallback("Waiting for device initialization...")
+            progressCallback(getString(Res.string.vbcableWaitingDevice))
     var installed = false
             var waited = 0
             val maxWait = 30
@@ -480,8 +480,8 @@ object VBCableManager {
                 else -> VBCableInstallError.Unknown
             }
     val userMessage = when (errorType) {
-                VBCableInstallError.UacDenied -> "Administrator privileges required. Please approve the UAC prompt."
-                VBCableInstallError.InstallationTimeout -> "Installation timed out. Please try again."
+                VBCableInstallError.UacDenied -> getString(Res.string.vbcableAdminRequired)
+                VBCableInstallError.InstallationTimeout -> getString(Res.string.vbcableInstallTimeout)
                 else -> getString(Res.string.installError, e.message ?: "Unknown error")
             }
             

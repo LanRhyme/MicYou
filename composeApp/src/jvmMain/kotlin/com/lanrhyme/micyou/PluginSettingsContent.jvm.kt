@@ -15,6 +15,12 @@ import androidx.compose.ui.window.rememberDialogState
 import androidx.compose.ui.window.rememberWindowState
 import com.lanrhyme.micyou.plugin.PluginSettingsProvider
 import com.lanrhyme.micyou.plugin.PluginUIProvider
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.close
+import micyou.composeapp.generated.resources.done
+import micyou.composeapp.generated.resources.pluginConfiguration
+import micyou.composeapp.generated.resources.pluginSettingsTitle
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 actual fun OpenPluginWindow(
@@ -56,7 +62,7 @@ actual fun OpenPluginSettings(
     
     DialogWindow(
         onCloseRequest = onClose,
-        title = "Plugin Settings",
+        title = stringResource(Res.string.pluginSettingsTitle),
         state = rememberDialogState(size = DpSize(500.dp, 600.dp)),
         resizable = true
     ) {
@@ -76,12 +82,12 @@ actual fun OpenPluginSettings(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Plugin Configuration",
+                        stringResource(Res.string.pluginConfiguration),
                         style = MaterialTheme.typography.headlineSmall
                     )
                     
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(Res.string.close))
                     }
                 }
                 
@@ -102,7 +108,7 @@ actual fun OpenPluginSettings(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Button(onClick = onClose) {
-                        Text("Done")
+                        Text(stringResource(Res.string.done))
                     }
                 }
             }

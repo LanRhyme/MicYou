@@ -8,11 +8,19 @@ import java.util.Locale as JavaLocale
 actual fun setAppLocale(languageCode: String) {
     if (languageCode == "system") return
     try {
-        val locale = if (languageCode.contains("-r")) {
-            val parts = languageCode.split("-r")
-            JavaLocale(parts[0], parts[1])
-        } else {
-            JavaLocale(languageCode)
+        val locale = when {
+            // "zh-rSS" format (Android resource directory convention)
+            languageCode.contains("-r") -> {
+                val parts = languageCode.split("-r")
+                JavaLocale(parts[0], parts[1])
+            }
+            // "zh-TW", "zh-HK" format (BCP 47 with region)
+            languageCode.contains("-") -> {
+                val parts = languageCode.split("-")
+                JavaLocale(parts[0], parts[1])
+            }
+            // "zh", "en", "ca" format (language only)
+            else -> JavaLocale(languageCode)
         }
         JavaLocale.setDefault(locale)
     } catch (e: Exception) {

@@ -2,6 +2,9 @@ package com.lanrhyme.micyou
 
 import com.lanrhyme.micyou.audio.AudioOutputManager
 import com.lanrhyme.micyou.audio.AudioProcessorPipeline
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.errorAdbReverseFailed
+import org.jetbrains.compose.resources.getString
 import com.lanrhyme.micyou.network.NetworkServer
 import com.lanrhyme.micyou.platform.AdbManager
 import com.lanrhyme.micyou.platform.PlatformInfo
@@ -184,7 +187,7 @@ actual class AudioEngine actual constructor() {
             if (AdbManager.runAdbReverse(port)) {
                 Logger.i("AudioEngine", "ADB reverse 成功，USB 隧道已建立")
             } else {
-                val errorMsg = "ADB reverse 失败。请确保已安装 ADB 且 Android 设备已连接。\n或者手动运行: adb reverse tcp:$port tcp:$port"
+                val errorMsg = getString(Res.string.errorAdbReverseFailed, port)
                 Logger.e("AudioEngine", errorMsg)
                 _lastError.value = errorMsg
                 _state.value = StreamState.Error

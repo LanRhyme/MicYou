@@ -1,12 +1,20 @@
 package com.lanrhyme.micyou
 
 import android.media.MediaRecorder
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.audioSourceCamcorder
+import micyou.composeapp.generated.resources.audioSourceMic
+import micyou.composeapp.generated.resources.audioSourceUnprocessed
+import micyou.composeapp.generated.resources.audioSourceVoiceCommunication
+import micyou.composeapp.generated.resources.audioSourceVoicePerformance
+import micyou.composeapp.generated.resources.audioSourceVoiceRecognition
+import org.jetbrains.compose.resources.StringResource
 
-enum class AndroidAudioSource(val label: String, val sourceId: Int) {
-    Mic("MIC (默认)", MediaRecorder.AudioSource.MIC),
-    VoiceCommunication("VOICE_COMMUNICATION (VoIP优化)", MediaRecorder.AudioSource.VOICE_COMMUNICATION),
-    VoiceRecognition("VOICE_RECOGNITION (语音识别)", MediaRecorder.AudioSource.VOICE_RECOGNITION),
-    VoicePerformance("VOICE_PERFORMANCE (低延迟)", MediaRecorder.AudioSource.VOICE_PERFORMANCE),
-    Camcorder("CAMCORDER (摄像机)", MediaRecorder.AudioSource.CAMCORDER),
-    Unprocessed("UNPROCESSED (原始音频)", MediaRecorder.AudioSource.UNPROCESSED)
+enum class AndroidAudioSource(val labelRes: StringResource, val sourceId: Int) {
+    Mic(Res.string.audioSourceMic, MediaRecorder.AudioSource.MIC),
+    VoiceCommunication(Res.string.audioSourceVoiceCommunication, MediaRecorder.AudioSource.VOICE_COMMUNICATION),
+    VoiceRecognition(Res.string.audioSourceVoiceRecognition, MediaRecorder.AudioSource.VOICE_RECOGNITION),
+    VoicePerformance(Res.string.audioSourceVoicePerformance, MediaRecorder.AudioSource.VOICE_PERFORMANCE),
+    Camcorder(Res.string.audioSourceCamcorder, MediaRecorder.AudioSource.CAMCORDER),
+    Unprocessed(Res.string.audioSourceUnprocessed, MediaRecorder.AudioSource.UNPROCESSED)
 }

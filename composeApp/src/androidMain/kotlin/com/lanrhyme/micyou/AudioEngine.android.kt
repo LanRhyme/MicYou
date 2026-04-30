@@ -43,6 +43,16 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.coroutines.coroutineContext
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.connectionDisconnected
+import micyou.composeapp.generated.resources.connectionRejected
+import micyou.composeapp.generated.resources.connectionTimeout
+import micyou.composeapp.generated.resources.connectionUnreachable
+import micyou.composeapp.generated.resources.errorAudioFormatNotSupported
+import micyou.composeapp.generated.resources.errorAudioRecordInitFailed
+import micyou.composeapp.generated.resources.errorHandshakeFailedDetailed
+import micyou.composeapp.generated.resources.errorRecordingPermissionDenied
+import org.jetbrains.compose.resources.getString
 
 /**
  * 将 OutputStream 转换为 ByteWriteChannel，使用当前协程的上下文。
@@ -227,7 +237,7 @@ actual class AudioEngine actual constructor() {
 
                         // 检查 minBufSize 是否有效，某些设备可能不支持 PCM_FLOAT
                         if (minBufSize <= 0 || minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
-                            val msg = "音频格式不支持: 设备不支持 ${audioFormat.label} (${androidAudioFormat}) 格式或当前采样率 ${androidSampleRate}Hz"
+                            val msg = getString(Res.string.errorAudioFormatNotSupported, audioFormat.label, androidAudioFormat.toString(), androidSampleRate)
                             Logger.e("AudioEngine", msg + ", minBufSize=$minBufSize")
                             _state.value = StreamState.Error
                             _lastError.value = msg
@@ -262,12 +272,12 @@ actual class AudioEngine actual constructor() {
                         } catch (e: SecurityException) {
                             Logger.e("AudioEngine", "Record permission denied", e)
                             _state.value = StreamState.Error
-                            _lastError.value = "录音权限不足"
+                            _lastError.value = getString(Res.string.errorRecordingPermissionDenied)
                             return@launch
                         }
                         
                         if (recorder.state != AudioRecord.STATE_INITIALIZED) {
-                            val msg = "AudioRecord 初始化失败"
+                            val msg = getString(Res.string.errorAudioRecordInitFailed)
                             Logger.e("AudioEngine", msg)
                             _state.value = StreamState.Error
                             _lastError.value = msg
@@ -371,7 +381,7 @@ actual class AudioEngine actual constructor() {
                         input.readFully(responseBuffer, 0, responseBuffer.size)
 
                         if (!responseBuffer.decodeToString().equals(CHECK_2)) {
-                            val msg = "握手失败"
+                            val msg = getString(Res.string.errorHandshakeFailedDetailed)
                             Logger.e("AudioEngine", msg)
                             _state.value = StreamState.Error
                             _lastError.value = msg
@@ -531,13 +541,13 @@ actual class AudioEngine actual constructor() {
                             _state.value = StreamState.Error
                             
                             val errorMsg = when {
-                                e is java.net.ConnectException && e.message?.contains("Connection refused", ignoreCase = true) == true -> 
-                                    "连接被拒绝: 请确保电脑端已开启并处于连接中状态，且防火墙已放行 TCP $port 端口。"
-                                e is java.net.SocketTimeoutException -> 
-                                    "连接超时: 请检查网络连接或 IP 地址是否正确。"
+                                e is java.net.ConnectException && e.message?.contains("Connection refused", ignoreCase = true) == true ->
+                                    getString(Res.string.connectionRejected, port)
+                                e is java.net.SocketTimeoutException ->
+                                    getString(Res.string.connectionTimeout)
                                 e is java.net.NoRouteToHostException ->
-                                    "无法到达主机: 请确保手机和电脑在同一个 Wi-Fi 网络下。"
-                                else -> "连接断开: ${e.message}"
+                                    getString(Res.string.connectionUnreachable)
+                                else -> getString(Res.string.connectionDisconnected)
                             }
                             _lastError.value = errorMsg
                             

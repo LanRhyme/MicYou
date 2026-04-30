@@ -8,11 +8,16 @@ import java.util.Locale as JavaLocale
 actual fun setAppLocale(languageCode: String) {
     if (languageCode == "system") return
     try {
-        val locale = if (languageCode.contains("-r")) {
-            val parts = languageCode.split("-r")
-            JavaLocale(parts[0], parts[1])
-        } else {
-            JavaLocale(languageCode)
+        val locale = when {
+            languageCode.contains("-r") -> {
+                val parts = languageCode.split("-r")
+                JavaLocale(parts[0], parts[1])
+            }
+            languageCode.contains("-") -> {
+                val parts = languageCode.split("-")
+                JavaLocale(parts[0], parts[1])
+            }
+            else -> JavaLocale(languageCode)
         }
         JavaLocale.setDefault(locale)
         val context = ContextHelper.getContext()

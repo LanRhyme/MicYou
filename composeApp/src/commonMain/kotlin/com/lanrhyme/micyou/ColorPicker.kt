@@ -54,6 +54,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.cancel
+import micyou.composeapp.generated.resources.confirm
+import micyou.composeapp.generated.resources.hexFormatError
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * HSV 颜色选择器组件
@@ -146,7 +151,7 @@ fun HsvColorPickerDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("取消")
+                        Text(stringResource(Res.string.cancel))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
@@ -155,7 +160,7 @@ fun HsvColorPickerDialog(
                             onDismiss()
                         }
                     ) {
-                        Text("确定")
+                        Text(stringResource(Res.string.confirm))
                     }
                 }
             }
@@ -398,7 +403,7 @@ fun ColorPreview(
                         ),
                         label = "HEX",
                         supportingText = if (inputError) {
-                            { Text("格式: #RRGGBB", style = MaterialTheme.typography.labelSmall) }
+                            { Text(stringResource(Res.string.hexFormatError), style = MaterialTheme.typography.labelSmall) }
                         } else null
                     )
                 } else {

@@ -2,6 +2,14 @@ package com.lanrhyme.micyou.network
 
 import com.lanrhyme.micyou.*
 import com.lanrhyme.micyou.platform.PlatformInfo
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.errorBluetoothGeneric
+import micyou.composeapp.generated.resources.errorBluetoothUnavailable
+import micyou.composeapp.generated.resources.errorPortInUseMessage
+import micyou.composeapp.generated.resources.errorRecordingPermissionDenied
+import micyou.composeapp.generated.resources.errorServerGeneric
+import micyou.composeapp.generated.resources.errorSocketError
+import org.jetbrains.compose.resources.getString
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.utils.io.*
@@ -87,7 +95,7 @@ class NetworkServer(
             } catch (e: Exception) {
                 Logger.e("NetworkServer", "服务器致命错误", e)
                 _state.value = StreamState.Error
-                _lastError.value = "服务器错误: ${e.message}"
+                _lastError.value = getString(Res.string.errorServerGeneric, e.message ?: "")
                 startupComplete.completeExceptionally(e)
             } finally {
                 cleanup()
@@ -209,27 +217,27 @@ class NetworkServer(
                 )
             }
         } catch (e: BindException) {
-            val msg = "端口 $port 已被占用。请关闭占用该端口的应用程序，或在设置中更改端口号。"
+            val msg = getString(Res.string.errorPortInUseMessage, port)
             Logger.e("NetworkServer", msg, e)
             _lastError.value = msg
             _state.value = StreamState.Error
             throw Exception(msg, e)
         } catch (e: java.net.SocketException) {
             if (e.message?.contains("Permission denied", ignoreCase = true) == true) {
-                val msg = "权限不足：无法绑定端口 $port。请尝试以管理员身份运行应用程序。"
+                val msg = getString(Res.string.errorRecordingPermissionDenied)
                 Logger.e("NetworkServer", msg, e)
                 _lastError.value = msg
                 _state.value = StreamState.Error
                 throw Exception(msg, e)
             } else {
-                val msg = "套接字错误: ${e.message}"
+                val msg = getString(Res.string.errorSocketError, e.message ?: "")
                 Logger.e("NetworkServer", msg, e)
                 _lastError.value = msg
                 _state.value = StreamState.Error
                 throw Exception(msg, e)
             }
         } catch (e: Exception) {
-            val msg = "服务器错误: ${e.message}"
+            val msg = getString(Res.string.errorServerGeneric, e.message ?: "")
             Logger.e("NetworkServer", msg, e)
             _lastError.value = msg
             _state.value = StreamState.Error
@@ -269,7 +277,7 @@ class NetworkServer(
                     )
                 }
             } catch (e: javax.bluetooth.BluetoothStateException) {
-                val msg = "蓝牙未启用或不可用: ${e.message}。请在系统设置中启用蓝牙功能。"
+                val msg = getString(Res.string.errorBluetoothUnavailable, e.message ?: "")
                 Logger.e("NetworkServer", msg, e)
                 _state.value = StreamState.Error
                 _lastError.value = msg
@@ -279,7 +287,7 @@ class NetworkServer(
                     Logger.e("NetworkServer", "蓝牙服务器错误", e)
                     if (_state.value != StreamState.Connecting) {
                         _state.value = StreamState.Error
-                        _lastError.value = "蓝牙错误: ${e.message}"
+                        _lastError.value = getString(Res.string.errorBluetoothGeneric, e.message ?: "")
                         delay(5000) // 重试延迟
                         _state.value = StreamState.Connecting
                     }

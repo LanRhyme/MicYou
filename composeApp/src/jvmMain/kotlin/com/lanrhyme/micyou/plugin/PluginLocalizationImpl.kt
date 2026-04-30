@@ -78,7 +78,7 @@ class PluginLocalizationImpl(
                 val content = file.readText()
     val strings = json.decodeFromString<Map<String, String>>(content)
                 stringCache[langCode] = strings
-                Logger.d("PluginLocalization", "Loaded strings for $pluginId/$langCode: ${getString(Res.string.size)} entries")
+                Logger.d("PluginLocalization", "Loaded strings for $pluginId/$langCode: ${strings.size} entries")
             } catch (e: Exception) {
                 Logger.e("PluginLocalization", "Failed to load strings for $pluginId/$langCode", e)
             }

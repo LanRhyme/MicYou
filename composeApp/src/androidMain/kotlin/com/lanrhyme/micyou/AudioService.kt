@@ -11,6 +11,9 @@ import android.os.Build
 import android.os.IBinder
 import android.app.PendingIntent
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.runBlocking
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.audioStreamingService
 import org.jetbrains.compose.resources.getString
 
 class AudioService : Service() {
@@ -106,7 +109,7 @@ class AudioService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
-                "Audio Streaming Service",
+                runBlocking { getString(Res.string.audioStreamingService) },
                 NotificationManager.IMPORTANCE_LOW
             )
     val manager = getSystemService(NotificationManager::class.java)

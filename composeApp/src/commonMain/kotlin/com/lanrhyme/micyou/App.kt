@@ -47,12 +47,11 @@ fun App(
     val finalViewModel = viewModel ?: if (isClient) viewModel { MainViewModel() } else remember { MainViewModel() }
     val uiState by finalViewModel.uiState.collectAsState()
     val languageCode = uiState.language.code
-    
-    // Apply language changes to platform locale
-    LaunchedEffect(languageCode) {
-        setAppLocale(languageCode)
-    }
 
+    // Set platform locale for non-Compose code (e.g., Android notification channels)
+    setAppLocale(languageCode)
+
+    // Provide locale to Compose Resources via LocalComposeEnvironment.
     key(languageCode) {
         val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
         val updateInfo = uiState.updateInfo
@@ -398,6 +397,16 @@ fun App(
                 )
             }
         }
+    }
+}
+
+private fun parseLanguageCode(code: String): Pair<String, String> {
+    return when (code) {
+        "zh-TW" -> "zh" to "TW"
+        "zh-HK" -> "zh" to "HK"
+        "zh-rSS" -> "zh" to "SS"
+        "system" -> "" to ""
+        else -> code to ""
     }
 }
 

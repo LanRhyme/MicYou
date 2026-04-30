@@ -34,6 +34,7 @@ import java.awt.Toolkit
 import javax.swing.UIManager
 import kotlin.system.exitProcess
 import micyou.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalResourceApi::class)
@@ -109,19 +110,19 @@ fun main() {
             tooltip = stringResource(Res.string.appName)
         ) {
             Item(
-                label = if (isVisible) stringResource(Res.string.trayHide) else stringResource(Res.string.trayShow)
+                label = if (isVisible) runBlocking { getString(Res.string.trayHide) } else runBlocking { getString(Res.string.trayShow) }
             ) {
                 isVisible = !isVisible
             }
 
             Item(
-                label = if (isStreaming) stringResource(Res.string.stop) else stringResource(Res.string.start)
+                label = if (isStreaming) runBlocking { getString(Res.string.stop) } else runBlocking { getString(Res.string.start) }
             ) {
                 viewModel.toggleStream()
             }
 
             Item(
-                label = stringResource(Res.string.trayExit)
+                label = runBlocking { getString(Res.string.trayExit) }
             ) {
                 exitApp()
             }

@@ -20,7 +20,7 @@ fun PluginImportDialog(
         title = { Text(stringResource(Res.string.pluginImportTitle)) },
         text = {
             Column {
-                Text("Plugins are not supported on Android platform.")
+                Text(stringResource(Res.string.pluginNotSupportedAndroid))
             }
         },
         confirmButton = {
