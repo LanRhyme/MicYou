@@ -110,7 +110,7 @@ fun main() {
             tooltip = stringResource(Res.string.appName)
         ) {
             Item(
-                label = if (isVisible) stringResource(Res.string.trayHide) else stringResource(Res.string.trayShow)
+                label = if (isVisible) runBlocking { getString(Res.string.trayHide) } else runBlocking { getString(Res.string.trayShow) }
             ) {
                 isVisible = !isVisible
             }
