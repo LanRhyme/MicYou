@@ -423,4 +423,6 @@
     <string name="installLinuxExists">PipeWire 虚拟设备已存在喵~</string>
     <string name="installNotCompleted">安装未完成喵...</string>
     <string name="installOsNotSupported">当前操作系统不支持自动安装喵~</string>
+    <string name="reloadingPlugins">正在重新加载插件喵...</string>
+    <string name="vbcableInstallFailed">VB-Cable 安装失败喵: %s</string>
 </resources>

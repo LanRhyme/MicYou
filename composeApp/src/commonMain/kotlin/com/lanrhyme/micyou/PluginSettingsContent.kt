@@ -43,11 +43,16 @@ import com.lanrhyme.micyou.plugin.PluginInfo
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.importPlugin
 import micyou.composeapp.generated.resources.noPluginsFound
+import micyou.composeapp.generated.resources.pluginImportFailed
+import micyou.composeapp.generated.resources.pluginImportSuccess
+import micyou.composeapp.generated.resources.reloadingPlugins
 import micyou.composeapp.generated.resources.reloadPlugins
 import micyou.composeapp.generated.resources.removePlugin
 import micyou.composeapp.generated.resources.showLess
 import micyou.composeapp.generated.resources.showMore
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
+import kotlinx.coroutines.launch
 
 @Composable
 fun PluginSettingsContent(
@@ -69,8 +74,11 @@ fun PluginSettingsContent(
                     openPluginFileChooser(scope) { path ->
                         if (path != null) {
                             viewModel.importPlugin(path) { result ->
-                                result.onSuccess { viewModel.showSnackbar("Plugin imported") }
-                                      .onFailure { viewModel.showSnackbar("Import failed: ${it.message}") }
+                                result.onSuccess {
+                                    scope.launch { viewModel.showSnackbar(getString(Res.string.pluginImportSuccess)) }
+                                }.onFailure {
+                                    scope.launch { viewModel.showSnackbar(getString(Res.string.pluginImportFailed, it.message ?: "")) }
+                                }
                             }
                         }
                     }
@@ -86,7 +94,7 @@ fun PluginSettingsContent(
             OutlinedButton(
                 onClick = { 
                     // MainViewModel doesn't have reloadPlugins, but we can re-init
-                    viewModel.showSnackbar("Reloading plugins...")
+                    scope.launch { viewModel.showSnackbar(getString(Res.string.reloadingPlugins)) }
                 },
                 modifier = Modifier.weight(1f),
                 shape = MaterialTheme.shapes.medium

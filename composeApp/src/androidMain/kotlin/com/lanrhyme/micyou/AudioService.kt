@@ -107,12 +107,13 @@ class AudioService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelName = runBlocking { getString(Res.string.audioStreamingService) }
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
-                runBlocking { getString(Res.string.audioStreamingService) },
+                channelName,
                 NotificationManager.IMPORTANCE_LOW
             )
-    val manager = getSystemService(NotificationManager::class.java)
+            val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(serviceChannel)
         }
     }

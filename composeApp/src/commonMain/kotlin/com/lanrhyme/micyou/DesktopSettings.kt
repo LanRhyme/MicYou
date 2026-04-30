@@ -111,6 +111,7 @@ import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import micyou.composeapp.generated.resources.*
 import micyou.composeapp.generated.resources.Res
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -1074,7 +1075,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
     val currentSource = audioSourceOptions.find { it.name == state.androidAudioSourceName } ?: audioSourceOptions.firstOrNull()
                                     if (audioSourceOptions.isNotEmpty() && currentSource != null) {
                                         Box {
-                                            TextButton(onClick = { expanded = true }) { Text(currentSource.label) }
+                                            TextButton(onClick = { expanded = true }) { Text(stringResource(currentSource.labelRes)) }
                                             DropdownMenu(
                                                 expanded = expanded,
                                                 onDismissRequest = { expanded = false },
@@ -1082,7 +1083,7 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                             ) {
                                                 audioSourceOptions.forEach { source ->
                                                     DropdownMenuItem(
-                                                        text = { Text(source.label) },
+                                                        text = { Text(stringResource(source.labelRes)) },
                                                         onClick = { viewModel.setAndroidAudioSource(source.name); expanded = false },
                                                         trailingIcon = { if (currentSource == source) Icon(Icons.Default.Check, contentDescription = null) }
                                                     )
@@ -1519,9 +1520,9 @@ fun VBCableManagementSection(
                             modifier = Modifier.clickable {
                                 viewModel.exportLog { path ->
                                     if (path != null) {
-                                        viewModel.showSnackbar("Log exported to: $path")
+                                        viewModel.showSnackbar(kotlinx.coroutines.runBlocking { getString(Res.string.logExported, path) })
                                     } else {
-                                        viewModel.showSnackbar("Log export failed")
+                                        viewModel.showSnackbar(kotlinx.coroutines.runBlocking { getString(Res.string.logExportFailed) })
                                     }
                                 }
                             },

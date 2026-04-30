@@ -411,7 +411,7 @@ class MainViewModel : ViewModel() {
                 installVBCable()
             } catch (e: Exception) {
                 Logger.e("MainViewModel", "VB-Cable installation failed: ${e.message}", e)
-                showSnackbar("VB-Cable installation failed: ${e.message}")
+                showSnackbar(getString(Res.string.vbcableInstallFailed, e.message ?: ""))
             } finally {
                 _uiState.update { it.copy(showVBCableDialog = false) }
             }

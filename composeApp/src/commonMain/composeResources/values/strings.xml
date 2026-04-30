@@ -419,6 +419,8 @@
     <string name="updateAvailableMsg">New version available: %s</string>
     <string name="installInstalling">Installing...</string>
     <string name="reloadPlugins">Reload Plugins</string>
+    <string name="reloadingPlugins">Reloading plugins...</string>
+    <string name="vbcableInstallFailed">VB-Cable installation failed: %s</string>
     <string name="noPluginsFound">No plugins installed</string>
     <string name="showMore">Show More</string>
     <string name="showLess">Show Less</string>

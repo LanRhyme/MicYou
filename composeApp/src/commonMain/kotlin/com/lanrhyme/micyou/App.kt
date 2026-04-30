@@ -48,10 +48,10 @@ fun App(
     val uiState by finalViewModel.uiState.collectAsState()
     val languageCode = uiState.language.code
 
-    // Set platform locale for non-Compose code (e.g., Android notification channels)
+    // Set locale synchronously during composition, before any stringResource calls.
+    // Locale.setDefault() is a simple field assignment on JVM — safe to call here.
     setAppLocale(languageCode)
 
-    // Provide locale to Compose Resources via LocalComposeEnvironment.
     key(languageCode) {
         val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
         val updateInfo = uiState.updateInfo
