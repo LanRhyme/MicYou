@@ -207,7 +207,6 @@ class ConnectionHandler(
                 if (wrapper.pong != null) {
                     val now = System.currentTimeMillis()
                     rtt = now - wrapper.pong.timestamp
-                    Logger.d("ConnectionHandler", "RTT updated: $rtt ms")
                 }
             } catch (e: Exception) {
                 Logger.e("ConnectionHandler", "Failed to decode packet", e)

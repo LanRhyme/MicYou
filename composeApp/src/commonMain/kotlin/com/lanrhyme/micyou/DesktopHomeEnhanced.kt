@@ -286,6 +286,8 @@ fun DesktopHomeEnhanced(
                         MonitoringPanel(
                             metrics = state.audioMetrics,
                             history = state.metricsHistory,
+                            audioLevel = audioLevel,
+                            isRunning = state.streamState == StreamState.Streaming,
                             modifier = Modifier.weight(0.28f),
                             cardOpacity = state.backgroundSettings.cardOpacity,
                             hazeState = hazeState,
