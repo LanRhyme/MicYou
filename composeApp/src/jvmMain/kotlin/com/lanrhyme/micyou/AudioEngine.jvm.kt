@@ -281,6 +281,7 @@ actual class AudioEngine actual constructor() {
          } finally {
              audioOutputManager.release()
              audioPipeline.release()
+             mdnsAdvertiser.close()
          }
     }
     

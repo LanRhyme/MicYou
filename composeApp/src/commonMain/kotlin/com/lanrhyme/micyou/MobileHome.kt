@@ -483,7 +483,7 @@ private fun ConnectionConfigCard(
                                 Icons.Filled.Refresh, null,
                                 modifier = Modifier
                                     .size(18.dp)
-                                    .graphicsLayer { rotationZ = if (state.isDiscovering && state.discoveredDevices.isEmpty()) rotation else 0f },
+                                    .graphicsLayer { rotationZ = if (state.isDiscovering) rotation else 0f },
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }

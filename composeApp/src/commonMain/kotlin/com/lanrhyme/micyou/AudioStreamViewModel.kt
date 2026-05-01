@@ -601,10 +601,16 @@ class AudioStreamViewModel : ViewModel() {
         _audioEngine.stop()
     }
 
-    fun startDiscovery() = discoveryManager.startDiscovery()
-    fun stopDiscovery() = discoveryManager.stopDiscovery()
+    fun startDiscovery() {
+        if (getPlatform().type == PlatformType.Android) discoveryManager.startDiscovery()
+    }
+    fun stopDiscovery() {
+        if (getPlatform().type == PlatformType.Android) discoveryManager.stopDiscovery()
+    }
     fun restartDiscovery() {
-        discoveryManager.stopDiscovery()
-        discoveryManager.startDiscovery()
+        if (getPlatform().type == PlatformType.Android) {
+            discoveryManager.stopDiscovery()
+            discoveryManager.startDiscovery()
+        }
     }
 }

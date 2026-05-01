@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.util.Collections
 
 actual class DeviceDiscoveryManager actual constructor() {
     private val _discoveredDevices = MutableStateFlow<List<DiscoveredDevice>>(emptyList())
@@ -18,10 +19,11 @@ actual class DeviceDiscoveryManager actual constructor() {
     private var nsdManager: NsdManager? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var discoveryActive = false
-    private val pendingResolution = mutableSetOf<String>()
+    private val pendingResolution: MutableSet<String> = Collections.synchronizedSet(mutableSetOf<String>())
 
     actual fun startDiscovery() {
         if (discoveryActive) return
+        _discoveredDevices.value = emptyList()
         val context = ContextHelper.getContext() ?: run {
             Logger.w("DeviceDiscovery", "No application context available")
             return
