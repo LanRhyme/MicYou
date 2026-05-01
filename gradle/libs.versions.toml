@@ -25,6 +25,7 @@ jtransforms = "3.2"
 window = "1.5.1"
 filekit = "0.13.0"
 materialKolor = "5.0.0-alpha07"
+jmdns = "3.5.9"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -61,6 +62,7 @@ androidx-window = { group = "androidx.window", name = "window", version.ref = "w
 filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "filekit" }
 filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
+jmdns = { module = "org.jmdns:jmdns", version.ref = "jmdns" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

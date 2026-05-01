@@ -124,6 +124,10 @@ data class AppUiState(
     val performanceMode: String = "Default",
     val audioMetrics: AudioMetrics? = null,
 
+    // Discovery State
+    val discoveredDevices: List<DiscoveredDevice> = emptyList(),
+    val isDiscovering: Boolean = false,
+
     // UI State
     val installMessage: String? = null,
     val snackbarMessage: String? = null
@@ -198,6 +202,18 @@ class MainViewModel : ViewModel() {
         
         // Observe and merge states from all ViewModels
         setupStateObservers()
+
+        // Observe discovered devices
+        viewModelScope.launch {
+            audioStreamViewModel.discoveredDevices.collect { devices ->
+                _uiState.update { it.copy(discoveredDevices = devices) }
+            }
+        }
+        viewModelScope.launch {
+            audioStreamViewModel.isDiscovering.collect { discovering ->
+                _uiState.update { it.copy(isDiscovering = discovering) }
+            }
+        }
         
         // Auto-check for updates
         if (settings.getBoolean("auto_check_update", true)) {
@@ -301,7 +317,12 @@ class MainViewModel : ViewModel() {
                     snackbarMessage = settingsState.snackbarMessage
                 )
             }.collect { combinedState ->
-                _uiState.value = combinedState
+                // Preserve discovery state that's managed separately
+                val current = _uiState.value
+                _uiState.value = combinedState.copy(
+                    discoveredDevices = current.discoveredDevices,
+                    isDiscovering = current.isDiscovering
+                )
                 
                 // Auto-start streaming on Desktop if enabled (only check once)
                 if (!autoStartChecked && getPlatform().type == PlatformType.Desktop) {
@@ -322,6 +343,13 @@ class MainViewModel : ViewModel() {
     fun startStream() = audioStreamViewModel.startStream()
     fun stopStream() = audioStreamViewModel.stopStream()
     fun setMode(mode: ConnectionMode) = audioStreamViewModel.setMode(mode)
+    fun startDiscovery() = audioStreamViewModel.startDiscovery()
+    fun stopDiscovery() = audioStreamViewModel.stopDiscovery()
+    fun restartDiscovery() = audioStreamViewModel.restartDiscovery()
+    fun selectDiscoveredDevice(device: DiscoveredDevice) {
+        audioStreamViewModel.setIp(device.hostAddress)
+        audioStreamViewModel.setPort(device.port.toString())
+    }
     fun setIp(ip: String) = audioStreamViewModel.setIp(ip)
     fun setPort(port: String) = audioStreamViewModel.setPort(port)
     fun setMonitoringEnabled(enabled: Boolean) = audioStreamViewModel.setMonitoringEnabled(enabled)

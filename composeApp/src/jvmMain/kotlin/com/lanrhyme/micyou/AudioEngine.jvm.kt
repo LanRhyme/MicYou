@@ -5,6 +5,7 @@ import com.lanrhyme.micyou.audio.AudioProcessorPipeline
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.errorAdbReverseFailed
 import org.jetbrains.compose.resources.getString
+import com.lanrhyme.micyou.network.MdnsAdvertiser
 import com.lanrhyme.micyou.network.NetworkServer
 import com.lanrhyme.micyou.platform.AdbManager
 import com.lanrhyme.micyou.platform.PlatformInfo
@@ -54,6 +55,8 @@ actual class AudioEngine actual constructor() {
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
     
+    private val mdnsAdvertiser = MdnsAdvertiser()
+
     private val networkServer = NetworkServer(
         onAudioPacketReceived = { audioPacket ->
             processReceivedPacket(audioPacket)
@@ -67,6 +70,15 @@ actual class AudioEngine actual constructor() {
     )
     
     init {
+        // Start mDNS advertisement immediately so Android clients can discover this server
+        try {
+            val settings = SettingsFactory.getSettings()
+            val port = settings.getString("port", "6000").toIntOrNull() ?: 6000
+            mdnsAdvertiser.advertise(port)
+        } catch (e: Exception) {
+            Logger.w("AudioEngine", "Failed to start mDNS advertisement: ${e.message}")
+        }
+
         scope.launch {
             networkServer.state.collect { newState ->
                 if (newState == StreamState.Streaming) {

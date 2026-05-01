@@ -81,6 +81,9 @@
     <string name="deletePluginConfirm">Are you sure you want to delete \"%s\"?</string>
     <string name="dereverbLevelLabel">Level</string>
     <string name="developerLabel">Developer</string>
+    <string name="discoveredDevicesLabel">Available Servers</string>
+    <string name="scanningForDevices">Scanning...</string>
+    <string name="tapToConnect">Tap to connect</string>
     <string name="dynamicColorActiveHint">Currently using system dynamic color</string>
     <string name="dynamicColorEnabledHint">Dynamic color is enabled</string>
     <string name="enableAgcLabel">AGC</string>

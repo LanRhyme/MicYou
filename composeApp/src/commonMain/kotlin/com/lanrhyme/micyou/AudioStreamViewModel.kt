@@ -60,6 +60,11 @@ class AudioStreamViewModel : ViewModel() {
     val audioLevelData = _audioEngine.audioLevelData
     val audioMetrics = _audioEngine.audioMetrics
 
+    // 设备发现
+    private val discoveryManager = DeviceDiscoveryManager()
+    val discoveredDevices: StateFlow<List<DiscoveredDevice>> = discoveryManager.discoveredDevices
+    val isDiscovering: StateFlow<Boolean> = discoveryManager.isDiscovering
+
     // 音频历史记录（用于可视化）
     private val audioLevelHistory = AudioLevelHistory(maxDurationSeconds = 10)
     private val _levelHistory = MutableStateFlow<List<AudioLevelHistory.AudioLevelSample>>(emptyList())
@@ -70,6 +75,10 @@ class AudioStreamViewModel : ViewModel() {
     init {
         loadSettings()
         setupAudioEngineObservers()
+        // Auto-start discovery on Android when in WiFi mode
+        if (getPlatform().type == PlatformType.Android && _uiState.value.mode == ConnectionMode.Wifi) {
+            discoveryManager.startDiscovery()
+        }
     }
 
     private fun loadSettings() {
@@ -364,6 +373,15 @@ class AudioStreamViewModel : ViewModel() {
 
         _uiState.update { it.copy(mode = mode, port = updatedPort) }
         settings.putString("connection_mode", mode.name)
+
+        // Manage discovery lifecycle based on mode
+        if (getPlatform().type == PlatformType.Android) {
+            if (mode == ConnectionMode.Wifi) {
+                discoveryManager.startDiscovery()
+            } else {
+                discoveryManager.stopDiscovery()
+            }
+        }
         if (updatedPort != current.port) {
             settings.putString("port", updatedPort)
         }
@@ -579,6 +597,14 @@ class AudioStreamViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
+        discoveryManager.stopDiscovery()
         _audioEngine.stop()
+    }
+
+    fun startDiscovery() = discoveryManager.startDiscovery()
+    fun stopDiscovery() = discoveryManager.stopDiscovery()
+    fun restartDiscovery() {
+        discoveryManager.stopDiscovery()
+        discoveryManager.startDiscovery()
     }
 }

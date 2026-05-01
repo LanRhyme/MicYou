@@ -64,6 +64,9 @@
     <string name="deletePluginConfirm">确定要删除插件 \"%s\" 吗？</string>
     <string name="dereverbLevelLabel">强度</string>
     <string name="developerLabel">开发者</string>
+    <string name="discoveredDevicesLabel">可用服务器</string>
+    <string name="scanningForDevices">扫描中...</string>
+    <string name="tapToConnect">点击连接</string>
     <string name="dynamicColorActiveHint">当前正在使用系统动态颜色</string>
     <string name="dynamicColorEnabledHint">动态取色已启用</string>
     <string name="enableAgcLabel">自动增益控制 (AGC)</string>

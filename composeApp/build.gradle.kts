@@ -105,6 +105,7 @@ kotlin {
             implementation(libs.composenativetray)
             implementation(libs.onnxruntime)
             implementation(libs.jtransforms)
+            implementation(libs.jmdns)
         }
     }
 }

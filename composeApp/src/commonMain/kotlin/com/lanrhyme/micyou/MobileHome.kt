@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.HourglassTop
@@ -432,6 +433,94 @@ private fun ConnectionConfigCard(
                                 color = contentColor,
                                 maxLines = 1
                             )
+                        }
+                    }
+                }
+            }
+
+            // Discovered devices list (WiFi mode only, always visible during connection)
+            if (isClient && state.mode == ConnectionMode.Wifi) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // Header row: label + refresh button
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (state.isDiscovering && state.discoveredDevices.isEmpty()) {
+                            Icon(
+                                Icons.Rounded.Dns, null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                stringResource(Res.string.scanningForDevices),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            Text(
+                                stringResource(Res.string.discoveredDevicesLabel),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.restartDiscovery() },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            val infiniteTransition = rememberInfiniteTransition()
+                            val rotation by infiniteTransition.animateFloat(
+                                initialValue = 0f,
+                                targetValue = 360f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(1000, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Restart
+                                )
+                            )
+                            Icon(
+                                Icons.Filled.Refresh, null,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .graphicsLayer { rotationZ = if (state.isDiscovering && state.discoveredDevices.isEmpty()) rotation else 0f },
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    // Device list
+                    state.discoveredDevices.forEach { device ->
+                        val isSelected = state.ipAddress == device.hostAddress &&
+                                state.port == device.port.toString()
+                        Surface(
+                            shape = MaterialTheme.shapes.small,
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                viewModel.selectDiscoveredDevice(device)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    if (isSelected) Icons.Rounded.CheckCircle else Icons.Rounded.Dns,
+                                    null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(device.name, style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        "${device.hostAddress}:${device.port}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
                 }
