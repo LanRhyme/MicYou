@@ -6,6 +6,7 @@ import android.net.nsd.NsdServiceInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 actual class DeviceDiscoveryManager actual constructor() {
     private val _discoveredDevices = MutableStateFlow<List<DiscoveredDevice>>(emptyList())
@@ -18,27 +19,6 @@ actual class DeviceDiscoveryManager actual constructor() {
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var discoveryActive = false
     private val pendingResolution = mutableSetOf<String>()
-
-    private val resolveListener = object : NsdManager.ResolveListener {
-        override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-            Logger.w("DeviceDiscovery", "Resolve failed: $errorCode for ${serviceInfo.serviceName}")
-            pendingResolution.remove(serviceInfo.serviceName)
-        }
-
-        override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-            pendingResolution.remove(serviceInfo.serviceName)
-            val host = serviceInfo.host?.hostAddress ?: return
-            val port = serviceInfo.port
-            val name = serviceInfo.serviceName
-
-            Logger.i("DeviceDiscovery", "Resolved: $name at $host:$port")
-
-            _discoveredDevices.value = _discoveredDevices.value.toMutableList().apply {
-                removeAll { it.hostAddress == host && it.port == port }
-                add(DiscoveredDevice(name = name, hostAddress = host, port = port))
-            }
-        }
-    }
 
     actual fun startDiscovery() {
         if (discoveryActive) return
@@ -64,7 +44,26 @@ actual class DeviceDiscoveryManager actual constructor() {
                 if (name !in pendingResolution) {
                     pendingResolution.add(name)
                     try {
-                        nsdManager?.resolveService(serviceInfo, resolveListener)
+                        nsdManager?.resolveService(serviceInfo, object : NsdManager.ResolveListener {
+                            override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) {
+                                Logger.w("DeviceDiscovery", "Resolve failed: $errorCode for ${info.serviceName}")
+                                pendingResolution.remove(info.serviceName)
+                            }
+
+                            override fun onServiceResolved(info: NsdServiceInfo) {
+                                pendingResolution.remove(info.serviceName)
+                                val host = info.host?.hostAddress ?: return
+                                val port = info.port
+                                val resolvedName = info.serviceName
+
+                                Logger.i("DeviceDiscovery", "Resolved: $resolvedName at $host:$port")
+
+                                _discoveredDevices.update { current ->
+                                    current.filterNot { it.hostAddress == host && it.port == port } +
+                                            DiscoveredDevice(name = resolvedName, hostAddress = host, port = port)
+                                }
+                            }
+                        })
                     } catch (e: Exception) {
                         Logger.w("DeviceDiscovery", "Failed to resolve $name: ${e.message}")
                         pendingResolution.remove(name)
@@ -74,8 +73,8 @@ actual class DeviceDiscoveryManager actual constructor() {
 
             override fun onServiceLost(serviceInfo: NsdServiceInfo) {
                 Logger.i("DeviceDiscovery", "Service lost: ${serviceInfo.serviceName}")
-                _discoveredDevices.value = _discoveredDevices.value.toMutableList().apply {
-                    removeAll { it.name == serviceInfo.serviceName }
+                _discoveredDevices.update { current ->
+                    current.filterNot { it.name == serviceInfo.serviceName }
                 }
             }
 

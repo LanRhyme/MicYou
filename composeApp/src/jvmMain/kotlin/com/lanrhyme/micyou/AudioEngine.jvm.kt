@@ -71,12 +71,14 @@ actual class AudioEngine actual constructor() {
     
     init {
         // Start mDNS advertisement immediately so Android clients can discover this server
-        try {
-            val settings = SettingsFactory.getSettings()
-            val port = settings.getString("port", "6000").toIntOrNull() ?: 6000
-            mdnsAdvertiser.advertise(port)
-        } catch (e: Exception) {
-            Logger.w("AudioEngine", "Failed to start mDNS advertisement: ${e.message}")
+        scope.launch(Dispatchers.IO) {
+            try {
+                val settings = SettingsFactory.getSettings()
+                val port = settings.getString("port", "6000").toIntOrNull() ?: 6000
+                mdnsAdvertiser.advertise(port)
+            } catch (e: Exception) {
+                Logger.w("AudioEngine", "Failed to start mDNS advertisement: ${e.message}")
+            }
         }
 
         scope.launch {
