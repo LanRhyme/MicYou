@@ -487,8 +487,8 @@ class MainViewModel : ViewModel() {
     fun dismissUpdateDialog() = updateViewModel.dismissUpdateDialog()
     fun openGitHubRelease() = updateViewModel.openGitHubRelease()
 
-    fun getPeakLevel(seconds: Int = 3): Float = audioStreamViewModel.getPeakLevel(seconds)
-    fun getAverageRms(seconds: Int = 3): Float = audioStreamViewModel.getAverageRms(seconds)
+    suspend fun getPeakLevel(seconds: Int = 3): Float = audioStreamViewModel.getPeakLevel(seconds)
+    suspend fun getAverageRms(seconds: Int = 3): Float = audioStreamViewModel.getAverageRms(seconds)
 
     // Performance methods
     fun setPerformanceMode(mode: String) = audioStreamViewModel.setPerformanceMode(mode)

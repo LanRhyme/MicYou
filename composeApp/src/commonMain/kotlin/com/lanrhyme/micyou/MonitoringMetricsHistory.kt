@@ -1,8 +1,13 @@
 package com.lanrhyme.micyou
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
 /**
  * 监控指标历史记录
  * 用于绘制延迟趋势图等
+ * 
+ * 注意：此类是线程安全的。
  */
 class MonitoringMetricsHistory(
     /** 最大记录数量 */
@@ -12,19 +17,22 @@ class MonitoringMetricsHistory(
 ) {
     private val samples = mutableListOf<AudioMetrics>()
     private var lastSampleTime: Long = 0
+    private val mutex = Mutex()
 
     /**
      * 添加新指标样本
      */
-    fun addSample(metrics: AudioMetrics) {
+    suspend fun addSample(metrics: AudioMetrics) {
         val now = System.currentTimeMillis()
 
-        if (now - lastSampleTime >= sampleIntervalMs) {
-            samples.add(metrics)
-            lastSampleTime = now
+        mutex.withLock {
+            if (now - lastSampleTime >= sampleIntervalMs) {
+                samples.add(metrics)
+                lastSampleTime = now
 
-            if (samples.size > maxSamples) {
-                samples.removeAt(0)
+                if (samples.size > maxSamples) {
+                    samples.removeAt(0)
+                }
             }
         }
     }
@@ -32,16 +40,20 @@ class MonitoringMetricsHistory(
     /**
      * 获取所有样本
      */
-    fun getSamples(): List<AudioMetrics> = samples.toList()
+    suspend fun getSamples(): List<AudioMetrics> = mutex.withLock {
+        samples.toList()
+    }
 
     /**
      * 清空历史记录
      */
-    fun clear() {
-        samples.clear()
-        lastSampleTime = 0
+    suspend fun clear() {
+        mutex.withLock {
+            samples.clear()
+            lastSampleTime = 0
+        }
     }
 
-    fun size(): Int = samples.size
-    fun hasData(): Boolean = samples.isNotEmpty()
+    suspend fun size(): Int = mutex.withLock { samples.size }
+    suspend fun hasData(): Boolean = mutex.withLock { samples.isNotEmpty() }
 }

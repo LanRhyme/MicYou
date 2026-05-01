@@ -608,14 +608,14 @@ class AudioStreamViewModel : ViewModel() {
     /**
      * 获取峰值电平（最近N秒内）
      */
-    fun getPeakLevel(seconds: Int = 3): Float {
+    suspend fun getPeakLevel(seconds: Int = 3): Float {
         return audioLevelHistory.getPeakInRange(seconds)
     }
 
     /**
      * 获取平均 RMS（最近N秒内）
      */
-    fun getAverageRms(seconds: Int = 3): Float {
+    suspend fun getAverageRms(seconds: Int = 3): Float {
         return audioLevelHistory.getAverageRms(seconds)
     }
 
