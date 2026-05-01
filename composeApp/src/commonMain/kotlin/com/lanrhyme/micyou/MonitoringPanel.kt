@@ -69,7 +69,7 @@ fun MonitoringPanel(
 ) {
     // 持续滚动的波形数据
     val waveformSamples = remember { mutableStateListOf<Float>() }
-    val maxSamples = 60 // 约 3 秒的数据（以 50ms 间隔计算）
+    val maxSamples = 60 // 约 3 秒的数据（每 50ms 采样一次）
     
     LaunchedEffect(audioLevel, isRunning) {
         if (isRunning) {

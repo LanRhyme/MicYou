@@ -331,6 +331,7 @@ actual class AudioEngine actual constructor() {
                             }
                         }
 
+                        // Handshake
                         Logger.d("AudioEngine", "Starting handshake")
                         output.writeFully(CHECK_1.encodeToByteArray())
                         output.flush()
@@ -339,7 +340,7 @@ actual class AudioEngine actual constructor() {
 
                         if (!responseBuffer.decodeToString().equals(CHECK_2)) {
                             val msg = getString(Res.string.errorHandshakeFailedDetailed)
-                            Logger.e("AudioEngine", msg)
+                            Logger.e("AudioEngine", "Handshake failed: received ${responseBuffer.decodeToString()}")
                             _state.value = StreamState.Error
                             _lastError.value = msg
                             closeConnection()
@@ -368,7 +369,10 @@ actual class AudioEngine actual constructor() {
                             Logger.d("AudioEngine", "Writer loop started")
                             for (msg in channel) {
                                 try {
-                                    if (msg.hasControlMessage()) {
+                                    // Non-WiFi mode: Send everything via TCP
+                                    // WiFi mode: ONLY send control messages via TCP (audio goes via UDP)
+                                    val isWifi = mode == ConnectionMode.Wifi
+                                    if (!isWifi || msg.hasControlMessage()) {
                                         val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
     val length = packetBytes.size
                                         output.writeInt(PACKET_MAGIC)
