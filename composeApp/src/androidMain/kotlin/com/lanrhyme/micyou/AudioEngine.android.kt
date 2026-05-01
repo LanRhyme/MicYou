@@ -372,7 +372,7 @@ actual class AudioEngine actual constructor() {
                                     // Non-WiFi mode: Send everything via TCP
                                     // WiFi mode: ONLY send control messages via TCP (audio goes via UDP)
                                     val isWifi = mode == ConnectionMode.Wifi
-                                    if (!isWifi || msg.hasControlMessage()) {
+                                    if (!isWifi || msg.hasControlMessage() || udpSocket == null) {
                                         val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
     val length = packetBytes.size
                                         output.writeInt(PACKET_MAGIC)
