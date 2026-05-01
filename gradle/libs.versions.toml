@@ -25,7 +25,7 @@ jtransforms = "3.2"
 window = "1.5.1"
 filekit = "0.13.0"
 materialKolor = "5.0.0-alpha07"
-jmdns = "3.5.9"
+jmdns = "3.6.3"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
