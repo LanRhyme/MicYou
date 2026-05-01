@@ -22,9 +22,7 @@ data class AudioMetrics(
     /** 抖动 (毫秒) */
     val jitterMs: Double = 0.0,
     /** 缓冲区时长 (毫秒) */
-    val bufferDurationMs: Long = 0,
-    /** 测量时间戳 */
-    val timestamp: Long = System.currentTimeMillis()
+    val bufferDurationMs: Long = 0
 ) {
     /** 获取 kbps 格式的比特率 */
     fun bitrateKbps(): Int = bitrate / 1000

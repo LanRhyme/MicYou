@@ -370,21 +370,3 @@ private fun ContinuousWaveform(
         }
     }
 }
-
-private fun getLatencyColor(ms: Long): Color = when {
-    ms > 300 -> Color(0xFFF44336)
-    ms > 100 -> Color(0xFFFF9800)
-    else -> Color(0xFF4CAF50)
-}
-
-private fun getJitterColor(ms: Double): Color = when {
-    ms > 50.0 -> Color(0xFFF44336)
-    ms > 20.0 -> Color(0xFFFF9800)
-    else -> Color(0xFF4CAF50)
-}
-
-private fun getLossColor(rate: Double): Color = when {
-    rate > 5.0 -> Color(0xFFF44336)
-    rate > 1.0 -> Color(0xFFFF9800)
-    else -> Color(0xFF4CAF50)
-}
