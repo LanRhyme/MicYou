@@ -55,16 +55,7 @@ import micyou.composeapp.generated.resources.errorRecordingPermissionDenied
 import org.jetbrains.compose.resources.getString
 
 /**
- * 将 OutputStream 转换为 ByteWriteChannel，使用当前协程的上下文。
- *
- * 此扩展函数应该仅在协程内部调用，以确保正确管理协程生命周期。
- * 使用 coroutineContext 而非 GlobalScope，避免协程泄漏。
- *
- * **重要**：此函数不会自动关闭 OutputStream，因为 OutputStream 的生命周期
- * 应该由调用者管理（例如通过 closeConnection 回调）。在 finally 中关闭会导致
- * 蓝牙/WiFi 连接提前断开，影响音频传输。
- *
- * @return ByteWriteChannel 用于写入数据
+ * Converts OutputStream to ByteWriteChannel using the current coroutine context.
  */
 suspend fun OutputStream.toByteWriteChannelSuspend(): ByteWriteChannel {
     val scope = CoroutineScope(coroutineContext)
@@ -84,20 +75,15 @@ suspend fun OutputStream.toByteWriteChannelSuspend(): ByteWriteChannel {
                 }
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
-            // 协程取消是正常行为，重新抛出以保持协程取消语义
             throw e
         } catch (e: Exception) {
             Logger.e("ByteWriteChannel", "Unexpected error in write channel: ${e.message}", e)
         }
-        // 注意：不在此处关闭 OutputStream，由调用者通过 closeConnection 回调管理
-        // 这与原始 toByteWriteChannel 的行为保持一致，避免蓝牙连接提前断开
     }.channel
 }
 
 actual class AudioEngine actual constructor() {
     init {
-        // 注意：此单例模式用于通知栏快捷操作，不支持多实例场景
-        // 在测试环境中需要注意清理或使用 ViewModel 管理实例
         activeEngine = this
     }
 
@@ -115,8 +101,6 @@ actual class AudioEngine actual constructor() {
         }
     }
 
-    // 用于测试或清理场景，显式移除 active 引用
-    // 定义为实例方法，可直接使用 this 而无需传参
     private fun clearActiveEngine() {
         if (activeEngine == this) {
             activeEngine = null
@@ -142,10 +126,7 @@ actual class AudioEngine actual constructor() {
     private val startStopMutex = Mutex()
     private val proto = ProtoBuf { }
     
-    // CompletableDeferred for connection status
     private var connectionComplete: CompletableDeferred<Unit>? = null
-    
-    // Channel for outgoing messages (Audio + Control)
     private var sendChannel: Channel<MessageWrapper>? = null
     
     private var udpSocket: DatagramSocket? = null
@@ -164,7 +145,6 @@ actual class AudioEngine actual constructor() {
     private var noiseSuppressor: NoiseSuppressor? = null
     private var automaticGainControl: AutomaticGainControl? = null
 
-    // Saved connection params for restart
     private var savedIp: String = ""
     private var savedPort: Int = 0
     private var savedMode: ConnectionMode = ConnectionMode.Wifi
@@ -189,7 +169,6 @@ actual class AudioEngine actual constructor() {
         Logger.i("AudioEngine", "Starting Android AudioEngine: mode=$mode, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}")
         _lastError.value = null
 
-        // Save connection params for potential restart
         savedIp = ip
         savedPort = port
         savedMode = mode
@@ -198,13 +177,12 @@ actual class AudioEngine actual constructor() {
         savedAudioFormat = audioFormat
         isRunning = true
 
-        // Create CompletableDeferred to track connection status
         connectionComplete = CompletableDeferred()
     val jobToJoin = startStopMutex.withLock {
             val currentJob = job
             if (currentJob != null && !currentJob.isCompleted) {
                 Logger.w("AudioEngine", "AudioEngine already running, ignoring start request")
-                connectionComplete?.complete(Unit)  // Mark as complete since already running
+                connectionComplete?.complete(Unit)
                 null
             } else {
                 _state.value = StreamState.Connecting
@@ -214,13 +192,11 @@ actual class AudioEngine actual constructor() {
                     val channel = Channel<MessageWrapper>(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
                     sendChannel = channel
                     
-                    // 连接抽象
                     var input: ByteReadChannel
                     var output: ByteWriteChannel
                     var closeConnection: () -> Unit = {}
                     
                     try {
-                        // 音频设置
                         val androidSampleRate = sampleRate.value
                         val androidChannelConfig = if (channelCount == ChannelCount.Stereo) 
                             AudioFormat.CHANNEL_IN_STEREO 
@@ -231,11 +207,10 @@ actual class AudioEngine actual constructor() {
                             com.lanrhyme.micyou.AudioFormat.PCM_8BIT -> AudioFormat.ENCODING_PCM_8BIT
                             com.lanrhyme.micyou.AudioFormat.PCM_16BIT -> AudioFormat.ENCODING_PCM_16BIT
                             com.lanrhyme.micyou.AudioFormat.PCM_FLOAT -> AudioFormat.ENCODING_PCM_FLOAT
-                            else -> AudioFormat.ENCODING_PCM_16BIT // Default fallback
+                            else -> AudioFormat.ENCODING_PCM_16BIT
                         }
     val minBufSize = AudioRecord.getMinBufferSize(androidSampleRate, androidChannelConfig, androidAudioFormat)
 
-                        // 检查 minBufSize 是否有效，某些设备可能不支持 PCM_FLOAT
                         if (minBufSize <= 0 || minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
                             val msg = String.format(getString(Res.string.errorAudioFormatNotSupported), audioFormat.label, androidAudioFormat.toString(), androidSampleRate)
                             Logger.e("AudioEngine", msg + ", minBufSize=$minBufSize")
@@ -245,13 +220,9 @@ actual class AudioEngine actual constructor() {
                         }
 
                         try {
-                            // 使用用户选择的音频源
                             val sourceId = audioSource.sourceId
-
                             Logger.d("AudioEngine", "Initializing AudioRecord with source ${audioSource.name} (id=$sourceId)")
                             recorder = try {
-                                // 使用 minBufSize * 3 作为缓冲区，提供足够的缓冲避免音频丢包和杂音
-                                // 较大的缓冲区可以应对网络延迟和处理波动，减少音频断续
                                 AudioRecord(
                                     sourceId,
                                     androidSampleRate,
@@ -284,7 +255,6 @@ actual class AudioEngine actual constructor() {
                             return@launch
                         }
 
-                        // 初始化音频效果
                         try {
                             if (NoiseSuppressor.isAvailable()) {
                                 noiseSuppressor = NoiseSuppressor.create(recorder.audioSessionId)
@@ -305,32 +275,25 @@ actual class AudioEngine actual constructor() {
                              Logger.w("AudioEngine", "Failed to initialize audio effects: ${e.message}")
                         }
                         
-                        // 网络设置
                         val selectorManager = SelectorManager(Dispatchers.IO)
     var tcpSocket: Socket? = null
                         
                         if (mode == ConnectionMode.Bluetooth) {
                             Logger.i("AudioEngine", "Connecting via Bluetooth to $ip")
-
-                            // 显式检查蓝牙权限，提供友好的错误提示
-                            val context = ContextHelper.getContext()
-                                ?: throw IllegalStateException("应用上下文不可用，无法检查蓝牙权限")
+                            val context = ContextHelper.getContext() ?: throw IllegalStateException("Context unavailable")
                             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                                 val hasBluetoothConnect = androidx.core.content.ContextCompat.checkSelfPermission(
                                     context, android.Manifest.permission.BLUETOOTH_CONNECT
                                 ) == android.content.pm.PackageManager.PERMISSION_GRANTED
                                 if (!hasBluetoothConnect) {
-                                    throw SecurityException("缺少蓝牙连接权限 (BLUETOOTH_CONNECT)，请在应用设置中授予蓝牙权限")
+                                    throw SecurityException("Missing BLUETOOTH_CONNECT permission")
                                 }
                             }
-    val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
-                                ?: throw UnsupportedOperationException("设备不支持蓝牙")
-
+    val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter() ?: throw UnsupportedOperationException("Bluetooth not supported")
                             if (!android.bluetooth.BluetoothAdapter.checkBluetoothAddress(ip)) {
-                                throw IllegalArgumentException("无效的蓝牙 MAC 地址: $ip")
+                                throw IllegalArgumentException("Invalid Bluetooth MAC address: $ip")
                             }
     val device = adapter.getRemoteDevice(ip)
-                            // SPP UUID
                             val uuid = java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     val btSocket = device.createRfcommSocketToServiceRecord(uuid)
                             btSocket.connect()
@@ -339,24 +302,19 @@ actual class AudioEngine actual constructor() {
                             input = btSocket.inputStream.toByteReadChannel()
                             output = btSocket.outputStream.toByteWriteChannelSuspend()
                             closeConnection = { btSocket.close() }
-                            
                         } else {
                             val targetIp = if (mode == ConnectionMode.Usb) "127.0.0.1" else ip
                             Logger.i("AudioEngine", "Connecting via TCP to $targetIp:$port")
     val socketBuilder = aSocket(selectorManager)
                             tcpSocket = socketBuilder.tcp().connect(targetIp, port) {
-                                // 优化 Socket 参数以应对 Wi-Fi 环境下的连接不稳
                                 keepAlive = true
-                                // 允许更长的等待时间
                                 socketTimeout = 10000L
-                                // 禁用 Nagle 算法，降低音频包延迟
                                 noDelay = true
                             }
                             Logger.i("AudioEngine", "TCP connected to $targetIp:$port")
                             input = tcpSocket.openReadChannel()
                             output = tcpSocket.openWriteChannel(autoFlush = true)
                             
-                            // Wifi 模式：同时建立 UDP 音频通道
                             if (mode == ConnectionMode.Wifi) {
                                 val udpPort = calculateUdpPort(port)
                                 Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
@@ -373,7 +331,6 @@ actual class AudioEngine actual constructor() {
                             }
                         }
 
-                        // 握手
                         Logger.d("AudioEngine", "Starting handshake")
                         output.writeFully(CHECK_1.encodeToByteArray())
                         output.flush()
@@ -393,16 +350,12 @@ actual class AudioEngine actual constructor() {
                         recorder.startRecording()
                         _state.value = StreamState.Streaming
                         _lastError.value = null
-                        
-                        // Notify connection success
                         connectionComplete?.complete(Unit)
 
                         if (enableStreamingNotification) {
                             val context = ContextHelper.getContext()
                             if (context != null) {
-                                val intent = Intent(context, AudioService::class.java).apply {
-                                    action = AudioService.ACTION_START
-                                }
+                                val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_START }
                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                                     context.startForegroundService(intent)
                                 } else {
@@ -411,12 +364,10 @@ actual class AudioEngine actual constructor() {
                             }
                         }
 
-                        // --- Writer Loop (Send Channel -> TCP Socket for control messages) ---
                         val writerJob = launch {
                             Logger.d("AudioEngine", "Writer loop started")
                             for (msg in channel) {
                                 try {
-                                    // 仅通过 TCP 发送控制消息（静音/连接/插件同步）
                                     if (msg.hasControlMessage()) {
                                         val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
     val length = packetBytes.size
@@ -425,7 +376,6 @@ actual class AudioEngine actual constructor() {
                                         output.writeFully(packetBytes)
                                         output.flush()
                                     }
-                                    // 音频包通过 UDP 发送（在音频采集循环中处理）
                                 } catch (e: Exception) {
                                     Logger.e("AudioEngine", "Error writing to socket", e)
                                     break
@@ -434,7 +384,6 @@ actual class AudioEngine actual constructor() {
                             Logger.d("AudioEngine", "Writer loop stopped")
                         }
 
-                        // --- Reader Loop (Socket -> Receive Channel/Action) ---
                         val readerJob = launch {
                             Logger.d("AudioEngine", "Reader loop started")
                             try {
@@ -445,7 +394,7 @@ actual class AudioEngine actual constructor() {
                                         if (isActive && _state.value == StreamState.Streaming && !isNormalDisconnect(e)) {
                                             Logger.d("AudioEngine", "Reader loop: socket closed or EOF: ${e.message}")
                                         }
-                                        break // Exit loop on EOF/IOException
+                                        break
                                     }
                                     
                                     if (magic != PACKET_MAGIC) {
@@ -463,6 +412,10 @@ actual class AudioEngine actual constructor() {
                                                 _isMuted.value = wrapper.mute.isMuted
                                                 Logger.i("AudioEngine", "Received Mute Command: ${wrapper.mute.isMuted}")
                                             }
+                                            
+                                            if (wrapper.ping != null) {
+                                                sendChannel?.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
+                                            }
                                         } catch (e: Exception) {
                                             Logger.e("AudioEngine", "Error decoding incoming message", e)
                                         }
@@ -476,7 +429,6 @@ actual class AudioEngine actual constructor() {
                             Logger.d("AudioEngine", "Reader loop stopped")
                         }
                         
-                        // 发送初始静音状态
                         sendChannel?.send(MessageWrapper(mute = MuteMessage(_isMuted.value)))
     val buffer = ByteArray(minBufSize)
     val floatBuffer = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) FloatArray(minBufSize / 4) else null
@@ -484,9 +436,7 @@ actual class AudioEngine actual constructor() {
                         var sequenceNumber = 0
 
                         while (isActive) {
-                            // 检查写入器/读取器是否仍然存活
                             if (writerJob.isCancelled || writerJob.isCompleted) throw Exception("Writer job failed")
-                            // 读取器失败对发送来说不那么重要，但通常表示连接丢失
                             
                             var readBytes = 0
                             val audioData: ByteArray
@@ -506,13 +456,11 @@ actual class AudioEngine actual constructor() {
                             }
 
                             if (readBytes > 0) {
-                                // 计算电平数据
                                 val levelData = calculateAudioLevelData(audioData, audioFormat)
                                 _audioLevels.value = levelData.rms
                                 _audioLevelData.value = levelData
 
                                 if (!_isMuted.value) {
-                                    // 创建数据包
                                     val packet = AudioPacketMessage(
                                         buffer = audioData,
                                         sampleRate = androidSampleRate,
@@ -520,14 +468,12 @@ actual class AudioEngine actual constructor() {
                                         audioFormat = audioFormat.value
                                     )
     val wrapper = MessageWrapper(
-                                        audioPacket = AudioPacketMessageOrdered(sequenceNumber++, packet)
+                                        audioPacket = AudioPacketMessageOrdered(sequenceNumber++, packet, System.currentTimeMillis())
                                     )
                                     
-                                    // Wifi 模式：音频包通过 UDP 发送
                                     if (udpSocket != null && udpServerAddress != null) {
                                         sendAudioPacketViaUdp(wrapper)
                                     } else {
-                                        // 非 Wifi 模式（USB/蓝牙）：通过 TCP 发送
                                         sendChannel?.send(wrapper)
                                     }
                                 }
@@ -550,8 +496,6 @@ actual class AudioEngine actual constructor() {
                                 else -> getString(Res.string.connectionDisconnected)
                             }
                             _lastError.value = errorMsg
-                            
-                            // Notify connection failure
                             connectionComplete?.completeExceptionally(Exception(errorMsg, e))
                         }
                     } finally {
@@ -567,12 +511,9 @@ actual class AudioEngine actual constructor() {
                             recorder?.release()
                             closeConnection()
                             
-                            // 停止前台服务
                             val context = ContextHelper.getContext()
                             if (context != null) {
-                                val intent = Intent(context, AudioService::class.java).apply {
-                                    action = AudioService.ACTION_STOP
-                                }
+                                val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
                                 context.startService(intent)
                             }
                         } catch (e: Exception) {
@@ -585,25 +526,19 @@ actual class AudioEngine actual constructor() {
             }
         }
         
-        // Wait for connection to complete or fail
         try {
             connectionComplete?.await()
         } catch (e: Exception) {
-            // Cancel job on failure
             job?.cancel()
             throw e
         }
     }
     
-    /**
-     * 通过 UDP 发送音频数据包
-     */
     @OptIn(ExperimentalSerializationApi::class)
     private fun sendAudioPacketViaUdp(wrapper: MessageWrapper) {
         try {
             val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), wrapper)
     val length = packetBytes.size
-            // Magic (4B) + Length (4B) + Payload
             val header = ByteArray(8).apply {
                 this[0] = (UDP_PACKET_MAGIC shr 24).toByte()
                 this[1] = (UDP_PACKET_MAGIC shr 16).toByte()
@@ -617,7 +552,7 @@ actual class AudioEngine actual constructor() {
     val udpPacket = DatagramPacket(header + packetBytes, 8 + length, udpServerAddress)
             udpSocket?.send(udpPacket)
         } catch (e: Exception) {
-            Logger.w("AudioEngine", "UDP 发送失败: ${e.message}")
+            Logger.w("AudioEngine", "UDP send failed: ${e.message}")
         }
     }
     
@@ -627,36 +562,27 @@ actual class AudioEngine actual constructor() {
         _state.value = StreamState.Idle
         isRunning = false
 
-        // 清理 active 引用（如果当前实例是 activeEngine）
         clearActiveEngine()
     val context = ContextHelper.getContext()
         if (context != null) {
-            val intent = Intent(context, AudioService::class.java).apply {
-                action = AudioService.ACTION_STOP
-            }
+            val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
             context.startService(intent)
         }
     }
     
-    actual fun setMonitoring(enabled: Boolean) {
-        // Android client typically doesn't need monitoring as it's the source
-        // Implementation can be empty or added if local feedback is needed
-    }
+    actual fun setMonitoring(enabled: Boolean) { }
 
     actual val installProgress: Flow<String?> = MutableStateFlow(null)
     
-    actual suspend fun installDriver() {
-        // No driver installation needed on Android
-    }
+    actual suspend fun installDriver() { }
 
     actual suspend fun setMute(muted: Boolean) {
         _isMuted.value = muted
-        // 如果已连接，发送消息
         if (_state.value == StreamState.Streaming || _state.value == StreamState.Connecting) {
              try {
                  sendChannel?.send(MessageWrapper(mute = MuteMessage(muted)))
              } catch (e: Exception) {
-                 println("Failed to send mute message: ${e.message}")
+                 Logger.e("AudioEngine", "Failed to send mute message: ${e.message}")
              }
         }
     }
@@ -682,10 +608,9 @@ actual class AudioEngine actual constructor() {
             noiseSuppressor?.enabled = enableNS
             automaticGainControl?.enabled = enableAGC
         } catch (e: Exception) {
-            println("Error updating audio effects: ${e.message}")
+            Logger.e("AudioEngine", "Error updating audio effects: ${e.message}")
         }
 
-        // Restart audio stream if hardware processing state changed and stream is running
         if ((nsChanged || agcChanged) && isRunning && _state.value == StreamState.Streaming) {
             Logger.i("AudioEngine", "Hardware processing changed, restarting audio stream...")
             CoroutineScope(Dispatchers.IO).launch {
@@ -703,17 +628,15 @@ actual class AudioEngine actual constructor() {
             AndroidAudioSource.Mic
         }
 
-        // Only restart if source actually changed and engine is running
         if (this.audioSource != source) {
             this.audioSource = source
             Logger.d("AudioEngine", "Audio source changed to: ${source.name}")
 
-            // Restart audio stream if currently running
             if (isRunning && _state.value == StreamState.Streaming) {
                 Logger.i("AudioEngine", "Restarting audio stream with new source...")
                 CoroutineScope(Dispatchers.IO).launch {
                     stop()
-                    delay(500) // Wait for cleanup
+                    delay(500)
                     start(savedIp, savedPort, savedMode, true, savedSampleRate, savedChannelCount, savedAudioFormat)
                 }
             }
@@ -752,23 +675,12 @@ actual class AudioEngine actual constructor() {
         }
         return false
     }
-    
-    /**
-     * 计算音频数据的 RMS 电平值。
-     * 支持多种格式：PCM_FLOAT, PCM_8BIT, PCM_16BIT。
-     * 注意：JVM 端有独立的 calculateRMS 实现，只处理 16-bit 格式，
-     * 因为 AudioProcessorPipeline 已将所有格式统一转换。
-     */
-    /**
-     * 计算音频电平数据（RMS、峰值、dB）
-     */
+
     private fun calculateAudioLevelData(buffer: ByteArray, format: com.lanrhyme.micyou.AudioFormat): AudioLevelData {
         if (buffer.isEmpty()) return AudioLevelData.SILENT
-
         var sum = 0.0
         var maxSample = 0.0
         var sampleCount = 0
-
         when (format) {
             com.lanrhyme.micyou.AudioFormat.PCM_FLOAT -> {
                 sampleCount = buffer.size / 4
@@ -792,7 +704,7 @@ actual class AudioEngine actual constructor() {
                     maxSample = maxOf(maxSample, kotlin.math.abs(normalized))
                 }
             }
-            else -> { // 16-bit (including PCM_16BIT and PCM_24BIT which is downscaled)
+            else -> {
                 sampleCount = buffer.size / 2
                 for (i in 0 until sampleCount) {
                     val byteIndex = i * 2
@@ -804,19 +716,13 @@ actual class AudioEngine actual constructor() {
                 }
             }
         }
-
         if (sampleCount == 0) return AudioLevelData.SILENT
-
         val rms = Math.sqrt(sum / sampleCount).toFloat().coerceIn(0f, 1f)
     val peak = maxSample.toFloat().coerceIn(0f, 1f)
-
         return AudioLevelData.fromRmsAndPeak(rms, peak)
     }
 
-    /**
-     * 更新性能配置（Android 端暂不支持动态调整）
-     */
     actual fun updatePerformanceConfig(config: PerformanceConfig) {
-        Logger.d("AudioEngine", "Android 端不支持动态性能配置调整")
+        Logger.d("AudioEngine", "Android does not support dynamic performance config adjustment")
     }
 }

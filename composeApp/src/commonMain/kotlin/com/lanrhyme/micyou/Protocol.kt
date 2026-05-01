@@ -45,7 +45,9 @@ data class AudioPacketMessageOrdered(
     @ProtoNumber(1)
     val sequenceNumber: Int,
     @ProtoNumber(2)
-    val audioPacket: AudioPacketMessage
+    val audioPacket: AudioPacketMessage,
+    @ProtoNumber(3)
+    val timestamp: Long = 0
 )
 
 @Serializable
@@ -77,6 +79,18 @@ data class PluginSyncMessage(
     val platform: String = ""
 )
 
+@Serializable
+data class PingMessage(
+    @ProtoNumber(1)
+    val timestamp: Long
+)
+
+@Serializable
+data class PongMessage(
+    @ProtoNumber(1)
+    val timestamp: Long
+)
+
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
 const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII
 
@@ -99,7 +113,7 @@ fun calculateUdpPort(tcpPort: Int): Int {
 
 /** 判断 MessageWrapper 是否包含控制消息（应通过 TCP 发送） */
 fun MessageWrapper.hasControlMessage(): Boolean {
-    return connect != null || mute != null || pluginSync != null
+    return connect != null || mute != null || pluginSync != null || ping != null || pong != null
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -112,6 +126,10 @@ data class MessageWrapper(
     @ProtoNumber(3)
     val mute: MuteMessage? = null,
     @ProtoNumber(4)
-    val pluginSync: PluginSyncMessage? = null
+    val pluginSync: PluginSyncMessage? = null,
+    @ProtoNumber(5)
+    val ping: PingMessage? = null,
+    @ProtoNumber(6)
+    val pong: PongMessage? = null
 )
 

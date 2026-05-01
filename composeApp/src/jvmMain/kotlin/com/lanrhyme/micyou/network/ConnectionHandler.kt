@@ -22,12 +22,12 @@ import java.io.EOFException
 import java.io.IOException
 
 /**
- * 处理单个活动网络连接（TCP 或蓝牙）。
- * 职责包括：
- * 1. 握手 (Check1/Check2)
- * 2. 接收和解析数据包（协议循环）
- * 3. 发送控制消息
- * 4. 将接收到的音频包分发给监听器
+ * Handles a single active network connection (TCP or Bluetooth).
+ * Responsibilities include:
+ * 1. Handshake (Check1/Check2)
+ * 2. Receiving and parsing packets (protocol loop)
+ * 3. Sending control messages
+ * 4. Dispatching received audio packets to listeners
  */
 class ConnectionHandler(
     private val input: ByteReadChannel,
@@ -45,34 +45,47 @@ class ConnectionHandler(
     
     private var sendChannel: Channel<MessageWrapper>? = null
     private var writerJob: Job? = null
+    private var pingJob: Job? = null
+    
+    // Latency measurement
+    @Volatile
+    private var rtt = 0L
 
     /**
-     * 启动连接处理循环。
-     * 此函数会挂起，直到连接关闭或发生错误。
+     * Starts the connection handling loop.
+     * This function suspends until the connection is closed or an error occurs.
      */
     suspend fun run() {
         try {
-            // 1. 握手
+            // 1. Handshake
             if (!performHandshake()) {
                 onError(getString(Res.string.errorHandshakeFailedDetailed))
                 return
             }
 
-            // 2. 设置发送通道（限制容量防止内存无限增长）
-            // 使用固定容量 + DROP_OLDEST 策略，避免消息队列无限增长导致内存溢出
+            // 2. Set up send channel (limit capacity to prevent memory growth)
             sendChannel = Channel(Constants.MESSAGE_CHANNEL_CAPACITY)
             
             coroutineScope {
-                // 启动写入任务
+                // Start writer task
                 writerJob = launch(Dispatchers.IO) {
                     processSendQueue()
                 }
 
-                // 3. 启动读取循环
+                // Start Ping task (once per second)
+                pingJob = launch {
+                    while (isActive) {
+                        sendPing()
+                        delay(1000)
+                    }
+                }
+
+                // 3. Start receive loop
                 try {
                     processReceiveLoop()
                 } finally {
                     writerJob?.cancel()
+                    pingJob?.cancel()
                 }
             }
         } catch (e: Exception) {
@@ -105,7 +118,7 @@ class ConnectionHandler(
     val check1String = check1Packet.readText()
             
             if (check1String != CHECK_1) {
-                Logger.e("ConnectionHandler", "握手失败: 收到 $check1String")
+                Logger.e("ConnectionHandler", "Handshake failed: received $check1String")
                 return false
             }
 
@@ -113,13 +126,13 @@ class ConnectionHandler(
             output.flush()
             return true
         } catch (e: EOFException) {
-            Logger.e("ConnectionHandler", "握手失败：连接提前关闭", e)
+            Logger.e("ConnectionHandler", "Handshake failed: connection closed early", e)
             return false
         } catch (e: IOException) {
-            Logger.e("ConnectionHandler", "握手 IO 错误: ${e.message}", e)
+            Logger.e("ConnectionHandler", "Handshake IO error: ${e.message}", e)
             return false
         } catch (e: Exception) {
-            Logger.e("ConnectionHandler", "握手未知错误", e)
+            Logger.e("ConnectionHandler", "Handshake unknown error", e)
             return false
         }
     }
@@ -158,8 +171,7 @@ class ConnectionHandler(
             }
     val length = input.readInt()
 
-            // 包大小验证：保持稳健性，跳过异常包而不是断开连接
-            // 2MB 限制防止内存溢出，但不会因为单个异常包就断开整个连接
+            // Packet size validation
             if (length > Constants.MAX_PACKET_SIZE) {
                 Logger.w("ConnectionHandler", "Packet size too large: $length bytes (max: ${Constants.MAX_PACKET_SIZE}), skipping packet")
                 continue
@@ -191,11 +203,27 @@ class ConnectionHandler(
                 if (wrapper.pluginSync != null && onPluginSyncReceived != null) {
                     onPluginSyncReceived(wrapper.pluginSync)
                 }
+
+                if (wrapper.pong != null) {
+                    val now = System.currentTimeMillis()
+                    rtt = now - wrapper.pong.timestamp
+                    Logger.d("ConnectionHandler", "RTT updated: $rtt ms")
+                }
             } catch (e: Exception) {
                 Logger.e("ConnectionHandler", "Failed to decode packet", e)
             }
         }
     }
+
+    private suspend fun sendPing() {
+        try {
+            sendChannel?.send(MessageWrapper(ping = PingMessage(System.currentTimeMillis())))
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+
+    fun getRtt(): Long = rtt
 
     suspend fun sendMuteState(muted: Boolean) {
         try {

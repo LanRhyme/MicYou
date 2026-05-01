@@ -428,4 +428,19 @@
     <string name="showMore">Show More</string>
     <string name="showLess">Show Less</string>
     <string name="removePlugin">Delete Plugin</string>
+    <string name="monitoringTitle">Audio Quality Monitoring</string>
+    <string name="monitoringRtt">Network Latency (RTT)</string>
+    <string name="monitoringJitter">Jitter</string>
+    <string name="monitoringLoss">Packet Loss</string>
+    <string name="monitoringTrend">Latency Trend (RTT + Buffer)</string>
+    <string name="monitoringWaveform">Audio Waveform (Amplitude)</string>
+    <string name="monitoringSpecs">Audio Stream Parameters</string>
+    <string name="monitoringSampleRate">Sample Rate</string>
+    <string name="monitoringBitrate">Real-time Bitrate</string>
+    <string name="monitoringTotalLatency">Total Estimated Latency</string>
+    <string name="monitoringBuffer">Buffer Duration</string>
+    <string name="monitoringStatusGood">Good</string>
+    <string name="monitoringStatusNormal">Normal</string>
+    <string name="monitoringStatusPoor">Poor</string>
+    <string name="monitoringHint">Tip: Data updates every 500ms. A full report is logged every minute.</string>
 </resources>

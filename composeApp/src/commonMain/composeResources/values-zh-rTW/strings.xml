@@ -427,5 +427,20 @@
     <string name="installNotCompleted">安裝未完成</string>
     <string name="installOsNotSupported">目前作業系統不支援自動安裝</string>
     <string name="reloadingPlugins">正在重新載入插件...</string>
-    <string name="vbcableInstallFailed">VB-Cable 安裝失敗: %s</string>
-</resources>
+    <string name="vbcableInstallFailed">VB-Cable 安裝失败: %s</string>
+    <string name="monitoringTitle">音訊品質即時監測</string>
+    <string name="monitoringRtt">網路延遲 (RTT)</string>
+    <string name="monitoringJitter">抖動 (Jitter)</string>
+    <string name="monitoringLoss">丟包率</string>
+    <string name="monitoringTrend">延遲趨勢 (RTT + Buffer)</string>
+    <string name="monitoringWaveform">音訊波形 (Amplitude)</string>
+    <string name="monitoringSpecs">音訊串流參數</string>
+    <string name="monitoringSampleRate">採樣率</string>
+    <string name="monitoringBitrate">即時位元率</string>
+    <string name="monitoringTotalLatency">總估算延遲</string>
+    <string name="monitoringBuffer">緩衝區時長</string>
+    <string name="monitoringStatusGood">良好</string>
+    <string name="monitoringStatusNormal">一般</string>
+    <string name="monitoringStatusPoor">較差</string>
+    <string name="monitoringHint">提示：監測數據每 500ms 更新一次。系統日誌中每分鐘會輸出一次完整狀態報告。</string>
+    </resources>

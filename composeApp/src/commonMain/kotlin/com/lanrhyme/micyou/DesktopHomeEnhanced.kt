@@ -44,11 +44,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LinkOff
@@ -112,13 +111,33 @@ import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.clickToStart
+import micyou.composeapp.generated.resources.connectionModeLabel
+import micyou.composeapp.generated.resources.firewallConfirm
+import micyou.composeapp.generated.resources.firewallDismiss
+import micyou.composeapp.generated.resources.firewallMessage
+import micyou.composeapp.generated.resources.firewallTitle
+import micyou.composeapp.generated.resources.icon_pip
+import micyou.composeapp.generated.resources.modeUsb
+import micyou.composeapp.generated.resources.modeWifi
+import micyou.composeapp.generated.resources.monitoringLabel
+import micyou.composeapp.generated.resources.monitoringTitle
+import micyou.composeapp.generated.resources.muteLabel
+import micyou.composeapp.generated.resources.pluginsSection
+import micyou.composeapp.generated.resources.portLabel
+import micyou.composeapp.generated.resources.settingsTitle
+import micyou.composeapp.generated.resources.statusConnecting
+import micyou.composeapp.generated.resources.statusError
+import micyou.composeapp.generated.resources.statusIdle
+import micyou.composeapp.generated.resources.statusStreaming
+import micyou.composeapp.generated.resources.systemConfigTitle
+import micyou.composeapp.generated.resources.unmuteLabel
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
-import micyou.composeapp.generated.resources.*
-import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -245,7 +264,7 @@ fun DesktopHomeEnhanced(
                         state = state,
                         viewModel = viewModel,
                         isBluetoothDisabled = isBluetoothDisabled,
-                        modifier = Modifier.weight(0.38f),
+                        modifier = Modifier.weight(if (state.showMonitoringPanel) 0.28f else 0.38f),
                         cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState,
                         visible = cardVisible,
@@ -256,12 +275,23 @@ fun DesktopHomeEnhanced(
                         state = state,
                         viewModel = viewModel,
                         audioLevel = audioLevel,
-                        modifier = Modifier.weight(0.62f),
+                        modifier = Modifier.weight(if (state.showMonitoringPanel) 0.44f else 0.62f),
                         cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState,
                         visible = cardVisible,
                         delayMillis = 300
                     )
+
+                    if (state.showMonitoringPanel) {
+                        MonitoringPanel(
+                            metrics = state.audioMetrics,
+                            history = state.metricsHistory,
+                            modifier = Modifier.weight(0.28f),
+                            cardOpacity = state.backgroundSettings.cardOpacity,
+                            hazeState = hazeState,
+                            enableHaze = state.backgroundSettings.enableHazeEffect
+                        )
+                    }
                 }
                 
                 BottomBar(
@@ -1379,6 +1409,18 @@ private fun BottomBar(
                     isMonitoring = state.monitoringEnabled,
                     onToggle = { viewModel.setMonitoringEnabled(!state.monitoringEnabled) }
                 )
+                
+                IconButton(
+                    onClick = { viewModel.setMonitoringPanelVisible(!state.showMonitoringPanel) },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Assessment,
+                        contentDescription = stringResource(Res.string.monitoringTitle),
+                        modifier = Modifier.size(18.dp),
+                        tint = if (state.showMonitoringPanel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             
             Row(

@@ -50,6 +50,8 @@ actual class AudioEngine actual constructor() {
     private var currentChannelCount: Int = 0
     private var currentAudioFormatValue: Int = 0
     
+    private var lastStatusLogTime = 0L
+    
     private val audioPacketChannel = Channel<AudioPacketMessage>(
         capacity = Constants.AUDIO_PACKET_CHANNEL_CAPACITY,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
@@ -318,7 +320,7 @@ actual class AudioEngine actual constructor() {
     }
 
     /**
-     * 更新音频指标（比特率、延迟）
+     * 更新音频指标（比特率、延迟、丢包、抖动等）
      */
     private fun updateAudioMetrics(latencyMs: Long) {
         if (currentSampleRate <= 0 || currentChannelCount <= 0) return
@@ -330,10 +332,26 @@ actual class AudioEngine actual constructor() {
             else -> 16   // PCM_16BIT
         }
     val bitrate = AudioMetrics.calculateBitrate(currentSampleRate, currentChannelCount, bitsPerSample)
-        _audioMetrics.value = AudioMetrics(
+    val udpStats = networkServer.getUdpStats()
+    val rtt = networkServer.getRtt()
+    
+    val metrics = AudioMetrics(
             bitrate = bitrate,
-            latencyMs = latencyMs
+            sampleRate = currentSampleRate,
+            latencyMs = latencyMs + rtt, // 估算总延迟 = 缓冲区延迟 + 网络延迟
+            networkLatencyMs = rtt,
+            packetLossRate = udpStats?.lossRate ?: 0.0,
+            jitterMs = udpStats?.jitter ?: 0.0,
+            bufferDurationMs = latencyMs
         )
+        _audioMetrics.value = metrics
+
+        // Log audio status periodically (once per minute)
+        val now = System.currentTimeMillis()
+        if (now - lastStatusLogTime >= 60_000) {
+            lastStatusLogTime = now
+            Logger.i("AudioEngine", "Audio Status Report: RTT=${rtt}ms, Loss=${String.format("%.2f", metrics.packetLossRate)}%, Jitter=${String.format("%.2f", metrics.jitterMs)}ms, Buffer=${latencyMs}ms, Bitrate=${bitrate/1000}kbps, SampleRate=${currentSampleRate}Hz")
+        }
     }
 
     /**

@@ -6,13 +6,23 @@ import kotlin.math.sqrt
 
 /**
  * 音频指标数据
- * 用于监控比特率和延迟
+ * 用于监控比特率、延迟、丢包和抖动
  */
 data class AudioMetrics(
     /** 比特率 (bps) = sampleRate * channels * bitsPerSample */
     val bitrate: Int,
-    /** 音频延迟估算（毫秒） */
+    /** 采样率 (Hz) */
+    val sampleRate: Int = 0,
+    /** 总延迟估算（毫秒） */
     val latencyMs: Long,
+    /** 网络延迟 (RTT，毫秒) */
+    val networkLatencyMs: Long = 0,
+    /** 丢包率 (0.0 - 100.0) */
+    val packetLossRate: Double = 0.0,
+    /** 抖动 (毫秒) */
+    val jitterMs: Double = 0.0,
+    /** 缓冲区时长 (毫秒) */
+    val bufferDurationMs: Long = 0,
     /** 测量时间戳 */
     val timestamp: Long = System.currentTimeMillis()
 ) {

@@ -123,6 +123,8 @@ data class AppUiState(
     // Performance State
     val performanceMode: String = "Default",
     val audioMetrics: AudioMetrics? = null,
+    val metricsHistory: List<AudioMetrics> = emptyList(),
+    val showMonitoringPanel: Boolean = false,
 
     // Discovery State
     val discoveredDevices: List<DiscoveredDevice> = emptyList(),
@@ -246,88 +248,104 @@ class MainViewModel : ViewModel() {
 
     private fun setupStateObservers() {
         viewModelScope.launch {
-            combine(
+            val audioDataFlow = combine(
                 audioStreamViewModel.uiState,
+                audioStreamViewModel.audioMetrics,
+                audioStreamViewModel.metricsHistoryFlow
+            ) { state, metrics, history ->
+                // Return a data structure to hold the 3 audio-related states
+                object {
+                    val state = state
+                    val metrics = metrics
+                    val history = history
+                }
+            }
+
+            combine(
+                audioDataFlow,
                 settingsViewModel.uiState,
                 pluginViewModel.uiState,
                 updateViewModel.uiState
-            ) { audioState, settingsState, pluginState, updateState ->
-                AppUiState(
-                    mode = audioState.mode,
-                    streamState = audioState.streamState,
-                    ipAddress = audioState.ipAddress,
-                    port = audioState.port,
-                    errorMessage = audioState.errorMessage,
-                    monitoringEnabled = audioState.monitoringEnabled,
-                    sampleRate = audioState.sampleRate,
-                    channelCount = audioState.channelCount,
-                    audioFormat = audioState.audioFormat,
-                    isMuted = audioState.isMuted,
-                    bluetoothAddress = audioState.bluetoothAddress,
-                    isAutoConfig = audioState.isAutoConfig,
-                    showFirewallDialog = audioState.showFirewallDialog,
-                    pendingFirewallPort = audioState.pendingFirewallPort,
-                    showErrorDialog = audioState.showErrorDialog,
-                    errorDetails = audioState.errorDetails,
-                    enableNS = audioState.enableNS,
-                    nsType = audioState.nsType,
-                    enableAGC = audioState.enableAGC,
-                    agcTargetLevel = audioState.agcTargetLevel,
-                    enableVAD = audioState.enableVAD,
-                    vadThreshold = audioState.vadThreshold,
-                    enableDereverb = audioState.enableDereverb,
-                    dereverbLevel = audioState.dereverbLevel,
-                    amplification = audioState.amplification,
-                    androidAudioSourceName = audioState.androidAudioSourceName,
-                    audioConfigRevision = audioState.audioConfigRevision,
-                    themeMode = settingsState.themeMode,
-                    seedColor = settingsState.seedColor,
-                    useDynamicColor = settingsState.useDynamicColor,
-                    oledPureBlack = settingsState.oledPureBlack,
-                    paletteStyle = settingsState.paletteStyle,
-                    useExpressiveShapes = settingsState.useExpressiveShapes,
-                    language = settingsState.language,
-                    autoStart = settingsState.autoStart,
-                    enableStreamingNotification = settingsState.enableStreamingNotification,
-                    keepScreenOn = settingsState.keepScreenOn,
-                    minimizeToTray = settingsState.minimizeToTray,
-                    closeAction = settingsState.closeAction,
-                    showCloseConfirmDialog = settingsState.showCloseConfirmDialog,
-                    rememberCloseAction = settingsState.rememberCloseAction,
-                    autoCheckUpdate = settingsState.autoCheckUpdate,
-                    useMirrorDownload = settingsState.useMirrorDownload,
-                    mirrorCdk = settingsState.mirrorCdk,
-                    showMirrorCdkDialog = settingsState.showMirrorCdkDialog,
-                    pocketMode = settingsState.pocketMode,
-                    visualizerStyle = settingsState.visualizerStyle,
-                    backgroundSettings = settingsState.backgroundSettings,
-                    floatingWindowEnabled = settingsState.floatingWindowEnabled,
-                    useSystemTitleBar = settingsState.useSystemTitleBar,
-                    showFirstLaunchDialog = settingsState.showFirstLaunchDialog,
-                    plugins = pluginState.plugins,
-                    showPluginSyncWarning = pluginState.showPluginSyncWarning,
-                    missingPlugins = pluginState.missingPlugins,
-                    updateInfo = updateState.updateInfo,
-                    updateDownloadState = updateState.updateDownloadState,
-                    updateDownloadProgress = updateState.updateDownloadProgress,
-                    updateDownloadedBytes = updateState.updateDownloadedBytes,
-                    updateTotalBytes = updateState.updateTotalBytes,
-                    updateErrorMessage = updateState.updateErrorMessage,
-                    performanceMode = audioState.performanceMode,
-                    snackbarMessage = settingsState.snackbarMessage
-                )
-            }.collect { combinedState ->
-                // Preserve discovery state that's managed separately
-                val current = _uiState.value
-                _uiState.value = combinedState.copy(
-                    discoveredDevices = current.discoveredDevices,
-                    isDiscovering = current.isDiscovering
-                )
+            ) { audioData, settingsState, pluginState, updateState ->
+                val audioState = audioData.state
+                val currentMetrics = audioData.metrics
+                val history = audioData.history
                 
+                _uiState.update { current ->
+                    current.copy(
+                        mode = audioState.mode,
+                        streamState = audioState.streamState,
+                        ipAddress = audioState.ipAddress,
+                        port = audioState.port,
+                        errorMessage = audioState.errorMessage,
+                        monitoringEnabled = audioState.monitoringEnabled,
+                        sampleRate = audioState.sampleRate,
+                        channelCount = audioState.channelCount,
+                        audioFormat = audioState.audioFormat,
+                        isMuted = audioState.isMuted,
+                        bluetoothAddress = audioState.bluetoothAddress,
+                        isAutoConfig = audioState.isAutoConfig,
+                        showFirewallDialog = audioState.showFirewallDialog,
+                        pendingFirewallPort = audioState.pendingFirewallPort,
+                        showErrorDialog = audioState.showErrorDialog,
+                        errorDetails = audioState.errorDetails,
+                        enableNS = audioState.enableNS,
+                        nsType = audioState.nsType,
+                        enableAGC = audioState.enableAGC,
+                        agcTargetLevel = audioState.agcTargetLevel,
+                        enableVAD = audioState.enableVAD,
+                        vadThreshold = audioState.vadThreshold,
+                        enableDereverb = audioState.enableDereverb,
+                        dereverbLevel = audioState.dereverbLevel,
+                        amplification = audioState.amplification,
+                        androidAudioSourceName = audioState.androidAudioSourceName,
+                        audioConfigRevision = audioState.audioConfigRevision,
+                        themeMode = settingsState.themeMode,
+                        seedColor = settingsState.seedColor,
+                        useDynamicColor = settingsState.useDynamicColor,
+                        oledPureBlack = settingsState.oledPureBlack,
+                        paletteStyle = settingsState.paletteStyle,
+                        useExpressiveShapes = settingsState.useExpressiveShapes,
+                        language = settingsState.language,
+                        autoStart = settingsState.autoStart,
+                        enableStreamingNotification = settingsState.enableStreamingNotification,
+                        keepScreenOn = settingsState.keepScreenOn,
+                        minimizeToTray = settingsState.minimizeToTray,
+                        closeAction = settingsState.closeAction,
+                        showCloseConfirmDialog = settingsState.showCloseConfirmDialog,
+                        rememberCloseAction = settingsState.rememberCloseAction,
+                        autoCheckUpdate = settingsState.autoCheckUpdate,
+                        useMirrorDownload = settingsState.useMirrorDownload,
+                        mirrorCdk = settingsState.mirrorCdk,
+                        showMirrorCdkDialog = settingsState.showMirrorCdkDialog,
+                        pocketMode = settingsState.pocketMode,
+                        visualizerStyle = settingsState.visualizerStyle,
+                        backgroundSettings = settingsState.backgroundSettings,
+                        floatingWindowEnabled = settingsState.floatingWindowEnabled,
+                        useSystemTitleBar = settingsState.useSystemTitleBar,
+                        showFirstLaunchDialog = settingsState.showFirstLaunchDialog,
+                        plugins = pluginState.plugins,
+                        showPluginSyncWarning = pluginState.showPluginSyncWarning,
+                        missingPlugins = pluginState.missingPlugins,
+                        updateInfo = updateState.updateInfo,
+                        updateDownloadState = updateState.updateDownloadState,
+                        updateDownloadProgress = updateState.updateDownloadProgress,
+                        updateDownloadedBytes = updateState.updateDownloadedBytes,
+                        updateTotalBytes = updateState.updateTotalBytes,
+                        updateErrorMessage = updateState.updateErrorMessage,
+                        performanceMode = audioState.performanceMode,
+                        audioMetrics = currentMetrics,
+                        metricsHistory = history,
+                        showMonitoringPanel = audioState.showMonitoringPanel,
+                        snackbarMessage = settingsState.snackbarMessage
+                    )
+                }
+            }.collect {
                 // Auto-start streaming on Desktop if enabled (only check once)
                 if (!autoStartChecked && getPlatform().type == PlatformType.Desktop) {
                     autoStartChecked = true
-                    if (combinedState.autoStart && combinedState.streamState == StreamState.Idle) {
+                    val state = _uiState.value
+                    if (state.autoStart && state.streamState == StreamState.Idle) {
                         Logger.i("MainViewModel", "Auto-starting stream due to autoStart setting")
                         audioStreamViewModel.startStream()
                     }
@@ -368,6 +386,7 @@ class MainViewModel : ViewModel() {
     fun setAmplification(amp: Float) = audioStreamViewModel.setAmplification(amp)
     fun setAndroidAudioSource(sourceName: String) = audioStreamViewModel.setAndroidAudioSource(sourceName)
     fun setAutoConfig(enabled: Boolean) = audioStreamViewModel.setAutoConfig(enabled)
+    fun setMonitoringPanelVisible(visible: Boolean) = audioStreamViewModel.setMonitoringPanelVisible(visible)
     fun dismissFirewallDialog() = audioStreamViewModel.dismissFirewallDialog()
     fun confirmAddFirewallRule() = audioStreamViewModel.confirmAddFirewallRule()
     fun dismissErrorDialog() = audioStreamViewModel.dismissErrorDialog()

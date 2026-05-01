@@ -168,6 +168,10 @@ class NetworkServer(
         activeHandler?.sendPluginSync(plugins, platform)
     }
 
+    fun getUdpStats(): UdpConnectionHandler.UdpStats? = udpHandler?.getStats()
+    
+    fun getRtt(): Long = activeHandler?.getRtt() ?: 0L
+
     /**
      * 运行双协议服务器：TCP 控制通道 + UDP 音频通道
      * TCP 负责：握手、控制消息（静音/插件同步）

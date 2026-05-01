@@ -428,4 +428,19 @@
     <string name="installOsNotSupported">当前操作系统不支持自动安装</string>
     <string name="reloadingPlugins">正在重新加载插件...</string>
     <string name="vbcableInstallFailed">VB-Cable 安装失败: %s</string>
+    <string name="monitoringTitle">音频质量实时监测</string>
+    <string name="monitoringRtt">网络延迟 (RTT)</string>
+    <string name="monitoringJitter">抖动 (Jitter)</string>
+    <string name="monitoringLoss">丢包率</string>
+    <string name="monitoringTrend">延迟趋势 (RTT + Buffer)</string>
+    <string name="monitoringWaveform">音频波形 (Amplitude)</string>
+    <string name="monitoringSpecs">音频流参数</string>
+    <string name="monitoringSampleRate">采样率</string>
+    <string name="monitoringBitrate">实时比特率</string>
+    <string name="monitoringTotalLatency">总估算延迟</string>
+    <string name="monitoringBuffer">缓冲区时长</string>
+    <string name="monitoringStatusGood">良好</string>
+    <string name="monitoringStatusNormal">一般</string>
+    <string name="monitoringStatusPoor">较差</string>
+    <string name="monitoringHint">提示：监测数据每 500ms 更新一次。系统日志中每分钟会输出一次完整状态报告。</string>
 </resources>
