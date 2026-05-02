@@ -281,8 +281,8 @@ class WasapiLoopbackCapture : LoopbackCapture {
     private object Wasapi {
         val CLSID_MMDeviceEnumerator = Guid.CLSID.fromString("BCDE0395-E52F-467C-8E3D-C4579291692E")
         val IID_IMMDeviceEnumerator = Guid.IID.fromString("A95664D2-9614-4F35-A746-DE8DB63617E6")
-        val IID_IAudioClient = Guid.IID.fromString("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2")
-        val IID_IAudioCaptureClient = Guid.IID.fromString("c8adbd64-e71e-48a0-a4de-67fd9d2bd122")
+        val IID_IAudioClient = Guid.IID.fromString("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2") as Guid.IID
+        val IID_IAudioCaptureClient = Guid.IID.fromString("c8adbd64-e71e-48a0-a4de-67fd9d2bd122") as Guid.IID
         val KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = Guid.GUID.fromString("00000003-0000-0010-8000-00AA00389B71")
 
         const val CLSCTX_ALL = 23
@@ -374,7 +374,7 @@ class WasapiLoopbackCapture : LoopbackCapture {
         }
 
         interface Ole32Ext : Ole32 {
-            fun CoTaskMemFree(pv: Pointer?)
+            override fun CoTaskMemFree(pv: Pointer?)
             
             companion object {
                 val INSTANCE = Native.load("ole32", Ole32Ext::class.java, W32APIOptions.DEFAULT_OPTIONS) as Ole32Ext

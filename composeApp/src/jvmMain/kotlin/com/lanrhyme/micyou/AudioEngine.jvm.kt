@@ -215,7 +215,10 @@ actual class AudioEngine actual constructor() {
                 audioPipeline.setLoopbackReference(shorts, timestamp)
 
                 // 2. 发送给网络服务器 (Android 端硬件/软件 AEC)
-                networkServer.sendLoopbackAudio(buffer, sampleRate, channelCount, timestamp)
+                // sendLoopbackAudio 是 suspend 函数，需要在协程中调用
+                scope.launch {
+                    networkServer.sendLoopbackAudio(buffer, sampleRate, channelCount, timestamp)
+                }
             }
             
             // 使用与输入匹配的参数，或默认参数
