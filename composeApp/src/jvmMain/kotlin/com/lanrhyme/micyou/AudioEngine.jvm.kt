@@ -44,13 +44,18 @@ actual class AudioEngine actual constructor() {
 
     private val audioOutputManager = AudioOutputManager()
     private val audioPipeline = AudioProcessorPipeline()
+    private val loopbackCaptureManager = com.lanrhyme.micyou.audio.LoopbackCaptureManager()
 
     // 当前音频参数（用于计算比特率）
     private var currentSampleRate: Int = 0
     private var currentChannelCount: Int = 0
     private var currentAudioFormatValue: Int = 0
     
+    private var enableAEC: Boolean = false
+
     private var lastStatusLogTime = 0L
+
+    actual var onLoopbackAudioReceived: ((LoopbackAudioMessage) -> Unit)? = null
     
     private val audioPacketChannel = Channel<AudioPacketMessage>(
         capacity = Constants.AUDIO_PACKET_CHANNEL_CAPACITY,
@@ -88,8 +93,10 @@ actual class AudioEngine actual constructor() {
                 if (newState == StreamState.Streaming) {
                     audioPipeline.reset()
                     startAudioProcessing()
+                    if (enableAEC) startLoopbackCapture()
                 } else if (newState == StreamState.Idle || newState == StreamState.Error) {
                     stopAudioProcessing()
+                    stopLoopbackCapture()
                 }
                 _state.value = newState
             }
@@ -174,15 +181,50 @@ actual class AudioEngine actual constructor() {
         amplification: Float,
         enableAEC: Boolean
     ) {
+        this.enableAEC = enableAEC
         audioPipeline.updateConfig(
             enableNS, nsType, enableAGC, agcTargetLevel,
             enableVAD, vadThreshold, enableDereverb, dereverbLevel,
-            amplification
+            amplification, enableAEC
         )
         
-        if (System.getProperty("micyou.debugAudioConfig") == "true") {
-            Logger.d("AudioEngine", "配置更新: 放大器=$amplification, VAD=$enableVAD ($vadThreshold), AGC=$enableAGC ($agcTargetLevel), NS=$enableNS ($nsType)")
+        if (enableAEC && _state.value == StreamState.Streaming) {
+            startLoopbackCapture()
+        } else {
+            stopLoopbackCapture()
         }
+
+        if (System.getProperty("micyou.debugAudioConfig") == "true") {
+            Logger.d("AudioEngine", "配置更新: 放大器=$amplification, VAD=$enableVAD ($vadThreshold), AGC=$enableAGC ($agcTargetLevel), NS=$enableNS ($nsType), AEC=$enableAEC")
+        }
+    }
+
+    private fun startLoopbackCapture() {
+        if (loopbackCaptureManager.isCapturing.value) return
+        
+        scope.launch {
+            loopbackCaptureManager.onAudioData { buffer, sampleRate, channelCount, timestamp ->
+                // 1. 发送给本地音频处理管道 (PC 端软件 AEC)
+                // convert to short array
+                val shorts = ShortArray(buffer.size / 2)
+                for (i in shorts.indices) {
+                    val lo = buffer[i * 2].toInt() and 0xFF
+                    val hi = buffer[i * 2 + 1].toInt()
+                    shorts[i] = ((hi shl 8) or lo).toShort()
+                }
+                audioPipeline.setLoopbackReference(shorts, timestamp)
+
+                // 2. 发送给网络服务器 (Android 端硬件/软件 AEC)
+                networkServer.sendLoopbackAudio(buffer, sampleRate, channelCount, timestamp)
+            }
+            
+            // 使用与输入匹配的参数，或默认参数
+            loopbackCaptureManager.start(currentSampleRate.takeIf { it > 0 } ?: 44100, currentChannelCount.takeIf { it > 0 } ?: 1)
+        }
+    }
+
+    private fun stopLoopbackCapture() {
+        loopbackCaptureManager.stop()
     }
 
     actual suspend fun start(

@@ -17,6 +17,7 @@ class AudioProcessorPipeline {
     private val amplifierEffect = AmplifierEffect()
     private val vadEffect = VADEffect()
     private val resamplerEffect = ResamplerEffect()
+    private val aecEffect = AecEffect()
 
     // 可配置的性能参数
     private var config: PerformanceConfig = PerformanceConfig.DEFAULT
@@ -38,30 +39,41 @@ class AudioProcessorPipeline {
         vadThreshold: Int,
         enableDereverb: Boolean,
         dereverbLevel: Float,
-        amplification: Float
+        amplification: Float,
+        enableAEC: Boolean = false
     ) {
         noiseReducer.enableNS = enableNS
         noiseReducer.nsType = nsType
-        
+
         agcEffect.enableAGC = enableAGC
         agcEffect.agcTargetLevel = agcTargetLevel
-        
+
         vadEffect.enableVAD = enableVAD
         vadEffect.vadThreshold = vadThreshold
-        
+
         dereverbEffect.enableDereverb = enableDereverb
         dereverbEffect.dereverbLevel = dereverbLevel
 
         amplifierEffect.gainDb = amplification
+
+        aecEffect.enabled = enableAEC
+    }
+
+    /**
+     * 设置 AEC 回环音频参考信号
+     */
+    fun setLoopbackReference(loopbackSamples: ShortArray, timestamp: Long = 0) {
+        aecEffect.setReferenceSignal(loopbackSamples, timestamp)
     }
 
     /**
      * 音频处理管道
-     * 处理链顺序：降噪 -> 去混响 -> 放大 -> AGC -> VAD -> 重采样
+     * 处理链顺序：AEC -> 降噪 -> 去混响 -> 放大 -> AGC -> VAD -> 重采样
      *
      * 顺序说明：
-     * 1. 降噪先处理原始信号中的噪声，避免后续放大把噪声也放大
-     * 2. 去混响在降噪后处理，避免混响和噪声叠加影响降噪效果
+     * 0. AEC 先消除回声，基于回环音频参考信号
+     * 1. 降噪处理消除回声后信号中的噪声
+     * 2. 去混响在降噪后处理
      * 3. 放大在降噪后执行，只放大干净的声音信号
      * 4. AGC 调整整体音量一致性
      * 5. VAD 检测语音活动
@@ -78,6 +90,8 @@ class AudioProcessorPipeline {
 
         var processed = shorts
 
+        // 0. AEC 消除回声（最优先，基于原始信号和回环参考）
+        processed = aecEffect.process(processed, channelCount)
         // 1. 先降噪，处理原始信号中的噪声
         processed = noiseReducer.process(processed, channelCount)
         // 2. 去混响
@@ -192,6 +206,7 @@ class AudioProcessorPipeline {
         vadEffect.release()
         amplifierEffect.release()
         resamplerEffect.release()
+        aecEffect.release()
     }
 
     fun reset() {
@@ -201,6 +216,7 @@ class AudioProcessorPipeline {
         vadEffect.reset()
         amplifierEffect.reset()
         resamplerEffect.reset()
+        aecEffect.reset()
     }
 
     /**

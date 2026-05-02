@@ -26,6 +26,7 @@ window = "1.5.1"
 filekit = "0.13.0"
 materialKolor = "5.0.0-alpha07"
 jmdns = "3.6.3"
+jna = "5.16.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -63,6 +64,8 @@ filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "file
 filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
 materialKolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
 jmdns = { module = "org.jmdns:jmdns", version.ref = "jmdns" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

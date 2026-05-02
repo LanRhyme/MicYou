@@ -149,6 +149,8 @@ actual class AudioEngine actual constructor() {
     private var automaticGainControl: AutomaticGainControl? = null
     private var echoCanceler: AcousticEchoCanceler? = null
 
+    actual var onLoopbackAudioReceived: ((LoopbackAudioMessage) -> Unit)? = null
+
     private var savedIp: String = ""
     private var savedPort: Int = 0
     private var savedMode: ConnectionMode = ConnectionMode.Wifi
@@ -428,9 +430,13 @@ actual class AudioEngine actual constructor() {
                                                 _isMuted.value = wrapper.mute.isMuted
                                                 Logger.i("AudioEngine", "Received Mute Command: ${wrapper.mute.isMuted}")
                                             }
-                                            
+
                                             if (wrapper.ping != null) {
                                                 sendChannel?.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
+                                            }
+
+                                            if (wrapper.loopbackAudio != null) {
+                                                onLoopbackAudioReceived?.invoke(wrapper.loopbackAudio)
                                             }
                                         } catch (e: Exception) {
                                             Logger.e("AudioEngine", "Error decoding incoming message", e)

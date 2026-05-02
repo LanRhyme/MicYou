@@ -62,4 +62,7 @@ expect class AudioEngine() {
 
     // 设置音频源（仅 Android 端有效）
     fun setAudioSource(sourceName: String)
+
+    // 回环音频回调（PC 端发送的参考音频，用于 AEC）
+    var onLoopbackAudioReceived: ((LoopbackAudioMessage) -> Unit)?
 }

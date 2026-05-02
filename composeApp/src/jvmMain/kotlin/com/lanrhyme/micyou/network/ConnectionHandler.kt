@@ -240,6 +240,14 @@ class ConnectionHandler(
         }
     }
 
+    suspend fun sendLoopbackAudio(message: LoopbackAudioMessage) {
+        try {
+            sendChannel?.send(MessageWrapper(loopbackAudio = message))
+        } catch (e: Exception) {
+            Logger.e("ConnectionHandler", "Failed to send loopback audio", e)
+        }
+    }
+
     private fun cleanup() {
         writerJob?.cancel()
         sendChannel?.close()

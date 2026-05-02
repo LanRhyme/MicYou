@@ -168,6 +168,10 @@ class NetworkServer(
         activeHandler?.sendPluginSync(plugins, platform)
     }
 
+    suspend fun sendLoopbackAudio(message: LoopbackAudioMessage) {
+        activeHandler?.sendLoopbackAudio(message)
+    }
+
     fun getUdpStats(): UdpConnectionHandler.UdpStats? = udpHandler?.getStats()
     
     fun getRtt(): Long = activeHandler?.getRtt() ?: 0L
