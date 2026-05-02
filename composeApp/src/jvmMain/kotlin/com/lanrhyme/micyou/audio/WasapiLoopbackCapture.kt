@@ -54,7 +54,7 @@ class WasapiLoopbackCapture : LoopbackCapture {
 
     private suspend fun runCapture(targetSampleRate: Int, targetChannels: Int) {
         // 初始化 COM
-        val hrInit = Ole32.INSTANCE.CoInitializeEx(null, Ole32.COINIT_MULTITHREADED)
+        Ole32.INSTANCE.CoInitializeEx(null, Ole32.COINIT_MULTITHREADED)
         
         var enumerator: Wasapi.IMMDeviceEnumerator? = null
         var device: Wasapi.IMMDevice? = null
@@ -98,14 +98,12 @@ class WasapiLoopbackCapture : LoopbackCapture {
             Logger.i("WasapiLoopback", "System Mix Format: ${mixFormat.nSamplesPerSec}Hz, ${mixFormat.nChannels}ch, ${mixFormat.wBitsPerSample}bits")
 
             // 5. 初始化 IAudioClient 为回环模式
-            // 回环模式必须使用共享模式 (AUDCLNT_SHAREMODE_SHARED = 0)
             hr = audioClient.Initialize(
                 Wasapi.AUDCLNT_SHAREMODE_SHARED,
                 Wasapi.AUDCLNT_STREAMFLAGS_LOOPBACK,
-                0, 0, mixFormatPtr, null
+                0L, 0L, mixFormatPtr, null
             )
             if (hr.toInt() != 0) {
-                // 如果初始化失败，可能是格式不匹配，WASAPI 回环通常只支持 MixFormat
                 throw Exception("IAudioClient.Initialize failed: 0x${Integer.toHexString(hr.toInt())}")
             }
 
@@ -124,7 +122,6 @@ class WasapiLoopbackCapture : LoopbackCapture {
             val srcSampleRate = mixFormat.nSamplesPerSec
             val srcBits = mixFormat.wBitsPerSample.toInt()
             
-            // 检查是否是浮点格式
             var isFloat = false
             val formatTag = mixFormat.wFormatTag.toInt() and 0xFFFF
             if (formatTag == Wasapi.WAVE_FORMAT_EXTENSIBLE) {
@@ -133,27 +130,21 @@ class WasapiLoopbackCapture : LoopbackCapture {
                 if (ext.SubFormat == Wasapi.KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) {
                     isFloat = true
                 }
-            } else if (formatTag == 3) { // WAVE_FORMAT_IEEE_FLOAT
+            } else if (formatTag == 3) {
                 isFloat = true
             }
 
-            Logger.i("WasapiLoopback", "Format identified: float=$isFloat, channels=$srcChannels, rate=$srcSampleRate")
-
-            // 重采样器（如果采样率不匹配）
             val resampler = if (srcSampleRate != targetSampleRate) {
-                Logger.i("WasapiLoopback", "Enabling resampler: $srcSampleRate -> $targetSampleRate")
                 ResamplerEffect().apply {
                     playbackRatio = srcSampleRate.toDouble() / targetSampleRate.toDouble()
                 }
             } else null
 
-            // 数据处理循环
             val pData = PointerByReference()
             val pNumFrames = IntByReference()
             val pFlags = IntByReference()
             val pPacketSize = IntByReference()
 
-            // 预分配缓冲区
             var floatBuffer = FloatArray(0)
             var shortBuffer = ShortArray(0)
 
@@ -163,7 +154,7 @@ class WasapiLoopbackCapture : LoopbackCapture {
                 
                 val packetSize = pPacketSize.value
                 if (packetSize == 0) {
-                    delay(1) // 使用协程 delay 避免死循环占用过多 CPU
+                    delay(1)
                     continue
                 }
 
@@ -174,80 +165,56 @@ class WasapiLoopbackCapture : LoopbackCapture {
                 val dataPtr = pData.value
                 val flags = pFlags.value
                 
-                // 检查是否静音或有效
-                if ((flags and 0x01) == 0) { // AUDCLNT_BUFFERFLAGS_SILENT
+                if ((flags and 0x01) == 0) {
                     val totalSamples = numFrames * srcChannels
                     
                     if (isFloat && srcBits == 32) {
                         if (floatBuffer.size < totalSamples) floatBuffer = FloatArray(totalSamples)
                         dataPtr.read(0, floatBuffer, 0, totalSamples)
                         
-                        // 1. 转换为 ShortArray 并处理声道
                         var outShorts: ShortArray
                         if (targetChannels == 1 && srcChannels == 2) {
-                            // Stereo to Mono
                             outShorts = ShortArray(numFrames)
                             for (i in 0 until numFrames) {
-                                val left = floatBuffer[i * 2]
-                                val right = floatBuffer[i * 2 + 1]
-                                val mono = (left + right) / 2f
-                                val sample = (mono * 32767f).toInt().coerceIn(-32768, 32767)
-                                outShorts[i] = sample.toShort()
-                            }
-                        } else if (targetChannels == srcChannels) {
-                            // Match channels
-                            outShorts = ShortArray(totalSamples)
-                            for (i in 0 until totalSamples) {
-                                val sample = (floatBuffer[i] * 32767f).toInt().coerceIn(-32768, 32767)
-                                outShorts[i] = sample.toShort()
+                                val mono = (floatBuffer[i * 2] + floatBuffer[i * 2 + 1]) / 2f
+                                outShorts[i] = (mono * 32767f).toInt().coerceIn(-32768, 32767).toShort()
                             }
                         } else {
-                            // 简单的降声道处理 (只取前 targetChannels 个)
                             outShorts = ShortArray(numFrames * targetChannels)
                             for (i in 0 until numFrames) {
                                 for (c in 0 until targetChannels) {
-                                    if (c < srcChannels) {
-                                        val sample = (floatBuffer[i * srcChannels + c] * 32767f).toInt().coerceIn(-32768, 32767)
-                                        outShorts[i * targetChannels + c] = sample.toShort()
-                                    }
+                                    val idx = if (c < srcChannels) i * srcChannels + c else i * srcChannels
+                                    outShorts[i * targetChannels + c] = (floatBuffer[idx] * 32767f).toInt().coerceIn(-32768, 32767).toShort()
                                 }
                             }
                         }
 
-                        // 2. 重采样
-                        if (resampler != null) {
-                            outShorts = resampler.process(outShorts, targetChannels)
-                        }
+                        if (resampler != null) outShorts = resampler.process(outShorts, targetChannels)
                         
-                        // 3. 转换为 ByteArray 并回调
                         if (outShorts.isNotEmpty()) {
                             val finalBytes = ByteArray(outShorts.size * 2)
                             ByteBuffer.wrap(finalBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(outShorts)
-                            audioCallback?.invoke(finalBytes, 0, finalBytes.size, System.currentTimeMillis())
+                            audioCallback?.invoke(finalBytes, targetSampleRate, targetChannels, System.currentTimeMillis())
                         }
                     } else if (!isFloat && srcBits == 16) {
-                        // 16-bit PCM 处理逻辑类似
                         if (shortBuffer.size < totalSamples) shortBuffer = ShortArray(totalSamples)
                         dataPtr.read(0, shortBuffer, 0, totalSamples)
                         
-                        var outShorts: ShortArray = shortBuffer.copyOf(totalSamples)
-                        // ... 声道处理 ...
+                        var outShorts: ShortArray
                         if (targetChannels == 1 && srcChannels == 2) {
                             outShorts = ShortArray(numFrames)
                             for (i in 0 until numFrames) {
-                                val left = shortBuffer[i * 2].toInt()
-                                val right = shortBuffer[i * 2 + 1].toInt()
-                                outShorts[i] = ((left + right) / 2).toShort()
+                                outShorts[i] = ((shortBuffer[i * 2].toInt() + shortBuffer[i * 2 + 1].toInt()) / 2).toShort()
                             }
+                        } else {
+                            outShorts = shortBuffer.copyOf(totalSamples)
                         }
 
-                        if (resampler != null) {
-                            outShorts = resampler.process(outShorts, targetChannels)
-                        }
+                        if (resampler != null) outShorts = resampler.process(outShorts, targetChannels)
 
                         val finalBytes = ByteArray(outShorts.size * 2)
                         ByteBuffer.wrap(finalBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(outShorts)
-                        audioCallback?.invoke(finalBytes, 0, finalBytes.size, System.currentTimeMillis())
+                        audioCallback?.invoke(finalBytes, targetSampleRate, targetChannels, System.currentTimeMillis())
                     }
                 }
 
@@ -263,44 +230,26 @@ class WasapiLoopbackCapture : LoopbackCapture {
                 audioClient?.Release()
                 device?.Release()
                 enumerator?.Release()
-                
-                if (mixFormatPtr != null) {
-                    Wasapi.Ole32Ext.INSTANCE.CoTaskMemFree(mixFormatPtr)
-                }
-            } catch (e: Exception) {
-                // Ignore cleanup errors
-            }
-            
+                if (mixFormatPtr != null) Wasapi.Ole32Ext.INSTANCE.CoTaskMemFree(mixFormatPtr)
+            } catch (e: Exception) { }
             Ole32.INSTANCE.CoUninitialize()
         }
     }
 
-    /**
-     * WASAPI 内部使用的 JNA 定义
-     */
     private object Wasapi {
-        val CLSID_MMDeviceEnumerator = Guid.CLSID.fromString("BCDE0395-E52F-467C-8E3D-C4579291692E")
-        val IID_IMMDeviceEnumerator = Guid.IID.fromString("A95664D2-9614-4F35-A746-DE8DB63617E6")
-        val IID_IAudioClient = Guid.IID.fromString("1CB9AD4C-DBFA-4c32-B178-C2F568A703B2") as Guid.IID
-        val IID_IAudioCaptureClient = Guid.IID.fromString("c8adbd64-e71e-48a0-a4de-67fd9d2bd122") as Guid.IID
-        val KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = Guid.GUID.fromString("00000003-0000-0010-8000-00AA00389B71")
+        val CLSID_MMDeviceEnumerator = Guid.GUID.fromString("{BCDE0395-E52F-467C-8E3D-C4579291692E}")
+        val IID_IMMDeviceEnumerator = Guid.GUID.fromString("{A95664D2-9614-4F35-A746-DE8DB63617E6}")
+        val IID_IAudioClient = Guid.GUID.fromString("{1CB9AD4C-DBFA-4c32-B178-C2F568A703B2}")
+        val IID_IAudioCaptureClient = Guid.GUID.fromString("{c8adbd64-e71e-48a0-a4de-67fd9d2bd122}")
+        val KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = Guid.GUID.fromString("{00000003-0000-0010-8000-00AA00389B71}")
 
         const val CLSCTX_ALL = 23
         const val AUDCLNT_SHAREMODE_SHARED = 0
         const val AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000
         const val WAVE_FORMAT_EXTENSIBLE = 0xFFFE
 
-        object EDataFlow {
-            const val eRender = 0
-            const val eCapture = 1
-            const val eAll = 2
-        }
-
-        object ERole {
-            const val eConsole = 0
-            const val eMultimedia = 1
-            const val eCommunications = 2
-        }
+        object EDataFlow { const val eRender = 0 }
+        object ERole { const val eConsole = 0 }
 
         @Structure.FieldOrder("wFormatTag", "nChannels", "nSamplesPerSec", "nAvgBytesPerSec", "nBlockAlign", "wBitsPerSample", "cbSize")
         open class WAVEFORMATEX : Structure() {
@@ -323,59 +272,41 @@ class WasapiLoopbackCapture : LoopbackCapture {
 
         class IMMDeviceEnumerator(p: Pointer) : Unknown(p) {
             fun GetDefaultAudioEndpoint(dataFlow: Int, role: Int, ppDevice: PointerByReference): WinNT.HRESULT {
-                return _invokeNativeObject(4, arrayOf(dataFlow, role, ppDevice), WinNT.HRESULT::class.java) as WinNT.HRESULT
+                return _invokeNativeObject(4, arrayOf(getPointer(), dataFlow, role, ppDevice), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
         }
 
         class IMMDevice(p: Pointer) : Unknown(p) {
-            fun Activate(riid: Guid.IID, dwClsCtx: Int, pActivationParams: Pointer?, ppInterface: PointerByReference): WinNT.HRESULT {
-                return _invokeNativeObject(3, arrayOf(riid, dwClsCtx, pActivationParams, ppInterface), WinNT.HRESULT::class.java) as WinNT.HRESULT
+            fun Activate(riid: Guid.GUID, dwClsCtx: Int, pActivationParams: Pointer?, ppInterface: PointerByReference): WinNT.HRESULT {
+                return _invokeNativeObject(3, arrayOf(getPointer(), riid.getPointer(), dwClsCtx, pActivationParams, ppInterface), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
         }
 
         class IAudioClient(p: Pointer) : Unknown(p) {
             fun GetMixFormat(ppDeviceFormat: PointerByReference): WinNT.HRESULT {
-                return _invokeNativeObject(8, arrayOf(ppDeviceFormat), WinNT.HRESULT::class.java) as WinNT.HRESULT
+                return _invokeNativeObject(8, arrayOf(getPointer(), ppDeviceFormat), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
-
             fun Initialize(shareMode: Int, streamFlags: Int, hnsBufferDuration: Long, hnsPeriodicity: Long, pFormat: Pointer, audioSessionGuid: Guid.GUID?): WinNT.HRESULT {
-                return _invokeNativeObject(3, arrayOf(shareMode, streamFlags, hnsBufferDuration, hnsPeriodicity, pFormat, audioSessionGuid), WinNT.HRESULT::class.java) as WinNT.HRESULT
+                return _invokeNativeObject(3, arrayOf(getPointer(), shareMode, streamFlags, hnsBufferDuration, hnsPeriodicity, pFormat, audioSessionGuid?.getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
+            }
+            fun GetService(riid: Guid.GUID, ppv: PointerByReference): WinNT.HRESULT {
+                return _invokeNativeObject(14, arrayOf(getPointer(), riid.getPointer(), ppv), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
 
-            fun GetBufferSize(pNumBufferFrames: IntByReference): WinNT.HRESULT {
-                return _invokeNativeObject(4, arrayOf(pNumBufferFrames), WinNT.HRESULT::class.java) as WinNT.HRESULT
-            }
-
-            fun GetService(riid: Guid.IID, ppv: PointerByReference): WinNT.HRESULT {
-                return _invokeNativeObject(14, arrayOf(riid, ppv), WinNT.HRESULT::class.java) as WinNT.HRESULT
-            }
-
-            fun Start(): WinNT.HRESULT {
-                return _invokeNativeObject(10, emptyArray<Any>(), WinNT.HRESULT::class.java) as WinNT.HRESULT
-            }
-
-            fun Stop(): WinNT.HRESULT {
-                return _invokeNativeObject(11, emptyArray<Any>(), WinNT.HRESULT::class.java) as WinNT.HRESULT
-            }
+            fun Start(): WinNT.HRESULT = _invokeNativeObject(10, arrayOf(getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
+            fun Stop(): WinNT.HRESULT = _invokeNativeObject(11, arrayOf(getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
         }
 
         class IAudioCaptureClient(p: Pointer) : Unknown(p) {
-            fun GetBuffer(ppData: PointerByReference, pNumFramesToRead: IntByReference, pdwFlags: IntByReference, pu64DevicePosition: LongByReference?, pu64QPCPosition: LongByReference?): WinNT.HRESULT {
-                return _invokeNativeObject(3, arrayOf(ppData, pNumFramesToRead, pdwFlags, pu64DevicePosition, pu64QPCPosition), WinNT.HRESULT::class.java) as WinNT.HRESULT
+            fun GetBuffer(ppData: PointerByReference, pNumFrames: IntByReference, pdwFlags: IntByReference, pos: LongByReference?, qpc: LongByReference?): WinNT.HRESULT {
+                return _invokeNativeObject(3, arrayOf(getPointer(), ppData, pNumFrames, pdwFlags, pos, qpc), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
-
-            fun ReleaseBuffer(numFramesRead: Int): WinNT.HRESULT {
-                return _invokeNativeObject(4, arrayOf(numFramesRead), WinNT.HRESULT::class.java) as WinNT.HRESULT
-            }
-
-            fun GetNextPacketSize(pNumFramesInNextPacket: IntByReference): WinNT.HRESULT {
-                return _invokeNativeObject(5, arrayOf(pNumFramesInNextPacket), WinNT.HRESULT::class.java) as WinNT.HRESULT
-            }
+            fun ReleaseBuffer(numFrames: Int): WinNT.HRESULT = _invokeNativeObject(4, arrayOf(getPointer(), numFrames), WinNT.HRESULT::class.java) as WinNT.HRESULT
+            fun GetNextPacketSize(pNumFrames: IntByReference): WinNT.HRESULT = _invokeNativeObject(5, arrayOf(getPointer(), pNumFrames), WinNT.HRESULT::class.java) as WinNT.HRESULT
         }
 
         interface Ole32Ext : Ole32 {
             override fun CoTaskMemFree(pv: Pointer?)
-            
             companion object {
                 val INSTANCE = Native.load("ole32", Ole32Ext::class.java, W32APIOptions.DEFAULT_OPTIONS) as Ole32Ext
             }
