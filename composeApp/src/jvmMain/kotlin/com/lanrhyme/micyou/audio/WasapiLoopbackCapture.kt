@@ -1,6 +1,7 @@
 package com.lanrhyme.micyou.audio
 
 import com.lanrhyme.micyou.Logger
+import com.lanrhyme.micyou.Constants
 import com.sun.jna.*
 import com.sun.jna.platform.win32.*
 import com.sun.jna.platform.win32.COM.Unknown
@@ -72,25 +73,25 @@ class WasapiLoopbackCapture : LoopbackCapture {
                 Wasapi.IID_IMMDeviceEnumerator,
                 pEnumerator
             )
-            if (hr.toInt() != 0) throw Exception("CoCreateInstance(IMMDeviceEnumerator) failed: $hr")
+            if (hr.toInt() != 0) throw Exception("CoCreateInstance(IMMDeviceEnumerator) failed: 0x${Integer.toHexString(hr.toInt())}")
             enumerator = Wasapi.IMMDeviceEnumerator(pEnumerator.value)
 
             // 2. 获取默认渲染设备（系统输出）
             val pDevice = PointerByReference()
             hr = enumerator.GetDefaultAudioEndpoint(Wasapi.EDataFlow.eRender, Wasapi.ERole.eConsole, pDevice)
-            if (hr.toInt() != 0) throw Exception("GetDefaultAudioEndpoint failed: $hr")
+            if (hr.toInt() != 0) throw Exception("GetDefaultAudioEndpoint failed: 0x${Integer.toHexString(hr.toInt())}")
             device = Wasapi.IMMDevice(pDevice.value)
 
             // 3. 激活 IAudioClient
             val pAudioClient = PointerByReference()
             hr = device.Activate(Wasapi.IID_IAudioClient, Wasapi.CLSCTX_ALL, null, pAudioClient)
-            if (hr.toInt() != 0) throw Exception("Activate IAudioClient failed: $hr")
+            if (hr.toInt() != 0) throw Exception("Activate IAudioClient failed: 0x${Integer.toHexString(hr.toInt())}")
             audioClient = Wasapi.IAudioClient(pAudioClient.value)
 
             // 4. 获取混合格式
             val pFormat = PointerByReference()
             hr = audioClient.GetMixFormat(pFormat)
-            if (hr.toInt() != 0) throw Exception("GetMixFormat failed: $hr")
+            if (hr.toInt() != 0) throw Exception("GetMixFormat failed: 0x${Integer.toHexString(hr.toInt())}")
             mixFormatPtr = pFormat.value
             val mixFormat = Structure.newInstance(Wasapi.WAVEFORMATEX::class.java, mixFormatPtr)
             mixFormat.read()
@@ -110,12 +111,12 @@ class WasapiLoopbackCapture : LoopbackCapture {
             // 6. 获取 IAudioCaptureClient 服务
             val pCaptureClient = PointerByReference()
             hr = audioClient.GetService(Wasapi.IID_IAudioCaptureClient, pCaptureClient)
-            if (hr.toInt() != 0) throw Exception("GetService(IAudioCaptureClient) failed: $hr")
+            if (hr.toInt() != 0) throw Exception("GetService(IAudioCaptureClient) failed: 0x${Integer.toHexString(hr.toInt())}")
             captureClient = Wasapi.IAudioCaptureClient(pCaptureClient.value)
 
             // 7. 开始采集
             hr = audioClient.Start()
-            if (hr.toInt() != 0) throw Exception("IAudioClient.Start failed: $hr")
+            if (hr.toInt() != 0) throw Exception("IAudioClient.Start failed: 0x${Integer.toHexString(hr.toInt())}")
 
             // 采集参数
             val srcChannels = mixFormat.nChannels.toInt()
@@ -237,10 +238,10 @@ class WasapiLoopbackCapture : LoopbackCapture {
     }
 
     private object Wasapi {
-        val CLSID_MMDeviceEnumerator = Guid.GUID.fromString("{BCDE0395-E52F-467C-8E3D-C4579291692E}")
-        val IID_IMMDeviceEnumerator = Guid.GUID.fromString("{A95664D2-9614-4F35-A746-DE8DB63617E6}")
-        val IID_IAudioClient = Guid.GUID.fromString("{1CB9AD4C-DBFA-4c32-B178-C2F568A703B2}")
-        val IID_IAudioCaptureClient = Guid.GUID.fromString("{c8adbd64-e71e-48a0-a4de-67fd9d2bd122}")
+        val CLSID_MMDeviceEnumerator = Guid.CLSID("{BCDE0395-E52F-467C-8E3D-C4579291692E}")
+        val IID_IMMDeviceEnumerator = Guid.IID("{A95664D2-9614-4F35-A746-DE8DB63617E6}")
+        val IID_IAudioClient = Guid.IID("{1CB9AD4C-DBFA-4c32-B178-C2F568A703B2}")
+        val IID_IAudioCaptureClient = Guid.IID("{c8adbd64-e71e-48a0-a4de-67fd9d2bd122}")
         val KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = Guid.GUID.fromString("{00000003-0000-0010-8000-00AA00389B71}")
 
         const val CLSCTX_ALL = 23
@@ -277,7 +278,7 @@ class WasapiLoopbackCapture : LoopbackCapture {
         }
 
         class IMMDevice(p: Pointer) : Unknown(p) {
-            fun Activate(riid: Guid.GUID, dwClsCtx: Int, pActivationParams: Pointer?, ppInterface: PointerByReference): WinNT.HRESULT {
+            fun Activate(riid: Guid.IID, dwClsCtx: Int, pActivationParams: Pointer?, ppInterface: PointerByReference): WinNT.HRESULT {
                 return _invokeNativeObject(3, arrayOf(getPointer(), riid.getPointer(), dwClsCtx, pActivationParams, ppInterface), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
         }
@@ -289,10 +290,9 @@ class WasapiLoopbackCapture : LoopbackCapture {
             fun Initialize(shareMode: Int, streamFlags: Int, hnsBufferDuration: Long, hnsPeriodicity: Long, pFormat: Pointer, audioSessionGuid: Guid.GUID?): WinNT.HRESULT {
                 return _invokeNativeObject(3, arrayOf(getPointer(), shareMode, streamFlags, hnsBufferDuration, hnsPeriodicity, pFormat, audioSessionGuid?.getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
-            fun GetService(riid: Guid.GUID, ppv: PointerByReference): WinNT.HRESULT {
+            fun GetService(riid: Guid.IID, ppv: PointerByReference): WinNT.HRESULT {
                 return _invokeNativeObject(14, arrayOf(getPointer(), riid.getPointer(), ppv), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
-
             fun Start(): WinNT.HRESULT = _invokeNativeObject(10, arrayOf(getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
             fun Stop(): WinNT.HRESULT = _invokeNativeObject(11, arrayOf(getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
         }
