@@ -127,8 +127,17 @@ data class LoopbackAudioMessage(
     }
 }
 
+/** AEC 状态消息（客户端告知服务器是否需要回环参考音频） */
+@Serializable
+data class AecStateMessage(
+    @ProtoNumber(1)
+    val enabled: Boolean
+)
+
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
 const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII
+/** UDP 回环音频魔数（PC -> Android） */
+const val UDP_PACKET_MAGIC_LOOPBACK = 0x4D69634C // "MicL" in ASCII
 
 /** UDP 端口 = TCP 端口 + 1 */
 const val UDP_PORT_OFFSET = 1
@@ -149,7 +158,7 @@ fun calculateUdpPort(tcpPort: Int): Int {
 
 /** 判断 MessageWrapper 是否包含控制消息（应通过 TCP 发送） */
 fun MessageWrapper.hasControlMessage(): Boolean {
-    return connect != null || mute != null || pluginSync != null || ping != null || pong != null || loopbackAudio != null
+    return connect != null || mute != null || pluginSync != null || ping != null || pong != null || loopbackAudio != null || aecState != null
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -168,6 +177,7 @@ data class MessageWrapper(
     @ProtoNumber(6)
     val pong: PongMessage? = null,
     @ProtoNumber(7)
-    val loopbackAudio: LoopbackAudioMessage? = null
+    val loopbackAudio: LoopbackAudioMessage? = null,
+    @ProtoNumber(8)
+    val aecState: AecStateMessage? = null
 )
-

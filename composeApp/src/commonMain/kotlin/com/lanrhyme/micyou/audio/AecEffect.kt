@@ -9,7 +9,7 @@ import kotlin.math.min
  *
  * 可在 commonMain 中使用，同时支持 Android 和 JVM 平台
  */
-class AecEffect {
+class AecEffect : AudioEffect {
 
     /** 是否启用 AEC */
     var enabled: Boolean = false
@@ -61,7 +61,7 @@ class AecEffect {
      * @param channelCount 声道数
      * @return 处理后的采样
      */
-    fun process(input: ShortArray, channelCount: Int): ShortArray {
+    override fun process(input: ShortArray, channelCount: Int): ShortArray {
         if (!enabled || input.isEmpty()) return input
         if (refBuffer.all { it == 0f }) return input
 
@@ -104,14 +104,14 @@ class AecEffect {
         return output
     }
 
-    fun reset() {
+    override fun reset() {
         weights = FloatArray(filterLength)
         refBuffer = FloatArray(filterLength)
         refTimestamp = 0
         micTimestamp = 0
     }
 
-    fun release() {
+    override fun release() {
         reset()
     }
 }

@@ -112,13 +112,14 @@ class UdpConnectionHandler(
                 }
     val senderAddress = InetSocketAddress(packet.address, packet.port)
 
-                // Record the first client address
-                if (clientAddress == null) {
-                    clientAddress = senderAddress
-                    Logger.i("UdpConnectionHandler", "UDP client connected: ${senderAddress.address.hostAddress}:${senderAddress.port}")
-                }
+    // Update client address on every packet to handle port changes during reconnect
+    if (clientAddress != senderAddress) {
+        clientAddress = senderAddress
+        Logger.i("UdpConnectionHandler", "UDP client address updated: ${senderAddress.address.hostAddress}:${senderAddress.port}")
+    }
 
-                processUdpPacket(packet.data, packet.offset, packet.length)
+    processUdpPacket(packet.data, packet.offset, packet.length)
+
             }
         } catch (e: Exception) {
             if (currentCoroutineContext().isActive) {

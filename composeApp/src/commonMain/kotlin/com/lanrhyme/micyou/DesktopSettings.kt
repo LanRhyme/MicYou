@@ -1324,27 +1324,7 @@ fun VBCableManagementSection(
                             }
                         }
 
-                        // 5. 回声消除 (AEC)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(stringResource(Res.string.enableAecLabel)) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = state.enableAEC,
-                                        onCheckedChange = { viewModel.setEnableAEC(it) }
-                                    )
-                                },
-                                modifier = Modifier.clickable { viewModel.setEnableAEC(!state.enableAEC) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-
-                        // 6. 语音活动检测 (VAD)
+                        // 5. 语音活动检测 (VAD)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
