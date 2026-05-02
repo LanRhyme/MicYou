@@ -206,7 +206,7 @@
     <string name="micNormal">麦克风正常喵~ (๑˃̵ᴗ˂̵)</string>
     <string name="minimize">最小化喵~</string>
     <string name="minimizeToTrayLabel">关闭时最小化到托盘喵~</string>
-    <string name="mirrorCdkDesc">用Mirror酱镜像下载更新,速度快喵~ 🚀</string>
+    <string name="mirrorCdkDesc">用 Mirror 酱镜像下载更新 可以加快下载速度喵~ 🚀</string>
     <string name="mirrorCdkExpiredTime">过期时间: %s 喵~</string>
     <string name="mirrorCdkExpiredWarning">CDK快要过期喵~ ⚠️</string>
     <string name="mirrorCdkGetLink">没有CDK?去Mirror酱获取喵~ 🔗</string>
