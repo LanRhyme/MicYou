@@ -1,3 +1,6 @@
 {
-    "AndreaNovelHelper.workspaceDisabled": false
+    "AndreaNovelHelper.workspaceDisabled": false,
+    "githubPullRequests.ignoredPullRequestBranches": [
+        "master"
+    ]
 }
