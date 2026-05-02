@@ -66,6 +66,8 @@ After downloading the app from [GitHub Releases](https://github.com/LanRhyme/Mic
 sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
 ```
 
+You will need to enter your account password during the process. The password will be hidden while you are entering it. Press Enter after you have finished entering it.
+
 ### Linux
 
 #### Using pre-built packages (recommended)
