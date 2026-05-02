@@ -172,6 +172,10 @@ class NetworkServer(
         activeHandler?.sendLoopbackAudio(message)
     }
 
+    suspend fun sendLoopbackAudio(buffer: ByteArray, sampleRate: Int, channelCount: Int, timestamp: Long) {
+        activeHandler?.sendLoopbackAudio(LoopbackAudioMessage(buffer, sampleRate, channelCount, 16, timestamp))
+    }
+
     fun getUdpStats(): UdpConnectionHandler.UdpStats? = udpHandler?.getStats()
     
     fun getRtt(): Long = activeHandler?.getRtt() ?: 0L

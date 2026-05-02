@@ -436,6 +436,7 @@ actual class AudioEngine actual constructor() {
                                             }
 
                                             if (wrapper.loopbackAudio != null) {
+                                                Logger.d("AudioEngine", "Received loopback audio: ${wrapper.loopbackAudio.buffer.size} bytes, ${wrapper.loopbackAudio.sampleRate}Hz, ${wrapper.loopbackAudio.channelCount}ch")
                                                 onLoopbackAudioReceived?.invoke(wrapper.loopbackAudio)
                                             }
                                         } catch (e: Exception) {
