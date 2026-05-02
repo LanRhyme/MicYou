@@ -99,14 +99,16 @@ class WasapiLoopbackCapture : LoopbackCapture {
             Logger.i("WasapiLoopback", "System Mix Format: ${mixFormat.nSamplesPerSec}Hz, ${mixFormat.nChannels}ch, ${mixFormat.wBitsPerSample}bits")
 
             // 5. 初始化 IAudioClient 为回环模式
+            // 回环模式必须设置非零的 hnsBufferDuration。10000000L = 1秒。
             hr = audioClient.Initialize(
                 Wasapi.AUDCLNT_SHAREMODE_SHARED,
                 Wasapi.AUDCLNT_STREAMFLAGS_LOOPBACK,
-                0L, 0L, mixFormatPtr, null
+                10000000L, 0L, mixFormatPtr, null
             )
             if (hr.toInt() != 0) {
                 throw Exception("IAudioClient.Initialize failed: 0x${Integer.toHexString(hr.toInt())}")
             }
+            Logger.d("WasapiLoopback", "IAudioClient initialized for loopback")
 
             // 6. 获取 IAudioCaptureClient 服务
             val pCaptureClient = PointerByReference()
@@ -241,7 +243,7 @@ class WasapiLoopbackCapture : LoopbackCapture {
         val CLSID_MMDeviceEnumerator = Guid.CLSID("{BCDE0395-E52F-467C-8E3D-C4579291692E}")
         val IID_IMMDeviceEnumerator = Guid.IID("{A95664D2-9614-4F35-A746-DE8DB63617E6}")
         val IID_IAudioClient = Guid.IID("{1CB9AD4C-DBFA-4c32-B178-C2F568A703B2}")
-        val IID_IAudioCaptureClient = Guid.IID("{c8adbd64-e71e-48a0-a4de-67fd9d2bd122}")
+        val IID_IAudioCaptureClient = Guid.IID("{C8ADBD64-E71E-48A0-A4DE-67FD9D2BD122}")
         val KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = Guid.GUID.fromString("{00000003-0000-0010-8000-00AA00389B71}")
 
         const val CLSCTX_ALL = 23
@@ -279,7 +281,8 @@ class WasapiLoopbackCapture : LoopbackCapture {
 
         class IMMDevice(p: Pointer) : Unknown(p) {
             fun Activate(riid: Guid.IID, dwClsCtx: Int, pActivationParams: Pointer?, ppInterface: PointerByReference): WinNT.HRESULT {
-                return _invokeNativeObject(3, arrayOf(getPointer(), riid.getPointer(), dwClsCtx, pActivationParams, ppInterface), WinNT.HRESULT::class.java) as WinNT.HRESULT
+                // Pass riid (Structure) directly to let JNA handle pointer indirection
+                return _invokeNativeObject(3, arrayOf(getPointer(), riid, dwClsCtx, pActivationParams, ppInterface), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
         }
 
@@ -288,10 +291,12 @@ class WasapiLoopbackCapture : LoopbackCapture {
                 return _invokeNativeObject(8, arrayOf(getPointer(), ppDeviceFormat), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
             fun Initialize(shareMode: Int, streamFlags: Int, hnsBufferDuration: Long, hnsPeriodicity: Long, pFormat: Pointer, audioSessionGuid: Guid.GUID?): WinNT.HRESULT {
-                return _invokeNativeObject(3, arrayOf(getPointer(), shareMode, streamFlags, hnsBufferDuration, hnsPeriodicity, pFormat, audioSessionGuid?.getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
+                // audioSessionGuid is LPCGUID (pointer to GUID)
+                return _invokeNativeObject(3, arrayOf(getPointer(), shareMode, streamFlags, hnsBufferDuration, hnsPeriodicity, pFormat, audioSessionGuid), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
             fun GetService(riid: Guid.IID, ppv: PointerByReference): WinNT.HRESULT {
-                return _invokeNativeObject(14, arrayOf(getPointer(), riid.getPointer(), ppv), WinNT.HRESULT::class.java) as WinNT.HRESULT
+                // Pass riid (Structure) directly to let JNA handle pointer indirection for REFIID
+                return _invokeNativeObject(14, arrayOf(getPointer(), riid, ppv), WinNT.HRESULT::class.java) as WinNT.HRESULT
             }
             fun Start(): WinNT.HRESULT = _invokeNativeObject(10, arrayOf(getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
             fun Stop(): WinNT.HRESULT = _invokeNativeObject(11, arrayOf(getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
