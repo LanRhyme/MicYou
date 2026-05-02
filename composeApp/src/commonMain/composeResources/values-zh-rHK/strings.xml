@@ -70,6 +70,7 @@
     <string name="dynamicColorActiveHint">而家係用緊系統動態顏色</string>
     <string name="dynamicColorEnabledHint">動態取色已啟用</string>
     <string name="enableAgcLabel">自動增益控制 (AGC)</string>
+    <string name="enableAecLabel">回音消除 (AEC)</string>
     <string name="enableDereverbLabel">去迴響 (Dereverb)</string>
     <string name="enableHazeEffectDesc">幫卡片加返個磨砂玻璃模糊效果</string>
     <string name="enableHazeEffectLabel">磨砂玻璃效果</string>

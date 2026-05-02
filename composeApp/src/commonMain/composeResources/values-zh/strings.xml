@@ -69,7 +69,9 @@
     <string name="tapToConnect">点击连接</string>
     <string name="dynamicColorActiveHint">当前正在使用系统动态颜色</string>
     <string name="dynamicColorEnabledHint">动态取色已启用</string>
-    <string name="enableAgcLabel">自动增益控制 (AGC)</string>
+    <string name="enableAgcLabel">自动增益 (AGC)</string>
+    <string name="enableAecLabel">回声消除 (AEC)</string>
+
     <string name="enableDereverbLabel">去混响 (Dereverb)</string>
     <string name="enableHazeEffectDesc">为卡片添加毛玻璃模糊效果</string>
     <string name="enableHazeEffectLabel">毛玻璃效果</string>

@@ -76,6 +76,7 @@ data class AppUiState(
     val enableDereverb: Boolean = false,
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
+    val enableAEC: Boolean = false,
     val androidAudioSourceName: String = "Unprocessed",
     val audioConfigRevision: Int = 0,
     
@@ -298,6 +299,7 @@ class MainViewModel : ViewModel() {
                         enableDereverb = audioState.enableDereverb,
                         dereverbLevel = audioState.dereverbLevel,
                         amplification = audioState.amplification,
+                        enableAEC = audioState.enableAEC,
                         androidAudioSourceName = audioState.androidAudioSourceName,
                         audioConfigRevision = audioState.audioConfigRevision,
                         themeMode = settingsState.themeMode,
@@ -384,6 +386,7 @@ class MainViewModel : ViewModel() {
     fun setEnableDereverb(enabled: Boolean) = audioStreamViewModel.setEnableDereverb(enabled)
     fun setDereverbLevel(level: Float) = audioStreamViewModel.setDereverbLevel(level)
     fun setAmplification(amp: Float) = audioStreamViewModel.setAmplification(amp)
+    fun setEnableAEC(enabled: Boolean) = audioStreamViewModel.setEnableAEC(enabled)
     fun setAndroidAudioSource(sourceName: String) = audioStreamViewModel.setAndroidAudioSource(sourceName)
     fun setAutoConfig(enabled: Boolean) = audioStreamViewModel.setAutoConfig(enabled)
     fun setMonitoringPanelVisible(visible: Boolean) = audioStreamViewModel.setMonitoringPanelVisible(visible)

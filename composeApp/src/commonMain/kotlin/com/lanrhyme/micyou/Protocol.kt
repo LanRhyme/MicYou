@@ -91,6 +91,42 @@ data class PongMessage(
     val timestamp: Long
 )
 
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class LoopbackAudioMessage(
+    @ProtoNumber(1)
+    val buffer: ByteArray,
+    @ProtoNumber(2)
+    val sampleRate: Int,
+    @ProtoNumber(3)
+    val channelCount: Int,
+    @ProtoNumber(4)
+    val audioFormat: Int,
+    @ProtoNumber(5)
+    val timestamp: Long = 0
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as LoopbackAudioMessage
+        if (!buffer.contentEquals(other.buffer)) return false
+        if (sampleRate != other.sampleRate) return false
+        if (channelCount != other.channelCount) return false
+        if (audioFormat != other.audioFormat) return false
+        if (timestamp != other.timestamp) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = buffer.contentHashCode()
+        result = 31 * result + sampleRate
+        result = 31 * result + channelCount
+        result = 31 * result + audioFormat
+        result = 31 * result + timestamp.hashCode()
+        return result
+    }
+}
+
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
 const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII
 
@@ -113,7 +149,7 @@ fun calculateUdpPort(tcpPort: Int): Int {
 
 /** 判断 MessageWrapper 是否包含控制消息（应通过 TCP 发送） */
 fun MessageWrapper.hasControlMessage(): Boolean {
-    return connect != null || mute != null || pluginSync != null || ping != null || pong != null
+    return connect != null || mute != null || pluginSync != null || ping != null || pong != null || loopbackAudio != null
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -130,6 +166,8 @@ data class MessageWrapper(
     @ProtoNumber(5)
     val ping: PingMessage? = null,
     @ProtoNumber(6)
-    val pong: PongMessage? = null
+    val pong: PongMessage? = null,
+    @ProtoNumber(7)
+    val loopbackAudio: LoopbackAudioMessage? = null
 )
 

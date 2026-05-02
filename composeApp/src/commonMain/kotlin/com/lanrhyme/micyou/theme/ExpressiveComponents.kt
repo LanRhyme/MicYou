@@ -648,6 +648,7 @@ fun ExpressiveSettingsSwitchItem(
     supporting: String? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
     isFirst: Boolean = false,
     isLast: Boolean = false,
     isSingle: Boolean = false,
@@ -659,7 +660,7 @@ fun ExpressiveSettingsSwitchItem(
         isFirst = isFirst,
         isLast = isLast,
         isSingle = isSingle,
-        onClick = { onCheckedChange(!checked) },
+        onClick = if (enabled) { { onCheckedChange(!checked) } } else null,
         containerColor = containerColor,
         hazeState = hazeState,
         enableHaze = enableHaze
@@ -681,20 +682,21 @@ fun ExpressiveSettingsSwitchItem(
                     text = headline,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                 )
                 if (supporting != null) {
                     androidx.compose.foundation.layout.Spacer(Modifier.height(4.dp))
                     Text(
                         text = supporting,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                     )
                 }
             }
             Switch(
                 checked = checked,
-                onCheckedChange = null // Handled by row click
+                onCheckedChange = if (enabled) onCheckedChange else null,
+                enabled = enabled
             )
         }
     }

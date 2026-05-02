@@ -41,6 +41,7 @@ data class AudioStreamUiState(
     val enableDereverb: Boolean = false,
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
+    val enableAEC: Boolean = false,
     val androidAudioSourceName: String = "Unprocessed",
     val audioConfigRevision: Int = 0,
 
@@ -115,6 +116,7 @@ class AudioStreamViewModel : ViewModel() {
     val savedDereverb = settings.getBoolean("enable_dereverb", false)
     val savedDereverbLevel = settings.getFloat("dereverb_level", 0.5f)
     val savedAmplification = settings.getFloat("amplification", 15.0f)
+    val savedAEC = settings.getBoolean("enable_aec", false)
     val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Unprocessed")
     val savedBluetoothAddress = settings.getString("bluetooth_address", "")
     val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
@@ -139,6 +141,7 @@ class AudioStreamViewModel : ViewModel() {
                 enableDereverb = savedDereverb,
                 dereverbLevel = savedDereverbLevel,
                 amplification = savedAmplification,
+                enableAEC = savedAEC,
                 androidAudioSourceName = savedAndroidAudioSourceName,
                 bluetoothAddress = savedBluetoothAddress,
                 isAutoConfig = savedIsAutoConfig,
@@ -218,7 +221,8 @@ class AudioStreamViewModel : ViewModel() {
             vadThreshold = s.vadThreshold,
             enableDereverb = s.enableDereverb,
             dereverbLevel = s.dereverbLevel,
-            amplification = s.amplification
+            amplification = s.amplification,
+            enableAEC = s.enableAEC
         )
         _uiState.update { it.copy(audioConfigRevision = it.audioConfigRevision + 1) }
     }
@@ -235,6 +239,11 @@ class AudioStreamViewModel : ViewModel() {
             setChannelCount(ChannelCount.Stereo)
             setAudioFormat(AudioFormat.PCM_16BIT)
         }
+        
+        // Enable basic processing by default in auto-config
+        setEnableNS(true)
+        setEnableAGC(true)
+        setEnableAEC(true)
     }
 
     fun toggleStream() {
@@ -458,9 +467,10 @@ class AudioStreamViewModel : ViewModel() {
     // --- Audio Processing Setters ---
 
     fun setAndroidAudioProcessing(enabled: Boolean) {
-        _uiState.update { it.copy(enableNS = enabled, enableAGC = enabled) }
+        _uiState.update { it.copy(enableNS = enabled, enableAGC = enabled, enableAEC = enabled) }
         settings.putBoolean("enable_ns", enabled)
         settings.putBoolean("enable_agc", enabled)
+        settings.putBoolean("enable_aec", enabled)
         updateAudioEngineConfig()
     }
 
@@ -515,6 +525,12 @@ class AudioStreamViewModel : ViewModel() {
     fun setAmplification(amp: Float) {
         _uiState.update { it.copy(amplification = amp) }
         settings.putFloat("amplification", amp)
+        updateAudioEngineConfig()
+    }
+
+    fun setEnableAEC(enabled: Boolean) {
+        _uiState.update { it.copy(enableAEC = enabled) }
+        settings.putBoolean("enable_aec", enabled)
         updateAudioEngineConfig()
     }
 

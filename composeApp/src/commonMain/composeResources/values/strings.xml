@@ -87,6 +87,7 @@
     <string name="dynamicColorActiveHint">Currently using system dynamic color</string>
     <string name="dynamicColorEnabledHint">Dynamic color is enabled</string>
     <string name="enableAgcLabel">AGC</string>
+    <string name="enableAecLabel">AEC</string>
     <string name="enableDereverbLabel">De-reverb</string>
     <string name="enableHazeEffectDesc">Add frosted glass blur effect to cards</string>
     <string name="enableHazeEffectLabel">Frosted Glass Effect</string>

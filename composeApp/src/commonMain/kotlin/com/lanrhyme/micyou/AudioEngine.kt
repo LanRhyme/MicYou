@@ -38,7 +38,8 @@ expect class AudioEngine() {
         vadThreshold: Int,
         enableDereverb: Boolean,
         dereverbLevel: Float,
-        amplification: Float
+        amplification: Float,
+        enableAEC: Boolean
     )
 
     // 更新性能配置

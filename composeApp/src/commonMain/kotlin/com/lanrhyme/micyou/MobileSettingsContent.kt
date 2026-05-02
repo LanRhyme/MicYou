@@ -797,6 +797,51 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
         )
     }
 
+    // 硬件降噪 (NS)
+    items.add { isFirst, isLast ->
+        ExpressiveSettingsSwitchItem(
+            headline = stringResource(Res.string.enableNsLabel),
+            checked = state.enableNS,
+            onCheckedChange = { viewModel.setEnableNS(it) },
+            enabled = manualSettingsEnabled,
+            isFirst = isFirst,
+            isLast = isLast,
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
+        )
+    }
+
+    // 硬件增益 (AGC)
+    items.add { isFirst, isLast ->
+        ExpressiveSettingsSwitchItem(
+            headline = stringResource(Res.string.enableAgcLabel),
+            checked = state.enableAGC,
+            onCheckedChange = { viewModel.setEnableAGC(it) },
+            enabled = manualSettingsEnabled,
+            isFirst = isFirst,
+            isLast = isLast,
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
+        )
+    }
+
+    // 回声消除 (AEC)
+    items.add { isFirst, isLast ->
+        ExpressiveSettingsSwitchItem(
+            headline = stringResource(Res.string.enableAecLabel),
+            checked = state.enableAEC,
+            onCheckedChange = { viewModel.setEnableAEC(it) },
+            enabled = manualSettingsEnabled,
+            isFirst = isFirst,
+            isLast = isLast,
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
+        )
+    }
+
     // 渲染设置项
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         items.forEachIndexed { index, item ->

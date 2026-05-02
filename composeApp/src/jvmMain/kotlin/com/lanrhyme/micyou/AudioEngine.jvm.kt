@@ -171,7 +171,8 @@ actual class AudioEngine actual constructor() {
         vadThreshold: Int,
         enableDereverb: Boolean,
         dereverbLevel: Float,
-        amplification: Float
+        amplification: Float,
+        enableAEC: Boolean
     ) {
         audioPipeline.updateConfig(
             enableNS, nsType, enableAGC, agcTargetLevel,

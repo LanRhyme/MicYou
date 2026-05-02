@@ -4,6 +4,7 @@ import android.content.Intent
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import io.ktor.network.selector.SelectorManager
@@ -140,10 +141,13 @@ actual class AudioEngine actual constructor() {
     @Volatile
     private var enableAGC: Boolean = false
     @Volatile
+    private var enableAEC: Boolean = false
+    @Volatile
     private var audioSource: AndroidAudioSource = AndroidAudioSource.Mic
 
     private var noiseSuppressor: NoiseSuppressor? = null
     private var automaticGainControl: AutomaticGainControl? = null
+    private var echoCanceler: AcousticEchoCanceler? = null
 
     private var savedIp: String = ""
     private var savedPort: Int = 0
@@ -270,6 +274,14 @@ actual class AudioEngine actual constructor() {
                                 Logger.d("AudioEngine", "AutomaticGainControl initialized, enabled=$enableAGC")
                             } else {
                                 Logger.d("AudioEngine", "AutomaticGainControl not available")
+                            }
+
+                            if (AcousticEchoCanceler.isAvailable()) {
+                                echoCanceler = AcousticEchoCanceler.create(recorder.audioSessionId)
+                                echoCanceler?.enabled = enableAEC
+                                Logger.d("AudioEngine", "AcousticEchoCanceler initialized, enabled=$enableAEC")
+                            } else {
+                                Logger.d("AudioEngine", "AcousticEchoCanceler not available")
                             }
                         } catch (e: Exception) {
                              Logger.w("AudioEngine", "Failed to initialize audio effects: ${e.message}")
@@ -507,8 +519,10 @@ actual class AudioEngine actual constructor() {
                         try {
                             noiseSuppressor?.release()
                             automaticGainControl?.release()
+                            echoCanceler?.release()
                             noiseSuppressor = null
                             automaticGainControl = null
+                            echoCanceler = null
                             
                             sendChannel?.close()
                             recorder?.stop()
@@ -600,22 +614,26 @@ actual class AudioEngine actual constructor() {
         vadThreshold: Int,
         enableDereverb: Boolean,
         dereverbLevel: Float,
-        amplification: Float
+        amplification: Float,
+        enableAEC: Boolean
     ) {
         val nsChanged = this.enableNS != enableNS
         val agcChanged = this.enableAGC != enableAGC
+        val aecChanged = this.enableAEC != enableAEC
 
         this.enableNS = enableNS
         this.enableAGC = enableAGC
+        this.enableAEC = enableAEC
 
         try {
             noiseSuppressor?.enabled = enableNS
             automaticGainControl?.enabled = enableAGC
+            echoCanceler?.enabled = enableAEC
         } catch (e: Exception) {
             Logger.e("AudioEngine", "Error updating audio effects: ${e.message}")
         }
 
-        if ((nsChanged || agcChanged) && isRunning && _state.value == StreamState.Streaming) {
+        if ((nsChanged || agcChanged || aecChanged) && isRunning && _state.value == StreamState.Streaming) {
             Logger.i("AudioEngine", "Hardware processing changed, restarting audio stream...")
             CoroutineScope(Dispatchers.IO).launch {
                 stop()

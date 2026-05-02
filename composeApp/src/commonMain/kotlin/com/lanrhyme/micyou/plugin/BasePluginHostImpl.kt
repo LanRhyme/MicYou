@@ -67,7 +67,8 @@ abstract class BasePluginHostImpl(
             vadThreshold = config.vadThreshold,
             enableDereverb = config.enableDereverb,
             dereverbLevel = config.dereverbLevel,
-            amplification = config.amplification
+            amplification = config.amplification,
+            enableAEC = config.enableAEC
         )
     }
 
