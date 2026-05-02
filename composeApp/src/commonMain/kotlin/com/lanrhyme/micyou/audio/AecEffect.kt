@@ -37,7 +37,7 @@ class AecEffect : AudioEffect {
     private var micTimestamp: Long = 0
 
     companion object {
-        const val DEFAULT_FILTER_LENGTH = 256
+        const val DEFAULT_FILTER_LENGTH = 1024
     }
 
     /**
