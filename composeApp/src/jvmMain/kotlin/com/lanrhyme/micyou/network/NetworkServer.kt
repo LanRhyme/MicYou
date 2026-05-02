@@ -36,7 +36,8 @@ import javax.microedition.io.StreamConnectionNotifier
 class NetworkServer(
     private val onAudioPacketReceived: suspend (AudioPacketMessage) -> Unit,
     private val onMuteStateChanged: (Boolean) -> Unit,
-    private val onPluginSyncReceived: ((PluginSyncMessage) -> Unit)? = null
+    private val onPluginSyncReceived: ((PluginSyncMessage) -> Unit)? = null,
+    private val onAecStateChanged: ((Boolean) -> Unit)? = null
 ) {
     private val _state = MutableStateFlow(StreamState.Idle)
     val state = _state.asStateFlow()
@@ -322,6 +323,7 @@ class NetworkServer(
             onAudioPacketReceived = onAudioPacketReceived,
             onMuteStateChanged = onMuteStateChanged,
             onPluginSyncReceived = onPluginSyncReceived,
+            onAecStateChanged = onAecStateChanged,
             onError = { error ->
                 _lastError.value = error
             }

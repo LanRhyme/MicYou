@@ -224,8 +224,10 @@ actual class AudioEngine actual constructor() {
                     }
 
                     try {
-                        val sourceId = audioSource.sourceId
-                        Logger.d("AudioEngine", "Initializing AudioRecord with source ${audioSource.name} (id=$sourceId)")
+                        // If AEC is enabled, prefer VOICE_COMMUNICATION source as it's required by most hardware/system AEC implementations
+                        val sourceId = if (enableAEC) MediaRecorder.AudioSource.VOICE_COMMUNICATION else audioSource.sourceId
+                        Logger.d("AudioEngine", "Initializing AudioRecord: source=$sourceId (requested=${audioSource.name}), enableAEC=$enableAEC")
+                        
                         recorder = try {
                             AudioRecord(
                                 sourceId,
@@ -235,7 +237,7 @@ actual class AudioEngine actual constructor() {
                                 minBufSize * 3
                             )
                         } catch (e: Exception) {
-                            Logger.w("AudioEngine", "${audioSource.name} failed, falling back to MIC: ${e.message}")
+                            Logger.w("AudioEngine", "Primary source ($sourceId) failed, falling back to MIC: ${e.message}")
                             AudioRecord(
                                 MediaRecorder.AudioSource.MIC,
                                 androidSampleRate,

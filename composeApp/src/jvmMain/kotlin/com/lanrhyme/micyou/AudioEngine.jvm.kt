@@ -43,6 +43,7 @@ actual class AudioEngine actual constructor() {
 
     private val audioOutputManager = AudioOutputManager()
     private val audioPipeline = AudioProcessorPipeline()
+    private val loopbackCaptureManager = com.lanrhyme.micyou.audio.LoopbackCaptureManager()
 
     // 当前音频参数（用于计算比特率）
     private var currentSampleRate: Int = 0
@@ -69,6 +70,14 @@ actual class AudioEngine actual constructor() {
         },
         onPluginSyncReceived = { syncMessage ->
             _pluginSyncReceived.value = syncMessage
+        },
+        onAecStateChanged = { enabled ->
+            Logger.i("AudioEngine", "AEC state from Android: enabled=$enabled")
+            if (enabled && _state.value == StreamState.Streaming) {
+                startLoopbackCapture()
+            } else {
+                stopLoopbackCapture()
+            }
         }
     )
     
@@ -91,6 +100,7 @@ actual class AudioEngine actual constructor() {
                     startAudioProcessing()
                 } else if (newState == StreamState.Idle || newState == StreamState.Error) {
                     stopAudioProcessing()
+                    stopLoopbackCapture()
                 }
                 _state.value = newState
             }
@@ -184,6 +194,26 @@ actual class AudioEngine actual constructor() {
         if (System.getProperty("micyou.debugAudioConfig") == "true") {
             Logger.d("AudioEngine", "配置更新: 放大器=$amplification, VAD=$enableVAD ($vadThreshold), AGC=$enableAGC ($agcTargetLevel), NS=$enableNS ($nsType)")
         }
+    }
+
+    private fun startLoopbackCapture() {
+        if (loopbackCaptureManager.isCapturing.value) return
+
+        Logger.i("AudioEngine", "Starting loopback capture for AEC")
+        scope.launch {
+            loopbackCaptureManager.onAudioData { buffer, sampleRate, channelCount, timestamp ->
+                scope.launch {
+                    networkServer.sendLoopbackAudio(buffer, sampleRate, channelCount, timestamp)
+                }
+            }
+            loopbackCaptureManager.start(currentSampleRate.takeIf { it > 0 } ?: 44100, currentChannelCount.takeIf { it > 0 } ?: 1)
+        }
+    }
+
+    private fun stopLoopbackCapture() {
+        if (!loopbackCaptureManager.isCapturing.value) return
+        Logger.i("AudioEngine", "Stopping loopback capture")
+        loopbackCaptureManager.stop()
     }
 
     actual suspend fun start(
@@ -283,6 +313,7 @@ actual class AudioEngine actual constructor() {
          } catch (e: Exception) {
              Logger.e("AudioEngine", "Error stopping audio engine: ${e.message}", e)
          } finally {
+             stopLoopbackCapture()
              audioOutputManager.release()
              audioPipeline.release()
              mdnsAdvertiser.close()

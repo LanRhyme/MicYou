@@ -35,6 +35,7 @@ class ConnectionHandler(
     private val onAudioPacketReceived: suspend (AudioPacketMessage) -> Unit,
     private val onMuteStateChanged: (Boolean) -> Unit,
     private val onPluginSyncReceived: ((PluginSyncMessage) -> Unit)? = null,
+    private val onAecStateChanged: ((Boolean) -> Unit)? = null,
     private val onError: (String) -> Unit
 ) {
     private val CHECK_1 = "MicYouCheck1"
@@ -202,6 +203,11 @@ class ConnectionHandler(
                 
                 if (wrapper.pluginSync != null && onPluginSyncReceived != null) {
                     onPluginSyncReceived(wrapper.pluginSync)
+                }
+
+                if (wrapper.aecState != null) {
+                    Logger.i("ConnectionHandler", "Received AEC state: enabled=${wrapper.aecState.enabled}")
+                    onAecStateChanged?.invoke(wrapper.aecState.enabled)
                 }
 
                 if (wrapper.pong != null) {

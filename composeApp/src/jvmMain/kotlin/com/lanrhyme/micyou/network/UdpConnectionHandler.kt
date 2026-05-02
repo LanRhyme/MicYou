@@ -92,7 +92,9 @@ class UdpConnectionHandler(
 
     private suspend fun runUdpReceiver() {
         try {
-            udpSocket = DatagramSocket(port).also { socket ->
+            udpSocket = DatagramSocket(null).also { socket ->
+                socket.reuseAddress = true
+                socket.bind(java.net.InetSocketAddress(port))
                 // Set receive buffer size for audio stream
                 socket.receiveBufferSize = 256 * 1024 // 256KB
                 Logger.i("UdpConnectionHandler", "UDP receiver started on port $port")
