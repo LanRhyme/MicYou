@@ -179,6 +179,7 @@
     <string name="firstLaunchStep3Desc">点击开始按钮启动音频传输项</string>
     <string name="firstLaunchStep3Title">3. 开始传输项</string>
     <string name="firstLaunchStep4Desc">在录音软件中选择VB-电缆作为输入设备项</string>
+    <string name="firstLaunchStep4DescMac">在录音软件中选择 黑洞 作为输入设备项</string>
     <string name="firstLaunchStep4Title">4. 配置音频项</string>
     <string name="firstLaunchTextGuide">文字教程项</string>
     <string name="firstLaunchTitle">欢迎使用麦克风你</string>

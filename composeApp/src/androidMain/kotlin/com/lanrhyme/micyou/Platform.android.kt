@@ -87,3 +87,5 @@ actual fun getVBCableInstallProgress(): kotlinx.coroutines.flow.Flow<String?> = 
 
 actual fun isWindowsPlatform(): Boolean = false
 
+actual fun isMacOSPlatform(): Boolean = false
+

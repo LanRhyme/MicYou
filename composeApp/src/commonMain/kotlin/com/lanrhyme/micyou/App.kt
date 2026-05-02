@@ -42,6 +42,12 @@ fun App(
 ) {
     val platform = remember { getPlatform() }
     val isClient = platform.type == PlatformType.Android
+    val firstLaunchStep4DescRes = remember {
+        when {
+            isMacOSPlatform() -> Res.string.firstLaunchStep4DescMac
+            else -> Res.string.firstLaunchStep4Desc
+        }
+    }
 
     // Use passed viewModel or create one
     val finalViewModel = viewModel ?: if (isClient) viewModel { MainViewModel() } else remember { MainViewModel() }
@@ -293,7 +299,7 @@ fun App(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Text(
-                                        text = stringResource(Res.string.firstLaunchStep4Desc),
+                                        text = stringResource(firstLaunchStep4DescRes),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
