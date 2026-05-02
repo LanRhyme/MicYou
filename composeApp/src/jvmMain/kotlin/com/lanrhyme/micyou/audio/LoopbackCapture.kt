@@ -33,6 +33,8 @@ interface LoopbackCapture {
 class PulseAudioLoopbackCapture : LoopbackCapture {
     private var capturing = false
     private var audioCallback: ((ByteArray, Int, Int, Long) -> Unit)? = null
+    private var captureJob: Job? = null
+    private var process: Process? = null
 
     override val isCapturing: Boolean get() = capturing
 
@@ -40,17 +42,96 @@ class PulseAudioLoopbackCapture : LoopbackCapture {
         if (capturing) return
         capturing = true
 
-        Logger.i("LoopbackCapture", "Starting PulseAudio loopback capture: ${sampleRate}Hz, ${channelCount}ch")
+        Logger.i("LoopbackCapture", "Starting PulseAudio/PipeWire loopback capture: ${sampleRate}Hz, ${channelCount}ch")
 
-        // TODO: 实现 PulseAudio/PipeWire Monitor 源采集
-        // PulseAudio: pactl list sources | grep monitor
-        // 然后使用 pa_simple_new 打开 monitor 源
+        val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        captureJob = coroutineScope.launch {
+            try {
+                // 1. 探测音频服务器
+                val isPipeWire = isPipeWire()
+                
+                // 2. 构建命令
+                val command = if (isPipeWire) {
+                    listOf(
+                        "pw-record", "--raw",
+                        "--format=s16",
+                        "--rate=$sampleRate",
+                        "--channels=$channelCount",
+                        "-P", "{ stream.capture.sink=true }",
+                        "-"
+                    )
+                } else {
+                    listOf(
+                        "parec", "-d", "@DEFAULT_MONITOR@",
+                        "--format=s16le",
+                        "--rate=$sampleRate",
+                        "--channels=$channelCount"
+                    )
+                }
 
-        Logger.w("LoopbackCapture", "PulseAudio loopback capture not yet implemented")
+                Logger.d("LoopbackCapture", "Executing command: ${command.joinToString(" ")}")
+                
+                val pb = ProcessBuilder(command)
+                pb.redirectError(ProcessBuilder.Redirect.PIPE)
+                process = pb.start()
+
+                val inputStream = process?.inputStream
+                val errorStream = process?.errorStream
+
+                // 错误日志处理
+                launch {
+                    errorStream?.bufferedReader()?.forEachLine { line ->
+                        Logger.w("LoopbackCapture", "Linux Capture Error: $line")
+                    }
+                }
+
+                if (inputStream == null) {
+                    Logger.e("LoopbackCapture", "Failed to get input stream from capture process")
+                    return@launch
+                }
+
+                // 3. 读取循环
+                val bufferSize = sampleRate * channelCount * 2 / 100 // 10ms buffer
+                val buffer = ByteArray(bufferSize)
+                
+                while (isActive && capturing) {
+                    val read = withContext(Dispatchers.IO) {
+                        inputStream.read(buffer)
+                    }
+                    if (read > 0) {
+                        val timestamp = System.currentTimeMillis()
+                        audioCallback?.invoke(buffer.copyOf(read), sampleRate, channelCount, timestamp)
+                    } else if (read == -1) {
+                        Logger.w("LoopbackCapture", "Capture process ended unexpectedly")
+                        break
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.e("LoopbackCapture", "Error in Linux loopback capture", e)
+            } finally {
+                stop()
+            }
+        }
+    }
+
+    private suspend fun isPipeWire(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val p = ProcessBuilder("pactl", "info").start()
+            val output = p.inputStream.bufferedReader().readText()
+            p.waitFor()
+            output.contains("on PipeWire", ignoreCase = true)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     override fun stop() {
+        if (!capturing) return
         capturing = false
+        captureJob?.cancel()
+        captureJob = null
+        process?.destroy()
+        process = null
         Logger.i("LoopbackCapture", "Loopback capture stopped")
     }
 
