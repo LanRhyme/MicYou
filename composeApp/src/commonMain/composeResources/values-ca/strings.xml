@@ -377,7 +377,7 @@
     <string name="updateAvailableMsg">发现新版本喵~ ✨: %s</string>
     <string name="installInstalling">安装中喵... (・_・)</string>
     <string name="reloadPlugins">重新加载插件喵~</string>
-    <string name="noPluginsFound">喵喵酱还没有装任何插件喵~</string>
+    <string name="noPluginsFound">¯\\_(ツ)_/¯ 喵喵酱还没有装任何插件喵~ ¯\\_(ツ)_/¯</string>
     <string name="showMore">显示更多喵~</string>
     <string name="showLess">显示更少喵~</string>
     <string name="removePlugin">删除插件喵~</string>
@@ -428,4 +428,19 @@
     <string name="installOsNotSupported">当前操作系统不支持自动安装喵~</string>
     <string name="reloadingPlugins">正在重新加载插件喵...</string>
     <string name="vbcableInstallFailed">VB-Cable 安装失败喵: %s</string>
+    <string name="monitoringTitle">ฅ^•ﻌ•^ฅ 音频质量实时监测喵~ ฅ^•ﻌ•^ฅ</string>
+    <string name="monitoringRtt">网络延迟喵~ (RTT)</string>
+    <string name="monitoringJitter">抖动喵~ (Jitter)</string>
+    <string name="monitoringLoss">丢包率喵~</string>
+    <string name="monitoringTrend">延迟趋势喵~ (RTT + Buffer)</string>
+    <string name="monitoringWaveform">音频波形喵~ (Amplitude)</string>
+    <string name="monitoringSpecs">音频流参数喵~</string>
+    <string name="monitoringSampleRate">采样率喵~</string>
+    <string name="monitoringBitrate">实时比特率喵~</string>
+    <string name="monitoringTotalLatency">总估算延迟喵~</string>
+    <string name="monitoringBuffer">缓冲区时长喵~</string>
+    <string name="monitoringStatusGood">延迟很好喵~</string>
+    <string name="monitoringStatusNormal">这延迟...凑活着还能用吧喵～</string>
+    <string name="monitoringStatusPoor">呃...好高的延迟喵~</string>
+    <string name="monitoringHint">悄悄和喵喵酱说：这里的监测数据每 500ms 更新一次喵~系统日志中每分钟都会输出一次完整状态报告喵~</string>
 </resources>
