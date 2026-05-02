@@ -224,10 +224,8 @@ actual class AudioEngine actual constructor() {
                     }
 
                     try {
-                        // If AEC is enabled, prefer VOICE_COMMUNICATION source as it's required by most hardware/system AEC implementations
-                        val sourceId = if (enableAEC) MediaRecorder.AudioSource.VOICE_COMMUNICATION else audioSource.sourceId
-                        Logger.d("AudioEngine", "Initializing AudioRecord: source=$sourceId (requested=${audioSource.name}), enableAEC=$enableAEC")
-                        
+                        val sourceId = audioSource.sourceId
+                        Logger.d("AudioEngine", "Initializing AudioRecord with source ${audioSource.name} (id=$sourceId)")
                         recorder = try {
                             AudioRecord(
                                 sourceId,
