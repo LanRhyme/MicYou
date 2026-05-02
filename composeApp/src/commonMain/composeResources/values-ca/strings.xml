@@ -371,7 +371,7 @@
     <string name="vbcableDetectTitle">笨蛋喵~ 喵喵酱忘记装 VB-Cable 啦! (・_・;)</string>
     <string name="vbcableDetectMessage">在 Windows 上 MicYou 需要安装 VB-Cable 驱动作为虚拟麦克风才能正常工作喵~需要 MicYou 帮喵喵酱自动安装喵? (・_・)</string>
     <string name="vbcableAutoInstall">好的喵~</string>
-    <string name="vbcableManualDownload">不要~喵喵酱觉得自己可以搞定喵~带喵喵酱去下载页面就可以了喵~</string>
+    <string name="vbcableManualDownload">手动下载喵~</string>
     <string name="vbcableSkip">先跳过喵~</string>
     <string name="contributorsCount">%s contributors</string>
     <string name="updateAvailableMsg">发现新版本喵~ ✨: %s</string>
