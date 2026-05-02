@@ -7,6 +7,7 @@ import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
+import com.lanrhyme.micyou.audio.AecEffect
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.aSocket
@@ -148,6 +149,9 @@ actual class AudioEngine actual constructor() {
     private var noiseSuppressor: NoiseSuppressor? = null
     private var automaticGainControl: AutomaticGainControl? = null
     private var echoCanceler: AcousticEchoCanceler? = null
+
+    // 软件 AEC（当硬件 AcousticEchoCanceler 不可用时使用）
+    private val softwareAec = AecEffect()
 
     actual var onLoopbackAudioReceived: ((LoopbackAudioMessage) -> Unit)? = null
 
@@ -367,6 +371,18 @@ actual class AudioEngine actual constructor() {
                         _lastError.value = null
                         connectionComplete?.complete(Unit)
 
+                        // 设置软件 AEC 回环音频回调
+                        onLoopbackAudioReceived = { loopbackMsg ->
+                            // 将 ByteArray 转换为 ShortArray 作为 AEC 参考信号
+                            val shorts = ShortArray(loopbackMsg.buffer.size / 2)
+                            for (i in shorts.indices) {
+                                val lo = loopbackMsg.buffer[i * 2].toInt() and 0xFF
+                                val hi = loopbackMsg.buffer[i * 2 + 1].toInt()
+                                shorts[i] = ((hi shl 8) or lo).toShort()
+                            }
+                            softwareAec.setReferenceSignal(shorts, loopbackMsg.timestamp)
+                        }
+
                         if (enableStreamingNotification) {
                             val context = ContextHelper.getContext()
                             if (context != null) {
@@ -479,13 +495,20 @@ actual class AudioEngine actual constructor() {
                             }
 
                             if (readBytes > 0) {
-                                val levelData = calculateAudioLevelData(audioData, audioFormat)
+                                // 应用软件 AEC 处理（如果启用且硬件 AEC 不可用）
+                                val processedAudio = if (enableAEC && echoCanceler == null && audioFormat == com.lanrhyme.micyou.AudioFormat.PCM_16BIT) {
+                                    applySoftwareAec(audioData)
+                                } else {
+                                    audioData
+                                }
+
+                                val levelData = calculateAudioLevelData(processedAudio, audioFormat)
                                 _audioLevels.value = levelData.rms
                                 _audioLevelData.value = levelData
 
                                 if (!_isMuted.value) {
                                     val packet = AudioPacketMessage(
-                                        buffer = audioData,
+                                        buffer = processedAudio,
                                         sampleRate = androidSampleRate,
                                         channelCount = if (channelCount == ChannelCount.Stereo) 2 else 1,
                                         audioFormat = audioFormat.value
@@ -527,6 +550,8 @@ actual class AudioEngine actual constructor() {
                             noiseSuppressor?.release()
                             automaticGainControl?.release()
                             echoCanceler?.release()
+                            softwareAec.release()
+                            onLoopbackAudioReceived = null
                             noiseSuppressor = null
                             automaticGainControl = null
                             echoCanceler = null
@@ -631,6 +656,7 @@ actual class AudioEngine actual constructor() {
         this.enableNS = enableNS
         this.enableAGC = enableAGC
         this.enableAEC = enableAEC
+        softwareAec.enabled = enableAEC
 
         try {
             noiseSuppressor?.enabled = enableNS
@@ -690,6 +716,27 @@ actual class AudioEngine actual constructor() {
                 context.startService(intent)
             }
         }
+    }
+
+    /**
+     * 对 16-bit PCM 音频应用软件 AEC 处理
+     */
+    private fun applySoftwareAec(audioData: ByteArray): ByteArray {
+        if (audioData.size < 2) return audioData
+        val channelCount = if (savedChannelCount == ChannelCount.Stereo) 2 else 1
+        val shorts = ShortArray(audioData.size / 2)
+        for (i in shorts.indices) {
+            val lo = audioData[i * 2].toInt() and 0xFF
+            val hi = audioData[i * 2 + 1].toInt()
+            shorts[i] = ((hi shl 8) or lo).toShort()
+        }
+        val processed = softwareAec.process(shorts, channelCount)
+        val result = ByteArray(processed.size * 2)
+        for (i in processed.indices) {
+            result[i * 2] = (processed[i].toInt() and 0xFF).toByte()
+            result[i * 2 + 1] = (processed[i].toInt() shr 8).toByte()
+        }
+        return result
     }
 
     private fun isNormalDisconnect(e: Throwable): Boolean {

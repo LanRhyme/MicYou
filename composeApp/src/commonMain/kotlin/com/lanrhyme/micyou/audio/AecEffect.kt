@@ -1,14 +1,15 @@
 package com.lanrhyme.micyou.audio
 
-import kotlin.math.abs
 import kotlin.math.min
 
 /**
  * 声学回声消除 (AEC) 效果器
  * 使用 NLMS (Normalized Least Mean Squares) 自适应滤波器
  * 将 PC 端回环音频作为参考信号，从麦克风信号中消除回声
+ *
+ * 可在 commonMain 中使用，同时支持 Android 和 JVM 平台
  */
-class AecEffect : AudioEffect {
+class AecEffect {
 
     /** 是否启用 AEC */
     var enabled: Boolean = false
@@ -31,15 +32,6 @@ class AecEffect : AudioEffect {
     // 参考信号缓冲区（PC 回环音频）
     private var refBuffer: FloatArray = FloatArray(filterLength)
 
-    // 输入缓冲区（麦克风信号）
-    private var inputBuffer: FloatArray = FloatArray(filterLength)
-
-    // 回声估计缓冲区
-    private var echoEstimate: ShortArray = ShortArray(0)
-
-    // 采样率（用于计算缓冲区大小）
-    private var sampleRate: Int = 44100
-
     // 时间戳对齐缓冲区
     private var refTimestamp: Long = 0
     private var micTimestamp: Long = 0
@@ -55,7 +47,6 @@ class AecEffect : AudioEffect {
      */
     fun setReferenceSignal(loopbackSamples: ShortArray, timestamp: Long = 0) {
         refTimestamp = timestamp
-        // 将参考信号写入循环缓冲区
         val newRefBuffer = FloatArray(filterLength)
         val copyLen = min(loopbackSamples.size, filterLength)
         for (i in 0 until copyLen) {
@@ -64,34 +55,30 @@ class AecEffect : AudioEffect {
         refBuffer = newRefBuffer
     }
 
-    override fun process(input: ShortArray, channelCount: Int): ShortArray {
+    /**
+     * 处理音频采样，消除回声
+     * @param input 输入采样（ShortArray 格式）
+     * @param channelCount 声道数
+     * @return 处理后的采样
+     */
+    fun process(input: ShortArray, channelCount: Int): ShortArray {
         if (!enabled || input.isEmpty()) return input
-
-        // 如果没有参考信号（无回环音频），直接返回
         if (refBuffer.all { it == 0f }) return input
 
         val output = ShortArray(input.size)
-
-        // 处理每个采样（单声道处理，多声道按帧处理）
         val framesToProcess = input.size / channelCount
 
         for (frame in 0 until framesToProcess) {
             val sampleIndex = frame * channelCount
-
-            // 读取当前麦克风采样（取第一个声道）
             val micSample = input[sampleIndex].toFloat() / 32768f
 
-            // 计算回声估计
             var echoEst = 0f
             for (i in 0 until filterLength) {
                 echoEst += weights[i] * refBuffer[i]
             }
 
-            // 误差信号 = 麦克风信号 - 回声估计
             val error = micSample - echoEst
 
-            // NLMS 更新滤波器权重
-            // 计算参考信号能量
             var refEnergy = 0f
             for (i in 0 until filterLength) {
                 refEnergy += refBuffer[i] * refBuffer[i]
@@ -101,16 +88,13 @@ class AecEffect : AudioEffect {
 
             for (i in 0 until filterLength) {
                 weights[i] = weights[i] * leakage + normFactor * error * refBuffer[i]
-                // 限制权重范围，防止发散
                 weights[i] = weights[i].coerceIn(-1f, 1f)
             }
 
-            // 移动参考信号缓冲区
             for (i in 0 until filterLength - 1) {
                 refBuffer[i] = refBuffer[i + 1]
             }
 
-            // 将误差信号写入输出
             val errorShort = (error * 32768f).toInt().coerceIn(-32768, 32767).toShort()
             for (ch in 0 until channelCount) {
                 output[sampleIndex + ch] = errorShort
@@ -120,15 +104,14 @@ class AecEffect : AudioEffect {
         return output
     }
 
-    override fun reset() {
+    fun reset() {
         weights = FloatArray(filterLength)
         refBuffer = FloatArray(filterLength)
-        inputBuffer = FloatArray(filterLength)
         refTimestamp = 0
         micTimestamp = 0
     }
 
-    override fun release() {
+    fun release() {
         reset()
     }
 }
