@@ -628,3 +628,9 @@ tasks.register("packageNoJreAll") {
 
     dependsOn("packageWindowsNoJreZip", "packageLinuxNoJreTarGz", "packageMacosNoJreTarGz")
 }
+
+// ==================== WASAPI Native Loopback DLL 手动编译 ====================
+// DLL 已预编译放在 src/jvmMain/resources/wasapi_loopback.dll
+// 如需重新编译，在 Visual Studio Developer Command Prompt 中运行：
+//   cd composeApp\src\jvmMain\cpp && build_dll_full.bat
+// 然后将 resources\wasapi_loopback.dll 复制到 src\jvmMain\resources\

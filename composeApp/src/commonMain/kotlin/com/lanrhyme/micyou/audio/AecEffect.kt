@@ -1,114 +1,163 @@
 package com.lanrhyme.micyou.audio
 
 import kotlin.math.min
+import kotlin.math.sqrt
 
 /**
  * 声学回声消除 (AEC) 效果器
  * 使用 NLMS (Normalized Least Mean Squares) 自适应滤波器
- * 将 PC 端回环音频作为参考信号，从麦克风信号中消除回声
  *
- * 可在 commonMain 中使用，同时支持 Android 和 JVM 平台
+ * 改进版：引入环形缓冲区处理非同步的参考信号
  */
 class AecEffect : AudioEffect {
 
     /** 是否启用 AEC */
     var enabled: Boolean = false
 
-    /** 自适应滤波器抽头数（越大能消除的回声延迟越长，但计算量越大） */
+    /** 自适应滤波器抽头数 */
     var filterLength: Int = DEFAULT_FILTER_LENGTH
 
-    /** NLMS 步长因子 (0 < mu <= 1)，控制收敛速度 */
-    var mu: Float = 0.5f
+    /** NLMS 步长因子 (0 < mu <= 1) */
+    var mu: Float = 0.4f
 
-    /** 泄漏因子，防止滤波器发散 */
-    var leakage: Float = 0.9999f
+    /** 泄漏因子 */
+    var leakage: Float = 0.999f
 
-    /** 归一化常数，防止除以零 */
-    private val delta: Float = 1e-6f
+    /** 归一化常数 */
+    private val delta: Float = 1e-5f
 
-    // 自适应滤波器权重
+    // 滤波器权重
     private var weights: FloatArray = FloatArray(filterLength)
+    
+    // 自适应滤波器的输入向量 (最新采样在最后)
+    private var x: FloatArray = FloatArray(filterLength)
 
-    // 参考信号缓冲区（PC 回环音频）
-    private var refBuffer: FloatArray = FloatArray(filterLength)
+    // 参考信号环形缓冲区 (存放从 PC 收到的音频)
+    private val ringBufferSize = 48000 // 约 1 秒 (44.1kHz)
+    private var ringBuffer = FloatArray(ringBufferSize)
+    private var writePos = 0
+    private var readPos = 0
+    private var availableSamples = 0
 
-    // 时间戳对齐缓冲区
-    private var refTimestamp: Long = 0
-    private var micTimestamp: Long = 0
+    // 统计数据
+    private var processedFrames = 0
+    private var lastErleLogTime = 0L
 
     companion object {
-        const val DEFAULT_FILTER_LENGTH = 1024
+        const val DEFAULT_FILTER_LENGTH = 512 // 减少长度以提高收敛速度
     }
 
     /**
-     * 设置回环音频参考信号
-     * @param loopbackSamples PC 端回环音频采样
-     * @param timestamp 回环音频时间戳（毫秒）
+     * 添加参考信号到缓冲区
      */
     fun setReferenceSignal(loopbackSamples: ShortArray, timestamp: Long = 0) {
-        refTimestamp = timestamp
-        val newRefBuffer = FloatArray(filterLength)
-        val copyLen = min(loopbackSamples.size, filterLength)
-        for (i in 0 until copyLen) {
-            newRefBuffer[filterLength - copyLen + i] = loopbackSamples[i].toFloat() / 32768f
+        if (!enabled) return
+        
+        synchronized(this) {
+            for (s in loopbackSamples) {
+                ringBuffer[writePos] = s.toFloat() / 32768f
+                writePos = (writePos + 1) % ringBufferSize
+                if (availableSamples < ringBufferSize) {
+                    availableSamples++
+                } else {
+                    // 溢出，强制移动读指针
+                    readPos = (readPos + 1) % ringBufferSize
+                }
+            }
         }
-        refBuffer = newRefBuffer
     }
 
-    /**
-     * 处理音频采样，消除回声
-     * @param input 输入采样（ShortArray 格式）
-     * @param channelCount 声道数
-     * @return 处理后的采样
-     */
     override fun process(input: ShortArray, channelCount: Int): ShortArray {
         if (!enabled || input.isEmpty()) return input
-        if (refBuffer.all { it == 0f }) return input
 
         val output = ShortArray(input.size)
         val framesToProcess = input.size / channelCount
+        
+        var micEnergySum = 0f
+        var errorEnergySum = 0f
 
-        for (frame in 0 until framesToProcess) {
-            val sampleIndex = frame * channelCount
-            val micSample = input[sampleIndex].toFloat() / 32768f
-
-            var echoEst = 0f
-            for (i in 0 until filterLength) {
-                echoEst += weights[i] * refBuffer[i]
+        synchronized(this) {
+            // 如果参考信号不足，直接透传
+            if (availableSamples < filterLength) {
+                return input
             }
 
-            val error = micSample - echoEst
+            for (frame in 0 until framesToProcess) {
+                val sampleIndex = frame * channelCount
+                // 仅处理第一个声道 (Mono 滤波)
+                val micSample = input[sampleIndex].toFloat() / 32768f
+                micEnergySum += micSample * micSample
 
-            var refEnergy = 0f
-            for (i in 0 until filterLength) {
-                refEnergy += refBuffer[i] * refBuffer[i]
+                // 从环形队列取一个参考采样
+                val refSample = ringBuffer[readPos]
+                readPos = (readPos + 1) % ringBufferSize
+                availableSamples--
+
+                // 更新滤波器输入向量 x
+                // 将新采样移入，旧采样移出
+                for (i in 0 until filterLength - 1) {
+                    x[i] = x[i + 1]
+                }
+                x[filterLength - 1] = refSample
+
+                // 计算估计回声
+                var echoEst = 0f
+                for (i in 0 until filterLength) {
+                    echoEst += weights[i] * x[i]
+                }
+
+                // 残差信号 (即消除回声后的信号)
+                val error = micSample - echoEst
+                errorEnergySum += error * error
+
+                // 更新权重 (NLMS)
+                var xEnergy = 0f
+                for (i in 0 until filterLength) {
+                    xEnergy += x[i] * x[i]
+                }
+
+                val normFactor = mu / (xEnergy + delta)
+                for (i in 0 until filterLength) {
+                    weights[i] = weights[i] * leakage + normFactor * error * x[i]
+                    // 限制权重范围，防止发散
+                    if (weights[i] > 2f) weights[i] = 2f
+                    if (weights[i] < -2f) weights[i] = -2f
+                }
+
+                // 生成输出
+                val errorShort = (error * 32767f).toInt().coerceIn(-32768, 32767).toShort()
+                for (ch in 0 until channelCount) {
+                    output[sampleIndex + ch] = errorShort
+                }
+                
+                if (availableSamples == 0) break // 参考信号耗尽
             }
+        }
 
-            val normFactor = mu / (refEnergy + delta)
-
-            for (i in 0 until filterLength) {
-                weights[i] = weights[i] * leakage + normFactor * error * refBuffer[i]
-                weights[i] = weights[i].coerceIn(-1f, 1f)
+        // 定期打印 ERLE (回声消除增益) 诊断信息
+        processedFrames++
+        val now = currentTimeMillis()
+        if (now - lastErleLogTime > 2000) {
+            val erle = if (errorEnergySum > 0) 10 * kotlin.math.log10(micEnergySum / (errorEnergySum + 1e-10f)) else 0f
+            if (erle > 1f) {
+                // Logger.d("AecEffect", "AEC ERLE: ${erle.toInt()} dB, Buffered: $availableSamples samples")
             }
-
-            for (i in 0 until filterLength - 1) {
-                refBuffer[i] = refBuffer[i + 1]
-            }
-
-            val errorShort = (error * 32768f).toInt().coerceIn(-32768, 32767).toShort()
-            for (ch in 0 until channelCount) {
-                output[sampleIndex + ch] = errorShort
-            }
+            lastErleLogTime = now
         }
 
         return output
     }
 
+    private fun currentTimeMillis(): Long = System.currentTimeMillis()
+
     override fun reset() {
-        weights = FloatArray(filterLength)
-        refBuffer = FloatArray(filterLength)
-        refTimestamp = 0
-        micTimestamp = 0
+        synchronized(this) {
+            weights = FloatArray(filterLength)
+            x = FloatArray(filterLength)
+            writePos = 0
+            readPos = 0
+            availableSamples = 0
+        }
     }
 
     override fun release() {
