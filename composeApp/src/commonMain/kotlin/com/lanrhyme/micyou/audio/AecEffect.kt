@@ -40,8 +40,11 @@ class AecEffect : AudioEffect {
     // 延迟对齐相关
     private var delayMatched = false
     private var bestDelaySamples = 0
-    private val maxDelaySamples = 19200 // 最大搜寻 400ms (48kHz)
+    private val maxDelaySamples = 24000 // 最大搜寻 500ms (48kHz)
     private var searchCounter = 0
+    
+    /** 手动延迟补偿（样点数） */
+    var manualDelaySamples: Int = 0
 
     // 统计数据
     private var processedFrames = 0
@@ -86,13 +89,19 @@ class AecEffect : AudioEffect {
         
         var micEnergySum = 0f
         var errorEnergySum = 0f
+        var refEnergySum = 0f
 
         synchronized(this) {
-            // 自动延迟匹配：如果当前消除效果已经很好 (ERLE > 8dB)，则降低搜索频率以避免抖动
+            // 自动延迟匹配
             val searchInterval = if (currentErle > 8f) 2000 else 500
             if (!delayMatched || searchCounter++ > searchInterval) {
                 findBestDelay(input, channelCount)
                 searchCounter = 0
+            }
+
+            // 应用手动补偿
+            val effectiveReadPos = (readPos + manualDelaySamples).let { 
+                if (it < 0) (it + ringBufferSize) % ringBufferSize else it % ringBufferSize
             }
 
             // 如果参考信号不足，透传
@@ -106,9 +115,9 @@ class AecEffect : AudioEffect {
                 micEnergySum += micSample * micSample
 
                 // 取一个参考采样
-                val refSample = ringBuffer[readPos]
-                readPos = (readPos + 1) % ringBufferSize
-                availableSamples--
+                val refIdx = (effectiveReadPos + frame) % ringBufferSize
+                val refSample = ringBuffer[refIdx]
+                refEnergySum += refSample * refSample
 
                 System.arraycopy(x, 1, x, 0, filterLength - 1)
                 x[filterLength - 1] = refSample
@@ -138,22 +147,25 @@ class AecEffect : AudioEffect {
                     output[sampleIndex + ch] = errorShort
                 }
             }
+            
+            // 移动基础读指针
+            readPos = (readPos + framesToProcess) % ringBufferSize
+            availableSamples -= framesToProcess
         }
 
         // 定期监控
         processedFrames++
-        val now = currentTimeMillis()
+        val now = System.currentTimeMillis()
         
-        // 更新当前 ERLE 估算值
         if (errorEnergySum > 0 && micEnergySum > 0) {
             val instantErle = 10 * kotlin.math.log10(micEnergySum / (errorEnergySum + 1e-10f))
-            // 简单的一阶低通滤波平滑 ERLE
             currentErle = currentErle * 0.9f + instantErle * 0.1f
         }
 
         if (now - lastErleLogTime > 2000) {
             if (micEnergySum > 0.001f) {
-                com.lanrhyme.micyou.Logger.d("AecEffect", "AEC Stats: ERLE=${currentErle.toInt()}dB, DelayMatch=$bestDelaySamples samples, RefBuf=$availableSamples")
+                val status = if (refEnergySum < 0.0001f) "REF_SILENT" else "ACTIVE"
+                com.lanrhyme.micyou.Logger.d("AecEffect", "AEC Stats: ERLE=${currentErle.toInt()}dB, DelayMatch=$bestDelaySamples, Manual=$manualDelaySamples, Ref=$status")
             }
             lastErleLogTime = now
         }
@@ -161,40 +173,27 @@ class AecEffect : AudioEffect {
         return output
     }
 
-    /**
-     * 自动寻找最佳延迟偏移
-     * 通过简单的互相关搜索对齐参考信号 and 麦克风信号
-     */
     private fun findBestDelay(micInput: ShortArray, channelCount: Int) {
         if (availableSamples < maxDelaySamples) return
-        
-        // 抽取部分样本进行匹配
         val testLen = 256
         val micNorm = FloatArray(testLen)
         for (i in 0 until testLen) {
             micNorm[i] = micInput[min(i * channelCount, micInput.size - 1)].toFloat() / 32768f
         }
-
         var maxCorr = -1f
         var bestOffset = 0
-
-        // 在缓冲区中滑动搜索匹配度最高的点 (每 32 个采样步进一次以节省 CPU)
         for (offset in 0 until (availableSamples - testLen) step 32) {
             if (offset > maxDelaySamples) break
-            
             var corr = 0f
             for (i in 0 until testLen) {
                 val refIdx = (readPos + offset + i) % ringBufferSize
                 corr += micNorm[i] * ringBuffer[refIdx]
             }
-            
             if (corr > maxCorr) {
                 maxCorr = corr
                 bestOffset = offset
             }
         }
-
-        // 如果找到了显著的匹配点
         if (maxCorr > 0.1f) {
             readPos = (readPos + bestOffset) % ringBufferSize
             availableSamples -= bestOffset
