@@ -149,8 +149,7 @@ fun DesktopHomeEnhanced(
     onClose: () -> Unit,
     onExitApp: () -> Unit,
     onHideApp: () -> Unit,
-    onOpenSettings: () -> Unit,
-    isBluetoothDisabled: Boolean = false
+    onOpenSettings: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val audioLevel by viewModel.audioLevels.collectAsState(initial = 0f)
@@ -183,13 +182,6 @@ fun DesktopHomeEnhanced(
         visible = true
         delay(100)
         cardVisible = true
-    }
-
-    // 蓝牙已废弃，自动迁移旧蓝牙设置到 Wifi
-    LaunchedEffect(state.mode) {
-        if (state.mode == ConnectionMode.Bluetooth) {
-            viewModel.setMode(ConnectionMode.Wifi)
-        }
     }
 
     if (state.installMessage != null) {
@@ -265,7 +257,6 @@ fun DesktopHomeEnhanced(
                     LeftPanel(
                         state = state,
                         viewModel = viewModel,
-                        isBluetoothDisabled = isBluetoothDisabled,
                         modifier = Modifier.weight(if (state.showMonitoringPanel) 0.28f else 0.38f),
                         cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState,
@@ -568,7 +559,6 @@ private fun HeaderSection(
 private fun LeftPanel(
     state: AppUiState,
     viewModel: MainViewModel,
-    isBluetoothDisabled: Boolean,
     modifier: Modifier = Modifier,
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null,

@@ -31,7 +31,6 @@ fun App(
     onExitApp: () -> Unit = {},
     onHideApp: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
-    isBluetoothDisabled: Boolean = false,
     // Permission dialog parameters (Android only)
     showPermissionDialog: Boolean = false,
     currentPermissions: List<PermissionState> = emptyList(),
@@ -91,8 +90,7 @@ fun App(
                             onClose = onClose,
                             onExitApp = onExitApp,
                             onHideApp = onHideApp,
-                            onOpenSettings = onOpenSettings,
-                            isBluetoothDisabled = isBluetoothDisabled
+                            onOpenSettings = onOpenSettings
                         )
                     } else {
                         DesktopHomeEnhanced(
@@ -101,8 +99,7 @@ fun App(
                             onClose = onClose,
                             onExitApp = onExitApp,
                             onHideApp = onHideApp,
-                            onOpenSettings = onOpenSettings,
-                            isBluetoothDisabled = isBluetoothDisabled
+                            onOpenSettings = onOpenSettings
                         )
                     }
                 }
@@ -252,10 +249,6 @@ fun App(
                                     )
                                     Text(
                                         text = stringResource(Res.string.firstLaunchStep2WifiDesc),
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                    Text(
-                                        text = stringResource(Res.string.firstLaunchStep2BluetoothDesc),
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                     Text(

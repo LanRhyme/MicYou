@@ -35,16 +35,6 @@ enum class PermissionType(val labelKey: String, val descKey: String, val isRequi
         descKey = "permissionRecordAudioDesc",
         isRequired = true
     ),
-    BLUETOOTH_CONNECT(
-        labelKey = "permissionBluetoothConnectLabel",
-        descKey = "permissionBluetoothConnectDesc",
-        isRequired = false
-    ),
-    BLUETOOTH_SCAN(
-        labelKey = "permissionBluetoothScanLabel",
-        descKey = "permissionBluetoothScanDesc",
-        isRequired = false
-    ),
     POST_NOTIFICATIONS(
         labelKey = "permissionPostNotificationsLabel",
         descKey = "permissionPostNotificationsDesc",

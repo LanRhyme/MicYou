@@ -277,61 +277,35 @@ actual class AudioEngine actual constructor() {
                         
                         val selectorManager = SelectorManager(Dispatchers.IO)
     var tcpSocket: Socket? = null
-                        
-                        if (mode == ConnectionMode.Bluetooth) {
-                            Logger.i("AudioEngine", "Connecting via Bluetooth to $ip")
-                            val context = ContextHelper.getContext() ?: throw IllegalStateException("Context unavailable")
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                val hasBluetoothConnect = androidx.core.content.ContextCompat.checkSelfPermission(
-                                    context, android.Manifest.permission.BLUETOOTH_CONNECT
-                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                                if (!hasBluetoothConnect) {
-                                    throw SecurityException("Missing BLUETOOTH_CONNECT permission")
-                                }
-                            }
-    val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter() ?: throw UnsupportedOperationException("Bluetooth not supported")
-                            if (!android.bluetooth.BluetoothAdapter.checkBluetoothAddress(ip)) {
-                                throw IllegalArgumentException("Invalid Bluetooth MAC address: $ip")
-                            }
-    val device = adapter.getRemoteDevice(ip)
-                            val uuid = java.util.UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-    val btSocket = device.createRfcommSocketToServiceRecord(uuid)
-                            btSocket.connect()
-                            Logger.i("AudioEngine", "Bluetooth connected to $ip")
 
-                            input = btSocket.inputStream.toByteReadChannel()
-                            output = btSocket.outputStream.toByteWriteChannelSuspend()
-                            closeConnection = { btSocket.close() }
-                        } else {
-                            val targetIp = if (mode == ConnectionMode.Usb) "127.0.0.1" else ip
-                            Logger.i("AudioEngine", "Connecting via TCP to $targetIp:$port")
+                        val targetIp = if (mode == ConnectionMode.Usb) "127.0.0.1" else ip
+                        Logger.i("AudioEngine", "Connecting via TCP to $targetIp:$port")
     val socketBuilder = aSocket(selectorManager)
-                            tcpSocket = socketBuilder.tcp().connect(targetIp, port) {
-                                keepAlive = true
-                                socketTimeout = 10000L
-                                noDelay = true
+                        tcpSocket = socketBuilder.tcp().connect(targetIp, port) {
+                            keepAlive = true
+                            socketTimeout = 10000L
+                            noDelay = true
+                        }
+                        Logger.i("AudioEngine", "TCP connected to $targetIp:$port")
+                        input = tcpSocket.openReadChannel()
+                        output = tcpSocket.openWriteChannel(autoFlush = true)
+
+                        if (mode == ConnectionMode.Wifi) {
+                            val udpPort = calculateUdpPort(port)
+                            Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
+                            udpSocket = DatagramSocket().also {
+                                it.sendBufferSize = 256 * 1024 // 256KB send buffer
+                                Logger.d("AudioEngine", "UDP send buffer: ${it.sendBufferSize / 1024}KB")
                             }
-                            Logger.i("AudioEngine", "TCP connected to $targetIp:$port")
-                            input = tcpSocket.openReadChannel()
-                            output = tcpSocket.openWriteChannel(autoFlush = true)
-                            
-                            if (mode == ConnectionMode.Wifi) {
-                                val udpPort = calculateUdpPort(port)
-                                Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
-                                udpSocket = DatagramSocket().also {
-                                    it.sendBufferSize = 256 * 1024 // 256KB send buffer
-                                    Logger.d("AudioEngine", "UDP send buffer: ${it.sendBufferSize / 1024}KB")
-                                }
-                                udpServerAddress = InetSocketAddress(targetIp, udpPort)
-                                Logger.i("AudioEngine", "UDP connected to $targetIp:$udpPort")
-                            }
-                            
-                            closeConnection = { 
-                                tcpSocket?.close()
-                                udpSocket?.close()
-                                udpSocket = null
-                                udpServerAddress = null
-                            }
+                            udpServerAddress = InetSocketAddress(targetIp, udpPort)
+                            Logger.i("AudioEngine", "UDP connected to $targetIp:$udpPort")
+                        }
+
+                        closeConnection = {
+                            tcpSocket?.close()
+                            udpSocket?.close()
+                            udpSocket = null
+                            udpServerAddress = null
                         }
 
                         // Handshake

@@ -7,7 +7,7 @@ enum class StreamState {
 }
 
 enum class ConnectionMode {
-    Wifi, Bluetooth, Usb
+    Wifi, Usb
 }
 
 enum class NoiseReductionType {

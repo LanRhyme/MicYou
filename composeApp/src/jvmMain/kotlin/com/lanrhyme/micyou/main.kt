@@ -151,7 +151,6 @@ fun main() {
                 resizable = false
             ) {
                 val windowContent: @Composable () -> Unit = {
-                    val isBluetoothDisabled = PlatformInfo.isMacOS && PlatformInfo.isArm64
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -163,8 +162,7 @@ fun main() {
                             onClose = { viewModel.handleCloseRequest(onExit = exitApp, onHide = { isVisible = false }) },
                             onExitApp = exitApp,
                             onHideApp = { isVisible = false },
-                            onOpenSettings = { if (uiState.pocketMode) showSettingsWindow = true },
-                            isBluetoothDisabled = isBluetoothDisabled
+                            onOpenSettings = { if (uiState.pocketMode) showSettingsWindow = true }
                         )
                     }
                 }
