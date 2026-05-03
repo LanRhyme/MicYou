@@ -179,7 +179,7 @@
     <string name="firstLaunchStep3Desc">㩒開始掣開始音訊傳輸</string>
     <string name="firstLaunchStep3Title">3. 開始傳輸</string>
     <string name="firstLaunchStep4Desc">喺錄音軟件揀 VB-Cable 做輸入裝置</string>
-    <string name="firstLaunchStep4DescMac">喺錄音軟件揀 BlackHole 做輸入裝置</string>
+    <string name="firstLaunchStep4DescMac">喺錄音軟件度揀 BlackHole 做輸入裝置</string>
     <string name="firstLaunchStep4Title">4. 配置音訊</string>
     <string name="firstLaunchTextGuide">文字教學</string>
     <string name="firstLaunchTitle">歡迎使用 MicYou</string>
