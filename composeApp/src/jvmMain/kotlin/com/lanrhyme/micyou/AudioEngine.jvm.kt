@@ -49,7 +49,11 @@ actual class AudioEngine actual constructor() {
     private var currentSampleRate: Int = 0
     private var currentChannelCount: Int = 0
     private var currentAudioFormatValue: Int = 0
-    
+
+    // AEC 调试状态
+    @Volatile private var loopbackPacketsSent = 0L
+    @Volatile private var aecEnabledFromAndroid = false
+
     private var lastStatusLogTime = 0L
 
     actual var onLoopbackAudioReceived: ((LoopbackAudioMessage) -> Unit)? = null
@@ -73,6 +77,7 @@ actual class AudioEngine actual constructor() {
         },
         onAecStateChanged = { enabled ->
             Logger.i("AudioEngine", "AEC state from Android: enabled=$enabled")
+            aecEnabledFromAndroid = enabled
             if (enabled && _state.value == StreamState.Streaming) {
                 startLoopbackCapture()
             } else {
@@ -203,6 +208,7 @@ actual class AudioEngine actual constructor() {
         scope.launch {
             loopbackCaptureManager.onAudioData { buffer, sampleRate, channelCount, timestamp ->
                 scope.launch {
+                    loopbackPacketsSent++
                     networkServer.sendLoopbackAudio(buffer, sampleRate, channelCount, timestamp)
                 }
             }
@@ -375,7 +381,10 @@ actual class AudioEngine actual constructor() {
             networkLatencyMs = rtt,
             packetLossRate = udpStats?.lossRate ?: 0.0,
             jitterMs = udpStats?.jitter ?: 0.0,
-            bufferDurationMs = latencyMs
+            bufferDurationMs = latencyMs,
+            loopbackRunning = loopbackCaptureManager.isCapturing.value,
+            loopbackPacketsSent = loopbackPacketsSent,
+            aecEnabled = aecEnabledFromAndroid
         )
         _audioMetrics.value = metrics
 

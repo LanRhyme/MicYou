@@ -170,7 +170,15 @@ fun MonitoringPanel(
                 LabelWithIcon(Icons.Rounded.SettingsInputComponent, stringResource(Res.string.monitoringSpecs))
                 AudioSpecsContent(metrics, isRunning)
             }
-            
+
+            // AEC Debug Info
+            if (isRunning && metrics != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LabelWithIcon(Icons.Rounded.GraphicEq, "AEC")
+                    AecDebugContent(metrics)
+                }
+            }
+
             Text(
                 stringResource(Res.string.monitoringHint),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
@@ -358,7 +366,7 @@ private fun ContinuousWaveform(
         samples.forEachIndexed { index, level ->
             val x = index * stepX
             val amplitude = (height * 0.4f) * level.coerceIn(0f, 1f)
-            
+
             // Draw symmetric waveform bars
             drawLine(
                 color = color.copy(alpha = 0.8f),
@@ -368,5 +376,21 @@ private fun ContinuousWaveform(
                 cap = StrokeCap.Round
             )
         }
+    }
+}
+
+@Composable
+private fun AecDebugContent(metrics: AudioMetrics) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SpecItem("AEC 启用", if (metrics.aecEnabled) "是" else "否")
+        SpecItem("回环采集", if (metrics.loopbackRunning) "运行中" else "停止")
+        SpecItem("回环已发送", "${metrics.loopbackPacketsSent} 包")
     }
 }

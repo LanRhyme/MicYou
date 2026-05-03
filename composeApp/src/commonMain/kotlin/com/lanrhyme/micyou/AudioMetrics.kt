@@ -22,7 +22,13 @@ data class AudioMetrics(
     /** 抖动 (毫秒) */
     val jitterMs: Double = 0.0,
     /** 缓冲区时长 (毫秒) */
-    val bufferDurationMs: Long = 0
+    val bufferDurationMs: Long = 0,
+    /** AEC 回环采集是否运行 */
+    val loopbackRunning: Boolean = false,
+    /** AEC 回环音频已发送包数 */
+    val loopbackPacketsSent: Long = 0,
+    /** AEC 是否启用 (来自 Android 端) */
+    val aecEnabled: Boolean = false
 ) {
     /** 获取 kbps 格式的比特率 */
     fun bitrateKbps(): Int = bitrate / 1000

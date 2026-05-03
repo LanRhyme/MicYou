@@ -149,6 +149,9 @@ actual class AudioEngine actual constructor() {
     @Volatile
     private var hasLoopbackReference = false
 
+    // AEC 诊断日志时间戳
+    private var lastAecDiagLogTime = 0L
+
     actual var onLoopbackAudioReceived: ((LoopbackAudioMessage) -> Unit)? = null
 
     private var savedIp: String = ""
