@@ -65,26 +65,6 @@ fun getRequiredPermissions(activity: ComponentActivity): List<PermissionState> {
         )
     )
 
-    // 蓝牙连接权限 - Android 12+ (API 31+)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        permissions.add(
-            PermissionState(
-                type = PermissionType.BLUETOOTH_CONNECT,
-                manifestPermission = Manifest.permission.BLUETOOTH_CONNECT,
-                isGranted = ContextCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED,
-                minSdkVersion = Build.VERSION_CODES.S
-            )
-        )
-        permissions.add(
-            PermissionState(
-                type = PermissionType.BLUETOOTH_SCAN,
-                manifestPermission = Manifest.permission.BLUETOOTH_SCAN,
-                isGranted = ContextCompat.checkSelfPermission(activity, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED,
-                minSdkVersion = Build.VERSION_CODES.S
-            )
-        )
-    }
-
     // 通知权限 - Android 13+ (API 33+)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         permissions.add(
@@ -270,20 +250,14 @@ private fun PermissionCard(
 ) {
     val icon: ImageVector = when (permission.type) {
         PermissionType.RECORD_AUDIO -> Icons.Default.Mic
-        PermissionType.BLUETOOTH_CONNECT -> Icons.Default.Bluetooth
-        PermissionType.BLUETOOTH_SCAN -> Icons.Default.Bluetooth
         PermissionType.POST_NOTIFICATIONS -> Icons.Default.Notifications
     }
     val label = when (permission.type) {
         PermissionType.RECORD_AUDIO -> stringResource(Res.string.permissionRecordAudioLabel)
-        PermissionType.BLUETOOTH_CONNECT -> stringResource(Res.string.permissionBluetoothConnectLabel)
-        PermissionType.BLUETOOTH_SCAN -> stringResource(Res.string.permissionBluetoothScanLabel)
         PermissionType.POST_NOTIFICATIONS -> stringResource(Res.string.permissionPostNotificationsLabel)
     }
     val description = when (permission.type) {
         PermissionType.RECORD_AUDIO -> stringResource(Res.string.permissionRecordAudioDesc)
-        PermissionType.BLUETOOTH_CONNECT -> stringResource(Res.string.permissionBluetoothConnectDesc)
-        PermissionType.BLUETOOTH_SCAN -> stringResource(Res.string.permissionBluetoothScanDesc)
         PermissionType.POST_NOTIFICATIONS -> stringResource(Res.string.permissionPostNotificationsDesc)
     }
     val canRequest = !permission.isGranted

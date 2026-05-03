@@ -137,7 +137,6 @@ my-plugin.micyou-plugin.zip
 | Network | `network` | Medium | HTTP/HTTPS requests |
 | Camera | `camera` | High | Camera device access |
 | Microphone | `microphone` | High | Microphone device access |
-| Bluetooth | `bluetooth` | Medium | Bluetooth functionality |
 
 ## Platform Support
 

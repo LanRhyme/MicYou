@@ -597,7 +597,7 @@ enum class StreamState {
 
 ```kotlin
 enum class ConnectionMode {
-    Wifi, Bluetooth, Usb
+    Wifi, Usb
 }
 ```
 

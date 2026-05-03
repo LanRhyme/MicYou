@@ -21,10 +21,7 @@ enum class ConnectionErrorType {
     AdminPrivilegeRequired,  // 需要管理员权限
 
     // 设备相关错误
-    DeviceNotFound,          // 设备未找到（蓝牙设备）
-    BluetoothDisabled,       // 蓝牙功能被禁用
-    BluetoothServiceUnavailable, // 蓝牙服务不可用 (BlueZ未运行)
-    BluetoothAdapterNotFound,     // 蓝牙适配器未找到
+    DeviceNotFound,          // 设备未找到
     UsbConnectionFailed,     // USB 连接失败
     AdbCommandFailed,        // ADB 命令执行失败
 
@@ -39,10 +36,6 @@ enum class ConnectionErrorType {
     // 音频相关错误
     AudioDeviceError,        // 音频设备错误
     AudioFormatError,        // 音频格式不支持
-
-    // Linux 特有错误
-    BlueZNotInstalled,       // BlueZ 未安装
-    RfcommBindFailed,        // RFCOMM 绑定失败
 
     // 通用错误
     UnknownError             // 未知的错误类型
@@ -112,28 +105,6 @@ object ConnectionErrorHelper {
             // ADB 相关
             message.contains("adb", ignoreCase = true) ->
                 ConnectionErrorType.AdbCommandFailed
-            
-            // 蓝牙相关
-            message.contains("bluetooth", ignoreCase = true) ||
-            message.contains("Bluetooth", ignoreCase = true) ->
-                if (mode == ConnectionMode.Bluetooth) ConnectionErrorType.BluetoothDisabled
-                else ConnectionErrorType.DeviceNotFound
-
-            // BlueZ 相关 (Linux 蓝牙)
-            message.contains("bluez", ignoreCase = true) ||
-            message.contains("BlueZ", ignoreCase = true) ||
-            message.contains("hciconfig", ignoreCase = true) ->
-                ConnectionErrorType.BlueZNotInstalled
-
-            // RFCOMM 相关
-            message.contains("rfcomm", ignoreCase = true) ||
-            message.contains("RFCOMM", ignoreCase = true) ->
-                ConnectionErrorType.RfcommBindFailed
-
-            // 蓝牙适配器未找到
-            message.contains("hci", ignoreCase = true) ||
-            message.contains("adapter", ignoreCase = true) && message.contains("not found", ignoreCase = true) ->
-                ConnectionErrorType.BluetoothAdapterNotFound
             
             // USB 相关
             message.contains("usb", ignoreCase = true) ||
@@ -260,67 +231,10 @@ object ConnectionErrorHelper {
                 localizedTitle = getString(Res.string.errorDeviceNotFoundTitle),
                 localizedMessage = getString(Res.string.errorDeviceNotFoundMessage),
                 recoverySuggestions = listOf(
-                    getString(Res.string.errorSuggestionEnableBluetooth),
-                    getString(Res.string.errorSuggestionPairDevice)
-                )
-            )
-            
-            ConnectionErrorType.BluetoothDisabled -> ConnectionErrorDetails(
-                type = type,
-                originalMessage = originalMessage,
-                localizedTitle = getString(Res.string.errorBluetoothDisabledTitle),
-                localizedMessage = getString(Res.string.errorBluetoothDisabledMessage),
-                recoverySuggestions = listOf(
-                    getString(Res.string.errorSuggestionEnableBluetooth)
+                    getString(Res.string.errorSuggestionCheckNetworkConnection)
                 )
             )
 
-            ConnectionErrorType.BluetoothServiceUnavailable -> ConnectionErrorDetails(
-                type = type,
-                originalMessage = originalMessage,
-                localizedTitle = getString(Res.string.errorBluetoothServiceUnavailableTitle),
-                localizedMessage = getString(Res.string.errorBluetoothServiceUnavailableMessage),
-                recoverySuggestions = listOf(
-                    getString(Res.string.errorSuggestionStartBluetoothService),
-                    getString(Res.string.errorSuggestionCheckBluetoothDaemon)
-                )
-            )
-
-            ConnectionErrorType.BluetoothAdapterNotFound -> ConnectionErrorDetails(
-                type = type,
-                originalMessage = originalMessage,
-                localizedTitle = getString(Res.string.errorBluetoothAdapterNotFoundTitle),
-                localizedMessage = getString(Res.string.errorBluetoothAdapterNotFoundMessage),
-                recoverySuggestions = listOf(
-                    getString(Res.string.errorSuggestionCheckBluetoothHardware),
-                    getString(Res.string.errorSuggestionCheckUsbBluetooth)
-                )
-            )
-
-            ConnectionErrorType.BlueZNotInstalled -> ConnectionErrorDetails(
-                type = type,
-                originalMessage = originalMessage,
-                localizedTitle = getString(Res.string.errorBlueZNotInstalledTitle),
-                localizedMessage = getString(Res.string.errorBlueZNotInstalledMessage),
-                recoverySuggestions = listOf(
-                    getString(Res.string.errorSuggestionInstallBlueZ),
-                    getString(Res.string.errorSuggestionCheckBlueZService)
-                ),
-                showHelpButton = true,
-                helpUrl = "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md#bluetooth-linux"
-            )
-
-            ConnectionErrorType.RfcommBindFailed -> ConnectionErrorDetails(
-                type = type,
-                originalMessage = originalMessage,
-                localizedTitle = getString(Res.string.errorRfcommBindFailedTitle),
-                localizedMessage = getString(Res.string.errorRfcommBindFailedMessage),
-                recoverySuggestions = listOf(
-                    getString(Res.string.errorSuggestionReleaseRfcomm),
-                    getString(Res.string.errorSuggestionRunAsAdmin)
-                )
-            )
-            
             ConnectionErrorType.UsbConnectionFailed -> {
                 val command = extractAdbCommand(originalMessage)
                 ConnectionErrorDetails(

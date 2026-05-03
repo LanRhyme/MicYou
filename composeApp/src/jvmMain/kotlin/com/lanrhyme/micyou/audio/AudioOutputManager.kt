@@ -239,7 +239,6 @@ class AudioOutputManager {
         return try {
             val bytesPerSecond = (currentSampleRate * currentChannelCount * 2).coerceAtLeast(1)
             // 增加缓冲区大小到约 400ms，减少播放断续和杂音
-            // 蓝牙和高延迟网络环境需要更大的缓冲区
             val bufferSizeBytes = (bytesPerSecond * 4 / 10).coerceIn(8192, 131072)
             
             outputLine?.open(audioFormat, bufferSizeBytes)

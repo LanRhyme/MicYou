@@ -18,7 +18,7 @@ Android-specific implementations: MainActivity, AudioService foreground service,
 ## CONVENTIONS
 - Use AndroidContext for Context access across the app
 - Foreground service requires notification channel setup
-- Permission handling: RECORD_AUDIO, BLUETOOTH_CONNECT/SCAN (S+), POST_NOTIFICATIONS (Tiramisu+)
+- Permission handling: RECORD_AUDIO, POST_NOTIFICATIONS (Tiramisu+)
 - Settings via SharedPreferences (Settings.android.kt)
 
 ## ANTI-PATTERNS

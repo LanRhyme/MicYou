@@ -49,7 +49,6 @@ MicYou 支持插件扩展功能。插件开发相关文档位于 `docs/plugin-ap
 | `network` | 网络访问 |
 | `camera` | 摄像头访问 |
 | `microphone` | 麦克风访问 |
-| `bluetooth` | 蓝牙访问 |
 
 ## 代码规范
 

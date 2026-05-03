@@ -43,9 +43,6 @@ Ensure your Android device and PC are on the **same network**, and set the conne
 
 ### macOS
 
-> [!IMPORTANT]
-> If you are using an Apple Silicon Mac, Bluetooth mode cannot be used without Rosetta 2 translation.
-
 For the best experience, install the following dependencies via Homebrew:
 
 ```bash

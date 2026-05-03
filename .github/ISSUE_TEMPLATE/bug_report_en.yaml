@@ -77,7 +77,6 @@ body:
       options:
         - Wi-Fi
         - USB (ADB/AOA)
-        - Bluetooth
       default: 0
     validations:
       required: true

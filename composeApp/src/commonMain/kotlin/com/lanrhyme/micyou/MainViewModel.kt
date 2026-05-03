@@ -16,8 +16,6 @@ import org.jetbrains.compose.resources.getString
 
 enum class ConnectionMode(val label: String) {
     Wifi("Wi-Fi"),
-    @Deprecated("Replaced by UDP+TCP dual protocol", level = DeprecationLevel.WARNING)
-    Bluetooth("Bluetooth"),
     Usb("USB (ADB)")
 }
 
@@ -57,7 +55,6 @@ data class AppUiState(
     val channelCount: ChannelCount = ChannelCount.Stereo,
     val audioFormat: AudioFormat = AudioFormat.PCM_FLOAT,
     val isMuted: Boolean = false,
-    val bluetoothAddress: String = "",
     val isAutoConfig: Boolean = true,
     val showFirewallDialog: Boolean = false,
     val pendingFirewallPort: Int? = null,
@@ -283,7 +280,6 @@ class MainViewModel : ViewModel() {
                         channelCount = audioState.channelCount,
                         audioFormat = audioState.audioFormat,
                         isMuted = audioState.isMuted,
-                        bluetoothAddress = audioState.bluetoothAddress,
                         isAutoConfig = audioState.isAutoConfig,
                         showFirewallDialog = audioState.showFirewallDialog,
                         pendingFirewallPort = audioState.pendingFirewallPort,
