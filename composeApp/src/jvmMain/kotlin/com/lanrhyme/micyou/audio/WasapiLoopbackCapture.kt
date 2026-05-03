@@ -24,8 +24,8 @@ class WasapiLoopbackCapture : LoopbackCapture {
         capturing = true
         Logger.i("WasapiLoopback", "Starting native WASAPI loopback capture: ${sampleRate}Hz, ${channelCount}ch")
 
-        native.onAudioData { data, sr, ch, ts ->
-            audioCallback?.invoke(data, sr, ch, ts)
+        native.onAudioData { data, actualSampleRate, actualChannels, ts ->
+            audioCallback?.invoke(data, actualSampleRate, actualChannels, ts)
         }
 
         if (!native.start(sampleRate, channelCount)) {

@@ -20,8 +20,8 @@ class WasapiLoopbackNative {
      * 从 native 层回调的音频数据
      */
     @Suppress("unused")
-    fun onAudioData(data: ByteArray, sampleRate: Int, channels: Int) {
-        onAudioDataCallback?.invoke(data, sampleRate, channels, System.currentTimeMillis())
+    fun onAudioData(data: ByteArray, actualSampleRate: Int, actualChannels: Int) {
+        onAudioDataCallback?.invoke(data, actualSampleRate, actualChannels, System.currentTimeMillis())
     }
 
     fun start(sampleRate: Int, channels: Int): Boolean {
