@@ -8,13 +8,75 @@ object PipeWireManager {
     private const val SINK_MONITOR = "MicYouVirtualSink.monitor"
     
     private var sinkNodeId: String? = null
+    private var sourceNodeId: String? = null
     private var loopbackProcess: Process? = null
     private var isSetup = false
+    private var originalDefaultSource: String? = null
     
     val virtualSinkName: String get() = SINK_NAME
     val virtualSourceName: String get() = SOURCE_NAME
     val virtualSinkMonitor: String get() = SINK_MONITOR
     
+    private fun saveOriginalDefaultSource() {
+        try {
+            val process = ProcessBuilder("pactl", "get-default-source")
+                .redirectErrorStream(true)
+                .start()
+            val output = process.inputStream.bufferedReader().readText().trim()
+            process.waitFor()
+            if (output.isNotEmpty() && output != SOURCE_NAME) {
+                originalDefaultSource = output
+                Logger.d("PipeWireManager", "Saved original default source: $output")
+            }
+        } catch (e: Exception) {
+            Logger.w("PipeWireManager", "Failed to save original default source: ${e.message}")
+        }
+    }
+
+    private fun restoreOriginalDefaultSource() {
+        val original = originalDefaultSource ?: return
+        try {
+            val process = ProcessBuilder("pactl", "set-default-source", original)
+                .redirectErrorStream(true)
+                .start()
+            val output = process.inputStream.bufferedReader().readText()
+            val exitCode = process.waitFor()
+            if (exitCode == 0) {
+                Logger.i("PipeWireManager", "Restored original default source: $original")
+            } else {
+                Logger.w("PipeWireManager", "Failed to restore original default source: $output")
+            }
+        } catch (e: Exception) {
+            Logger.w("PipeWireManager", "Error restoring original default source: ${e.message}")
+        }
+        originalDefaultSource = null
+    }
+
+    private fun findNodeIdByName(name: String): String? {
+        return try {
+            val process = ProcessBuilder("pw-cli", "list-objects")
+                .redirectErrorStream(true)
+                .start()
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+
+            val lines = output.lines()
+            var currentId: String? = null
+            for (line in lines) {
+                val idMatch = Regex("""^\s*id\s+(\d+)""").find(line)
+                if (idMatch != null) {
+                    currentId = idMatch.groupValues[1]
+                } else if (currentId != null && line.contains("node.name") && line.contains("\"$name\"")) {
+                    return currentId
+                }
+            }
+            null
+        } catch (e: Exception) {
+            Logger.w("PipeWireManager", "Error finding node ID for '$name': ${e.message}")
+            null
+        }
+    }
+
     fun isAvailable(): Boolean {
         if (!PlatformInfo.isLinux) return false
         
@@ -93,6 +155,11 @@ object PipeWireManager {
             if (!hideVirtualSink()) {
                 Logger.w("PipeWireManager", "Failed to hide virtual Sink (non-fatal)")
             }
+
+            sourceNodeId = findNodeIdByName(SOURCE_NAME)
+            Logger.d("PipeWireManager", "Virtual Source node ID: $sourceNodeId")
+
+            saveOriginalDefaultSource()
 
             if (!setDefaultSource()) {
                 Logger.w("PipeWireManager", "Failed to set default source (non-fatal)")
@@ -215,32 +282,38 @@ object PipeWireManager {
     private fun setDefaultSource(): Boolean {
         Logger.d("PipeWireManager", "Setting default source: $SOURCE_NAME")
         
-        return try {
-            val process = ProcessBuilder(
+        try {
+            val profileProcess = ProcessBuilder(
                 "pw-cli", "set-default-profile",
                 SOURCE_NAME,
                 "{name=pro-audio}"
             ).redirectErrorStream(true).start()
-            
-            process.waitFor()
-    val setDefaultProcess = ProcessBuilder(
-                "wpctl", "set-default",
-                "@$SOURCE_NAME"
-            ).redirectErrorStream(true).start()
-    val output = setDefaultProcess.inputStream.bufferedReader().readText()
-    val exitCode = setDefaultProcess.waitFor()
-            
-            if (exitCode == 0) {
-                Logger.i("PipeWireManager", "Default source set successfully")
-                true
-            } else {
-                Logger.w("PipeWireManager", "Failed to set default source: $output")
-                tryFallbackSetDefaultSource()
-            }
+            profileProcess.waitFor()
         } catch (e: Exception) {
-            Logger.e("PipeWireManager", "Error setting default source", e)
-            tryFallbackSetDefaultSource()
+            Logger.w("PipeWireManager", "set-default-profile failed: ${e.message}")
         }
+
+        val nodeId = sourceNodeId
+        if (nodeId != null) {
+            try {
+                val setDefaultProcess = ProcessBuilder(
+                    "wpctl", "set-default", nodeId
+                ).redirectErrorStream(true).start()
+                val output = setDefaultProcess.inputStream.bufferedReader().readText()
+                val exitCode = setDefaultProcess.waitFor()
+
+                if (exitCode == 0) {
+                    Logger.i("PipeWireManager", "Default source set via wpctl (id: $nodeId)")
+                    return true
+                } else {
+                    Logger.w("PipeWireManager", "wpctl set-default failed: $output")
+                }
+            } catch (e: Exception) {
+                Logger.w("PipeWireManager", "wpctl set-default error: ${e.message}")
+            }
+        }
+
+        return tryFallbackSetDefaultSource()
     }
     
     private fun tryFallbackSetDefaultSource(): Boolean {
@@ -268,6 +341,17 @@ object PipeWireManager {
     fun cleanup() {
         Logger.i("PipeWireManager", "Cleaning up virtual audio device...")
         
+        val hadOriginal = originalDefaultSource != null
+        restoreOriginalDefaultSource()
+
+        if (hadOriginal) {
+            try {
+                Thread.sleep(200)
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+
         loopbackProcess?.let { process ->
             try {
                 if (process.isAlive) {
@@ -281,6 +365,7 @@ object PipeWireManager {
         }
         
         destroyNodeByName(SOURCE_NAME, "Virtual Source")
+        sourceNodeId = null
         
         sinkNodeId?.let { id ->
             destroyNode(id, "Virtual Sink")
