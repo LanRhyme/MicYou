@@ -29,8 +29,15 @@ JavaVM* g_jvm = nullptr;
 jobject g_callbackObj = nullptr;
 jmethodID g_onAudioDataMethod = nullptr;
 
+static int g_callbackCount = 0;
 void OnAudioData(const BYTE* data, UINT32 frames, int channels, int sampleRate) {
     if (!g_jvm || !g_callbackObj || !g_onAudioDataMethod) return;
+
+    g_callbackCount++;
+    if (g_callbackCount % 100 == 1) {
+        // Simple console output for diagnostics
+        std::cout << "[WasapiNative] Callback invoked, frames: " << frames << ", total: " << g_callbackCount << std::endl;
+    }
 
     JNIEnv* env = nullptr;
     jint res = g_jvm->GetEnv((void**)&env, JNI_VERSION_1_6);

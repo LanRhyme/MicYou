@@ -414,7 +414,12 @@ actual class AudioEngine actual constructor() {
                     sendAecState(enableAEC)
 
                     // 设置软件 AEC 回环音频回调
+                    var loopbackPacketCount = 0
                     onLoopbackAudioReceived = { loopbackMsg ->
+                        loopbackPacketCount++
+                        if (loopbackPacketCount % 100 == 1) {
+                            Logger.d("AudioEngine", "AEC Reference signal received: ${loopbackMsg.buffer.size} bytes, total packets: $loopbackPacketCount")
+                        }
                         // 将 ByteArray 转换为 ShortArray 作为 AEC 参考信号
                         val shorts = ShortArray(loopbackMsg.buffer.size / 2)
                         for (i in shorts.indices) {

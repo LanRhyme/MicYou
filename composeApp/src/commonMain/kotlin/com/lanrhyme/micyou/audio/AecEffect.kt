@@ -139,9 +139,7 @@ class AecEffect : AudioEffect {
         val now = currentTimeMillis()
         if (now - lastErleLogTime > 2000) {
             val erle = if (errorEnergySum > 0) 10 * kotlin.math.log10(micEnergySum / (errorEnergySum + 1e-10f)) else 0f
-            if (erle > 1f) {
-                // Logger.d("AecEffect", "AEC ERLE: ${erle.toInt()} dB, Buffered: $availableSamples samples")
-            }
+            Logger.d("AecEffect", "AEC Stats: ERLE=${erle.toInt()}dB, RingBuffer=$availableSamples, MicEnergy=${micEnergySum.toInt()}")
             lastErleLogTime = now
         }
 

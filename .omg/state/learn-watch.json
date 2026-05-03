@@ -1,6 +1,6 @@
 {
   "last_session_id": "5b5ffdb7-c79c-4768-aeaf-1ea082e23ef0",
-  "last_event_key": "5b5ffdb7-c79c-4768-aeaf-1ea082e23ef0:transcript:c6caba476fa6ce2f004c8ad2c3bfcaf5195b490e1b9b810b3c5e9576388a8c66",
+  "last_event_key": "5b5ffdb7-c79c-4768-aeaf-1ea082e23ef0:transcript:adccf6957d1fe4d4a567452298c026e5b7e03a07880383bd0e1f5c426a09caa9",
   "last_prompted_session_id": "",
   "last_reason": "short-session",
   "last_prompted_at": "",
@@ -8,5 +8,5 @@
   "last_actionable_message_count": 0,
   "deep_interview_lock_active": false,
   "deep_interview_lock_source": "D:\\AndroidStudioProjects\\MicYou\\.omg\\state\\deep-interview.json",
-  "updated_at": "2026-05-03T01:06:14.728Z"
+  "updated_at": "2026-05-03T01:46:23.010Z"
 }
