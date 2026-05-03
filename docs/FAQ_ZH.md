@@ -53,16 +53,19 @@ brew install blackhole-2ch --cask
 brew install switchaudio-osx --formulae
 ```
 
-**BlackHole 必须安装**。若未安装 Homebrew，请前往 https://existential.audio/blackhole/download/ 下载并安装。无论通过何种方式安装，完成后请务必重启电脑。
+> **BlackHole** 必须安装（虚拟音频驱动）。若未安装 Homebrew，请前往 https://existential.audio/blackhole/download/ 下载安装程序并安装。
+
+完成后请重启您的 Mac。
 
 在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载应用并安装到“应用程序”目录后，首次启动可能会被 Gatekeeper 拦截。
 
-若提示“不受信任的开发者”，请前往 **“系统设置”/“系统偏好设置” > “隐私与安全”** 允许应用运行。
+- 若提示「不受信任的开发者」，请前往 **「系统设置」/「系统偏好设置」 > 「隐私与安全」** 允许应用运行。
+- 若提示「应用已损坏」，请在终端执行：
 
-若提示“应用已损坏”，请执行以下命令：
 ```bash
 sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
 ```
+执行时需要输入您的用户账号密码，输入时密码不可见，完成后回车即可。
 
 ### Linux
 

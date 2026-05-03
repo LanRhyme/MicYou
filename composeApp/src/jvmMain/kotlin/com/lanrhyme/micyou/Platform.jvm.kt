@@ -154,3 +154,5 @@ actual suspend fun installVBCable() = VirtualAudioDeviceManager.installVirtualDe
 actual fun getVBCableInstallProgress(): kotlinx.coroutines.flow.Flow<String?> = VirtualAudioDeviceManager.installProgress
 
 actual fun isWindowsPlatform(): Boolean = PlatformInfo.isWindows
+
+actual fun isMacOSPlatform(): Boolean = PlatformInfo.isMacOS

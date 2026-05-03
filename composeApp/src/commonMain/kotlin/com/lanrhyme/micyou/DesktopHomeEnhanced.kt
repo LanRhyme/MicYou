@@ -112,12 +112,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.clickToStart
+import micyou.composeapp.generated.resources.close
 import micyou.composeapp.generated.resources.connectionModeLabel
 import micyou.composeapp.generated.resources.firewallConfirm
 import micyou.composeapp.generated.resources.firewallDismiss
 import micyou.composeapp.generated.resources.firewallMessage
 import micyou.composeapp.generated.resources.firewallTitle
 import micyou.composeapp.generated.resources.icon_pip
+import micyou.composeapp.generated.resources.minimize
 import micyou.composeapp.generated.resources.modeUsb
 import micyou.composeapp.generated.resources.modeWifi
 import micyou.composeapp.generated.resources.monitoringLabel
@@ -404,7 +406,13 @@ private fun HeaderSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (isMacOSPlatform()) 4.dp else 10.dp)
+            ) {
+                if (isMacOSPlatform()) {
+                    WindowControls(onMinimize = onMinimize, onClose = onClose, useSystemTitleBar = state.useSystemTitleBar)
+                }
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.primaryContainer,
@@ -549,15 +557,8 @@ private fun HeaderSection(
                 }
             }
             
-            if (!state.useSystemTitleBar) {
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                IconButton(onClick = onMinimize, modifier = Modifier.size(30.dp)) {
-                    Icon(Icons.Rounded.Minimize, null, modifier = Modifier.size(16.dp))
-                }
-                IconButton(onClick = onClose, modifier = Modifier.size(30.dp)) {
-                    Icon(Icons.Rounded.Close, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
-                }
-            }
+            if (!isMacOSPlatform() && !state.useSystemTitleBar) {
+                WindowControls(onMinimize = onMinimize, onClose = onClose, useSystemTitleBar = state.useSystemTitleBar)
             }
         }
     }
@@ -1500,6 +1501,33 @@ private fun MuteButton(
                 if (isMuted) stringResource(Res.string.unmuteLabel) else stringResource(Res.string.muteLabel),
                 style = MaterialTheme.typography.labelSmall, color = contentColor
             )
+        }
+    }
+}
+
+@Composable
+private fun WindowControls(
+    onMinimize: () -> Unit,
+    onClose: () -> Unit,
+    useSystemTitleBar: Boolean
+) {
+    if (!useSystemTitleBar) {
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (isMacOSPlatform()) {
+                IconButton(onClick = onClose, modifier = Modifier.size(30.dp)) {
+                    Icon(Icons.Rounded.Close, stringResource(Res.string.close), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                }
+                IconButton(onClick = onMinimize, modifier = Modifier.size(30.dp)) {
+                    Icon(Icons.Rounded.Minimize, stringResource(Res.string.minimize), modifier = Modifier.size(16.dp))
+                }
+            } else {
+                IconButton(onClick = onMinimize, modifier = Modifier.size(30.dp)) {
+                    Icon(Icons.Rounded.Minimize, stringResource(Res.string.minimize), modifier = Modifier.size(16.dp))
+                }
+                IconButton(onClick = onClose, modifier = Modifier.size(30.dp)) {
+                    Icon(Icons.Rounded.Close, stringResource(Res.string.close), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                }
+            }
         }
     }
 }

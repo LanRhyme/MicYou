@@ -100,3 +100,8 @@ expect fun getVBCableInstallProgress(): kotlinx.coroutines.flow.Flow<String?>
  */
 expect fun isWindowsPlatform(): Boolean
 
+/**
+ * Check if running on macOS platform.
+ */
+expect fun isMacOSPlatform(): Boolean
+

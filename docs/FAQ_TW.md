@@ -62,12 +62,14 @@ brew install switchaudio-osx --formulae
 
 從 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下載並安裝到「應用程式」資料夾。首次開啟可能會被 Gatekeeper 攔截：
 
-- 若提示「不受信任的開發者」，請至「系統設定」> 「隱私權與安全性」允許應用程式
+- 若顯示「不受信任的開發者」，請至「系統設定」> 「隱私權與安全性」允許應用程式
 - 若顯示「應用程式已損毀」，在終端執行：
 
 ```bash
 sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
 ```
+
+執行時需輸入您的使用者帳號密碼，輸入時密碼不可見，完成後回車即可。
 
 ### Linux
 

@@ -205,6 +205,7 @@
     <string name="firstLaunchStep3Desc">Click Start button to begin audio streaming</string>
     <string name="firstLaunchStep3Title">3. Start Streaming</string>
     <string name="firstLaunchStep4Desc">Select VB-Cable as input device in your recording software</string>
+    <string name="firstLaunchStep4DescMac">Select BlackHole as input device in your recording software</string>
     <string name="firstLaunchStep4Title">4. Configure Audio</string>
     <string name="firstLaunchTextGuide">Text Guide</string>
     <string name="firstLaunchTitle">Welcome to MicYou</string>
