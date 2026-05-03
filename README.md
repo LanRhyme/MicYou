@@ -38,7 +38,7 @@
 - **Cross-Platform**:
   - **Android Client**: Modern Material 3 interface, dark/light theme support.
   - **Desktop Server**: Receive audio on Windows/Linux/macOS.
-- **Virtual Microphone**: Works seamlessly with VB-Cable to act as a system microphone input.
+- **Virtual Microphone**: Works seamlessly with VB-Cable/BlackHole to act as a system microphone input.
 - **Customizable**: Adjust sample rate, channel count, and audio format.
 
 ## Screenshots
