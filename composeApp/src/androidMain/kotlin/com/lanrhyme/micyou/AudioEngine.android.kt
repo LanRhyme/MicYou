@@ -318,7 +318,10 @@ actual class AudioEngine actual constructor() {
                             if (mode == ConnectionMode.Wifi) {
                                 val udpPort = calculateUdpPort(port)
                                 Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
-                                udpSocket = DatagramSocket()
+                                udpSocket = DatagramSocket().also {
+                                    it.sendBufferSize = 256 * 1024 // 256KB send buffer
+                                    Logger.d("AudioEngine", "UDP send buffer: ${it.sendBufferSize / 1024}KB")
+                                }
                                 udpServerAddress = InetSocketAddress(targetIp, udpPort)
                                 Logger.i("AudioEngine", "UDP connected to $targetIp:$udpPort")
                             }
@@ -434,8 +437,16 @@ actual class AudioEngine actual constructor() {
                         }
                         
                         sendChannel?.send(MessageWrapper(mute = MuteMessage(_isMuted.value)))
-    val buffer = ByteArray(minBufSize)
-    val floatBuffer = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) FloatArray(minBufSize / 4) else null
+                        // Use read buffer sized to avoid IP fragmentation on WiFi
+                        // Path MTU = 1500, minus IP(20)+UDP(8)+header(8)+ProtoBuf(~30) ≈ 1434 safe payload
+    val udpSafePayloadSize = 1400
+    val readBufSize = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) {
+                            minOf(minBufSize, udpSafePayloadSize).coerceAtLeast(256)
+                        } else {
+                            minOf(minBufSize, udpSafePayloadSize).coerceAtLeast(512)
+                        }
+    val buffer = ByteArray(readBufSize)
+    val floatBuffer = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
                         
                         var sequenceNumber = 0
 

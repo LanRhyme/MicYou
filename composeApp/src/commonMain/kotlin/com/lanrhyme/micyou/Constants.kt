@@ -28,8 +28,9 @@ object Constants {
     const val TCP_CONNECTION_TIMEOUT_MS = 10000L
 
     // ==================== Channel 容量配置 ====================
-    /** 音频包处理通道容量 */
-    const val AUDIO_PACKET_CHANNEL_CAPACITY = 32
+    /** 音频包处理通道容量。需容纳 ~500ms+ 缓冲以应对 WiFi 抖动；
+        小包模式 (1.4KB ≈ 7.3ms/pkt) 需要更多槽位：128 × 7.3ms ≈ 934ms */
+    const val AUDIO_PACKET_CHANNEL_CAPACITY = 128
 
     /** 控制消息发送通道容量 */
     const val MESSAGE_CHANNEL_CAPACITY = 64

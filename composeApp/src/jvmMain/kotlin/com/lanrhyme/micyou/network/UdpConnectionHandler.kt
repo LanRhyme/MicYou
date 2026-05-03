@@ -94,8 +94,12 @@ class UdpConnectionHandler(
         try {
             udpSocket = DatagramSocket(port).also { socket ->
                 // Set receive buffer size for audio stream
-                socket.receiveBufferSize = 256 * 1024 // 256KB
-                Logger.i("UdpConnectionHandler", "UDP receiver started on port $port")
+                socket.receiveBufferSize = 2 * 1024 * 1024 // 2MB
+                val actualBufferSize = socket.receiveBufferSize
+                Logger.i("UdpConnectionHandler", "UDP receiver started on port $port, receive buffer: ${actualBufferSize / 1024}KB (requested: 2048KB)")
+                if (actualBufferSize < 512 * 1024) {
+                    Logger.w("UdpConnectionHandler", "UDP receive buffer is smaller than expected (${actualBufferSize / 1024}KB). Consider adjusting OS UDP buffer limits.")
+                }
             }
     val buffer = ByteArray(Constants.MAX_PACKET_SIZE)
 
@@ -170,22 +174,35 @@ class UdpConnectionHandler(
                 val seqNum = wrapper.audioPacket.sequenceNumber
                 if (packetsReceived == 0L) {
                     expectedSequenceNumber = seqNum
+                    packetsReceived++
                 } else {
-                    val expected = (expectedSequenceNumber + 1) and 0xFFFFFFFF.toInt()
+                    val expected = expectedSequenceNumber + 1
                     if (seqNum != expected) {
-                        if (seqNum > expected) {
+                        // Use unsigned comparison for sequence number (handles Int wrap correctly)
+                        val diffUnsigned = (seqNum.toUInt() - expected.toUInt()).toLong() and 0xFFFFFFFFL
+                        // If diff < 0x80000000u, seqNum is "after" expected (normal loss)
+                        // If diff >= 0x80000000u, seqNum is "before" expected (out-of-order/repeat)
+                        val isGapForward = diffUnsigned < 0x80000000L
+                        if (isGapForward) {
                             // Normal packet loss: received sequence number > expected
-                            val lost = ((seqNum - expected) and 0xFFFFFFFF.toInt())
-                            packetsLost += lost.toLong()
-                            Logger.d("UdpConnectionHandler", "UDP loss detected: expected $expected, received $seqNum, lost $lost packets")
+                            val lost = diffUnsigned
+                            // Sanity check: limit max loss per gap to prevent absurd counts
+                            val cappedLost = minOf(lost, 1000L)
+                            packetsLost += cappedLost
+                            expectedSequenceNumber = seqNum
+                            packetsReceived++
+                            Logger.d("UdpConnectionHandler", "UDP loss detected: expected $expected, received $seqNum, lost $cappedLost packets")
                         } else {
-                            // Out-of-order packet: received sequence number < expected, don't count as loss
-                            Logger.d("UdpConnectionHandler", "UDP out-of-order packet: expected $expected, received $seqNum (old packet)")
+                            // Out-of-order or duplicate packet: do NOT advance expectedSequenceNumber
+                            // This prevents cascading false loss detection when UDP delivers packets out of order
+                            packetsReceived++
+                            Logger.d("UdpConnectionHandler", "UDP out-of-order packet: expected $expected, received $seqNum (ignored for loss tracking)")
                         }
+                    } else {
+                        expectedSequenceNumber = seqNum
+                        packetsReceived++
                     }
-                    expectedSequenceNumber = seqNum
                 }
-                packetsReceived++
 
                 // Jitter calculation (RFC 3550 variant)
                 val transmitTime = wrapper.audioPacket.timestamp
