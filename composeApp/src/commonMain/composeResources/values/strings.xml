@@ -124,6 +124,7 @@
     <string name="errorPermissionDeniedMessage">Insufficient permissions to perform this operation. Please run the application as administrator.</string>
     <string name="errorRecordingPermissionDenied">Recording permission denied</string>
     <string name="errorPermissionDeniedTitle">Permission Denied</string>
+    <string name="errorPortInUseMessage">Port %s is already in use by another application. Please choose a different port or close the conflicting application.</string>
     <string name="errorPortInUseTitle">Port Already in Use</string>
     <string name="errorProtocolErrorMessage">A protocol error occurred during communication. Please restart both applications.</string>
     <string name="errorProtocolErrorTitle">Protocol Error</string>

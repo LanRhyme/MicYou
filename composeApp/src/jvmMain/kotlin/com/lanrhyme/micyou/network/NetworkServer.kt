@@ -51,8 +51,7 @@ class NetworkServer(
     private var activeHandler: ConnectionHandler? = null
 
     suspend fun start(
-        port: Int,
-        mode: ConnectionMode
+        port: Int
     ) {
         serverJob?.takeIf { it.isActive }?.let {
             Logger.w("NetworkServer", "服务器已在运行")

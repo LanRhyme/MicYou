@@ -146,7 +146,7 @@ class AudioStreamViewModel : ViewModel() {
         
         // Apply auto config on startup if enabled
         if (savedIsAutoConfig) {
-            applyAutoConfig(savedMode)
+            applyAutoConfig()
         }
         
         _audioEngine.setMonitoring(savedMonitoring)
@@ -220,7 +220,7 @@ class AudioStreamViewModel : ViewModel() {
         _uiState.update { it.copy(audioConfigRevision = it.audioConfigRevision + 1) }
     }
 
-    private fun applyAutoConfig(mode: ConnectionMode) {
+    private fun applyAutoConfig() {
         setSampleRate(SampleRate.Rate48000)
         setChannelCount(ChannelCount.Stereo)
         setAudioFormat(AudioFormat.PCM_16BIT)
@@ -355,7 +355,7 @@ class AudioStreamViewModel : ViewModel() {
         
         // Auto-configure if enabled
         if (current.isAutoConfig) {
-             applyAutoConfig(mode)
+             applyAutoConfig()
         }
 
         _uiState.update { it.copy(mode = mode, port = updatedPort) }
@@ -495,7 +495,7 @@ class AudioStreamViewModel : ViewModel() {
         _uiState.update { it.copy(isAutoConfig = enabled) }
         settings.putBoolean("is_auto_config", enabled)
         if (enabled) {
-            applyAutoConfig(_uiState.value.mode)
+            applyAutoConfig()
         }
     }
 
