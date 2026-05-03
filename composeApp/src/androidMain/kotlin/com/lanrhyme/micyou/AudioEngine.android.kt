@@ -142,8 +142,12 @@ actual class AudioEngine actual constructor() {
 
     private var echoCanceler: AcousticEchoCanceler? = null
 
-    // 软件 AEC（当硬件 AcousticEchoCanceler 不可用时使用）
+    // 软件 AEC（处理 PC→手机的回声，硬件 AEC 无法处理外部设备回声）
     private val softwareAec = AecEffect()
+
+    // 是否收到了 PC 端的 loopback 参考信号
+    @Volatile
+    private var hasLoopbackReference = false
 
     actual var onLoopbackAudioReceived: ((LoopbackAudioMessage) -> Unit)? = null
 
@@ -416,18 +420,15 @@ actual class AudioEngine actual constructor() {
                     // 设置软件 AEC 回环音频回调
                     var loopbackPacketCount = 0
                     onLoopbackAudioReceived = { loopbackMsg ->
+                        hasLoopbackReference = true
                         loopbackPacketCount++
                         if (loopbackPacketCount % 100 == 1) {
                             Logger.d("AudioEngine", "AEC Reference signal received: ${loopbackMsg.buffer.size} bytes, total packets: $loopbackPacketCount")
                         }
                         // 将 ByteArray 转换为 ShortArray 作为 AEC 参考信号
                         val shorts = ShortArray(loopbackMsg.buffer.size / 2)
-                        for (i in shorts.indices) {
-                            val lo = loopbackMsg.buffer[i * 2].toInt() and 0xFF
-                            val hi = loopbackMsg.buffer[i * 2 + 1].toInt()
-                            shorts[i] = ((hi shl 8) or lo).toShort()
-                        }
-                        softwareAec.setReferenceSignal(shorts, loopbackMsg.timestamp)
+                        ByteBuffer.wrap(loopbackMsg.buffer).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
+                        softwareAec.setReferenceSignal(shorts, loopbackMsg.timestamp, loopbackMsg.channelCount)
                     }
 
                     if (enableStreamingNotification) {
@@ -543,9 +544,10 @@ actual class AudioEngine actual constructor() {
                         }
 
                         if (readBytes > 0) {
-                            // 应用软件 AEC 处理（如果启用且硬件 AEC 不可用）
+                            // 应用软件 AEC 处理
+                            // 当有 PC loopback 参考信号时，始终使用软件 AEC（硬件 AEC 无法处理外部设备回声）
                             // 仅支持 16-bit PCM
-                            val useSoftwareAec = enableAEC && echoCanceler == null && audioFormat == com.lanrhyme.micyou.AudioFormat.PCM_16BIT
+                            val useSoftwareAec = enableAEC && (echoCanceler == null || hasLoopbackReference) && audioFormat == com.lanrhyme.micyou.AudioFormat.PCM_16BIT
                             val processedAudio = if (useSoftwareAec) {
                                 applySoftwareAec(audioData)
                             } else {
@@ -601,6 +603,7 @@ actual class AudioEngine actual constructor() {
                         softwareAec.release()
                         onLoopbackAudioReceived = null
                         echoCanceler = null
+                        hasLoopbackReference = false
                         
                         sendChannel?.close()
                         recorder?.stop()

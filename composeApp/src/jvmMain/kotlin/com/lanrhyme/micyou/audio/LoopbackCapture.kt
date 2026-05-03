@@ -146,13 +146,11 @@ class PulseAudioLoopbackCapture : LoopbackCapture {
  */
 class LoopbackCaptureManager {
     private var capture: LoopbackCapture? = null
+    private var savedCallback: ((ByteArray, Int, Int, Long) -> Unit)? = null
 
     private val _isCapturing = MutableStateFlow(false)
     val isCapturing = _isCapturing.asStateFlow()
 
-    /**
-     * 根据平台创建采集实例
-     */
     fun createCapture(): LoopbackCapture {
         val os = System.getProperty("os.name").lowercase()
         return when {
@@ -160,34 +158,27 @@ class LoopbackCaptureManager {
             os.contains("linux") -> PulseAudioLoopbackCapture()
             else -> {
                 Logger.w("LoopbackCapture", "Unsupported platform for loopback capture: $os")
-                WasapiLoopbackCapture() // 默认尝试 WASAPI
+                WasapiLoopbackCapture()
             }
         }
     }
 
-    /**
-     * 开始采集
-     */
     suspend fun start(sampleRate: Int = 44100, channelCount: Int = 1) {
         capture?.stop()
         capture = createCapture()
+        savedCallback?.let { capture?.onAudioData(it) }
         capture?.start(sampleRate, channelCount)
         _isCapturing.value = true
     }
 
-    /**
-     * 停止采集
-     */
     fun stop() {
         capture?.stop()
         capture = null
         _isCapturing.value = false
     }
 
-    /**
-     * 注册音频数据回调
-     */
     fun onAudioData(callback: (ByteArray, Int, Int, Long) -> Unit) {
+        savedCallback = callback
         capture?.onAudioData(callback)
     }
 }
