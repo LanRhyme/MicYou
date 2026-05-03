@@ -207,6 +207,40 @@ class UdpConnectionHandler(
         }
     }
 
+    /**
+     * Sends loopback audio packet to the client via UDP.
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    suspend fun sendLoopbackAudio(message: LoopbackAudioMessage) {
+        val address = clientAddress ?: return
+        val socket = udpSocket ?: return
+
+        try {
+            val wrapper = MessageWrapper(loopbackAudio = message)
+            val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), wrapper)
+            val length = packetBytes.size
+            
+            // Build header: Magic (4 bytes) + Length (4 bytes)
+            val header = ByteArray(8).apply {
+                this[0] = (UDP_PACKET_MAGIC_LOOPBACK shr 24).toByte()
+                this[1] = (UDP_PACKET_MAGIC_LOOPBACK shr 16).toByte()
+                this[2] = (UDP_PACKET_MAGIC_LOOPBACK shr 8).toByte()
+                this[3] = UDP_PACKET_MAGIC_LOOPBACK.toByte()
+                this[4] = (length shr 24).toByte()
+                this[5] = (length shr 16).toByte()
+                this[6] = (length shr 8).toByte()
+                this[7] = length.toByte()
+            }
+            
+            val udpPacket = DatagramPacket(header + packetBytes, 8 + length, address)
+            withContext(Dispatchers.IO) {
+                socket.send(udpPacket)
+            }
+        } catch (e: Exception) {
+            Logger.w("UdpConnectionHandler", "Failed to send loopback audio via UDP: ${e.message}")
+        }
+    }
+
     private fun cleanup() {
         try {
             udpSocket?.close()

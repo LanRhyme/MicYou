@@ -548,6 +548,14 @@ actual class AudioEngine actual constructor() {
                             // 当有 PC loopback 参考信号时，始终使用软件 AEC（硬件 AEC 无法处理外部设备回声）
                             // 仅支持 16-bit PCM
                             val useSoftwareAec = enableAEC && (echoCanceler == null || hasLoopbackReference) && audioFormat == com.lanrhyme.micyou.AudioFormat.PCM_16BIT
+
+                            // 诊断日志：每 5 秒输出一次 AEC 状态
+                            val now = System.currentTimeMillis()
+                            if (now - lastAecDiagLogTime > 5000) {
+                                lastAecDiagLogTime = now
+                                Logger.i("AudioEngine", "AEC Diag: enableAEC=$enableAEC, hwAec=${echoCanceler != null}, hasLoopback=$hasLoopbackReference, useSoftwareAec=$useSoftwareAec, format=$audioFormat, softwareAec.enabled=${softwareAec.enabled}")
+                            }
+
                             val processedAudio = if (useSoftwareAec) {
                                 applySoftwareAec(audioData)
                             } else {

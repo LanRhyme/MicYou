@@ -170,11 +170,16 @@ class NetworkServer(
     }
 
     suspend fun sendLoopbackAudio(message: LoopbackAudioMessage) {
-        activeHandler?.sendLoopbackAudio(message)
+        val udp = udpHandler
+        if (udp != null) {
+            udp.sendLoopbackAudio(message)
+        } else {
+            activeHandler?.sendLoopbackAudio(message)
+        }
     }
 
     suspend fun sendLoopbackAudio(buffer: ByteArray, sampleRate: Int, channelCount: Int, timestamp: Long) {
-        activeHandler?.sendLoopbackAudio(LoopbackAudioMessage(buffer, sampleRate, channelCount, 16, timestamp))
+        sendLoopbackAudio(LoopbackAudioMessage(buffer, sampleRate, channelCount, 16, timestamp))
     }
 
     fun getUdpStats(): UdpConnectionHandler.UdpStats? = udpHandler?.getStats()
