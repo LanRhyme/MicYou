@@ -86,7 +86,7 @@
     <string name="errorConnectionRefusedMessage">連線被拒絕。目標裝置可能無執行 MicYou 或者無喺指定埠口度聽。</string>
     <string name="errorConnectionRefusedTitle">連線被拒絕</string>
     <string name="errorConnectionRefusedWifiMessage">連去 %s 被拒絕。請確保桌面伺服器行緊同埋設定咗同一埠口。</string>
-    <string name="errorDeviceNotFoundMessage">搵唔到指定嘅藍牙裝置。請確保裝置已配對同埋藍牙已開。</string>
+    <string name="errorDeviceNotFoundMessage">搵唔到指定嘅裝置。請檢查網絡連線。</string>
     <string name="errorDeviceNotFoundTitle">搵唔到裝置</string>
     <string name="errorDialogDismiss">關閉</string>
     <string name="errorDialogHelp">睇說明</string>
@@ -148,7 +148,7 @@
     <string name="firewallTitle">防火牆檢查</string>
     <string name="firstLaunchGotItButton">我很清楚點樣使用</string>
     <string name="firstLaunchGuideButton">等我睇下使用指南</string>
-    <string name="firstLaunchMessage">您好似係第一次使用 MicYou，呢個 App 可以將你嘅 Android 裝置透過 Wi-Fi、藍牙或者 USB 變做電腦嘅高質量咪高峰</string>
+    <string name="firstLaunchMessage">您好似係第一次使用 MicYou，呢個 App 可以將你嘅 Android 裝置透過 Wi-Fi 或者 USB 變做電腦嘅高質量咪高峰</string>
     <string name="firstLaunchQuickStartTitle">快速入門指南</string>
     <string name="firstLaunchStep1Desc">喺電腦下載同安裝 MicYou 桌面應用程式</string>
     <string name="firstLaunchStep1Title">1. 安裝桌面應用程式</string>
@@ -171,7 +171,7 @@
     <string name="githubRepoLabel">Github 倉庫</string>
     <string name="hexFormatError">格式: #RRGGBB</string>
     <string name="importPlugin">匯入插件</string>
-    <string name="introText">MicYou 係一個開源嘅咪高峰工具，可以將你嘅 Android 裝置變做電腦嘅高質素咪高峰，支援 Wi-Fi (TCP)、藍牙同 USB 連線，畀到低延遲嘅音訊傳輸體驗。</string>
+    <string name="introText">MicYou 係一個開源嘅咪高峰工具，可以將你嘅 Android 裝置變做電腦嘅高質素咪高峰，支援 Wi-Fi (TCP) 同 USB 連線，畀到低延遲嘅音訊傳輸體驗。</string>
     <string name="ipLabel">IP： </string>
     <string name="isLatestVersion">而家已經係最新版本</string>
     <string name="keepScreenOnDesc">用緊應用程式時防止螢幕自動熄滅</string>

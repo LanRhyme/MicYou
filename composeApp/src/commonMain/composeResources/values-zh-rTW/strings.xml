@@ -86,7 +86,7 @@
     <string name="errorConnectionRefusedMessage">連線被拒絕。目標裝置可能未執行 MicYou 或未在指定連接埠監聽。</string>
     <string name="errorConnectionRefusedTitle">連線被拒絕</string>
     <string name="errorConnectionRefusedWifiMessage">連線到 %s 被拒絕。請確保桌面伺服器正在執行並設定相同連接埠。</string>
-    <string name="errorDeviceNotFoundMessage">找不到指定的藍牙裝置。請確保裝置已配對且藍牙已啟用。</string>
+    <string name="errorDeviceNotFoundMessage">找不到指定的裝置。請檢查網路連線。</string>
     <string name="errorDeviceNotFoundTitle">找不到裝置</string>
     <string name="errorDialogDismiss">關閉</string>
     <string name="errorDialogHelp">檢視說明</string>
@@ -148,7 +148,7 @@
     <string name="firewallTitle">防火牆檢查</string>
     <string name="firstLaunchGotItButton">我很清楚怎麼使用</string>
     <string name="firstLaunchGuideButton">讓我看看使用指南</string>
-    <string name="firstLaunchMessage">您似乎是第一次使用 MicYou，本應用可以將您的 Android 裝置透過 Wi-Fi、藍牙或 USB 變成電腦的高品質麥克風</string>
+    <string name="firstLaunchMessage">您似乎是第一次使用 MicYou，本應用可以將您的 Android 裝置透過 Wi-Fi 或 USB 變成電腦的高品質麥克風</string>
     <string name="firstLaunchQuickStartTitle">快速入門指南</string>
     <string name="firstLaunchStep1Desc">在電腦上下載並安裝 MicYou 桌面應用程式</string>
     <string name="firstLaunchStep1Title">1. 安裝桌面應用程式</string>
@@ -171,7 +171,7 @@
     <string name="githubRepoLabel">Github 倉庫</string>
     <string name="hexFormatError">格式: #RRGGBB</string>
     <string name="importPlugin">匯入插件</string>
-    <string name="introText">MicYou 是一款開源的麥克風工具，可以將您的 Android 裝置變成電腦的高品質麥克風，支援 Wi-Fi (TCP)、藍牙 和 USB 連線，提供低延遲的音訊傳輸體驗。</string>
+    <string name="introText">MicYou 是一款開源的麥克風工具，可以將您的 Android 裝置變成電腦的高品質麥克風，支援 Wi-Fi (TCP) 和 USB 連線，提供低延遲的音訊傳輸體驗。</string>
     <string name="ipLabel">IP： </string>
     <string name="isLatestVersion">目前已是最新版本</string>
     <string name="keepScreenOnDesc">使用應用程式時防止螢幕自動關閉</string>
