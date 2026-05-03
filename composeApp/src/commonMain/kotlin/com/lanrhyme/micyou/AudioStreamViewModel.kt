@@ -22,7 +22,6 @@ data class AudioStreamUiState(
     val channelCount: ChannelCount = ChannelCount.Stereo,
     val audioFormat: AudioFormat = AudioFormat.PCM_FLOAT,
     val isMuted: Boolean = false,
-    val bluetoothAddress: String = "",
     val isAutoConfig: Boolean = true,
     val showFirewallDialog: Boolean = false,
     val pendingFirewallPort: Int? = null,
@@ -116,7 +115,6 @@ class AudioStreamViewModel : ViewModel() {
     val savedDereverbLevel = settings.getFloat("dereverb_level", 0.5f)
     val savedAmplification = settings.getFloat("amplification", 15.0f)
     val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Unprocessed")
-    val savedBluetoothAddress = settings.getString("bluetooth_address", "")
     val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
     val savedPerformanceMode = settings.getString("performance_mode", "Default")
     val savedBufferSizeMultiplier = settings.getFloat("buffer_size_multiplier", 1.0f)
@@ -140,7 +138,6 @@ class AudioStreamViewModel : ViewModel() {
                 dereverbLevel = savedDereverbLevel,
                 amplification = savedAmplification,
                 androidAudioSourceName = savedAndroidAudioSourceName,
-                bluetoothAddress = savedBluetoothAddress,
                 isAutoConfig = savedIsAutoConfig,
                 performanceMode = savedPerformanceMode,
                 performanceConfig = PerformanceConfig.withBufferSizeMultiplier(savedBufferSizeMultiplier)
@@ -149,7 +146,7 @@ class AudioStreamViewModel : ViewModel() {
         
         // Apply auto config on startup if enabled
         if (savedIsAutoConfig) {
-            applyAutoConfig(savedMode)
+            applyAutoConfig()
         }
         
         _audioEngine.setMonitoring(savedMonitoring)
@@ -223,18 +220,10 @@ class AudioStreamViewModel : ViewModel() {
         _uiState.update { it.copy(audioConfigRevision = it.audioConfigRevision + 1) }
     }
 
-    private fun applyAutoConfig(mode: ConnectionMode) {
-        if (mode == ConnectionMode.Bluetooth) {
-            // Low bandwidth optimization
-            setSampleRate(SampleRate.Rate16000)
-            setChannelCount(ChannelCount.Mono)
-            setAudioFormat(AudioFormat.PCM_16BIT)
-        } else {
-            // High quality for WiFi/USB
-            setSampleRate(SampleRate.Rate48000)
-            setChannelCount(ChannelCount.Stereo)
-            setAudioFormat(AudioFormat.PCM_16BIT)
-        }
+    private fun applyAutoConfig() {
+        setSampleRate(SampleRate.Rate48000)
+        setChannelCount(ChannelCount.Stereo)
+        setAudioFormat(AudioFormat.PCM_16BIT)
     }
 
     fun toggleStream() {
@@ -255,7 +244,7 @@ class AudioStreamViewModel : ViewModel() {
     fun startStream() {
         Logger.i("AudioStreamViewModel", "Starting stream")
     val mode = _uiState.value.mode
-        val ip = if (mode == ConnectionMode.Bluetooth) _uiState.value.bluetoothAddress else _uiState.value.ipAddress
+        val ip = _uiState.value.ipAddress
 
         // 端口验证：确保端口在有效范围内 (1-65535)
     val rawPort = _uiState.value.port.toIntOrNull()
@@ -271,44 +260,22 @@ class AudioStreamViewModel : ViewModel() {
             else -> rawPort
         }
 
-        // IP 地址验证（非蓝牙模式）
-        if (mode != ConnectionMode.Bluetooth) {
-            if (ip.isBlank()) {
-                Logger.e("AudioStreamViewModel", "IP address is empty")
-                _uiState.update {
-                    it.copy(
-                        streamState = StreamState.Error,
-                        errorMessage = "IP 地址不能为空",
-                        showErrorDialog = true
-                    )
-                }
-                return
+        // IP 地址验证
+        if (ip.isBlank()) {
+            Logger.e("AudioStreamViewModel", "IP address is empty")
+            _uiState.update {
+                it.copy(
+                    streamState = StreamState.Error,
+                    errorMessage = "IP 地址不能为空",
+                    showErrorDialog = true
+                )
             }
-            // 基本的 IP 格式验证
-            val ipRegex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
-            if (!ipRegex.matches(ip) && !ip.startsWith("127.")) {
-                Logger.w("AudioStreamViewModel", "IP address format may be invalid: $ip")
-            }
+            return
         }
-
-        // 蓝牙地址验证（蓝牙模式）
-        if (mode == ConnectionMode.Bluetooth) {
-            if (ip.isBlank()) {
-                Logger.e("AudioStreamViewModel", "Bluetooth address is empty")
-                _uiState.update {
-                    it.copy(
-                        streamState = StreamState.Error,
-                        errorMessage = "请选择蓝牙设备",
-                        showErrorDialog = true
-                    )
-                }
-                return
-            }
-            // MAC 地址格式验证
-            val macRegex = Regex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
-            if (!macRegex.matches(ip)) {
-                Logger.w("AudioStreamViewModel", "Bluetooth MAC address format may be invalid: $ip")
-            }
+        // 基本的 IP 格式验证
+        val ipRegex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
+        if (!ipRegex.matches(ip) && !ip.startsWith("127.")) {
+            Logger.w("AudioStreamViewModel", "IP address format may be invalid: $ip")
         }
     val isClient = getPlatform().type == PlatformType.Android
         val sampleRate = _uiState.value.sampleRate
@@ -386,9 +353,9 @@ class AudioStreamViewModel : ViewModel() {
             current.port
         }
         
-        // Auto-configure for Bluetooth to optimize bandwidth and stability
+        // Auto-configure if enabled
         if (current.isAutoConfig) {
-             applyAutoConfig(mode)
+             applyAutoConfig()
         }
 
         _uiState.update { it.copy(mode = mode, port = updatedPort) }
@@ -528,7 +495,7 @@ class AudioStreamViewModel : ViewModel() {
         _uiState.update { it.copy(isAutoConfig = enabled) }
         settings.putBoolean("is_auto_config", enabled)
         if (enabled) {
-            applyAutoConfig(_uiState.value.mode)
+            applyAutoConfig()
         }
     }
 

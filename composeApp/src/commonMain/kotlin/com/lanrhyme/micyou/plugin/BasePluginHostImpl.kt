@@ -200,7 +200,6 @@ abstract class BasePluginHostImpl(
     protected fun mapConnectionMode(mode: ConnectionMode): com.lanrhyme.micyou.ConnectionMode {
         return when (mode) {
             ConnectionMode.Wifi -> com.lanrhyme.micyou.ConnectionMode.Wifi
-            ConnectionMode.Bluetooth -> com.lanrhyme.micyou.ConnectionMode.Bluetooth
             ConnectionMode.Usb -> com.lanrhyme.micyou.ConnectionMode.Usb
         }
     }

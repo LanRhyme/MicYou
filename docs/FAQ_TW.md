@@ -46,9 +46,6 @@
 
 ### macOS
 
-> [!IMPORTANT]
-> 若您使用 Apple Silicon（如 M1/M2）Mac，未啟用 Rosetta 2 時，藍牙模式可能無法正常使用。
-
 為了獲得更佳的使用體驗，建議透過 Homebrew 安裝以下套件：
 
 ```bash

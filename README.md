@@ -33,7 +33,7 @@
 
 ## Features
 
-- **Multiple Connection Modes**: Support for Wi-Fi, USB (ADB/AOA), and Bluetooth.
+- **Multiple Connection Modes**: Support for Wi-Fi and USB (ADB/AOA).
 - **Audio Processing**: Built-in Noise Suppression, Auto Gain Control (AGC), and Dereverberation.
 - **Cross-Platform**:
   - **Android Client**: Modern Material 3 interface, dark/light theme support.

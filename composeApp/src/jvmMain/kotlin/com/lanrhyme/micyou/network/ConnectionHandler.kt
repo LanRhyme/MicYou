@@ -22,7 +22,7 @@ import java.io.EOFException
 import java.io.IOException
 
 /**
- * Handles a single active network connection (TCP or Bluetooth).
+ * Handles a single active network connection (TCP).
  * Responsibilities include:
  * 1. Handshake (Check1/Check2)
  * 2. Receiving and parsing packets (protocol loop)

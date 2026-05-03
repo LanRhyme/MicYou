@@ -77,7 +77,6 @@ body:
       options:
         - Wi-Fi
         - USB (ADB/AOA)
-        - 蓝牙
       default: 0
     validations:
       required: true

@@ -43,9 +43,6 @@
 
 ### macOS
 
-> [!IMPORTANT]
-> 如果您使用的是 Apple Silicon Mac，未启用 Rosetta 2 时，蓝牙模式可能无法正常使用。
-
 为了获得更好的使用体验，建议通过 Homebrew 安装以下依赖：
 
 ```bash

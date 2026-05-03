@@ -6,7 +6,7 @@
 
 ## OVERVIEW
 
-Kotlin Multiplatform app that turns Android devices into PC microphones. Uses Compose Multiplatform/Material 3. Supports Wi-Fi, USB (ADB), and Bluetooth connections. Cross-platform: Android client + Desktop server (Windows/Linux/macOS).
+Kotlin Multiplatform app that turns Android devices into PC microphones. Uses Compose Multiplatform/Material 3. Supports Wi-Fi and USB (ADB) connections. Cross-platform: Android client + Desktop server (Windows/Linux/macOS).
 
 ## STRUCTURE
 
@@ -33,7 +33,7 @@ MicYou/
 | Core state management | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/MainViewModel.kt | Facade for AudioStream/Settings/Plugin ViewModels |
 | Audio stream logic | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/AudioStreamViewModel.kt | Connection modes, config, stream control |
 | Audio engine interface | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/AudioEngine.kt | expect class - platform implementations |
-| Network server (Desktop) | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/network/NetworkServer.kt | TCP/Bluetooth server, ConnectionHandler |
+| Network server (Desktop) | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/network/NetworkServer.kt | TCP/UDP server, ConnectionHandler |
 | Audio effects pipeline | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/audio/ | Noise reduction, AGC, VAD, Dereverb, Amplifier |
 | Plugin interfaces | plugin-api/src/commonMain/kotlin/com/lanrhyme/micyou/plugin/ | Plugin, PluginHost, PluginManifest, AudioEffectPlugin |
 | Plugin impl (Desktop) | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/plugin/ | PluginManager, PluginClassLoader, PluginSecurityManager |
@@ -49,7 +49,7 @@ MicYou/
 | MainViewModel | class | commonMain/MainViewModel.kt | Facade ViewModel, coordinates AudioStream/Settings/Plugin/Update VMs |
 | AudioStreamViewModel | class | commonMain/AudioStreamViewModel.kt | Handles connection modes, audio config, stream start/stop |
 | AudioEngine | expect class | commonMain/AudioEngine.kt | Platform-specific audio engine interface |
-| NetworkServer | class | jvmMain/network/NetworkServer.kt | TCP/Bluetooth server for desktop |
+| NetworkServer | class | jvmMain/network/NetworkServer.kt | TCP/UDP server for desktop |
 | ConnectionHandler | class | jvmMain/network/ConnectionHandler.kt | Protocol handling for incoming connections |
 | Plugin | interface | plugin-api/plugin/Plugin.kt | Base plugin interface |
 | PluginHost | interface | plugin-api/plugin/PluginHost.kt | Host API for plugins |
@@ -85,7 +85,7 @@ MicYou/
 - **Audio processing chain**: AudioProcessorPipeline chains effects (NoiseReducer, AGCEffect, VADEffect, DereverbEffect, AmplifierEffect)
 - **Plugin security**: PluginSecurityManager validates plugins before loading, PluginClassLoader isolates plugin code
 - **VB-Cable integration**: Windows-only, auto-detect and install virtual audio device
-- **Connection modes**: enum ConnectionMode { Wifi, Bluetooth, Usb } - auto-config adjusts sample rate/channel count
+- **Connection modes**: enum ConnectionMode { Wifi, Usb } - auto-config adjusts sample rate/channel count
 
 ## COMMANDS
 
@@ -118,9 +118,7 @@ MicYou/
 
 ## NOTES
 
-- **Bluetooth on macOS ARM**: Disabled due to BlueCove limitation (isBluetoothDisabled check in main.kt)
 - **VB-Cable**: Windows-only virtual audio device for system microphone output
-- **Linux Bluetooth**: Uses LinuxBlueZServer instead of BlueCove
 - **NSIS packaging**: Requires NSIS installed or nsis.makensis property/env var
 - **Update mechanism**: GitHub releases, auto-check on startup, mirror download option for China
 - **Quick Start**: Android intent ACTION_QUICK_START for tile service auto-connect
