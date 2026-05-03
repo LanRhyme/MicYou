@@ -46,6 +46,7 @@ class AecEffect : AudioEffect {
     // 统计数据
     private var processedFrames = 0
     private var lastErleLogTime = 0L
+    private var currentErle = 0f
 
     companion object {
         const val DEFAULT_FILTER_LENGTH = 1024
@@ -87,8 +88,9 @@ class AecEffect : AudioEffect {
         var errorEnergySum = 0f
 
         synchronized(this) {
-            // 自动延迟匹配：每隔一段时间进行一次互相关搜寻
-            if (!delayMatched || searchCounter++ > 500) {
+            // 自动延迟匹配：如果当前消除效果已经很好 (ERLE > 8dB)，则降低搜索频率以避免抖动
+            val searchInterval = if (currentErle > 8f) 2000 else 500
+            if (!delayMatched || searchCounter++ > searchInterval) {
                 findBestDelay(input, channelCount)
                 searchCounter = 0
             }
@@ -140,13 +142,18 @@ class AecEffect : AudioEffect {
 
         // 定期监控
         processedFrames++
-        val now = System.currentTimeMillis()
+        val now = currentTimeMillis()
+        
+        // 更新当前 ERLE 估算值
+        if (errorEnergySum > 0 && micEnergySum > 0) {
+            val instantErle = 10 * kotlin.math.log10(micEnergySum / (errorEnergySum + 1e-10f))
+            // 简单的一阶低通滤波平滑 ERLE
+            currentErle = currentErle * 0.9f + instantErle * 0.1f
+        }
+
         if (now - lastErleLogTime > 2000) {
-            val erle = if (errorEnergySum > 0 && micEnergySum > 0) {
-                10 * kotlin.math.log10(micEnergySum / (errorEnergySum + 1e-10f))
-            } else 0f
             if (micEnergySum > 0.001f) {
-                com.lanrhyme.micyou.Logger.d("AecEffect", "AEC Stats: ERLE=${erle.toInt()}dB, DelayMatch=$bestDelaySamples samples, RefBuf=$availableSamples")
+                com.lanrhyme.micyou.Logger.d("AecEffect", "AEC Stats: ERLE=${currentErle.toInt()}dB, DelayMatch=$bestDelaySamples samples, RefBuf=$availableSamples")
             }
             lastErleLogTime = now
         }
@@ -156,7 +163,7 @@ class AecEffect : AudioEffect {
 
     /**
      * 自动寻找最佳延迟偏移
-     * 通过简单的互相关搜索对齐参考信号和麦克风信号
+     * 通过简单的互相关搜索对齐参考信号 and 麦克风信号
      */
     private fun findBestDelay(micInput: ShortArray, channelCount: Int) {
         if (availableSamples < maxDelaySamples) return
@@ -187,7 +194,7 @@ class AecEffect : AudioEffect {
             }
         }
 
-        // 如果找到了显著的匹配点（虽然相关值很粗略），调整读指针
+        // 如果找到了显著的匹配点
         if (maxCorr > 0.1f) {
             readPos = (readPos + bestOffset) % ringBufferSize
             availableSamples -= bestOffset
@@ -195,6 +202,8 @@ class AecEffect : AudioEffect {
             delayMatched = true
         }
     }
+
+    private fun currentTimeMillis(): Long = System.currentTimeMillis()
 
     override fun reset() {
         synchronized(this) {
@@ -204,6 +213,7 @@ class AecEffect : AudioEffect {
             readPos = 0
             availableSamples = 0
             delayMatched = false
+            currentErle = 0f
         }
     }
 
