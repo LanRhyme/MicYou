@@ -97,6 +97,7 @@ import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.icon_pip
+import androidx.compose.ui.platform.LocalFocusManager
 import org.jetbrains.compose.resources.painterResource
 import kotlin.math.abs
 import kotlin.math.cos
@@ -136,6 +137,13 @@ fun MobileHome(viewModel: MainViewModel) {
         state.snackbarMessage?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
+        }
+    }
+
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(showSettings) {
+        if (showSettings) {
+            focusManager.clearFocus()
         }
     }
 
