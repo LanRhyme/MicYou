@@ -197,6 +197,10 @@
     <string name="missingOn">缺少于</string>
     <string name="modeUsb">USB</string>
     <string name="modeWifi">Wi-Fi</string>
+    <string name="modeWeb">Web</string>
+    <string name="webModeLabel">网页模式</string>
+    <string name="webScanHint">用手机浏览器扫描二维码</string>
+    <string name="webNotStartedHint">开始串流以显示二维码</string>
     <string name="monitoringLabel">监听</string>
     <string name="muteLabel">静音</string>
     <string name="newVersionReleased">发现新版本</string>

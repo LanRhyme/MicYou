@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.ImageBitmap
 import com.lanrhyme.micyou.theme.PaletteStyle
 
 enum class PlatformType {
@@ -104,4 +105,10 @@ expect fun isWindowsPlatform(): Boolean
  * Check if running on macOS platform.
  */
 expect fun isMacOSPlatform(): Boolean
+
+/**
+ * Generate a QR code ImageBitmap for the given text.
+ * Returns null if generation fails.
+ */
+expect fun generateQrCodeImageBitmap(text: String, size: Int): ImageBitmap?
 

@@ -17,6 +17,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -440,6 +441,7 @@ private fun NetworkConfigCard(
                         value = when (state.mode) {
                             ConnectionMode.Wifi -> stringResource(Res.string.modeWifi)
                             ConnectionMode.Usb -> stringResource(Res.string.modeUsb)
+                            ConnectionMode.Web -> stringResource(Res.string.modeWeb)
                             else -> stringResource(Res.string.modeWifi)
                         },
                         onValueChange = {},
@@ -471,25 +473,100 @@ private fun NetworkConfigCard(
                                 expanded = false
                             }
                         )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.modeWeb)) },
+                            onClick = {
+                                viewModel.setMode(ConnectionMode.Web)
+                                expanded = false
+                            }
+                        )
                     }
                 }
 
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.9f),
-                    exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.9f)
-                ) {
-                    OutlinedTextField(
-                        value = state.port,
-                        onValueChange = { viewModel.setPort(it) },
-                        label = { Text(stringResource(Res.string.portLabel)) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp),
-                        textStyle = MaterialTheme.typography.bodySmall,
-                        singleLine = true,
-                        shape = MaterialTheme.shapes.medium
-                    )
+                if (state.mode == ConnectionMode.Web) {
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.9f),
+                        exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.9f)
+                    ) {
+                        PocketWebQrCard(
+                            webUrl = state.webUrl,
+                            streamState = state.streamState
+                        )
+                    }
+                } else {
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.9f),
+                        exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.9f)
+                    ) {
+                        OutlinedTextField(
+                            value = state.port,
+                            onValueChange = { viewModel.setPort(it) },
+                            label = { Text(stringResource(Res.string.portLabel)) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp),
+                            textStyle = MaterialTheme.typography.bodySmall,
+                            singleLine = true,
+                            shape = MaterialTheme.shapes.medium
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PocketWebQrCard(
+    webUrl: String?,
+    streamState: StreamState
+) {
+    val isLoading = streamState == StreamState.Connecting
+    val isRunning = streamState == StreamState.Streaming
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        if (isRunning && webUrl != null) {
+            val qrBitmap = remember(webUrl) {
+                generateQrCodeImageBitmap(webUrl, 140)
+            }
+
+            if (qrBitmap != null) {
+                androidx.compose.foundation.Image(
+                    bitmap = qrBitmap,
+                    contentDescription = "QR Code",
+                    modifier = Modifier.size(140.dp)
+                )
+
+                Text(
+                    text = webUrl,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
+
+                Text(
+                    text = stringResource(Res.string.webScanHint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(32.dp),
+                strokeWidth = 2.dp
+            )
+        } else {
+            Text(
+                stringResource(Res.string.webNotStartedHint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }

@@ -124,6 +124,7 @@ actual class AudioEngine actual constructor() {
 
     private val _isMuted = MutableStateFlow(false)
     actual val isMuted: Flow<Boolean> = _isMuted
+    actual val webServerUrl: Flow<String?> = MutableStateFlow(null)
 
     private var job: Job? = null
     private val startStopMutex = Mutex()

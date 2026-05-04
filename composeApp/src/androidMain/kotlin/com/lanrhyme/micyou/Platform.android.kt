@@ -9,6 +9,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import com.lanrhyme.micyou.theme.PaletteStyle
@@ -88,4 +89,6 @@ actual fun getVBCableInstallProgress(): kotlinx.coroutines.flow.Flow<String?> = 
 actual fun isWindowsPlatform(): Boolean = false
 
 actual fun isMacOSPlatform(): Boolean = false
+
+actual fun generateQrCodeImageBitmap(text: String, size: Int): ImageBitmap? = null
 

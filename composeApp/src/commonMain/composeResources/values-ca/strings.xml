@@ -197,6 +197,10 @@
     <string name="missingOn">缺少于喵~</string>
     <string name="modeUsb">USB 喵~</string>
     <string name="modeWifi">Wi-Fi 喵~</string>
+    <string name="modeWeb">Web 喵~</string>
+    <string name="webModeLabel">网页模式喵~</string>
+    <string name="webScanHint">用手机浏览器扫二维码喵~ (ΦωΦ)</string>
+    <string name="webNotStartedHint">开始串流显示二维码喵~ (=^・ω・^=)</string>
     <string name="monitoringLabel">监听喵~</string>
     <string name="muteLabel">静音喵 (´-ω-`)</string>
     <string name="newVersionReleased">发现新版本喵~ ✨</string>

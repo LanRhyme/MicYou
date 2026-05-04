@@ -16,6 +16,8 @@ expect class AudioEngine() {
     val lastError: Flow<String?>
     // 静音状态流
     val isMuted: Flow<Boolean>
+    // Web 服务器 URL 流（仅桌面端有效）
+    val webServerUrl: Flow<String?>
 
     // 启动音频引擎
     suspend fun start(

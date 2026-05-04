@@ -234,6 +234,10 @@
     <string name="missingOn">Missing on</string>
     <string name="modeUsb">USB</string>
     <string name="modeWifi">Wi-Fi</string>
+    <string name="modeWeb">Web</string>
+    <string name="webModeLabel">Web Mode</string>
+    <string name="webScanHint">Scan QR code with your phone browser</string>
+    <string name="webNotStartedHint">Start streaming to show QR code</string>
     <string name="monitoringLabel">Monitoring</string>
     <string name="muteLabel">Mute</string>
     <string name="newVersionReleased">New version released</string>

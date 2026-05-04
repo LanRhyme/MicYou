@@ -197,6 +197,10 @@
     <string name="missingOn">缺少於</string>
     <string name="modeUsb">USB</string>
     <string name="modeWifi">Wi-Fi</string>
+    <string name="modeWeb">Web</string>
+    <string name="webModeLabel">網頁模式</string>
+    <string name="webScanHint">用手機瀏覽器掃描二維碼</string>
+    <string name="webNotStartedHint">開始串流以顯示二維碼</string>
     <string name="monitoringLabel">監聽</string>
     <string name="muteLabel">靜音</string>
     <string name="newVersionReleased">發現新版本</string>

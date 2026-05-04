@@ -4,14 +4,20 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import com.lanrhyme.micyou.platform.FirewallManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.WindowsAccentColorExtractor
 import com.lanrhyme.micyou.theme.PaletteStyle
 import com.lanrhyme.micyou.theme.dynamicColorScheme
+import com.lanrhyme.micyou.web.QrCodeGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jetbrains.skia.Image
+import java.io.ByteArrayOutputStream
 import java.net.InetAddress
+import javax.imageio.ImageIO
 
 class JVMPlatform: Platform {
     override val name: String = "Java ${System.getProperty("java.version")}"
@@ -156,3 +162,17 @@ actual fun getVBCableInstallProgress(): kotlinx.coroutines.flow.Flow<String?> = 
 actual fun isWindowsPlatform(): Boolean = PlatformInfo.isWindows
 
 actual fun isMacOSPlatform(): Boolean = PlatformInfo.isMacOS
+
+actual fun generateQrCodeImageBitmap(text: String, size: Int): ImageBitmap? {
+    return try {
+        val bufferedImage = QrCodeGenerator.generateQrCodeImage(text, size)
+        val baos = ByteArrayOutputStream()
+        ImageIO.write(bufferedImage, "PNG", baos)
+        val bytes = baos.toByteArray()
+        val skiaImage = Image.makeFromEncoded(bytes)
+        skiaImage.toComposeImageBitmap()
+    } catch (e: Exception) {
+        Logger.e("Platform", "Failed to generate QR code: ${e.message}", e)
+        null
+    }
+}

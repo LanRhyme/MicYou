@@ -106,6 +106,10 @@ kotlin {
             implementation(libs.onnxruntime)
             implementation(libs.jtransforms)
             implementation(libs.jmdns)
+            implementation("io.ktor:ktor-server-cio:${libs.versions.ktor.get()}")
+            implementation("io.ktor:ktor-server-websockets:${libs.versions.ktor.get()}")
+            implementation(libs.zxing.core)
+            implementation(libs.zxing.javase)
         }
     }
 }

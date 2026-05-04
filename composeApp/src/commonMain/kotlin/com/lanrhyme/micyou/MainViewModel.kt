@@ -16,7 +16,8 @@ import org.jetbrains.compose.resources.getString
 
 enum class ConnectionMode(val label: String) {
     Wifi("Wi-Fi"),
-    Usb("USB (ADB)")
+    Usb("USB (ADB)"),
+    Web("Web")
 }
 
 enum class StreamState {
@@ -75,6 +76,10 @@ data class AppUiState(
     val amplification: Float = 15.0f,
     val androidAudioSourceName: String = "Unprocessed",
     val audioConfigRevision: Int = 0,
+
+    // Web Mode State
+    val webUrl: String? = null,
+    val webServerRunning: Boolean = false,
     
     // Settings State
     val themeMode: ThemeMode = ThemeMode.System,
@@ -296,6 +301,8 @@ class MainViewModel : ViewModel() {
                         amplification = audioState.amplification,
                         androidAudioSourceName = audioState.androidAudioSourceName,
                         audioConfigRevision = audioState.audioConfigRevision,
+                        webUrl = audioState.webUrl,
+                        webServerRunning = audioState.webServerRunning,
                         themeMode = settingsState.themeMode,
                         seedColor = settingsState.seedColor,
                         useDynamicColor = settingsState.useDynamicColor,

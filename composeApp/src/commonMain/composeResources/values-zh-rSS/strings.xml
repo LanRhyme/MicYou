@@ -197,6 +197,10 @@
     <string name="missingOn">缺少于</string>
     <string name="modeUsb">通用串行总线式</string>
     <string name="modeWifi">无线保真度</string>
+    <string name="modeWeb">国际网络式</string>
+    <string name="webModeLabel">国际网络模式</string>
+    <string name="webScanHint">使用移动电话浏览器扫描二维条码</string>
+    <string name="webNotStartedHint">开始传输数据以显示二维条码</string>
     <string name="monitoringLabel">监视之中</string>
     <string name="muteLabel">静默化</string>
     <string name="newVersionReleased">新版本发布了</string>

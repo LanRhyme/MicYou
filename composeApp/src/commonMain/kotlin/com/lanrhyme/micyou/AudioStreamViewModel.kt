@@ -26,6 +26,10 @@ data class AudioStreamUiState(
     val showFirewallDialog: Boolean = false,
     val pendingFirewallPort: Int? = null,
 
+    // Web Mode State
+    val webUrl: String? = null,
+    val webServerRunning: Boolean = false,
+
     // Error Dialog State
     val showErrorDialog: Boolean = false,
     val errorDetails: ConnectionErrorDetails? = null,
@@ -179,6 +183,12 @@ class AudioStreamViewModel : ViewModel() {
             }
         }
 
+        viewModelScope.launch {
+            _audioEngine.webServerUrl.collect { url ->
+                _uiState.update { it.copy(webUrl = url, webServerRunning = url != null) }
+            }
+        }
+
         // 监听音频电平数据并更新历史记录
         viewModelScope.launch {
             _audioEngine.audioLevelData.collect { levelData ->
@@ -250,32 +260,36 @@ class AudioStreamViewModel : ViewModel() {
     val rawPort = _uiState.value.port.toIntOrNull()
     val port = when {
             rawPort == null -> {
-                Logger.w("AudioStreamViewModel", "Invalid port format: ${_uiState.value.port}, using default 6000")
-                6000
+                val defaultPort = if (mode == ConnectionMode.Web) 8765 else 6000
+                Logger.w("AudioStreamViewModel", "Invalid port format: ${_uiState.value.port}, using default $defaultPort")
+                defaultPort
             }
             rawPort <= 0 || rawPort > 65535 -> {
-                Logger.w("AudioStreamViewModel", "Port out of range: $rawPort, using default 6000")
-                6000
+                val defaultPort = if (mode == ConnectionMode.Web) 8765 else 6000
+                Logger.w("AudioStreamViewModel", "Port out of range: $rawPort, using default $defaultPort")
+                defaultPort
             }
             else -> rawPort
         }
 
-        // IP 地址验证
-        if (ip.isBlank()) {
-            Logger.e("AudioStreamViewModel", "IP address is empty")
-            _uiState.update {
-                it.copy(
-                    streamState = StreamState.Error,
-                    errorMessage = "IP 地址不能为空",
-                    showErrorDialog = true
-                )
+        // IP 地址验证 (Web 模式不需要 IP)
+        if (mode != ConnectionMode.Web) {
+            if (ip.isBlank()) {
+                Logger.e("AudioStreamViewModel", "IP address is empty")
+                _uiState.update {
+                    it.copy(
+                        streamState = StreamState.Error,
+                        errorMessage = "IP 地址不能为空",
+                        showErrorDialog = true
+                    )
+                }
+                return
             }
-            return
-        }
-        // 基本的 IP 格式验证
-        val ipRegex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
-        if (!ipRegex.matches(ip) && !ip.startsWith("127.")) {
-            Logger.w("AudioStreamViewModel", "IP address format may be invalid: $ip")
+            // 基本的 IP 格式验证
+            val ipRegex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
+            if (!ipRegex.matches(ip) && !ip.startsWith("127.")) {
+                Logger.w("AudioStreamViewModel", "IP address format may be invalid: $ip")
+            }
         }
     val isClient = getPlatform().type == PlatformType.Android
         val sampleRate = _uiState.value.sampleRate

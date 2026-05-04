@@ -20,6 +20,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.scrollBy
@@ -121,6 +122,7 @@ import micyou.composeapp.generated.resources.firewallTitle
 import micyou.composeapp.generated.resources.icon_pip
 import micyou.composeapp.generated.resources.minimize
 import micyou.composeapp.generated.resources.modeUsb
+import micyou.composeapp.generated.resources.modeWeb
 import micyou.composeapp.generated.resources.modeWifi
 import micyou.composeapp.generated.resources.monitoringLabel
 import micyou.composeapp.generated.resources.monitoringTitle
@@ -134,6 +136,9 @@ import micyou.composeapp.generated.resources.statusIdle
 import micyou.composeapp.generated.resources.statusStreaming
 import micyou.composeapp.generated.resources.systemConfigTitle
 import micyou.composeapp.generated.resources.unmuteLabel
+import micyou.composeapp.generated.resources.webModeLabel
+import micyou.composeapp.generated.resources.webNotStartedHint
+import micyou.composeapp.generated.resources.webScanHint
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
@@ -598,14 +603,24 @@ private fun LeftPanel(
             hazeState = hazeState,
             enableHaze = state.backgroundSettings.enableHazeEffect
         )
-        
-        PortCard(
-            port = state.port,
-            onPortChange = { viewModel.setPort(it) },
-            cardOpacity = cardOpacity,
-            hazeState = hazeState,
-            enableHaze = state.backgroundSettings.enableHazeEffect
-        )
+
+        if (state.mode == ConnectionMode.Web) {
+            WebQrCard(
+                webUrl = state.webUrl,
+                streamState = state.streamState,
+                cardOpacity = cardOpacity,
+                hazeState = hazeState,
+                enableHaze = state.backgroundSettings.enableHazeEffect
+            )
+        } else {
+            PortCard(
+                port = state.port,
+                onPortChange = { viewModel.setPort(it) },
+                cardOpacity = cardOpacity,
+                hazeState = hazeState,
+                enableHaze = state.backgroundSettings.enableHazeEffect
+            )
+        }
         
         StatusCard(
             streamState = state.streamState,
@@ -638,7 +653,8 @@ private fun ModeCard(
             Text(stringResource(Res.string.connectionModeLabel), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     val modes = listOf(
                 ConnectionMode.Wifi to (stringResource(Res.string.modeWifi) to Icons.Rounded.Wifi),
-                ConnectionMode.Usb to (stringResource(Res.string.modeUsb) to Icons.Rounded.Usb)
+                ConnectionMode.Usb to (stringResource(Res.string.modeUsb) to Icons.Rounded.Usb),
+                ConnectionMode.Web to (stringResource(Res.string.modeWeb) to Icons.Rounded.Language)
             )
             
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -705,6 +721,91 @@ private fun PortCard(
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodySmall
             )
+        }
+    }
+}
+
+@Composable
+private fun WebQrCard(
+    webUrl: String?,
+    streamState: StreamState,
+    cardOpacity: Float = 1f,
+    hazeState: HazeState? = null,
+    enableHaze: Boolean = false
+) {
+    val isLoading = streamState == StreamState.Connecting
+    val isRunning = streamState == StreamState.Streaming
+
+    HazeSurface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
+        modifier = Modifier.fillMaxWidth(),
+        hazeState = hazeState,
+        enabled = enableHaze
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                stringResource(Res.string.webModeLabel),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (isRunning && webUrl != null) {
+                val qrBitmap = remember(webUrl) {
+                    generateQrCodeImageBitmap(webUrl, 180)
+                }
+
+                if (qrBitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = qrBitmap,
+                        contentDescription = "QR Code",
+                        modifier = Modifier.size(180.dp)
+                    )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Text(
+                        text = webUrl,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Text(
+                        text = stringResource(Res.string.webScanHint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    strokeWidth = 3.dp
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(Res.string.statusConnecting),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            } else {
+                Text(
+                    stringResource(Res.string.webNotStartedHint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }
