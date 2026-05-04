@@ -88,6 +88,9 @@ actual class AudioEngine actual constructor() {
     }
 
     companion object {
+        private const val MAX_UDP_CONSECUTIVE_FAILURES = 500
+        private const val HEARTBEAT_TIMEOUT_MS = 5000L
+
         @Volatile
         private var activeEngine: AudioEngine? = null
 
@@ -131,6 +134,8 @@ actual class AudioEngine actual constructor() {
     
     private var udpSocket: DatagramSocket? = null
     private var udpServerAddress: InetSocketAddress? = null
+    private var udpConsecutiveFailures: Int = 0
+    private var lastPingReceivedTime: Long = System.currentTimeMillis()
 
     @Volatile
     private var enableStreamingNotification: Boolean = true
@@ -395,6 +400,7 @@ actual class AudioEngine actual constructor() {
                                             }
                                             
                                             if (wrapper.ping != null) {
+                                                lastPingReceivedTime = System.currentTimeMillis()
                                                 sendChannel?.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
                                             }
                                         } catch (e: Exception) {
@@ -423,9 +429,14 @@ actual class AudioEngine actual constructor() {
     val floatBuffer = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
                         
                         var sequenceNumber = 0
+                        lastPingReceivedTime = System.currentTimeMillis()
 
                         while (isActive) {
                             if (writerJob.isCancelled || writerJob.isCompleted) throw Exception("Writer job failed")
+                            if (readerJob.isCancelled || readerJob.isCompleted) throw Exception("Reader job failed - connection lost")
+                            if (System.currentTimeMillis() - lastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
+                                throw Exception("Heartbeat timeout - server unreachable ($HEARTBEAT_TIMEOUT_MS ms)")
+                            }
                             
                             var readBytes = 0
                             val audioData: ByteArray
@@ -476,12 +487,17 @@ actual class AudioEngine actual constructor() {
                             _state.value = StreamState.Error
                             
                             val errorMsg = when {
+                                e is UdpCircuitBreakerException -> e.message ?: getString(Res.string.connectionDisconnected)
                                 e is java.net.ConnectException && e.message?.contains("Connection refused", ignoreCase = true) == true ->
                                     String.format(getString(Res.string.connectionRejected), port)
                                 e is java.net.SocketTimeoutException ->
                                     getString(Res.string.connectionTimeout)
                                 e is java.net.NoRouteToHostException ->
                                     getString(Res.string.connectionUnreachable)
+                                e.message?.contains("Heartbeat timeout", ignoreCase = true) == true ->
+                                    e.message ?: getString(Res.string.connectionUnreachable)
+                                e.message?.contains("Reader job failed", ignoreCase = true) == true ->
+                                    getString(Res.string.connectionDisconnected)
                                 else -> getString(Res.string.connectionDisconnected)
                             }
                             _lastError.value = errorMsg
@@ -540,8 +556,15 @@ actual class AudioEngine actual constructor() {
             }
     val udpPacket = DatagramPacket(header + packetBytes, 8 + length, udpServerAddress)
             udpSocket?.send(udpPacket)
+            udpConsecutiveFailures = 0
         } catch (e: Exception) {
             Logger.w("AudioEngine", "UDP send failed: ${e.message}")
+            udpConsecutiveFailures++
+            if (udpConsecutiveFailures >= MAX_UDP_CONSECUTIVE_FAILURES) {
+                val err = UdpCircuitBreakerException("UDP send failed $udpConsecutiveFailures consecutive times, triggering disconnect")
+                Logger.e("AudioEngine", err.message!!)
+                throw err
+            }
         }
     }
     
@@ -715,3 +738,5 @@ actual class AudioEngine actual constructor() {
         Logger.d("AudioEngine", "Android does not support dynamic performance config adjustment")
     }
 }
+
+private class UdpCircuitBreakerException(message: String) : Exception(message)
