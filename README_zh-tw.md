@@ -79,3 +79,5 @@ Made with [contrib.rocks](https://contrib.rocks).
 ## 致謝
 
 特別感謝 [重慶大學開源軟體鏡像站](https://mirrors.cqu.edu.cn/) 為本項目提供鏡像下載服務。
+
+特别感谢 [Mirror 酱](https://mirrorchyan.com/zh/get-start) 为本项目提供高速镜像下载服务。
