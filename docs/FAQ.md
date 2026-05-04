@@ -117,18 +117,19 @@ MicYou
 
 1. **Check Firewall Settings**
 
-   Windows may block inbound connections. Please follow these steps to manually allow the port:
+   Windows Firewall may block inbound connections. Please follow these steps to manually allow the ports:
 
-   1. Press `Win+R`, type `cmd`, then hold `Ctrl+Shift` and click "OK" to run Command Prompt as administrator.
-   2. Enter the following command:
+   1. Press `Win+R`, type `powershell`, then hold `Ctrl+Shift` and click "OK" to run PowerShell as administrator.
+   2. Enter the following commands:
 
-      ```cmd
-      netsh advfirewall firewall add rule name="Allow 6666" dir=in action=allow protocol=TCP localport=6000
+      ```powershell
+      New-NetFirewallRule -DisplayName "MicYou-6000-TCP" -Direction Inbound -LocalPort 6000 -Protocol TCP -Action Allow
+      New-NetFirewallRule -DisplayName "MicYou-6001-UDP" -Direction Inbound -LocalPort 6001 -Protocol UDP -Action Allow
       ```
 
-      > MicYou uses port `6000` by default for connection; you can change it if needed.
+      > MicYou uses TCP port `6000` (control) and UDP port `6001` (audio data) by default. Change the port numbers if you have configured a different port.
 
-      If no message appears, the operation was successful. Try connecting again.
+      If no error appears, the operation was successful. Try connecting again.
 
 2. **Check if devices are on the same subnet**
 

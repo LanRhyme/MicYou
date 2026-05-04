@@ -111,18 +111,19 @@ MicYou
 
 1. **确认防火墙设置**
 
-   Windows 系统可能会拦截入站连接。请按照以下方法手动放行端口：
+   Windows 防火墙可能会拦截入站连接。请按照以下方法手动放行端口：
 
-   1. 按下 `Win+R`，输入 `cmd`，同时按住 `Ctrl+Shift`，点击「确定」以管理员身份运行命令提示符。
+   1. 按下 `Win+R`，输入 `powershell`，同时按住 `Ctrl+Shift`，点击「确定」以管理员身份运行 PowerShell。
    2. 输入以下命令：
 
-      ```cmd
-      netsh advfirewall firewall add rule name="Allow 6666" dir=in action=allow protocol=TCP localport=6000
+      ```powershell
+      New-NetFirewallRule -DisplayName "MicYou-6000-TCP" -Direction Inbound -LocalPort 6000 -Protocol TCP -Action Allow
+      New-NetFirewallRule -DisplayName "MicYou-6001-UDP" -Direction Inbound -LocalPort 6001 -Protocol UDP -Action Allow
       ```
 
-      > MicYou 默认使用端口 `6000` 建立连接，如需更改请修改上述命令中的端口号。
+      > MicYou 默认使用 TCP 端口 `6000`（控制通道）和 UDP 端口 `6001`（音频数据）。如已修改端口号，请将命令中的端口号替换为实际值。
 
-      若未出现任何提示，表示操作成功，可以重新尝试连接。
+      若未出现任何错误提示，表示操作成功，可以重新尝试连接。
 
 2. **检查设备是否在同一子网**
 
