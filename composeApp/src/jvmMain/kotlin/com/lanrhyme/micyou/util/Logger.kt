@@ -20,14 +20,14 @@ object JvmLogger : LoggerImpl {
     private const val MAX_ARCHIVED_FILES = 2
     
     private val logDir: File by lazy {
-        val userHome = System.getProperty("user.home")
-        File(userHome, ".micyou").apply {
-            if (!exists()) mkdirs()
-        }
+        com.lanrhyme.micyou.platform.PlatformInfo.appDataDir
     }
     
     fun init() {
         try {
+            com.lanrhyme.micyou.platform.PlatformInfo.migrateLegacyDataDir { msg ->
+                println("[MIGRATE] $msg")
+            }
             logFile = File(logDir, "micyou.log")
             logWriter = PrintWriter(FileWriter(logFile, true), true)
         } catch (e: Exception) {

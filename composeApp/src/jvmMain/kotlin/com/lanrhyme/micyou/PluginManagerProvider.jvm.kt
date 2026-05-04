@@ -46,6 +46,5 @@ actual fun createPluginManager(
 }
 
 actual fun getPluginsDirPath(): String {
-    val userHome = System.getProperty("user.home")
-    return File(userHome, ".micyou/plugins").absolutePath
+    return File(com.lanrhyme.micyou.platform.PlatformInfo.appDataDir, "plugins").absolutePath
 }

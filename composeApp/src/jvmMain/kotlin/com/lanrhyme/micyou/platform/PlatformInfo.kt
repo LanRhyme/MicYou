@@ -36,4 +36,53 @@ object PlatformInfo {
     val osName: String get() = System.getProperty("os.name", "Unknown")
     val osVersion: String get() = System.getProperty("os.version", "Unknown")
     val osArch: String get() = System.getProperty("os.arch", "Unknown")
+
+    /**
+     * 应用数据目录，遵循各平台标准规范。
+     *
+     * Linux:   $XDG_DATA_HOME/micyou/  →  ~/.local/share/micyou/
+     * Windows: %LOCALAPPDATA%/MicYou/
+     * macOS:   ~/Library/Application Support/MicYou/
+     */
+    val appDataDir: java.io.File by lazy {
+        val home = System.getProperty("user.home")
+        val dir = when {
+            isLinux -> {
+                val xdgData = System.getenv("XDG_DATA_HOME")
+                    ?: "$home/.local/share"
+                java.io.File(xdgData, "micyou")
+            }
+            isWindows -> {
+                val localAppData = System.getenv("LOCALAPPDATA")
+                    ?: "$home/AppData/Local"
+                java.io.File(localAppData, "MicYou")
+            }
+            isMacOS -> java.io.File("$home/Library/Application Support", "MicYou")
+            else -> java.io.File(home, ".micyou")
+        }
+        dir.apply { mkdirs() }
+    }
+
+    fun migrateLegacyDataDir(logger: (String) -> Unit = {}) {
+        val home = System.getProperty("user.home")
+        val legacyDir = java.io.File(home, ".micyou")
+        if (!legacyDir.isDirectory) return
+
+        val targetDir = appDataDir
+        if (targetDir.absolutePath == legacyDir.absolutePath) return
+        if (targetDir.listFiles()?.isNotEmpty() == true) return
+
+        logger("Migrating data from $legacyDir to $targetDir ...")
+        var copied = 0
+        legacyDir.listFiles()?.forEach { file ->
+            try {
+                file.copyRecursively(java.io.File(targetDir, file.name), overwrite = false)
+                copied++
+                logger("  Migrated: ${file.name}")
+            } catch (e: Exception) {
+                logger("  Failed: ${file.name} — ${e.message}")
+            }
+        }
+        logger("Migration complete: $copied items copied, old directory preserved at $legacyDir")
+    }
 }

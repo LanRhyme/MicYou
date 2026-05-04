@@ -12,8 +12,7 @@ import javax.crypto.spec.SecretKeySpec
 import org.jetbrains.compose.resources.getString
 
 object JvmSettings : Settings {
-    private val appDir: File = File(System.getProperty("user.dir"))
-    private val configFile: File = File(appDir, "micyou.conf")
+    private val configFile: File = File(com.lanrhyme.micyou.platform.PlatformInfo.appDataDir, "micyou.conf")
     private val fileSettings: FileSettings = FileSettings(configFile)
 
     private const val MIRROR_CDK_KEY = "mirror_cdk"
