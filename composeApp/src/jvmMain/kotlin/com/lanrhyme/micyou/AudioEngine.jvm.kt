@@ -9,7 +9,7 @@ import com.lanrhyme.micyou.network.MdnsAdvertiser
 import com.lanrhyme.micyou.network.NetworkServer
 import com.lanrhyme.micyou.platform.AdbManager
 import com.lanrhyme.micyou.platform.PlatformInfo
-import com.lanrhyme.micyou.web.WebAudioServer
+import com.lanrhyme.micyou.web.WebModeService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.BufferOverflow
@@ -33,7 +33,8 @@ actual class AudioEngine actual constructor() {
 
     private val _isMuted = MutableStateFlow(false)
     actual val isMuted: Flow<Boolean> = _isMuted
-    actual val webServerUrl: Flow<String?> = WebAudioServer.webUrl
+    private val webModeService = WebModeService()
+    actual val webServerUrl: Flow<String?> = webModeService.webUrl
     
     private val _pluginSyncReceived = MutableStateFlow<PluginSyncMessage?>(null)
     val pluginSyncReceived: Flow<PluginSyncMessage?> = _pluginSyncReceived
@@ -106,7 +107,7 @@ actual class AudioEngine actual constructor() {
         }
 
         scope.launch {
-            WebAudioServer.state.collect { newState ->
+            webModeService.state.collect { newState ->
                 if (newState == StreamState.Streaming) {
                     audioPipeline.reset()
                     startAudioProcessing()
@@ -121,7 +122,7 @@ actual class AudioEngine actual constructor() {
             }
         }
         scope.launch {
-            WebAudioServer.lastError.collect { error ->
+            webModeService.lastError.collect { error ->
                 if (error != null) {
                     _lastError.value = error
                 }
@@ -249,8 +250,8 @@ actual class AudioEngine actual constructor() {
                 if (mode == ConnectionMode.Web) {
                     val webPort = if (port in 1..65535) port else 0
                     Logger.i("AudioEngine", "启动 Web 服务器，端口: $webPort")
-                    WebAudioServer.start(webPort)
-                    Logger.i("AudioEngine", "WebAudioServer started successfully")
+                    webModeService.start(webPort)
+                    Logger.i("AudioEngine", "WebModeService started successfully")
                 } else {
                     // 直接调用 networkServer.start()，不 launch 新协程
                     // NetworkServer 内部会管理自己的协程
@@ -307,10 +308,10 @@ actual class AudioEngine actual constructor() {
                      }
 
                      try {
-                         WebAudioServer.stop()
-                     } catch (e: Exception) {
-                         Logger.e("AudioEngine", "Error stopping WebAudioServer: ${e.message}", e)
-                     }
+                        webModeService.stop()
+                    } catch (e: Exception) {
+                        Logger.e("AudioEngine", "Error stopping WebModeService: ${e.message}", e)
+                    }
                  }
              } else {
                  Logger.d("AudioEngine", "Stop operation already in progress, skipping duplicate stop request")
@@ -334,7 +335,7 @@ actual class AudioEngine actual constructor() {
             Logger.d("AudioEngine", "Web 音频馈送协程已启动")
             while (isActive) {
                 try {
-                    val audioPacket = WebAudioServer.receiveAudioPacket() ?: continue
+                    val audioPacket = webModeService.receiveAudioPacket() ?: continue
                     processReceivedPacket(audioPacket)
                 } catch (e: CancellationException) {
                     throw e

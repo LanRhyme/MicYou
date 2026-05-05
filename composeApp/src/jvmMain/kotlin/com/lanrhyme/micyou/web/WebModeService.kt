@@ -7,23 +7,39 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
+import io.ktor.server.http.content.*
+import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-object WebAudioServer {
-    private const val SAMPLE_RATE = 48000
-    private const val HOP_LENGTH = 256
+@Serializable
+data class MicYouStatus(
+    val appName: String = "MicYou",
+    val version: String = "1.0",
+    val streamState: String = "idle",
+    val clientCount: Int = 0,
+    val sampleRate: Int = 48000,
+    val channelCount: Int = 1
+)
+
+class WebModeService {
+    companion object {
+        private const val SAMPLE_RATE = 48000
+        private const val HOP_LENGTH = 256
+    }
 
     private val audioPacketChannel = Channel<AudioPacketMessage>(
         capacity = 200,
@@ -61,7 +77,7 @@ object WebAudioServer {
                 }
             }
         } catch (e: Exception) {
-            Logger.w("WebAudioServer", "Failed to get local IPs: ${e.message}")
+            Logger.w("WebModeService", "Failed to get local IPs: ${e.message}")
         }
 
         ips.sortBy { ip ->
@@ -96,7 +112,7 @@ object WebAudioServer {
 
     suspend fun start(port: Int = 0) {
         if (server != null) {
-            Logger.w("WebAudioServer", "Server already running")
+            Logger.w("WebModeService", "Server already running")
             return
         }
 
@@ -104,18 +120,28 @@ object WebAudioServer {
         _lastError.value = null
 
         try {
-            val actualPort = if (port > 0) port else findFreePort()
+            val actualPort = if (port in 1..65535) port else findFreePort()
             serverPort = actualPort
 
             val urls = getAllUrls()
             val primaryUrl = urls.firstOrNull() ?: "http://127.0.0.1:$actualPort"
             _webUrl.value = primaryUrl
-            Logger.i("WebAudioServer", "Available URLs: $urls")
+            Logger.i("WebModeService", "Available URLs: $urls")
+
+            val serviceRef = this
 
             server = embeddedServer(CIO, port = actualPort, host = "0.0.0.0") {
+                install(ContentNegotiation) {
+                    json(Json {
+                        ignoreUnknownKeys = true
+                        prettyPrint = false
+                    })
+                }
                 install(WebSockets)
 
                 routing {
+                    staticResources("/", "webapp")
+
                     get("/") {
                         call.respondText(
                             text = buildHtmlPage(),
@@ -123,24 +149,36 @@ object WebAudioServer {
                         )
                     }
 
-                    webSocket("/") {
-                        _clientCount.value++
-                        Logger.i("WebAudioServer", "WebSocket client connected (total: ${_clientCount.value})")
-                        _state.value = StreamState.Streaming
+                    get("/api/status") {
+                        val status = MicYouStatus(
+                            appName = "MicYou",
+                            version = System.getProperty("app.version") ?: "1.0",
+                            streamState = serviceRef._state.value.name.lowercase(),
+                            clientCount = serviceRef._clientCount.value,
+                            sampleRate = SAMPLE_RATE,
+                            channelCount = 1
+                        )
+                        call.respond(status)
+                    }
+
+                    webSocket("/ws") {
+                        serviceRef._clientCount.value++
+                        Logger.i("WebModeService", "WebSocket client connected (total: ${serviceRef._clientCount.value})")
+                        serviceRef._state.value = StreamState.Streaming
 
                         try {
                             for (frame in incoming) {
                                 if (frame is Frame.Binary) {
-                                    processAudioFrame(frame.data)
+                                    serviceRef.processAudioFrame(frame.data)
                                 }
                             }
                         } catch (e: Exception) {
-                            Logger.w("WebAudioServer", "WebSocket error: ${e.message}")
+                            Logger.w("WebModeService", "WebSocket error: ${e.message}")
                         } finally {
-                            _clientCount.value--
-                            Logger.i("WebAudioServer", "WebSocket client disconnected (total: ${_clientCount.value})")
-                            if (_clientCount.value == 0) {
-                                _state.value = StreamState.Connecting
+                            serviceRef._clientCount.value--
+                            Logger.i("WebModeService", "WebSocket client disconnected (total: ${serviceRef._clientCount.value})")
+                            if (serviceRef._clientCount.value == 0) {
+                                serviceRef._state.value = StreamState.Connecting
                             }
                         }
                     }
@@ -149,9 +187,9 @@ object WebAudioServer {
 
             server?.start(wait = false)
             _state.value = StreamState.Connecting
-            Logger.i("WebAudioServer", "Server started on port $actualPort")
+            Logger.i("WebModeService", "Server started on port $actualPort")
         } catch (e: Exception) {
-            Logger.e("WebAudioServer", "Failed to start server: ${e.message}", e)
+            Logger.e("WebModeService", "Failed to start server: ${e.message}", e)
             _state.value = StreamState.Error
             _lastError.value = e.message
             throw e
@@ -165,9 +203,9 @@ object WebAudioServer {
             _state.value = StreamState.Idle
             _webUrl.value = null
             _clientCount.value = 0
-            Logger.i("WebAudioServer", "Server stopped")
+            Logger.i("WebModeService", "Server stopped")
         } catch (e: Exception) {
-            Logger.e("WebAudioServer", "Error stopping server: ${e.message}", e)
+            Logger.e("WebModeService", "Error stopping server: ${e.message}", e)
         }
     }
 
@@ -206,7 +244,7 @@ object WebAudioServer {
         try {
             audioPacketChannel.trySend(audioPacket)
         } catch (e: Exception) {
-            Logger.w("WebAudioServer", "Audio packet channel full, dropping packet")
+            Logger.w("WebModeService", "Audio packet channel full, dropping packet")
         }
     }
 
@@ -230,6 +268,8 @@ object WebAudioServer {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4fc3f7">
+    <link rel="manifest" href="/manifest.json">
     <title>MicYou Web</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -346,7 +386,7 @@ object WebAudioServer {
                 
                 processor = audioContext.createScriptProcessor(HOP_LENGTH, 1, 1);
                 
-                let wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/';
+                let wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
                 ws = new WebSocket(wsUrl);
                 ws.binaryType = 'arraybuffer';
                 
@@ -408,6 +448,12 @@ object WebAudioServer {
             startBtn.style.display = 'inline-block';
             stopBtn.style.display = 'none';
             levelBar.style.width = '0%';
+        }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(function(reg) { console.log('SW registered:', reg.scope); })
+                .catch(function(err) { console.log('SW failed:', err); });
         }
     </script>
 </body>
