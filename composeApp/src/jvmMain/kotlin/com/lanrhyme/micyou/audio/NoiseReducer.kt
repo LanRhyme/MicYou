@@ -43,12 +43,8 @@ object UlunasModelLoader {
             return path
         }
 
-        // 使用用户目录下的固定位置
-        val userDir = java.io.File(System.getProperty("user.home"), ".micyou")
-        if (!userDir.exists()) {
-            userDir.mkdirs()
-        }
-    val modelFile = java.io.File(userDir, "ulunas.onnx")
+        val dataDir = com.lanrhyme.micyou.platform.PlatformInfo.appDataDir
+        val modelFile = java.io.File(dataDir, "ulunas.onnx")
 
         // 如果已存在且有效，直接返回
         if (modelFile.exists() && modelFile.length() > 0) {
