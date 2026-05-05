@@ -70,13 +70,14 @@ object PlatformInfo {
 
         val targetDir = appDataDir
         if (targetDir.absolutePath == legacyDir.absolutePath) return
-        if (targetDir.listFiles()?.isNotEmpty() == true) return
-
+        // 移除全局 isNotEmpty 检查，改为在循环中判断单个文件是否存在，以支持增量迁移和避免系统文件干扰
         logger("Migrating data from $legacyDir to $targetDir ...")
         var copied = 0
         legacyDir.listFiles()?.forEach { file ->
+            val dest = java.io.File(targetDir, file.name)
+            if (dest.exists()) return@forEach
             try {
-                file.copyRecursively(java.io.File(targetDir, file.name), overwrite = false)
+                file.copyRecursively(dest, overwrite = false)
                 copied++
                 logger("  Migrated: ${file.name}")
             } catch (e: Exception) {
