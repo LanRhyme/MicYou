@@ -193,12 +193,17 @@ class WebModeService {
 
             server = embeddedServer(
                 CIO,
-                port = actualPort,
-                host = "0.0.0.0",
-                keyStore = sslConfig.keyStore,
-                keyAlias = sslConfig.keyAlias,
-                keyStorePassword = sslConfig.keyStorePassword,
-                privateKeyPassword = sslConfig.privateKeyPassword,
+                configure = {
+                    sslConnector(
+                        keyStore = sslConfig.keyStore,
+                        keyAlias = sslConfig.keyAlias,
+                        keyStorePassword = sslConfig.keyStorePassword,
+                        privateKeyPassword = sslConfig.privateKeyPassword
+                    ) {
+                        port = actualPort
+                        host = "0.0.0.0"
+                    }
+                },
                 module = module
             )
 
