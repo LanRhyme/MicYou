@@ -255,7 +255,7 @@ class WebModeService {
             buffer = pcmBytes,
             sampleRate = SAMPLE_RATE,
             channelCount = 1,
-            audioFormat = 3
+            audioFormat = 2
         )
 
         try {
