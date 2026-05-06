@@ -110,6 +110,7 @@ kotlin {
             implementation(libs.ktor.server.cio)
             implementation(libs.ktor.server.content.negotiation)
             implementation(libs.ktor.server.websockets)
+            implementation(libs.bouncycastle.pkix)
             implementation(libs.zxing.core)
             implementation(libs.zxing.javase)
         }

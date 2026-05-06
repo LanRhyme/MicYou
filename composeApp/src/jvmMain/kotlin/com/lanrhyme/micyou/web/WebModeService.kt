@@ -24,6 +24,7 @@ import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.security.KeyStore
 
 @Serializable
 data class MicYouStatus(
@@ -33,6 +34,13 @@ data class MicYouStatus(
     val clientCount: Int = 0,
     val sampleRate: Int = 48000,
     val channelCount: Int = 1
+)
+
+data class SslConfig(
+    val keyStore: KeyStore,
+    val keyAlias: String = "micyou",
+    val keyStorePassword: () -> CharArray,
+    val privateKeyPassword: () -> CharArray = keyStorePassword
 )
 
 class WebModeService {
@@ -95,22 +103,20 @@ class WebModeService {
     }
 
     fun getBestUrl(): String? {
-        val protocol = "http"
         val ips = getLocalIps()
         if (ips.isNotEmpty()) {
-            return "$protocol://${ips.first()}:$serverPort"
+            return "https://${ips.first()}:$serverPort"
         }
-        return "$protocol://127.0.0.1:$serverPort"
+        return "https://127.0.0.1:$serverPort"
     }
 
     fun getAllUrls(): List<String> {
-        val protocol = "http"
-        return getLocalIps().map { "$protocol://$it:$serverPort" }
+        return getLocalIps().map { "https://$it:$serverPort" }
     }
 
     fun getPort(): Int = serverPort
 
-    suspend fun start(port: Int = 0) {
+    suspend fun start(port: Int = 0, sslConfig: SslConfig) {
         if (server != null) {
             Logger.w("WebModeService", "Server already running")
             return
@@ -124,13 +130,13 @@ class WebModeService {
             serverPort = actualPort
 
             val urls = getAllUrls()
-            val primaryUrl = urls.firstOrNull() ?: "http://127.0.0.1:$actualPort"
+            val primaryUrl = urls.firstOrNull() ?: "https://127.0.0.1:$actualPort"
             _webUrl.value = primaryUrl
             Logger.i("WebModeService", "Available URLs: $urls")
 
             val serviceRef = this
 
-            server = embeddedServer(CIO, port = actualPort, host = "0.0.0.0") {
+            val module: Application.() -> Unit = {
                 install(ContentNegotiation) {
                     json(Json {
                         ignoreUnknownKeys = true
@@ -185,9 +191,20 @@ class WebModeService {
                 }
             }
 
+            server = embeddedServer(
+                CIO,
+                port = actualPort,
+                host = "0.0.0.0",
+                keyStore = sslConfig.keyStore,
+                keyAlias = sslConfig.keyAlias,
+                keyStorePassword = sslConfig.keyStorePassword,
+                privateKeyPassword = sslConfig.privateKeyPassword,
+                module = module
+            )
+
             server?.start(wait = false)
             _state.value = StreamState.Connecting
-            Logger.i("WebModeService", "Server started on port $actualPort")
+            Logger.i("WebModeService", "Server started on port $actualPort (HTTPS)")
         } catch (e: Exception) {
             Logger.e("WebModeService", "Failed to start server: ${e.message}", e)
             _state.value = StreamState.Error

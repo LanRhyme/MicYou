@@ -9,6 +9,8 @@ import com.lanrhyme.micyou.network.MdnsAdvertiser
 import com.lanrhyme.micyou.network.NetworkServer
 import com.lanrhyme.micyou.platform.AdbManager
 import com.lanrhyme.micyou.platform.PlatformInfo
+import com.lanrhyme.micyou.web.SslCertificateManager
+import com.lanrhyme.micyou.web.SslConfig
 import com.lanrhyme.micyou.web.WebModeService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -249,8 +251,9 @@ actual class AudioEngine actual constructor() {
             } else {
                 if (mode == ConnectionMode.Web) {
                     val webPort = if (port in 1..65535) port else 0
-                    Logger.i("AudioEngine", "启动 Web 服务器，端口: $webPort")
-                    webModeService.start(webPort)
+                    Logger.i("AudioEngine", "启动 Web 服务器 (HTTPS)，端口: $webPort")
+                    val sslConfig = buildSslConfig()
+                    webModeService.start(webPort, sslConfig)
                     Logger.i("AudioEngine", "WebModeService started successfully")
                 } else {
                     // 直接调用 networkServer.start()，不 launch 新协程
@@ -275,6 +278,18 @@ actual class AudioEngine actual constructor() {
         networkServer.sendMuteState(muted)
     }
     
+    private fun buildSslConfig(): SslConfig {
+        val password = "micyou_ssl".toCharArray()
+        val keyStore = SslCertificateManager.generateSelfSignedKeyStore(password)
+
+        return SslConfig(
+            keyStore = keyStore,
+            keyAlias = "micyou",
+            keyStorePassword = { password },
+            privateKeyPassword = { password }
+        )
+    }
+
     suspend fun sendPluginSync(plugins: List<PluginInfoMessage>, platform: String) {
         networkServer.sendPluginSync(plugins, platform)
     }
