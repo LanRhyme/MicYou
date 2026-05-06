@@ -118,9 +118,7 @@ actual class AudioEngine actual constructor() {
                     stopAudioProcessing()
                     stopWebAudioFeeding()
                 }
-                if (_state.value != StreamState.Streaming) {
-                    _state.value = newState
-                }
+                _state.value = newState
             }
         }
         scope.launch {
