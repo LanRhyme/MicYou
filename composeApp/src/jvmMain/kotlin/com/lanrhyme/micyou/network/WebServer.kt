@@ -83,15 +83,22 @@ class WebServer(
     }
 
     private fun acceptConnections() {
+        if (!isRunning) return
         serverChannel?.accept(null, object : CompletionHandler<AsynchronousSocketChannel, Void?> {
             override fun completed(result: AsynchronousSocketChannel, attachment: Void?) {
-                acceptConnections()
-                handleTlsHandshake(result)
+                if (isRunning) {
+                    acceptConnections()
+                    handleTlsHandshake(result)
+                } else {
+                    closeSocket(result)
+                }
             }
 
             override fun failed(exc: Throwable, attachment: Void?) {
-                Logger.w("WebServer", "Accept failed: ${exc.message}")
-                acceptConnections()
+                if (isRunning) {
+                    Logger.w("WebServer", "Accept failed: ${exc.message}")
+                    acceptConnections()
+                }
             }
         })
     }
@@ -419,6 +426,7 @@ class WebServer(
     }
 
     fun stop() {
+        isRunning = false
         _state.value = StreamState.Idle
         try {
             wsClients.forEach { try { it.close() } catch (_: Exception) {} }
@@ -429,7 +437,6 @@ class WebServer(
         sslContext = null
         clientCount.set(0)
         _clientCountFlow.value = 0
-        isRunning = false
         Logger.i("WebServer", "WebServer stopped")
     }
 
