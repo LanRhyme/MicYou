@@ -15,7 +15,7 @@ data class AudioStreamUiState(
     val mode: ConnectionMode = ConnectionMode.Wifi,
     val streamState: StreamState = StreamState.Idle,
     val ipAddress: String = "192.168.1.5",
-    val port: String = "6000",
+    val port: String = Constants.DEFAULT_TCP_PORT.toString(),
     val errorMessage: String? = null,
     val monitoringEnabled: Boolean = false,
     val sampleRate: SampleRate = SampleRate.Rate48000,
@@ -116,7 +116,7 @@ class AudioStreamViewModel : ViewModel() {
             savedMode
         }
     val savedIp = settings.getString("ip_address", "192.168.1.5")
-    val savedPort = settings.getString("port", "6000")
+    val savedPort = settings.getString("port", Constants.DEFAULT_TCP_PORT.toString())
     val savedMonitoring = false
         settings.putBoolean("monitoring_enabled", false)
     val savedSampleRateName = settings.getString("sample_rate", SampleRate.Rate48000.name)
@@ -271,12 +271,12 @@ class AudioStreamViewModel : ViewModel() {
     val rawPort = _uiState.value.port.toIntOrNull()
     val port = when {
             rawPort == null -> {
-                Logger.w("AudioStreamViewModel", "Invalid port format: ${_uiState.value.port}, using default 6000")
-                if (mode == ConnectionMode.Web) 8443 else 6000
+                Logger.w("AudioStreamViewModel", "Invalid port format: ${_uiState.value.port}, using default ${Constants.DEFAULT_TCP_PORT}")
+                if (mode == ConnectionMode.Web) Constants.DEFAULT_WEB_PORT else Constants.DEFAULT_TCP_PORT
             }
             rawPort <= 0 || rawPort > 65535 -> {
-                Logger.w("AudioStreamViewModel", "Port out of range: $rawPort, using default 6000")
-                if (mode == ConnectionMode.Web) 8443 else 6000
+                Logger.w("AudioStreamViewModel", "Port out of range: $rawPort, using default ${Constants.DEFAULT_TCP_PORT}")
+                if (mode == ConnectionMode.Web) Constants.DEFAULT_WEB_PORT else Constants.DEFAULT_TCP_PORT
             }
             else -> rawPort
         }
@@ -377,10 +377,10 @@ class AudioStreamViewModel : ViewModel() {
         val current = _uiState.value
 
         val updatedPort = when {
-            mode == ConnectionMode.Web -> "8443"
+            mode == ConnectionMode.Web -> Constants.DEFAULT_WEB_PORT.toString()
             platformType == PlatformType.Android && mode == ConnectionMode.Usb -> {
                 val parsed = current.port.toIntOrNull()
-                if (parsed == null || parsed <= 0) "6000" else current.port
+                if (parsed == null || parsed <= 0) Constants.DEFAULT_TCP_PORT.toString() else current.port
             }
             else -> current.port
         }
@@ -422,7 +422,7 @@ class AudioStreamViewModel : ViewModel() {
         // 验证端口输入
         val portInt = port.toIntOrNull()
     val validatedPort = when {
-            port.isBlank() -> "6000" // 空值使用默认端口
+            port.isBlank() -> Constants.DEFAULT_TCP_PORT.toString()
             portInt == null -> {
                 Logger.w("AudioStreamViewModel", "Invalid port format: $port, keeping current value")
                 _uiState.value.port // 保持当前值

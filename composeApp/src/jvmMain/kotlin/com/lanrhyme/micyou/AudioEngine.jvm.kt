@@ -75,7 +75,7 @@ actual class AudioEngine actual constructor() {
     )
 
     private val webServer = WebServer(
-        port = 8443,
+        port = Constants.DEFAULT_WEB_PORT,
         onAudioPacketReceived = { audioPacket ->
             scope.launch { processReceivedPacket(audioPacket) }
         }
@@ -91,7 +91,7 @@ actual class AudioEngine actual constructor() {
         scope.launch(Dispatchers.IO) {
             try {
                 val settings = SettingsFactory.getSettings()
-                val port = settings.getString("port", "6000").toIntOrNull() ?: 6000
+                val port = settings.getString("port", Constants.DEFAULT_TCP_PORT.toString()).toIntOrNull() ?: Constants.DEFAULT_TCP_PORT
                 mdnsAdvertiser.advertise(port)
             } catch (e: Exception) {
                 Logger.w("AudioEngine", "Failed to start mDNS advertisement: ${e.message}")
@@ -257,7 +257,7 @@ actual class AudioEngine actual constructor() {
         }
         
         if (mode == ConnectionMode.Web) {
-            val webPort = port.takeIf { it in 1..65535 } ?: 8443
+            val webPort = port.takeIf { it in 1..65535 } ?: Constants.DEFAULT_WEB_PORT
             Logger.i("AudioEngine", "启动 Web 模式，端口=$webPort")
 
             val platform = getPlatform()

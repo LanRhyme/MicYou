@@ -27,6 +27,16 @@ object Constants {
     /** TCP 连接超时时间 (毫秒) */
     const val TCP_CONNECTION_TIMEOUT_MS = 10000L
 
+    // ==================== 端口配置 ====================
+    /** 默认 TCP 端口 (Wi-Fi / USB 模式) */
+    const val DEFAULT_TCP_PORT = 6000
+
+    /** 默认 Web/HTTPS 端口 */
+    const val DEFAULT_WEB_PORT = 8443
+
+    /** 默认 UDP 端口 (TCP 端口 + UDP_PORT_OFFSET，见 Protocol.kt) */
+    const val DEFAULT_UDP_PORT = DEFAULT_TCP_PORT + UDP_PORT_OFFSET
+
     // ==================== Channel 容量配置 ====================
     /** 音频包处理通道容量。需容纳 ~500ms+ 缓冲以应对 WiFi 抖动；
         小包模式 (1.4KB ≈ 7.3ms/pkt) 需要更多槽位：128 × 7.3ms ≈ 934ms */

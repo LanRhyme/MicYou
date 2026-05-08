@@ -49,7 +49,7 @@ data class AppUiState(
     val mode: ConnectionMode = ConnectionMode.Wifi,
     val streamState: StreamState = StreamState.Idle,
     val ipAddress: String = "192.168.1.5",
-    val port: String = "6000",
+    val port: String = Constants.DEFAULT_TCP_PORT.toString(),
     val errorMessage: String? = null,
     val monitoringEnabled: Boolean = false,
     val sampleRate: SampleRate = SampleRate.Rate48000,
