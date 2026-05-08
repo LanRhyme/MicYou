@@ -5,7 +5,7 @@ import java.io.IOException
 
 object WebHtmlPage {
     private const val HOP_LENGTH = 256
-    private const val RESOURCE_PATH = "web_audio.html"
+    private const val RESOURCE_PATH = "web_client.html"
 
     private val htmlTemplate: String by lazy {
         val stream = this.javaClass.classLoader.getResourceAsStream(RESOURCE_PATH)
