@@ -122,6 +122,9 @@ class WebServer(
                     is Frame.Binary -> {
                         processAudioData(frame.data)
                     }
+                    is Frame.Ping -> {
+                        send(Frame.Pong(frame.data))
+                    }
                     is Frame.Close -> {
                         break
                     }

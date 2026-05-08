@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.common.BitMatrix
 import java.awt.image.BufferedImage
@@ -19,7 +20,8 @@ object QrCodeGenerator {
 
     fun generateBitMatrix(content: String, size: Int = DEFAULT_SIZE): BitMatrix {
         val writer = QRCodeWriter()
-        return writer.encode(content, BarcodeFormat.QR_CODE, size, size)
+        val hints = mapOf(EncodeHintType.MARGIN to QUIET_ZONE)
+        return writer.encode(content, BarcodeFormat.QR_CODE, size, size, hints)
     }
 
     fun matrixToImageBitmap(matrix: BitMatrix, size: Int): ImageBitmap {
