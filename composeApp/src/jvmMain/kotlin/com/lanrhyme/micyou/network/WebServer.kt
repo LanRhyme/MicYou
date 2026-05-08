@@ -156,14 +156,17 @@ class WebServer(
             if (numFloats == 0) return
             val shortBuffer = ShortArray(numFloats)
             val byteBuffer = ByteBuffer.wrap(float32Bytes).order(ByteOrder.LITTLE_ENDIAN)
+            var convertedCount = 0
             for (i in 0 until numFloats) {
                 if (byteBuffer.remaining() < 4) break
                 val sample = byteBuffer.float
                 shortBuffer[i] = (sample * 32767f).coerceIn(-32767f, 32767f).toInt().toShort()
+                convertedCount++
             }
-            val pcmBytes = ByteArray(shortBuffer.size * 2)
+            if (convertedCount == 0) return
+            val pcmBytes = ByteArray(convertedCount * 2)
             val outBuf = ByteBuffer.wrap(pcmBytes).order(ByteOrder.LITTLE_ENDIAN)
-            for (s in shortBuffer) outBuf.putShort(s)
+            for (i in 0 until convertedCount) outBuf.putShort(shortBuffer[i])
             val audioPacket = AudioPacketMessage(buffer = pcmBytes, sampleRate = 48000, channelCount = 1, audioFormat = 2)
             onAudioPacketReceived(audioPacket)
         } catch (e: Exception) {
