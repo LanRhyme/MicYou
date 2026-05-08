@@ -107,8 +107,13 @@ class AudioStreamViewModel : ViewModel() {
     private fun loadSettings() {
         val savedModeName = settings.getString("connection_mode", ConnectionMode.Wifi.name)
     val savedMode = when (savedModeName) {
-            "WifiUdp" -> ConnectionMode.Wifi // 旧 WifiUdp 设置映射到新的 Wifi（双协议）
+            "WifiUdp" -> ConnectionMode.Wifi
             else -> try { ConnectionMode.valueOf(savedModeName) } catch(e: Exception) { ConnectionMode.Wifi }
+        }
+        val effectiveMode = if (getPlatform().type == PlatformType.Android && savedMode == ConnectionMode.Web) {
+            ConnectionMode.Wifi
+        } else {
+            savedMode
         }
     val savedIp = settings.getString("ip_address", "192.168.1.5")
     val savedPort = settings.getString("port", "6000")
@@ -137,7 +142,7 @@ class AudioStreamViewModel : ViewModel() {
 
         _uiState.update {
             it.copy(
-                mode = savedMode,
+                mode = effectiveMode,
                 ipAddress = savedIp,
                 port = savedPort,
                 monitoringEnabled = savedMonitoring,
@@ -363,6 +368,12 @@ class AudioStreamViewModel : ViewModel() {
     fun setMode(mode: ConnectionMode) {
         Logger.i("AudioStreamViewModel", "Setting connection mode to $mode")
     val platformType = getPlatform().type
+
+        if (platformType == PlatformType.Android && mode == ConnectionMode.Web) {
+            Logger.w("AudioStreamViewModel", "Web mode is not supported on Android, ignoring")
+            return
+        }
+
         val current = _uiState.value
 
         val updatedPort = when {
