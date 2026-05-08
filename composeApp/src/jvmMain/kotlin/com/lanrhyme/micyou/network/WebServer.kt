@@ -448,8 +448,8 @@ class WebServer(
             val byteBuffer = ByteBuffer.wrap(float32Bytes).order(ByteOrder.LITTLE_ENDIAN)
             for (i in 0 until numFloats) {
                 if (byteBuffer.remaining() < 4) break
-                val sample = byteBuffer.float.coerceIn(-1f, 1f)
-                shortBuffer[i] = (sample * 32767f).toInt().toShort()
+                val sample = byteBuffer.float
+                shortBuffer[i] = (sample * 32767f).coerceIn(-32767f, 32767f).toInt().toShort()
             }
             val pcmBytes = ByteArray(shortBuffer.size * 2)
             val outBuf = ByteBuffer.wrap(pcmBytes).order(ByteOrder.LITTLE_ENDIAN)
