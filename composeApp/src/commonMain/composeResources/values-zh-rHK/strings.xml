@@ -416,4 +416,8 @@
     <string name="monitoringStatusNormal">一般</string>
     <string name="monitoringStatusPoor">較差</string>
     <string name="monitoringHint">提示：監測數據每 500ms 更新一次。系統日誌中每分鐘會輸出一次完整狀態報告。</string>
+    <string name="webQrCodeTitle">掃碼連接</string>
+    <string name="webScanHint">用手機掃描QR碼打開網頁，允許麥克風權限即可開始傳輸音頻</string>
+    <string name="webClientCountLabel">已連接用戶端</string>
+    <string name="modeWeb">Web</string>
     </resources>

@@ -89,3 +89,8 @@ actual fun isWindowsPlatform(): Boolean = false
 
 actual fun isMacOSPlatform(): Boolean = false
 
+@Composable
+actual fun QrCodeImage(content: String, modifier: Modifier, sizeDp: Int) {
+    // Web mode not supported on Android
+}
+

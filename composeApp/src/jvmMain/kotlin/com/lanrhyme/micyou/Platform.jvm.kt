@@ -1,14 +1,19 @@
 package com.lanrhyme.micyou
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.lanrhyme.micyou.platform.FirewallManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.WindowsAccentColorExtractor
 import com.lanrhyme.micyou.theme.PaletteStyle
 import com.lanrhyme.micyou.theme.dynamicColorScheme
+import com.lanrhyme.micyou.util.QrCodeGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
@@ -156,3 +161,17 @@ actual fun getVBCableInstallProgress(): kotlinx.coroutines.flow.Flow<String?> = 
 actual fun isWindowsPlatform(): Boolean = PlatformInfo.isWindows
 
 actual fun isMacOSPlatform(): Boolean = PlatformInfo.isMacOS
+
+@Composable
+actual fun QrCodeImage(content: String, modifier: Modifier, sizeDp: Int) {
+    val qrBitmap = remember(content) {
+        runCatching { QrCodeGenerator.generateQrCodeImageBitmap(content) }.getOrNull()
+    }
+    qrBitmap?.let {
+        Image(
+            bitmap = it,
+            contentDescription = "QR Code",
+            modifier = modifier.size(sizeDp.dp)
+        )
+    }
+}

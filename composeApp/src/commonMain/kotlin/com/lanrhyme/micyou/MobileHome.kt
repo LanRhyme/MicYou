@@ -47,6 +47,7 @@ import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Settings
@@ -400,7 +401,8 @@ private fun ConnectionConfigCard(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 val modes = listOf(
                     ConnectionMode.Wifi to (stringResource(Res.string.modeWifi) to Icons.Rounded.Wifi),
-                    ConnectionMode.Usb to (stringResource(Res.string.modeUsb) to Icons.Rounded.Usb)
+                    ConnectionMode.Usb to (stringResource(Res.string.modeUsb) to Icons.Rounded.Usb),
+                    ConnectionMode.Web to (stringResource(Res.string.modeWeb) to Icons.Rounded.Language)
                 )
 
                 modes.forEach { (mode, info) ->

@@ -20,6 +20,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.scrollBy
@@ -110,30 +111,7 @@ import com.lanrhyme.micyou.theme.SuperRoundedShape
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import micyou.composeapp.generated.resources.Res
-import micyou.composeapp.generated.resources.clickToStart
-import micyou.composeapp.generated.resources.close
-import micyou.composeapp.generated.resources.connectionModeLabel
-import micyou.composeapp.generated.resources.firewallConfirm
-import micyou.composeapp.generated.resources.firewallDismiss
-import micyou.composeapp.generated.resources.firewallMessage
-import micyou.composeapp.generated.resources.firewallTitle
-import micyou.composeapp.generated.resources.icon_pip
-import micyou.composeapp.generated.resources.minimize
-import micyou.composeapp.generated.resources.modeUsb
-import micyou.composeapp.generated.resources.modeWifi
-import micyou.composeapp.generated.resources.monitoringLabel
-import micyou.composeapp.generated.resources.monitoringTitle
-import micyou.composeapp.generated.resources.muteLabel
-import micyou.composeapp.generated.resources.pluginsSection
-import micyou.composeapp.generated.resources.portLabel
-import micyou.composeapp.generated.resources.settingsTitle
-import micyou.composeapp.generated.resources.statusConnecting
-import micyou.composeapp.generated.resources.statusError
-import micyou.composeapp.generated.resources.statusIdle
-import micyou.composeapp.generated.resources.statusStreaming
-import micyou.composeapp.generated.resources.systemConfigTitle
-import micyou.composeapp.generated.resources.unmuteLabel
+import micyou.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
@@ -599,13 +577,24 @@ private fun LeftPanel(
             enableHaze = state.backgroundSettings.enableHazeEffect
         )
         
-        PortCard(
-            port = state.port,
-            onPortChange = { viewModel.setPort(it) },
-            cardOpacity = cardOpacity,
-            hazeState = hazeState,
-            enableHaze = state.backgroundSettings.enableHazeEffect
-        )
+        if (state.mode == ConnectionMode.Web) {
+            QrCodeCard(
+                webUrl = state.webUrl,
+                webClientCount = state.webClientCount,
+                streamState = state.streamState,
+                cardOpacity = cardOpacity,
+                hazeState = hazeState,
+                enableHaze = state.backgroundSettings.enableHazeEffect
+            )
+        } else {
+            PortCard(
+                port = state.port,
+                onPortChange = { viewModel.setPort(it) },
+                cardOpacity = cardOpacity,
+                hazeState = hazeState,
+                enableHaze = state.backgroundSettings.enableHazeEffect
+            )
+        }
         
         StatusCard(
             streamState = state.streamState,
@@ -638,7 +627,8 @@ private fun ModeCard(
             Text(stringResource(Res.string.connectionModeLabel), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     val modes = listOf(
                 ConnectionMode.Wifi to (stringResource(Res.string.modeWifi) to Icons.Rounded.Wifi),
-                ConnectionMode.Usb to (stringResource(Res.string.modeUsb) to Icons.Rounded.Usb)
+                ConnectionMode.Usb to (stringResource(Res.string.modeUsb) to Icons.Rounded.Usb),
+                ConnectionMode.Web to (stringResource(Res.string.modeWeb) to Icons.Rounded.Language)
             )
             
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -788,6 +778,87 @@ private fun StatusCard(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QrCodeCard(
+    webUrl: String,
+    webClientCount: Int,
+    streamState: StreamState,
+    cardOpacity: Float = 1f,
+    hazeState: HazeState? = null,
+    enableHaze: Boolean = false
+) {
+    HazeSurface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
+        hazeColor = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.7f),
+        modifier = Modifier.fillMaxWidth(),
+        hazeState = hazeState,
+        enabled = enableHaze
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                stringResource(Res.string.webQrCodeTitle),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (streamState == StreamState.Streaming || streamState == StreamState.Connecting) {
+                if (webUrl.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .size(140.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surface),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        QrCodeImage(
+                            content = webUrl,
+                            modifier = Modifier.size(124.dp),
+                            sizeDp = 124
+                        )
+                    }
+
+                    if (webClientCount > 0) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.CheckCircle,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                "${stringResource(Res.string.webClientCountLabel)}: $webClientCount",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            } else {
+                Icon(
+                    Icons.Rounded.Language,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    stringResource(Res.string.webScanHint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }

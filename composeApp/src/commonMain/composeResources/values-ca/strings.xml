@@ -401,4 +401,8 @@
     <string name="installOsNotSupported">当前操作系统不支持自动安装喵~</string>
     <string name="reloadingPlugins">正在重新加载插件喵...</string>
     <string name="vbcableInstallFailed">VB-Cable 安装失败喵: %s</string>
+    <string name="webQrCodeTitle">扫码连接喵~</string>
+    <string name="webScanHint">用手机扫码打开网页喵~允许麦克风权限即可开始传输音频喵~</string>
+    <string name="webClientCountLabel">已连接客户端喵~</string>
+    <string name="modeWeb">网页喵~</string>
 </resources>

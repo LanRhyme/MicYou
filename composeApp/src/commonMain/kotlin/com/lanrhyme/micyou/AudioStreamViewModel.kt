@@ -48,7 +48,11 @@ data class AudioStreamUiState(
     val performanceConfig: PerformanceConfig = PerformanceConfig.DEFAULT,
 
     // Monitoring Panel State
-    val showMonitoringPanel: Boolean = false
+    val showMonitoringPanel: Boolean = false,
+
+    // Web Mode State
+    val webUrl: String = "",
+    val webClientCount: Int = 0
 )
 
 class AudioStreamViewModel : ViewModel() {
@@ -85,6 +89,18 @@ class AudioStreamViewModel : ViewModel() {
         // Auto-start discovery on Android when in WiFi mode
         if (getPlatform().type == PlatformType.Android && _uiState.value.mode == ConnectionMode.Wifi) {
             discoveryManager.startDiscovery()
+        }
+
+        // Observe web mode state
+        viewModelScope.launch {
+            _audioEngine.webUrl.collect { url ->
+                _uiState.update { it.copy(webUrl = url) }
+            }
+        }
+        viewModelScope.launch {
+            _audioEngine.webClientCount.collect { count ->
+                _uiState.update { it.copy(webClientCount = count) }
+            }
         }
     }
 
@@ -251,31 +267,33 @@ class AudioStreamViewModel : ViewModel() {
     val port = when {
             rawPort == null -> {
                 Logger.w("AudioStreamViewModel", "Invalid port format: ${_uiState.value.port}, using default 6000")
-                6000
+                if (mode == ConnectionMode.Web) 8443 else 6000
             }
             rawPort <= 0 || rawPort > 65535 -> {
                 Logger.w("AudioStreamViewModel", "Port out of range: $rawPort, using default 6000")
-                6000
+                if (mode == ConnectionMode.Web) 8443 else 6000
             }
             else -> rawPort
         }
 
-        // IP 地址验证
-        if (ip.isBlank()) {
-            Logger.e("AudioStreamViewModel", "IP address is empty")
-            _uiState.update {
-                it.copy(
-                    streamState = StreamState.Error,
-                    errorMessage = "IP 地址不能为空",
-                    showErrorDialog = true
-                )
+        // IP 地址验证 (skip for Web mode)
+        if (mode != ConnectionMode.Web) {
+            if (ip.isBlank()) {
+                Logger.e("AudioStreamViewModel", "IP address is empty")
+                _uiState.update {
+                    it.copy(
+                        streamState = StreamState.Error,
+                        errorMessage = "IP 地址不能为空",
+                        showErrorDialog = true
+                    )
+                }
+                return
             }
-            return
-        }
-        // 基本的 IP 格式验证
-        val ipRegex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
-        if (!ipRegex.matches(ip) && !ip.startsWith("127.")) {
-            Logger.w("AudioStreamViewModel", "IP address format may be invalid: $ip")
+            // 基本的 IP 格式验证
+            val ipRegex = Regex("^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
+            if (!ipRegex.matches(ip) && !ip.startsWith("127.")) {
+                Logger.w("AudioStreamViewModel", "IP address format may be invalid: $ip")
+            }
         }
     val isClient = getPlatform().type == PlatformType.Android
         val sampleRate = _uiState.value.sampleRate
@@ -338,6 +356,7 @@ class AudioStreamViewModel : ViewModel() {
 
     fun stopStream() {
         Logger.i("AudioStreamViewModel", "Stopping stream")
+        _uiState.update { it.copy(streamState = StreamState.Idle) }
         _audioEngine.stop()
     }
 
@@ -346,16 +365,24 @@ class AudioStreamViewModel : ViewModel() {
     val platformType = getPlatform().type
         val current = _uiState.value
 
-        val updatedPort = if (platformType == PlatformType.Android && mode == ConnectionMode.Usb) {
-            val parsed = current.port.toIntOrNull()
-            if (parsed == null || parsed <= 0) "6000" else current.port
-        } else {
-            current.port
+        val updatedPort = when {
+            mode == ConnectionMode.Web -> "8443"
+            platformType == PlatformType.Android && mode == ConnectionMode.Usb -> {
+                val parsed = current.port.toIntOrNull()
+                if (parsed == null || parsed <= 0) "6000" else current.port
+            }
+            else -> current.port
         }
         
         // Auto-configure if enabled
         if (current.isAutoConfig) {
-             applyAutoConfig()
+            if (mode == ConnectionMode.Web) {
+                setSampleRate(SampleRate.Rate48000)
+                setChannelCount(ChannelCount.Mono)
+                setAudioFormat(AudioFormat.PCM_16BIT)
+            } else {
+                applyAutoConfig()
+            }
         }
 
         _uiState.update { it.copy(mode = mode, port = updatedPort) }

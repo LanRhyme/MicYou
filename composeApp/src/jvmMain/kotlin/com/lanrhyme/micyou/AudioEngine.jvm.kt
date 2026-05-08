@@ -7,6 +7,7 @@ import micyou.composeapp.generated.resources.errorAdbReverseFailed
 import org.jetbrains.compose.resources.getString
 import com.lanrhyme.micyou.network.MdnsAdvertiser
 import com.lanrhyme.micyou.network.NetworkServer
+import com.lanrhyme.micyou.network.WebServer
 import com.lanrhyme.micyou.platform.AdbManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import kotlinx.coroutines.*
@@ -14,6 +15,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.math.sqrt
@@ -70,6 +73,18 @@ actual class AudioEngine actual constructor() {
             _pluginSyncReceived.value = syncMessage
         }
     )
+
+    private val webServer = WebServer(
+        port = 8443,
+        onAudioPacketReceived = { audioPacket ->
+            scope.launch { processReceivedPacket(audioPacket) }
+        }
+    )
+
+    private val _webUrl = MutableStateFlow("")
+    private val _webClientCount = MutableStateFlow(0)
+    actual val webUrl: Flow<String> = _webUrl.asStateFlow()
+    actual val webClientCount: Flow<Int> = _webClientCount.asStateFlow()
     
     init {
         // Start mDNS advertisement immediately so Android clients can discover this server
@@ -99,6 +114,36 @@ actual class AudioEngine actual constructor() {
                 if (error != null) {
                     _lastError.value = error
                 }
+            }
+        }
+        scope.launch {
+            webServer.state.collect { newState ->
+                if (newState == StreamState.Streaming) {
+                    audioPipeline.reset()
+                    if (_state.value != StreamState.Streaming) {
+                        startAudioProcessing()
+                    }
+                } else if (newState == StreamState.Idle || newState == StreamState.Error) {
+                    val hasNetworkClients = networkServer.state.value == StreamState.Streaming
+                    if (!hasNetworkClients) {
+                        stopAudioProcessing()
+                    }
+                }
+                if (_state.value != StreamState.Streaming || newState != StreamState.Streaming) {
+                    _state.value = newState
+                }
+            }
+        }
+        scope.launch {
+            webServer.lastError.collect { error ->
+                if (error != null) {
+                    _lastError.value = error
+                }
+            }
+        }
+        scope.launch {
+            webServer.clientCountFlow.collect { count ->
+                _webClientCount.value = count
             }
         }
     }
@@ -211,6 +256,29 @@ actual class AudioEngine actual constructor() {
             }
         }
         
+        if (mode == ConnectionMode.Web) {
+            val webPort = port.takeIf { it in 1..65535 } ?: 8443
+            Logger.i("AudioEngine", "启动 Web 模式，端口=$webPort")
+
+            val platform = getPlatform()
+            val primaryIp = platform.ipAddress
+            val webUrlStr = "https://$primaryIp:$webPort"
+            _webUrl.value = webUrlStr
+
+            startStopMutex.withLock {
+                stopJob?.join()
+                stopJob = null
+
+                if (webServer.isRunning) {
+                    Logger.w("AudioEngine", "WebServer 已在运行，忽略启动请求")
+                } else {
+                    webServer.start()
+                    Logger.i("AudioEngine", "WebServer started at $webUrlStr")
+                }
+            }
+            return
+        }
+        
         startStopMutex.withLock {
             // 等待任何正在进行的停止操作完成，防止竞态条件
             stopJob?.join()
@@ -275,6 +343,14 @@ actual class AudioEngine actual constructor() {
                  }
              } else {
                  Logger.d("AudioEngine", "Stop operation already in progress, skipping duplicate stop request")
+             }
+             // Stop web server as well
+             try {
+                 webServer.stop()
+                 _webUrl.value = ""
+                 _webClientCount.value = 0
+             } catch (e: Exception) {
+                 Logger.w("AudioEngine", "Error stopping WebServer: ${e.message}")
              }
              _lastError.value = null
              _state.value = StreamState.Idle

@@ -234,6 +234,7 @@
     <string name="missingOn">Missing on</string>
     <string name="modeUsb">USB</string>
     <string name="modeWifi">Wi-Fi</string>
+    <string name="modeWeb">Web</string>
     <string name="monitoringLabel">Monitoring</string>
     <string name="muteLabel">Mute</string>
     <string name="newVersionReleased">New version released</string>
@@ -416,4 +417,9 @@
     <string name="monitoringStatusNormal">Normal</string>
     <string name="monitoringStatusPoor">Poor</string>
     <string name="monitoringHint">Tip: Data updates every 500ms. A full report is logged every minute.</string>
+    <string name="webQrCodeTitle">Scan to Connect</string>
+    <string name="webScanHint">Use your phone to scan the QR code, then allow microphone access</string>
+    <string name="webClientCountLabel">Connected Clients</string>
+    <string name="webUrlLabel">Web URL</string>
+    <string name="webModeDesc">Start HTTPS + WebSocket server for browser microphone input</string>
 </resources>
