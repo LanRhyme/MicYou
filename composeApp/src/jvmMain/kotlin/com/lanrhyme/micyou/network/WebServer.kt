@@ -1,6 +1,7 @@
 package com.lanrhyme.micyou.network
 
 import com.lanrhyme.micyou.AudioPacketMessage
+import com.lanrhyme.micyou.Constants
 import com.lanrhyme.micyou.Logger
 import com.lanrhyme.micyou.StreamState
 import io.ktor.http.ContentType
@@ -155,6 +156,10 @@ class WebServer(
 
     private fun processAudioData(float32Bytes: ByteArray) {
         try {
+            if (float32Bytes.size > Constants.MAX_PACKET_SIZE) {
+                Logger.w("WebServer", "Rejected oversized audio frame: ${float32Bytes.size} bytes (max ${Constants.MAX_PACKET_SIZE})")
+                return
+            }
             val numFloats = float32Bytes.size / 4
             if (numFloats == 0) return
             val pcmBytes = ByteArray(numFloats * 2)
