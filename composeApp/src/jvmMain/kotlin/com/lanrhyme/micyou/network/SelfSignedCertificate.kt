@@ -15,7 +15,7 @@ object SelfSignedCertificate {
 
     private var cachedKeyStore: KeyStore? = null
 
-    private fun getLanIpAddresses(): List<String> {
+    internal fun getLanIpAddresses(): List<String> {
         val virtualKeywords = listOf(
             "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker", "tunnel", "teredo", "isatap"
         )

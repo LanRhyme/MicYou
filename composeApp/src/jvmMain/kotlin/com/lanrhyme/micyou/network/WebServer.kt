@@ -21,6 +21,7 @@ import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.pingPeriod
 import io.ktor.server.websocket.timeout
 import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -84,13 +85,25 @@ class WebServer(
                     timeout = 15.seconds
                 }
                 install(CORS) {
-                    anyHost()
+                    allowHost("localhost")
+                    allowHost("127.0.0.1")
+                    for (ip in SelfSignedCertificate.getLanIpAddresses()) {
+                        allowHost(ip)
+                    }
                 }
                 routing {
                     get("/") {
                         call.respondText(htmlContent, ContentType.Text.Html)
                     }
                     webSocket("/ws") {
+                        val origin = call.request.headers["Origin"]
+                        if (!isValidWebSocketOrigin(origin)) {
+                            Logger.w("WebServer", "Rejected WebSocket from untrusted origin: $origin")
+                            try {
+                                send(Frame.Close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Invalid origin")))
+                            } catch (_: Exception) {}
+                            return@webSocket
+                        }
                         handleWebSocketSession()
                     }
                 }
@@ -140,6 +153,20 @@ class WebServer(
             if (remaining == 0) _state.value = StreamState.Idle
             Logger.i("WebServer", "WebSocket client disconnected (remaining: $remaining)")
         }
+    }
+
+    private fun isValidWebSocketOrigin(origin: String?): Boolean {
+        if (origin.isNullOrBlank()) return true
+        val host = try {
+            java.net.URI(origin).host
+        } catch (e: Exception) {
+            Logger.w("WebServer", "Invalid Origin URL: $origin")
+            return false
+        }
+        if (host == "localhost" || host == "127.0.0.1") return true
+        val lanIps = SelfSignedCertificate.getLanIpAddresses()
+        if (host in lanIps) return true
+        return false
     }
 
     fun stop() {
