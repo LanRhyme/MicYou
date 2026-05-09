@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="hop-length" content="__HOP_LENGTH__">
     <title>MicYou Web Audio</title>
     <style>
         :root {
@@ -432,7 +431,6 @@
         </div>
     </div>
     <script>
-        const HOP_LENGTH = parseInt(document.querySelector('meta[name="hop-length"]').content);
         const AUDIO_WORKLET_CODE = `
             class MicYouProcessor extends AudioWorkletProcessor {
                 process(inputs, outputs, parameters) {

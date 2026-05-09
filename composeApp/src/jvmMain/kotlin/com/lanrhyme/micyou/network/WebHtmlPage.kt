@@ -4,19 +4,18 @@ import com.lanrhyme.micyou.Logger
 import java.io.IOException
 
 object WebHtmlPage {
-    private const val HOP_LENGTH = 256
     private const val RESOURCE_PATH = "web_client.html"
 
-    private val htmlTemplate: String by lazy {
+    private val html: String by lazy {
         val stream = this.javaClass.classLoader.getResourceAsStream(RESOURCE_PATH)
             ?: throw IOException("Resource not found: $RESOURCE_PATH")
-        stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        stream.bufferedReader(Charsets.UTF_8).use {
+            it.readText()
+                .also { text ->
+                    Logger.i("WebHtmlPage", "HTML page loaded from resource, length=${text.length}")
+                }
+        }
     }
 
-    fun getHtml(): String {
-        return htmlTemplate.replace("__HOP_LENGTH__", HOP_LENGTH.toString())
-            .also {
-                Logger.i("WebHtmlPage", "HTML page loaded from resource, length=${it.length}")
-            }
-    }
+    fun getHtml(): String = html
 }
