@@ -433,9 +433,25 @@
     </div>
     <script>
         const HOP_LENGTH = parseInt(document.querySelector('meta[name="hop-length"]').content);
+        const AUDIO_WORKLET_CODE = `
+            class MicYouProcessor extends AudioWorkletProcessor {
+                process(inputs, outputs, parameters) {
+                    const input = inputs[0];
+                    if (input && input.length > 0) {
+                        const channelData = input[0];
+                        if (channelData && channelData.length > 0) {
+                            this.port.postMessage(new Float32Array(channelData));
+                        }
+                    }
+                    return true;
+                }
+            }
+            registerProcessor('mic-you-processor', MicYouProcessor);
+        `;
+        const workletBlobUrl = URL.createObjectURL(new Blob([AUDIO_WORKLET_CODE], { type: 'application/javascript' }));
         let ws = null;
         let audioContext = null;
-        let processor = null;
+        let workletNode = null;
         let stream = null;
         let currentLang = 'zh';
         let isMuted = false;
@@ -555,7 +571,9 @@
                 });
                 audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
                 var source = audioContext.createMediaStreamSource(stream);
-                processor = audioContext.createScriptProcessor(HOP_LENGTH, 1, 1);
+
+                await audioContext.audioWorklet.addModule(workletBlobUrl);
+                workletNode = new AudioWorkletNode(audioContext, 'mic-you-processor');
 
                 var wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
                 ws = new WebSocket(wsUrl);
@@ -587,15 +605,14 @@
                     stopStreaming();
                 };
 
-                processor.onaudioprocess = function(e) {
+                workletNode.port.onmessage = function(e) {
                     if (ws && ws.readyState === WebSocket.OPEN) {
-                        var inputData = e.inputBuffer.getChannelData(0);
+                        var inputData = e.data;
                         if (isMuted) {
                             var silentData = new Float32Array(inputData.length);
                             ws.send(silentData.buffer);
                         } else {
-                            var float32Data = new Float32Array(inputData);
-                            ws.send(float32Data.buffer);
+                            ws.send(inputData.buffer);
                         }
                         var sum = 0;
                         for (var i = 0; i < inputData.length; i++) {
@@ -607,8 +624,8 @@
                     }
                 };
 
-                source.connect(processor);
-                processor.connect(audioContext.destination);
+                source.connect(workletNode);
+                workletNode.connect(audioContext.destination);
 
             } catch (err) {
                 currentStreamState = 'error';
@@ -624,7 +641,7 @@
         }
 
         function stopStreaming() {
-            if (processor) { processor.disconnect(); processor = null; }
+            if (workletNode) { workletNode.disconnect(); workletNode = null; }
             if (audioContext) { audioContext.close(); audioContext = null; }
             if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
             if (ws) { ws.close(); ws = null; }
