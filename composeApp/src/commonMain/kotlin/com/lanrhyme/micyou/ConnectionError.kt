@@ -169,7 +169,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = getString(Res.string.errorPortInUseTitle),
-                localizedMessage = String.format(getString(Res.string.errorPortInUseMessage), port?.toString() ?: "6000"),
+                localizedMessage = String.format(getString(Res.string.errorPortInUseMessage), port?.toString() ?: Constants.DEFAULT_TCP_PORT.toString()),
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionChangePort),
                     getString(Res.string.errorSuggestionCheckOtherApps)
@@ -205,7 +205,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = getString(Res.string.errorFirewallBlockedTitle),
-                localizedMessage = String.format(getString(Res.string.errorFirewallBlockedMessage), port?.toString() ?: "6000"),
+                localizedMessage = String.format(getString(Res.string.errorFirewallBlockedMessage), port?.toString() ?: Constants.DEFAULT_TCP_PORT.toString()),
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionAddFirewallRule),
                     getString(Res.string.errorSuggestionRunAsAdmin)
@@ -356,7 +356,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = getString(Res.string.errorFirewallBlockedTitle),
-                localizedMessage = "UDP 音频端口被防火墙阻止。请确保 UDP 端口 ${port?.let { calculateUdpPort(it) } ?: "6001"} 已放行。",
+                localizedMessage = "UDP 音频端口被防火墙阻止。请确保 UDP 端口 ${port?.let { calculateUdpPort(it) } ?: Constants.DEFAULT_UDP_PORT} 已放行。",
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionAddFirewallRule),
                     getString(Res.string.errorSuggestionRunAsAdmin)

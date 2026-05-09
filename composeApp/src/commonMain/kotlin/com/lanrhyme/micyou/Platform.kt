@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import com.lanrhyme.micyou.theme.PaletteStyle
 
 enum class PlatformType {
@@ -104,4 +105,7 @@ expect fun isWindowsPlatform(): Boolean
  * Check if running on macOS platform.
  */
 expect fun isMacOSPlatform(): Boolean
+
+@Composable
+expect fun QrCodeImage(content: String, modifier: Modifier, sizeDp: Int)
 

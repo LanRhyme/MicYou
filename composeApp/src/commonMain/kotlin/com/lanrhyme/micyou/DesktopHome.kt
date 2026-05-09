@@ -49,6 +49,8 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Minimize
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.material3.AlertDialog
@@ -440,6 +442,7 @@ private fun NetworkConfigCard(
                         value = when (state.mode) {
                             ConnectionMode.Wifi -> stringResource(Res.string.modeWifi)
                             ConnectionMode.Usb -> stringResource(Res.string.modeUsb)
+                            ConnectionMode.Web -> stringResource(Res.string.modeWeb)
                             else -> stringResource(Res.string.modeWifi)
                         },
                         onValueChange = {},
@@ -471,11 +474,18 @@ private fun NetworkConfigCard(
                                 expanded = false
                             }
                         )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(Res.string.modeWeb)) },
+                            onClick = {
+                                viewModel.setMode(ConnectionMode.Web)
+                                expanded = false
+                            }
+                        )
                     }
                 }
 
                 AnimatedVisibility(
-                    visible = true,
+                    visible = state.mode != ConnectionMode.Web,
                     enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.9f),
                     exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.9f)
                 ) {
@@ -488,6 +498,63 @@ private fun NetworkConfigCard(
                         singleLine = true,
                         shape = MaterialTheme.shapes.medium
                     )
+                }
+
+                AnimatedVisibility(
+                    visible = state.mode == ConnectionMode.Web,
+                    enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.9f),
+                    exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.9f)
+                ) {
+                    if (state.mode == ConnectionMode.Web) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            if ((state.streamState == StreamState.Streaming || state.streamState == StreamState.Connecting) && state.webUrl.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .drawBehind {
+                                            drawRect(androidx.compose.ui.graphics.Color.White)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    QrCodeImage(
+                                        content = state.webUrl,
+                                        modifier = Modifier.size(88.dp),
+                                        sizeDp = 88
+                                    )
+                                }
+
+                                if (state.webClientCount > 0) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.CheckCircle,
+                                            null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Text(
+                                            state.webClientCount.toString(),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            } else {
+                                Icon(
+                                    Icons.Rounded.Language,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

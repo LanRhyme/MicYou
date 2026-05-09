@@ -16,7 +16,8 @@ import org.jetbrains.compose.resources.getString
 
 enum class ConnectionMode(val label: String) {
     Wifi("Wi-Fi"),
-    Usb("USB (ADB)")
+    Usb("USB (ADB)"),
+    Web("Web")
 }
 
 enum class StreamState {
@@ -48,7 +49,7 @@ data class AppUiState(
     val mode: ConnectionMode = ConnectionMode.Wifi,
     val streamState: StreamState = StreamState.Idle,
     val ipAddress: String = "192.168.1.5",
-    val port: String = "6000",
+    val port: String = Constants.DEFAULT_TCP_PORT.toString(),
     val errorMessage: String? = null,
     val monitoringEnabled: Boolean = false,
     val sampleRate: SampleRate = SampleRate.Rate48000,
@@ -129,7 +130,11 @@ data class AppUiState(
 
     // UI State
     val installMessage: String? = null,
-    val snackbarMessage: String? = null
+    val snackbarMessage: String? = null,
+
+    // Web Mode State
+    val webUrl: String = "",
+    val webClientCount: Int = 0
 )
 
 enum class CloseAction(val label: String) {
@@ -333,7 +338,9 @@ class MainViewModel : ViewModel() {
                         audioMetrics = currentMetrics,
                         metricsHistory = history,
                         showMonitoringPanel = audioState.showMonitoringPanel,
-                        snackbarMessage = settingsState.snackbarMessage
+                        snackbarMessage = settingsState.snackbarMessage,
+                        webUrl = audioState.webUrl,
+                        webClientCount = audioState.webClientCount
                     )
                 }
             }.collect {

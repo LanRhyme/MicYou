@@ -61,4 +61,8 @@ expect class AudioEngine() {
 
     // 设置音频源（仅 Android 端有效）
     fun setAudioSource(sourceName: String)
+
+    // Web 模式状态（仅桌面端有效）
+    val webUrl: Flow<String>
+    val webClientCount: Flow<Int>
 }

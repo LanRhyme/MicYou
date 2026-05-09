@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MicYou Web Audio</title>
+    <style>
+        :root {
+            --md-primary: #7CB8F9;
+            --md-on-primary: #003256;
+            --md-primary-container: #0E4B7A;
+            --md-on-primary-container: #D1E4FF;
+            --md-secondary: #BAC7DB;
+            --md-on-secondary: #253140;
+            --md-secondary-container: #3B4858;
+            --md-on-secondary-container: #D6E3F7;
+            --md-tertiary: #D3BCE5;
+            --md-on-tertiary: #382D49;
+            --md-error: #FFB4AB;
+            --md-on-error: #690005;
+            --md-error-container: #93000A;
+            --md-on-error-container: #FFDAD6;
+            --md-surface: #111418;
+            --md-on-surface: #E2E2E6;
+            --md-on-surface-variant: #C2C6CF;
+            --md-surface-bright: #37393E;
+            --md-surface-container: #1E2024;
+            --md-surface-container-high: #282A2F;
+            --md-surface-container-highest: #333539;
+            --md-surface-container-low: #1A1C20;
+            --md-outline: #8C909A;
+            --md-outline-variant: #42474F;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { overflow-x: hidden; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--md-surface);
+            min-height: 100vh; min-height: 100dvh;
+            display: flex; flex-direction: column;
+            align-items: center;
+            color: var(--md-on-surface);
+            padding: 16px;
+            padding-top: max(16px, env(safe-area-inset-top));
+            padding-bottom: max(16px, env(safe-area-inset-bottom));
+            padding-left: max(16px, env(safe-area-inset-left));
+            padding-right: max(16px, env(safe-area-inset-right));
+        }
+        .app-container {
+            max-width: 420px; width: 100%;
+            display: flex; flex-direction: column;
+            gap: 10px;
+            margin: auto 0;
+        }
+
+        .card {
+            background: var(--md-surface-bright);
+            border-radius: 20px;
+            padding: 12px;
+            width: 100%;
+        }
+
+        .header-card {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+        }
+        .header-left {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .app-icon-badge {
+            width: 36px; height: 36px;
+            background: var(--md-primary-container);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .app-icon-badge svg { width: 20px; height: 20px; }
+        .header-title {
+            font-size: 0.95em; font-weight: 800;
+            color: var(--md-primary);
+        }
+        .header-subtitle {
+            font-size: 0.72em; color: var(--md-on-surface-variant);
+            margin-top: 1px;
+        }
+        .lang-switch { display: flex; gap: 2px; }
+        .lang-switch button {
+            padding: 4px 10px; font-size: 0.75em;
+            background: var(--md-surface-container-highest);
+            color: var(--md-on-surface-variant);
+            border: none; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 32px;
+        }
+        .lang-switch button.active {
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+        }
+
+        .status-card {
+            display: flex; flex-direction: column;
+            align-items: center; gap: 8px;
+            padding: 16px 12px;
+        }
+        .status-icon-wrap {
+            width: 40px; height: 40px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.3s ease;
+        }
+        .status-icon-wrap svg { width: 20px; height: 20px; }
+        .status-icon-wrap.idle { background: rgba(194,198,207,0.12); }
+        .status-icon-wrap.idle svg { color: var(--md-on-surface-variant); fill: var(--md-on-surface-variant); }
+        .status-icon-wrap.connecting { background: rgba(211,188,229,0.12); }
+        .status-icon-wrap.connecting svg { color: var(--md-tertiary); fill: var(--md-tertiary); }
+        .status-icon-wrap.streaming { background: rgba(124,184,249,0.12); }
+        .status-icon-wrap.streaming svg { color: var(--md-primary); fill: var(--md-primary); }
+        .status-icon-wrap.error { background: rgba(255,180,171,0.12); }
+        .status-icon-wrap.error svg { color: var(--md-error); fill: var(--md-error); }
+
+        .status-text-row {
+            display: flex; align-items: center; gap: 6px;
+        }
+        .status-text {
+            font-size: 0.85em; font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        .status-text.idle { color: var(--md-on-surface-variant); }
+        .status-text.connecting { color: var(--md-tertiary); }
+        .status-text.streaming { color: var(--md-primary); }
+        .status-text.error { color: var(--md-error); }
+
+        .live-badge {
+            background: var(--md-primary);
+            color: var(--md-on-primary);
+            font-size: 0.65em; font-weight: 700;
+            padding: 2px 5px; border-radius: 4px;
+            display: none;
+        }
+        .live-badge.visible { display: inline-block; }
+
+        .error-message {
+            background: rgba(147,0,10,0.5);
+            color: var(--md-on-error-container);
+            font-size: 0.75em; padding: 8px;
+            border-radius: 12px; text-align: center;
+            max-width: 280px; display: none;
+        }
+        .error-message.visible { display: block; }
+
+        .main-control-card {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            position: relative; min-height: 280px;
+            padding: 20px 12px;
+        }
+
+        .visualizer-ring {
+            position: absolute;
+            width: min(240px, 60vw); height: min(240px, 60vw);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0; transition: opacity 0.4s ease;
+        }
+        .visualizer-ring.active { opacity: 1; }
+        .visualizer-ring-inner {
+            position: absolute; inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(124,184,249,0.15) 0%, transparent 70%);
+            animation: pulse-ring 2s ease-in-out infinite;
+        }
+        .visualizer-ring-ripple {
+            position: absolute; inset: -20px;
+            border-radius: 50%;
+            border: 2px solid rgba(124,184,249,0.2);
+            animation: ripple-expand 2.5s ease-out infinite;
+        }
+        .visualizer-ring-ripple:nth-child(2) { animation-delay: 0.8s; }
+        .visualizer-ring-ripple:nth-child(3) { animation-delay: 1.6s; }
+
+        @keyframes pulse-ring {
+            0%, 100% { transform: scale(0.96); opacity: 0.8; }
+            50% { transform: scale(1.04); opacity: 1; }
+        }
+        @keyframes ripple-expand {
+            0% { transform: scale(0.8); opacity: 0.6; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+
+        .main-btn-wrap {
+            position: relative; z-index: 2;
+            width: 104px; height: 104px;
+            display: flex; align-items: center; justify-content: center;
+            touch-action: manipulation;
+        }
+        .main-btn-glow {
+            position: absolute; inset: -12px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(124,184,249,0.25) 0%, transparent 70%);
+            opacity: 0; transition: opacity 0.4s ease;
+            pointer-events: none;
+        }
+        .main-btn-glow.active {
+            opacity: 1;
+            animation: glow-pulse 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes glow-pulse {
+            0% { opacity: 0.25; transform: scale(0.95); }
+            100% { opacity: 0.55; transform: scale(1.05); }
+        }
+
+        .main-btn {
+            width: 80px; height: 80px;
+            border-radius: 50%; border: none;
+            cursor: pointer; position: relative;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            outline: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .main-btn.idle {
+            background: var(--md-primary);
+            width: 80px; height: 80px;
+        }
+        .main-btn.streaming {
+            background: var(--md-error);
+            width: 100px; height: 100px;
+        }
+        .main-btn.connecting {
+            background: var(--md-tertiary);
+            width: 80px; height: 80px;
+        }
+        .main-btn:active { transform: scale(0.88); }
+        .main-btn svg { width: 32px; height: 32px; fill: white; }
+        .main-btn.idle svg { fill: white; }
+        .main-btn.streaming svg { fill: white; }
+        .main-btn.connecting svg {
+            fill: white;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .audio-level {
+            width: 100%; height: 4px;
+            background: var(--md-surface-container-highest);
+            border-radius: 2px; overflow: hidden;
+            margin-top: 8px;
+        }
+        .audio-level-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--md-primary), var(--md-tertiary));
+            width: 0%; transition: width 0.08s ease;
+            border-radius: 2px;
+        }
+
+        .bottom-bar {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+        }
+        .bottom-left { display: flex; gap: 8px; }
+
+        .pill-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 10px 14px; border: none;
+            border-radius: 12px; cursor: pointer;
+            font-size: 0.8em; font-weight: 500;
+            transition: all 0.2s ease;
+            outline: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 44px;
+        }
+        .pill-btn:active { transform: scale(0.92); }
+        .pill-btn svg { width: 18px; height: 18px; }
+        .pill-btn.mute-btn {
+            background: var(--md-surface-container-highest);
+            color: var(--md-on-surface-variant);
+        }
+        .pill-btn.mute-btn svg { fill: var(--md-on-surface-variant); }
+        .pill-btn.mute-btn.muted {
+            background: var(--md-error-container);
+            color: var(--md-on-error-container);
+        }
+        .pill-btn.mute-btn.muted svg { fill: var(--md-on-error-container); }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--md-on-surface-variant);
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+        .status-dot.streaming {
+            background: var(--md-primary);
+            opacity: 1;
+            animation: dot-pulse 1.2s ease-in-out infinite;
+        }
+        .status-dot.connecting {
+            background: var(--md-tertiary);
+            opacity: 1;
+        }
+        .status-dot.error {
+            background: var(--md-error);
+            opacity: 1;
+        }
+        @keyframes dot-pulse {
+            0%, 100% { transform: scale(0.8); }
+            50% { transform: scale(1.2); }
+        }
+
+        .help-box {
+            background: var(--md-surface-container);
+            border: 1px solid var(--md-outline-variant);
+            padding: 14px; border-radius: 16px;
+            font-size: 0.8em; line-height: 1.7;
+            text-align: left; color: var(--md-on-surface-variant);
+        }
+        .help-box h3 {
+            color: var(--md-primary); margin-bottom: 8px;
+            text-align: center; font-size: 0.95em;
+        }
+
+        @media (max-width: 360px) {
+            body { padding: 10px; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+            .app-container { gap: 8px; }
+            .card { border-radius: 16px; padding: 10px; }
+            .header-card { padding: 10px 12px; }
+            .app-icon-badge { width: 32px; height: 32px; border-radius: 10px; }
+            .app-icon-badge svg { width: 18px; height: 18px; }
+            .header-title { font-size: 0.88em; }
+            .main-control-card { min-height: 240px; padding: 16px 8px; }
+            .visualizer-ring { width: min(200px, 55vw); height: min(200px, 55vw); }
+            .main-btn.idle { width: 72px; height: 72px; }
+            .main-btn.streaming { width: 88px; height: 88px; }
+            .main-btn.connecting { width: 72px; height: 72px; }
+            .main-btn svg { width: 28px; height: 28px; }
+            .main-btn-wrap { width: 92px; height: 92px; }
+            .help-box { padding: 12px; font-size: 0.75em; }
+        }
+
+        @media (max-height: 600px) {
+            .main-control-card { min-height: 220px; padding: 12px 8px; }
+            .visualizer-ring { width: min(180px, 50vw); height: min(180px, 50vw); }
+            .main-btn.idle { width: 68px; height: 68px; }
+            .main-btn.streaming { width: 84px; height: 84px; }
+            .main-btn.connecting { width: 68px; height: 68px; }
+            .main-btn svg { width: 26px; height: 26px; }
+            .main-btn-wrap { width: 84px; height: 84px; }
+            .app-container { gap: 6px; }
+            .help-box { padding: 10px; }
+        }
+
+        @media (min-width: 600px) {
+            .app-container { max-width: 460px; }
+            .main-control-card { min-height: 320px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="card header-card">
+            <div class="header-left">
+                <div class="app-icon-badge">
+                    <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                        <path fill="var(--md-primary)" d="M382.714 129.286C422.703 169.276 422.703 234.112 382.714 274.102L328.408 328.408C288.418 368.397 223.582 368.397 183.592 328.408C143.603 288.418 143.603 223.582 183.592 183.592L237.898 129.286C277.888 89.2968 342.724 89.2968 382.714 129.286ZM346.51 165.49C326.515 145.495 294.097 145.495 274.102 165.49L219.796 219.796C199.801 239.791 199.801 272.209 219.796 292.204C239.791 312.199 272.209 312.199 292.204 292.204L346.51 237.898C366.504 217.903 366.504 185.485 346.51 165.49Z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="header-title">MicYou</div>
+                    <div class="header-subtitle">Web Client</div>
+                </div>
+            </div>
+            <div class="lang-switch">
+                <button id="btnZh" onclick="setLang('zh')" class="active">中文</button>
+                <button id="btnEn" onclick="setLang('en')">EN</button>
+            </div>
+        </div>
+
+        <div class="card main-control-card">
+            <div class="status-icon-wrap idle" id="statusIconWrap">
+                <svg id="statusIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            </div>
+            <div class="status-text-row">
+                <span class="status-text idle" id="statusText" data-zh="点击开始" data-en="Click to start">点击开始</span>
+                <span class="live-badge" id="liveBadge">LIVE</span>
+            </div>
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="visualizer-ring" id="visualizerRing">
+                <div class="visualizer-ring-inner"></div>
+                <div class="visualizer-ring-ripple"></div>
+                <div class="visualizer-ring-ripple"></div>
+                <div class="visualizer-ring-ripple"></div>
+            </div>
+
+            <div class="main-btn-wrap">
+                <div class="main-btn-glow" id="mainBtnGlow"></div>
+                <button class="main-btn idle" id="mainBtn" onclick="onMainButtonClick()">
+                    <svg id="mainBtnIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+                </button>
+            </div>
+
+            <div class="audio-level"><div id="levelBar" class="audio-level-bar"></div></div>
+        </div>
+
+        <div class="card bottom-bar">
+            <div class="bottom-left">
+                <button class="pill-btn mute-btn" id="muteBtn" onclick="toggleMute()">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                    <span id="muteLabel" data-zh="静音" data-en="Mute">静音</span>
+                </button>
+            </div>
+            <div class="status-dot" id="statusDot"></div>
+        </div>
+
+        <div class="help-box">
+            <h3 id="helpTitle" data-zh="使用说明" data-en="Instructions">使用说明</h3>
+            <div id="helpContent">
+                <p data-zh="1. 点击中央按钮开始传输音频" data-en="1. Click the center button to start audio streaming">1. 点击中央按钮开始传输音频</p>
+                <p data-zh="2. 浏览器会请求麦克风权限，请点击允许" data-en="2. Browser will request microphone permission, please allow it">2. 浏览器会请求麦克风权限，请点击允许</p>
+                <p data-zh="3. 首次访问需信任自签名证书，点击「继续」即可" data-en="3. First visit requires trusting self-signed certificate, click 'Continue'">3. 首次访问需信任自签名证书，点击「继续」即可</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        const AUDIO_WORKLET_CODE = `
+            class MicYouProcessor extends AudioWorkletProcessor {
+                process(inputs, outputs, parameters) {
+                    const input = inputs[0];
+                    if (input && input.length > 0) {
+                        const channelData = input[0];
+                        if (channelData && channelData.length > 0) {
+                            this.port.postMessage(new Float32Array(channelData));
+                        }
+                    }
+                    return true;
+                }
+            }
+            registerProcessor('mic-you-processor', MicYouProcessor);
+        `;
+        const workletBlobUrl = URL.createObjectURL(new Blob([AUDIO_WORKLET_CODE], { type: 'application/javascript' }));
+        let ws = null;
+        let audioContext = null;
+        let workletNode = null;
+        let stream = null;
+        let currentLang = 'zh';
+        let isMuted = false;
+        let currentStreamState = 'idle';
+
+        const statusIconWrap = document.getElementById('statusIconWrap');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusText = document.getElementById('statusText');
+        const liveBadge = document.getElementById('liveBadge');
+        const errorMessage = document.getElementById('errorMessage');
+        const visualizerRing = document.getElementById('visualizerRing');
+        const mainBtnGlow = document.getElementById('mainBtnGlow');
+        const mainBtn = document.getElementById('mainBtn');
+        const mainBtnIcon = document.getElementById('mainBtnIcon');
+        const levelBar = document.getElementById('levelBar');
+        const muteBtn = document.getElementById('muteBtn');
+        const muteLabel = document.getElementById('muteLabel');
+        const statusDot = document.getElementById('statusDot');
+
+        const SVG_LINK = '<path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>';
+        const SVG_LINK_OFF = '<path d="M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 .87-.36 1.65-.93 2.22l1.42 1.42C18.95 14.48 19.7 13.32 19.7 12c0-2.76-2.24-5-5-5zm-2.01 4.98l1.53 1.53c.05-.16.08-.33.08-.51 0-1.66-1.34-3-3-3h-.02l1.41 1.98zM7 5h4v1.9H8.9L7 5.88V5zm11.56 14.56L5.44 6.44 3.02 4.02 1.6 5.44 4.07 7.91C2.79 8.88 2 10.36 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.1.58-2.06 1.44-2.61l1.37 1.37C6.29 11.07 6 11.5 6 12c0 .55.45 1 1 1h3.5l2 2H8v1.9h6.6L17.56 19.98l1.42-1.42z"/>';
+        const SVG_REFRESH = '<path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>';
+        const SVG_INFO = '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>';
+        const SVG_HOURGLASS = '<path d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4zm-4-5l-4-4V4h8v3.5l-4 4z"/>';
+        const SVG_CHECK_CIRCLE = '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>';
+        const SVG_ERROR = '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>';
+        const SVG_MIC = '<path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>';
+        const SVG_MIC_OFF = '<path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.34 3 3 3 .23 0 .44-.03.65-.07l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>';
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.getElementById('btnZh').className = lang === 'zh' ? 'active' : '';
+            document.getElementById('btnEn').className = lang === 'en' ? 'active' : '';
+            document.querySelectorAll('[data-zh]').forEach(function(el) {
+                el.textContent = el.getAttribute('data-' + lang);
+            });
+            updateStatusUI();
+        }
+
+        function updateStatusUI() {
+            var state = currentStreamState;
+            statusIconWrap.className = 'status-icon-wrap ' + state;
+            statusText.className = 'status-text ' + state;
+            statusDot.className = 'status-dot' + (state !== 'idle' ? ' ' + state : '');
+
+            if (state === 'idle') {
+                statusIcon.innerHTML = SVG_INFO;
+                statusText.setAttribute('data-zh', '点击开始');
+                statusText.setAttribute('data-en', 'Click to start');
+                mainBtn.className = 'main-btn idle';
+                mainBtnIcon.innerHTML = SVG_LINK;
+                liveBadge.className = 'live-badge';
+                visualizerRing.className = 'visualizer-ring';
+                mainBtnGlow.className = 'main-btn-glow';
+            } else if (state === 'connecting') {
+                statusIcon.innerHTML = SVG_HOURGLASS;
+                statusText.setAttribute('data-zh', '正在连接...');
+                statusText.setAttribute('data-en', 'Connecting...');
+                mainBtn.className = 'main-btn connecting';
+                mainBtnIcon.innerHTML = SVG_REFRESH;
+                liveBadge.className = 'live-badge';
+                visualizerRing.className = 'visualizer-ring';
+                mainBtnGlow.className = 'main-btn-glow';
+            } else if (state === 'streaming') {
+                statusIcon.innerHTML = SVG_CHECK_CIRCLE;
+                statusText.setAttribute('data-zh', '传输中');
+                statusText.setAttribute('data-en', 'Streaming');
+                mainBtn.className = 'main-btn streaming';
+                mainBtnIcon.innerHTML = SVG_LINK_OFF;
+                liveBadge.className = 'live-badge visible';
+                visualizerRing.className = 'visualizer-ring active';
+                mainBtnGlow.className = 'main-btn-glow active';
+            } else if (state === 'error') {
+                statusIcon.innerHTML = SVG_ERROR;
+                mainBtn.className = 'main-btn idle';
+                mainBtnIcon.innerHTML = SVG_LINK;
+                liveBadge.className = 'live-badge';
+                visualizerRing.className = 'visualizer-ring';
+                mainBtnGlow.className = 'main-btn-glow';
+            }
+
+            statusText.textContent = statusText.getAttribute('data-' + currentLang);
+        }
+
+        function onMainButtonClick() {
+            if (currentStreamState === 'streaming' || currentStreamState === 'connecting') {
+                stopStreaming();
+            } else {
+                startStreaming();
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            if (isMuted) {
+                muteBtn.className = 'pill-btn mute-btn muted';
+                muteBtn.querySelector('svg').innerHTML = SVG_MIC_OFF;
+                muteLabel.setAttribute('data-zh', '取消静音');
+                muteLabel.setAttribute('data-en', 'Unmute');
+            } else {
+                muteBtn.className = 'pill-btn mute-btn';
+                muteBtn.querySelector('svg').innerHTML = SVG_MIC;
+                muteLabel.setAttribute('data-zh', '静音');
+                muteLabel.setAttribute('data-en', 'Mute');
+            }
+            muteLabel.textContent = muteLabel.getAttribute('data-' + currentLang);
+        }
+
+        async function startStreaming() {
+            currentStreamState = 'connecting';
+            updateStatusUI();
+            errorMessage.className = 'error-message';
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: 48000, channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+                });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+                var source = audioContext.createMediaStreamSource(stream);
+
+                await audioContext.audioWorklet.addModule(workletBlobUrl);
+                workletNode = new AudioWorkletNode(audioContext, 'mic-you-processor');
+
+                var wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+                ws = new WebSocket(wsUrl);
+                ws.binaryType = 'arraybuffer';
+
+                ws.onopen = function() {
+                    currentStreamState = 'streaming';
+                    updateStatusUI();
+                };
+
+                ws.onmessage = function(e) {
+                    if (e.data === 'SERVER_STOP') {
+                        currentStreamState = 'idle';
+                        updateStatusUI();
+                        stopStreaming();
+                    }
+                };
+
+                ws.onclose = function() {
+                    currentStreamState = 'idle';
+                    updateStatusUI();
+                };
+
+                ws.onerror = function() {
+                    currentStreamState = 'error';
+                    statusText.setAttribute('data-zh', '连接失败');
+                    statusText.setAttribute('data-en', 'Connection Error');
+                    updateStatusUI();
+                    stopStreaming();
+                };
+
+                workletNode.port.onmessage = function(e) {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        var inputData = e.data;
+                        if (isMuted) {
+                            var silentData = new Float32Array(inputData.length);
+                            ws.send(silentData.buffer);
+                        } else {
+                            ws.send(inputData.buffer);
+                        }
+                        var sum = 0;
+                        for (var i = 0; i < inputData.length; i++) {
+                            sum += inputData[i] * inputData[i];
+                        }
+                        var rms = Math.sqrt(sum / inputData.length);
+                        var level = Math.min(100, rms * 500);
+                        levelBar.style.width = level + '%';
+                    }
+                };
+
+                source.connect(workletNode);
+                workletNode.connect(audioContext.destination);
+
+            } catch (err) {
+                currentStreamState = 'error';
+                var msgZh = '麦克风访问失败，请在浏览器设置中允许麦克风权限';
+                var msgEn = 'Microphone access failed. Allow microphone permission in browser settings';
+                statusText.setAttribute('data-zh', msgZh);
+                statusText.setAttribute('data-en', msgEn);
+                errorMessage.textContent = currentLang === 'zh' ? msgZh : msgEn;
+                errorMessage.className = 'error-message visible';
+                updateStatusUI();
+                console.error('MicYou WebAudio error:', err);
+            }
+        }
+
+        function stopStreaming() {
+            if (workletNode) { workletNode.disconnect(); workletNode = null; }
+            if (audioContext) { audioContext.close(); audioContext = null; }
+            if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
+            if (ws) { ws.close(); ws = null; }
+            currentStreamState = 'idle';
+            updateStatusUI();
+            levelBar.style.width = '0%';
+        }
+    </script>
+</body>
+</html>

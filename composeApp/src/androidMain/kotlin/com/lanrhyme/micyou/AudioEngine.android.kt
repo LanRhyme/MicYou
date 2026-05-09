@@ -737,6 +737,9 @@ actual class AudioEngine actual constructor() {
     actual fun updatePerformanceConfig(config: PerformanceConfig) {
         Logger.d("AudioEngine", "Android does not support dynamic performance config adjustment")
     }
+
+    actual val webUrl: Flow<String> = MutableStateFlow("")
+    actual val webClientCount: Flow<Int> = MutableStateFlow(0)
 }
 
 private class UdpCircuitBreakerException(message: String) : Exception(message)

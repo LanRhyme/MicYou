@@ -197,6 +197,7 @@
     <string name="missingOn">缺少于</string>
     <string name="modeUsb">USB</string>
     <string name="modeWifi">Wi-Fi</string>
+    <string name="modeWeb">Web</string>
     <string name="monitoringLabel">监听</string>
     <string name="muteLabel">静音</string>
     <string name="newVersionReleased">发现新版本</string>
@@ -416,4 +417,9 @@
     <string name="monitoringStatusNormal">一般</string>
     <string name="monitoringStatusPoor">较差</string>
     <string name="monitoringHint">提示：监测数据每 500ms 更新一次。系统日志中每分钟会输出一次完整状态报告。</string>
+    <string name="webQrCodeTitle">扫码连接</string>
+    <string name="webScanHint">用手机扫码打开网页，允许麦克风权限即可开始传输音频</string>
+    <string name="webClientCountLabel">已连接客户端</string>
+    <string name="webUrlLabel">Web 地址</string>
+    <string name="webModeDesc">启动 HTTPS + WebSocket 服务，支持手机浏览器麦克风输入</string>
 </resources>
