@@ -54,7 +54,7 @@ class WebServer(
 
     private val htmlContent: String by lazy { WebHtmlPage.getHtml() }
 
-    fun start() {
+    fun start(port: Int = this.port) {
         if (isRunning) {
             Logger.w("WebServer", "WebServer is already running")
             return
@@ -75,7 +75,7 @@ class WebServer(
                         keyStorePassword = { password.toCharArray() },
                         privateKeyPassword = { password.toCharArray() }
                     ) {
-                        port = this@WebServer.port
+                        port = port
                         host = "0.0.0.0"
                     }
                 }

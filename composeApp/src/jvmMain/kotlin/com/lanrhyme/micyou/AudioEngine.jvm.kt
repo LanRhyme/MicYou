@@ -272,7 +272,7 @@ actual class AudioEngine actual constructor() {
                 if (webServer.isRunning) {
                     Logger.w("AudioEngine", "WebServer 已在运行，忽略启动请求")
                 } else {
-                    webServer.start()
+                    webServer.start(webPort)
                     Logger.i("AudioEngine", "WebServer started at $webUrlStr")
                 }
             }
