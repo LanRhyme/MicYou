@@ -510,7 +510,7 @@ private fun NetworkConfigCard(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            if (state.streamState == StreamState.Streaming && state.webUrl.isNotEmpty()) {
+                            if ((state.streamState == StreamState.Streaming || state.streamState == StreamState.Connecting) && state.webUrl.isNotEmpty()) {
                                 Box(
                                     modifier = Modifier
                                         .size(100.dp)

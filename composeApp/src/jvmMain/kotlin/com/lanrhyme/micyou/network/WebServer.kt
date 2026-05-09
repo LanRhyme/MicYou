@@ -65,7 +65,6 @@ class WebServer(
         try {
             val keyStore = SelfSignedCertificate.generate()
             val password = SelfSignedCertificate.getKeyStorePassword()
-
             server = embeddedServer(Netty,
                 environment = applicationEnvironment {},
                 configure = {
@@ -75,7 +74,7 @@ class WebServer(
                         keyStorePassword = { password.toCharArray() },
                         privateKeyPassword = { password.toCharArray() }
                     ) {
-                        port = port
+                        this.port = port
                         host = "0.0.0.0"
                     }
                 }
@@ -112,7 +111,7 @@ class WebServer(
             server!!.start(wait = false)
 
             isRunning = true
-            _state.value = StreamState.Idle
+            _state.value = StreamState.Connecting
             Logger.i("WebServer", "HTTPS+WebSocket server started on port $port")
         } catch (e: Exception) {
             _state.value = StreamState.Error
