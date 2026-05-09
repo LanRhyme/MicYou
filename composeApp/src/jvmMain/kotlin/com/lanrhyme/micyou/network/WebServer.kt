@@ -173,7 +173,8 @@ class WebServer(
                 outIdx += 2
             }
             if (outIdx == 0) return
-            val audioPacket = AudioPacketMessage(buffer = pcmBytes, sampleRate = 48000, channelCount = 1, audioFormat = 2)
+            val slicedPcm = if (outIdx == pcmBytes.size) pcmBytes else pcmBytes.copyOf(outIdx)
+            val audioPacket = AudioPacketMessage(buffer = slicedPcm, sampleRate = 48000, channelCount = 1, audioFormat = 2)
             onAudioPacketReceived(audioPacket)
         } catch (e: Exception) {
             Logger.w("WebServer", "Error processing audio data: ${e.message}")
