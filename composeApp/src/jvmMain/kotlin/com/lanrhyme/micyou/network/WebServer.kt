@@ -13,6 +13,7 @@ import io.ktor.server.engine.sslConnector
 import io.ktor.server.netty.Netty
 import io.ktor.server.netty.NettyApplicationEngine
 import io.ktor.server.plugins.cors.routing.CORS
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -93,6 +94,9 @@ class WebServer(
                 routing {
                     get("/") {
                         call.respondText(htmlContent, ContentType.Text.Html)
+                    }
+                    get("/alpine.min.js") {
+                        call.respondBytes(WebHtmlPage.getJs(), ContentType.Application.JavaScript)
                     }
                     webSocket("/ws") {
                         val origin = call.request.headers["Origin"]
