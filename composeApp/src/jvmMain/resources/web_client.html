@@ -2,7 +2,12 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#111418">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MicYou">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>MicYou Web Audio</title>
     <script defer src="alpine.min.js"></script>
     <style>
@@ -31,34 +36,55 @@
             --md-surface-container-low: #1A1C20;
             --md-outline: #8C909A;
             --md-outline-variant: #42474F;
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-in-out-back: cubic-bezier(0.68, -0.6, 0.32, 1.6);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { overflow-x: hidden; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--md-surface);
-            min-height: 100vh; min-height: 100dvh;
+            min-height: 100dvh;
             display: flex; flex-direction: column;
             align-items: center;
             color: var(--md-on-surface);
-            padding: 16px;
-            padding-top: max(16px, env(safe-area-inset-top));
-            padding-bottom: max(16px, env(safe-area-inset-bottom));
-            padding-left: max(16px, env(safe-area-inset-left));
-            padding-right: max(16px, env(safe-area-inset-right));
+            padding: 0;
+            padding-left: max(0px, env(safe-area-inset-left));
+            padding-right: max(0px, env(safe-area-inset-right));
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .status-bar-bg {
+            width: 100%; max-width: 420px;
+            height: max(28px, env(safe-area-inset-top));
+            background: transparent;
+            flex-shrink: 0;
         }
         .app-container {
             max-width: 420px; width: 100%;
+            flex: 1;
             display: flex; flex-direction: column;
             gap: 10px;
-            margin: auto 0;
+            padding: 0 16px;
+            padding-bottom: 100px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .card {
-            background: var(--md-surface-bright);
+            background: rgba(55, 57, 62, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border-radius: 20px;
             padding: 12px;
             width: 100%;
+        }
+        @supports not (backdrop-filter: blur(1px)) {
+            .card {
+                background: var(--md-surface-bright);
+            }
         }
 
         .header-card {
@@ -84,16 +110,16 @@
             font-size: 0.72em; color: var(--md-on-surface-variant);
             margin-top: 1px;
         }
-        .lang-switch { display: flex; gap: 2px; }
+        .lang-switch { display: flex; gap: 4px; }
         .lang-switch button {
-            padding: 4px 10px; font-size: 0.75em;
+            padding: 8px 14px; font-size: 0.85em;
             background: var(--md-surface-container-highest);
             color: var(--md-on-surface-variant);
-            border: none; border-radius: 8px; cursor: pointer;
+            border: none; border-radius: 10px; cursor: pointer;
             transition: all 0.2s ease;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            min-height: 32px;
+            min-height: 48px; min-width: 48px;
         }
         .lang-switch button.active {
             background: var(--md-primary);
@@ -102,18 +128,20 @@
 
         .status-card {
             display: flex; flex-direction: column;
-            align-items: center; gap: 8px;
+            align-items: center; gap: 10px;
             padding: 16px 12px;
         }
         .status-icon-wrap {
-            width: 40px; height: 40px;
-            border-radius: 12px;
+            width: 52px; height: 52px;
+            border-radius: 14px;
             display: flex; align-items: center; justify-content: center;
             transition: background 0.3s ease;
         }
-        .status-icon-wrap svg { width: 20px; height: 20px; }
+        .status-icon-wrap svg { width: 26px; height: 26px; }
         .status-icon-wrap.idle { background: rgba(194,198,207,0.12); }
         .status-icon-wrap.idle svg { color: var(--md-on-surface-variant); fill: var(--md-on-surface-variant); }
+        .status-icon-wrap.acquiring { background: rgba(211,188,229,0.15); }
+        .status-icon-wrap.acquiring svg { color: var(--md-tertiary); fill: var(--md-tertiary); animation: mic-pulse 1.2s ease-in-out infinite; }
         .status-icon-wrap.connecting { background: rgba(211,188,229,0.12); }
         .status-icon-wrap.connecting svg { color: var(--md-tertiary); fill: var(--md-tertiary); }
         .status-icon-wrap.streaming { background: rgba(124,184,249,0.12); }
@@ -129,6 +157,7 @@
             transition: color 0.3s ease;
         }
         .status-text.idle { color: var(--md-on-surface-variant); }
+        .status-text.acquiring { color: var(--md-tertiary); }
         .status-text.connecting { color: var(--md-tertiary); }
         .status-text.streaming { color: var(--md-primary); }
         .status-text.error { color: var(--md-error); }
@@ -154,16 +183,19 @@
         .main-control-card {
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            position: relative; min-height: 280px;
-            padding: 20px 12px;
+            position: relative;
+            flex: 1;
+            min-height: 320px;
+            padding: 24px 12px;
+            gap: 12px;
         }
 
         .visualizer-ring {
             position: absolute;
-            width: min(240px, 60vw); height: min(240px, 60vw);
+            width: min(280px, 65vw); height: min(280px, 65vw);
             border-radius: 50%;
             pointer-events: none;
-            opacity: 0; transition: opacity 0.4s ease;
+            opacity: 0; transition: opacity 0.5s ease;
         }
         .visualizer-ring.active { opacity: 1; }
         .visualizer-ring-inner {
@@ -192,15 +224,16 @@
 
         .main-btn-wrap {
             position: relative; z-index: 2;
-            width: 104px; height: 104px;
+            width: 120px; height: 120px;
             display: flex; align-items: center; justify-content: center;
             touch-action: manipulation;
+            margin: 8px 0;
         }
         .main-btn-glow {
-            position: absolute; inset: -12px;
+            position: absolute; inset: -16px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(124,184,249,0.25) 0%, transparent 70%);
-            opacity: 0; transition: opacity 0.4s ease;
+            background: radial-gradient(circle, rgba(124,184,249,0.3) 0%, transparent 70%);
+            opacity: 0; transition: opacity 0.5s ease;
             pointer-events: none;
         }
         .main-btn-glow.active {
@@ -208,35 +241,48 @@
             animation: glow-pulse 1.5s ease-in-out infinite alternate;
         }
         @keyframes glow-pulse {
-            0% { opacity: 0.25; transform: scale(0.95); }
-            100% { opacity: 0.55; transform: scale(1.05); }
+            0% { opacity: 0.3; transform: scale(0.95); }
+            100% { opacity: 0.6; transform: scale(1.05); }
         }
 
         .main-btn {
-            width: 80px; height: 80px;
+            width: 96px; height: 96px;
             border-radius: 50%; border: none;
             cursor: pointer; position: relative;
             display: flex; align-items: center; justify-content: center;
-            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            transition: all 0.4s var(--ease-spring);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.35);
             outline: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
         }
+        .main-btn::after {
+            content: ''; position: absolute; inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%);
+            opacity: 0; transition: opacity 0.2s ease;
+        }
+        .main-btn:active::after { opacity: 1; }
         .main-btn.idle {
             background: var(--md-primary);
-            width: 80px; height: 80px;
+            width: 96px; height: 96px;
         }
         .main-btn.streaming {
             background: var(--md-error);
-            width: 100px; height: 100px;
+            width: 112px; height: 112px;
         }
         .main-btn.connecting {
             background: var(--md-tertiary);
-            width: 80px; height: 80px;
+            width: 96px; height: 96px;
         }
-        .main-btn:active { transform: scale(0.88); }
-        .main-btn svg { width: 32px; height: 32px; fill: white; }
+        .main-btn.acquiring {
+            background: var(--md-tertiary);
+            width: 96px; height: 96px;
+        }
+        .main-btn:active { transform: scale(0.9); }
+        .main-btn svg { width: 36px; height: 36px; fill: white; }
         .main-btn.idle svg { fill: white; }
         .main-btn.streaming svg { fill: white; }
         .main-btn.connecting svg {
@@ -247,37 +293,52 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        @keyframes mic-pulse {
+            0%, 100% { opacity: 0.6; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
 
         .audio-level {
-            width: 100%; height: 4px;
+            width: 80%; max-width: 280px; height: 5px;
             background: var(--md-surface-container-highest);
-            border-radius: 2px; overflow: hidden;
-            margin-top: 8px;
+            border-radius: 3px; overflow: hidden;
+            margin-top: 4px;
         }
         .audio-level-bar {
             height: 100%;
             background: linear-gradient(90deg, var(--md-primary), var(--md-tertiary));
-            width: 0%; transition: width 0.08s ease;
-            border-radius: 2px;
+            width: 0%; transition: width 0.06s ease;
+            border-radius: 3px;
         }
 
         .bottom-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
             display: flex; align-items: center;
             justify-content: space-between;
-            padding: 8px 12px;
+            padding: 12px 16px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            background: rgba(30, 32, 36, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--md-outline-variant);
+            z-index: 100;
+            max-width: 420px;
+            margin: 0 auto;
+            left: max(0px, env(safe-area-inset-left));
+            right: max(0px, env(safe-area-inset-right));
         }
         .bottom-left { display: flex; gap: 8px; }
 
         .pill-btn {
-            display: flex; align-items: center; gap: 6px;
-            padding: 10px 14px; border: none;
-            border-radius: 12px; cursor: pointer;
-            font-size: 0.8em; font-weight: 500;
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 18px; border: none;
+            border-radius: 14px; cursor: pointer;
+            font-size: 0.9em; font-weight: 500;
             transition: all 0.2s ease;
             outline: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            min-height: 44px;
+            min-height: 48px; min-width: 48px;
         }
         .pill-btn:active { transform: scale(0.92); }
         .pill-btn svg { width: 18px; height: 18px; }
@@ -308,6 +369,11 @@
             background: var(--md-tertiary);
             opacity: 1;
         }
+        .status-dot.acquiring {
+            background: var(--md-tertiary);
+            opacity: 1;
+            animation: dot-pulse 1.2s ease-in-out infinite;
+        }
         .status-dot.error {
             background: var(--md-error);
             opacity: 1;
@@ -317,55 +383,140 @@
             50% { transform: scale(1.2); }
         }
 
-        .help-box {
-            background: var(--md-surface-container);
-            border: 1px solid var(--md-outline-variant);
-            padding: 14px; border-radius: 16px;
-            font-size: 0.8em; line-height: 1.7;
-            text-align: left; color: var(--md-on-surface-variant);
+        .help-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            display: flex; align-items: flex-end;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
         }
-        .help-box h3 {
-            color: var(--md-primary); margin-bottom: 8px;
-            text-align: center; font-size: 0.95em;
+        .help-overlay.visible {
+            opacity: 1; pointer-events: auto;
         }
+        .help-sheet {
+            width: 100%; max-width: 420px;
+            margin: 0 auto;
+            background: rgba(40, 42, 47, 0.92);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-radius: 20px 20px 0 0;
+            padding: 16px 20px 24px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            transform: translateY(100%);
+            transition: transform 0.4s var(--ease-spring);
+        }
+        .help-overlay.visible .help-sheet {
+            transform: translateY(0);
+        }
+        .help-sheet-handle {
+            width: 36px; height: 4px;
+            background: var(--md-outline-variant);
+            border-radius: 2px;
+            margin: 0 auto 14px;
+        }
+        .help-sheet-header {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .help-sheet-header h3 {
+            color: var(--md-primary);
+            font-size: 1.05em;
+        }
+        .help-close-btn {
+            width: 36px; height: 36px;
+            border: none; background: none;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .help-close-btn:active { background: rgba(255,255,255,0.08); }
+        .help-sheet-content {
+            font-size: 0.85em; line-height: 2;
+            color: var(--md-on-surface-variant);
+        }
+        .help-sheet-content p {
+            padding: 6px 0;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+        .help-sheet-content p:last-child { border-bottom: none; }
+
+        .pill-btn.help-btn {
+            background: var(--md-surface-container-highest);
+            color: var(--md-on-surface-variant);
+            padding: 12px;
+            justify-content: center;
+        }
+        .pill-btn.help-btn svg { fill: var(--md-on-surface-variant); }
+
+        .toast {
+            position: fixed; top: 16px; top: max(16px, env(safe-area-inset-top));
+            left: 50%; transform: translateX(-50%) translateY(-120%);
+            background: var(--md-surface-container-high);
+            color: var(--md-on-surface);
+            padding: 12px 24px;
+            border-radius: 14px;
+            font-size: 0.85em; font-weight: 500;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            z-index: 300;
+            transition: transform 0.45s var(--ease-spring), opacity 0.3s ease;
+            pointer-events: none;
+            white-space: nowrap;
+            opacity: 0;
+        }
+        .toast.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .toast.success { border-left: 3px solid var(--md-primary); }
+        .toast.error { border-left: 3px solid var(--md-error); }
 
         @media (max-width: 360px) {
-            body { padding: 10px; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
-            .app-container { gap: 8px; }
+            body { padding: 0; }
+            .app-container { gap: 8px; padding: 0 10px; padding-bottom: 90px; }
             .card { border-radius: 16px; padding: 10px; }
             .header-card { padding: 10px 12px; }
             .app-icon-badge { width: 32px; height: 32px; border-radius: 10px; }
             .app-icon-badge svg { width: 18px; height: 18px; }
             .header-title { font-size: 0.88em; }
-            .main-control-card { min-height: 240px; padding: 16px 8px; }
-            .visualizer-ring { width: min(200px, 55vw); height: min(200px, 55vw); }
-            .main-btn.idle { width: 72px; height: 72px; }
-            .main-btn.streaming { width: 88px; height: 88px; }
-            .main-btn.connecting { width: 72px; height: 72px; }
+            .main-control-card { min-height: 260px; padding: 16px 8px; }
+            .visualizer-ring { width: min(220px, 55vw); height: min(220px, 55vw); }
+            .main-btn.idle { width: 80px; height: 80px; }
+            .main-btn.streaming { width: 96px; height: 96px; }
+            .main-btn.connecting { width: 80px; height: 80px; }
+            .main-btn.acquiring { width: 80px; height: 80px; }
             .main-btn svg { width: 28px; height: 28px; }
-            .main-btn-wrap { width: 92px; height: 92px; }
-            .help-box { padding: 12px; font-size: 0.75em; }
+            .main-btn-wrap { width: 100px; height: 100px; }
+            .toast { padding: 10px 18px; font-size: 0.8em; }
         }
 
         @media (max-height: 600px) {
-            .main-control-card { min-height: 220px; padding: 12px 8px; }
-            .visualizer-ring { width: min(180px, 50vw); height: min(180px, 50vw); }
-            .main-btn.idle { width: 68px; height: 68px; }
-            .main-btn.streaming { width: 84px; height: 84px; }
-            .main-btn.connecting { width: 68px; height: 68px; }
+            .app-container { gap: 6px; padding-bottom: 90px; }
+            .main-control-card { min-height: 240px; padding: 12px 8px; }
+            .visualizer-ring { width: min(200px, 50vw); height: min(200px, 50vw); }
+            .main-btn.idle { width: 72px; height: 72px; }
+            .main-btn.streaming { width: 88px; height: 88px; }
+            .main-btn.connecting { width: 72px; height: 72px; }
+            .main-btn.acquiring { width: 72px; height: 72px; }
             .main-btn svg { width: 26px; height: 26px; }
-            .main-btn-wrap { width: 84px; height: 84px; }
-            .app-container { gap: 6px; }
-            .help-box { padding: 10px; }
+            .main-btn-wrap { width: 88px; height: 88px; }
+            .header-card { padding: 8px 12px; }
         }
 
         @media (min-width: 600px) {
             .app-container { max-width: 460px; }
-            .main-control-card { min-height: 320px; }
+            .main-control-card { min-height: 360px; }
+            .bottom-bar { max-width: 460px; }
+            .help-sheet { max-width: 460px; }
         }
     </style>
 </head>
 <body>
+    <div class="toast" :class="{ visible: toastVisible, success: toastType === 'success', error: toastType === 'error' }" x-text="toastMessage"></div>
+    <div class="status-bar-bg"></div>
     <div class="app-container"
         x-data="micYouApp()">
 
@@ -411,25 +562,36 @@
                 </button>
             </div>
 
-            <div class="audio-level"><div id="levelBar" class="audio-level-bar" :style="'width: ' + audioLevel + '%'"></div></div>
+            <div class="audio-level" x-show="streamState === 'streaming'"><div id="levelBar" class="audio-level-bar" :style="'width: ' + audioLevel + '%'"></div></div>
         </div>
 
-        <div class="card bottom-bar">
+        <div class="bottom-bar">
             <div class="bottom-left">
                 <button class="pill-btn mute-btn" :class="{ muted: isMuted }" id="muteBtn" @click="toggleMute()">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="muteIconSvg"></svg>
                     <span id="muteLabel" x-text="muteLabel"></span>
                 </button>
+                <button class="pill-btn help-btn" @click="showHelp = !showHelp">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_HELP"></svg>
+                </button>
             </div>
             <div class="status-dot" :class="streamState !== 'idle' ? streamState : ''" id="statusDot"></div>
         </div>
 
-        <div class="help-box">
-            <h3 id="helpTitle" x-text="helpTitle"></h3>
-            <div id="helpContent">
-                <p x-text="helpStep1"></p>
-                <p x-text="helpStep2"></p>
-                <p x-text="helpStep3"></p>
+        <div class="help-overlay" :class="{ visible: showHelp }" @click.self="showHelp = false">
+            <div class="help-sheet">
+                <div class="help-sheet-handle"></div>
+                <div class="help-sheet-header">
+                    <h3 x-text="helpTitle"></h3>
+                    <button class="help-close-btn" @click="showHelp = false">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="var(--md-on-surface-variant)" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </button>
+                </div>
+                <div class="help-sheet-content">
+                    <p x-text="helpStep1"></p>
+                    <p x-text="helpStep2"></p>
+                    <p x-text="helpStep3"></p>
+                </div>
             </div>
         </div>
     </div>
@@ -458,8 +620,13 @@
                 lang: 'zh',
                 streamState: 'idle',
                 isMuted: false,
+                showHelp: false,
                 audioLevel: 0,
                 errorMessage: '',
+                toastMessage: '',
+                toastVisible: false,
+                toastType: 'success',
+                toastTimer: null,
 
                 SVG_LINK: '<path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>',
                 SVG_LINK_OFF: '<path d="M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 .87-.36 1.65-.93 2.22l1.42 1.42C18.95 14.48 19.7 13.32 19.7 12c0-2.76-2.24-5-5-5zm-2.01 4.98l1.53 1.53c.05-.16.08-.33.08-.51 0-1.66-1.34-3-3-3h-.02l1.41 1.98zM7 5h4v1.9H8.9L7 5.88V5zm11.56 14.56L5.44 6.44 3.02 4.02 1.6 5.44 4.07 7.91C2.79 8.88 2 10.36 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.1.58-2.06 1.44-2.61l1.37 1.37C6.29 11.07 6 11.5 6 12c0 .55.45 1 1 1h3.5l2 2H8v1.9h6.6L17.56 19.98l1.42-1.42z"/>',
@@ -470,6 +637,7 @@
                 SVG_ERROR: '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>',
                 SVG_MIC: '<path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>',
                 SVG_MIC_OFF: '<path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.34 3 3 3 .23 0 .44-.03.65-.07l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>',
+                SVG_HELP: '<path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/>',
 
                 ws: null,
                 audioContext: null,
@@ -478,6 +646,7 @@
 
                 get statusIconSvg() {
                     switch (this.streamState) {
+                        case 'acquiring': return this.SVG_MIC;
                         case 'connecting': return this.SVG_HOURGLASS;
                         case 'streaming': return this.SVG_CHECK_CIRCLE;
                         case 'error': return this.SVG_ERROR;
@@ -487,6 +656,7 @@
 
                 get mainBtnIconSvg() {
                     switch (this.streamState) {
+                        case 'acquiring': return this.SVG_MIC;
                         case 'connecting': return this.SVG_REFRESH;
                         case 'streaming': return this.SVG_LINK_OFF;
                         default: return this.SVG_LINK;
@@ -494,7 +664,8 @@
                 },
 
                 get mainBtnClass() {
-                    return 'main-btn ' + this.streamState;
+                    let cls = 'main-btn ' + this.streamState;
+                    return cls;
                 },
 
                 get muteIconSvg() {
@@ -505,7 +676,8 @@
                     if (this.streamState === 'error') return this.lang === 'zh' ? '麦克风访问失败，请检查权限' : 'Microphone access failed, check permissions';
                     const labels = {
                         idle: { zh: '点击开始', en: 'Click to start' },
-                        connecting: { zh: '正在连接...', en: 'Connecting...' },
+                        acquiring: { zh: '获取麦克风权限...', en: 'Requesting Microphone...' },
+                        connecting: { zh: '连接服务器...', en: 'Connecting to Server...' },
                         streaming: { zh: '传输中', en: 'Streaming' }
                     };
                     return labels[this.streamState]?.[this.lang] || '';
@@ -537,8 +709,25 @@
                     this.lang = l;
                 },
 
+                vibrate(pattern) {
+                    if (navigator.vibrate) {
+                        navigator.vibrate(pattern);
+                    }
+                },
+
+                showToast(msg, type = 'success') {
+                    if (this.toastTimer) clearTimeout(this.toastTimer);
+                    this.toastMessage = msg;
+                    this.toastType = type;
+                    this.toastVisible = true;
+                    this.toastTimer = setTimeout(() => {
+                        this.toastVisible = false;
+                    }, 2000);
+                },
+
                 onMainButtonClick() {
-                    if (this.streamState === 'streaming' || this.streamState === 'connecting') {
+                    this.vibrate(10);
+                    if (this.streamState === 'streaming' || this.streamState === 'connecting' || this.streamState === 'acquiring') {
                         this.stopStreaming();
                     } else {
                         this.startStreaming();
@@ -547,10 +736,15 @@
 
                 toggleMute() {
                     this.isMuted = !this.isMuted;
+                    this.vibrate(8);
+                    const msg = this.isMuted
+                        ? (this.lang === 'zh' ? '已静音' : 'Muted')
+                        : (this.lang === 'zh' ? '已取消静音' : 'Unmuted');
+                    this.showToast(msg);
                 },
 
                 async startStreaming() {
-                    this.streamState = 'connecting';
+                    this.streamState = 'acquiring';
                     this.errorMessage = '';
 
                     try {
@@ -563,6 +757,8 @@
                                 autoGainControl: false
                             }
                         });
+
+                        this.streamState = 'connecting';
                         this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
                         const source = this.audioContext.createMediaStreamSource(this.stream);
 
@@ -575,6 +771,10 @@
 
                         this.ws.onopen = () => {
                             this.streamState = 'streaming';
+                            this.showToast(
+                                this.lang === 'zh' ? '音频传输中' : 'Streaming Audio',
+                                'success'
+                            );
                         };
 
                         this.ws.onmessage = (e) => {
@@ -584,6 +784,12 @@
                         };
 
                         this.ws.onclose = () => {
+                            if (this.streamState === 'streaming') {
+                                this.showToast(
+                                    this.lang === 'zh' ? '连接已断开' : 'Connection Lost',
+                                    'error'
+                                );
+                            }
                             this.streamState = 'idle';
                         };
 
@@ -591,6 +797,7 @@
                             this.errorMessage = this.lang === 'zh'
                                 ? '连接失败，请检查网络'
                                 : 'Connection Error, please check network';
+                            this.showToast(this.errorMessage, 'error');
                             this.streamState = 'error';
                             this.stopStreaming();
                         };
@@ -621,6 +828,7 @@
                         const msgZh = '麦克风访问失败，请在浏览器设置中允许麦克风权限';
                         const msgEn = 'Microphone access failed. Allow microphone permission in browser settings';
                         this.errorMessage = this.lang === 'zh' ? msgZh : msgEn;
+                        this.showToast(this.errorMessage, 'error');
                         this.streamState = 'error';
                         console.error('MicYou WebAudio error:', err);
                     }
