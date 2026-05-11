@@ -41,7 +41,7 @@
             --ease-in-out-back: cubic-bezier(0.68, -0.6, 0.32, 1.6);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { overflow-x: hidden; }
+        html, body { overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--md-surface);
@@ -69,8 +69,6 @@
             gap: 10px;
             padding: 0 16px;
             padding-bottom: 100px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
         }
 
         .card {
@@ -91,6 +89,8 @@
             display: flex; align-items: center;
             justify-content: space-between;
             padding: 12px 16px;
+            position: relative;
+            z-index: 10;
         }
         .header-left {
             display: flex; align-items: center; gap: 12px;
@@ -110,20 +110,129 @@
             font-size: 0.72em; color: var(--md-on-surface-variant);
             margin-top: 1px;
         }
-        .lang-switch { display: flex; gap: 4px; }
-        .lang-switch button {
-            padding: 8px 14px; font-size: 0.85em;
+        .lang-dropdown {
+            position: relative;
+        }
+        .lang-trigger {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 13px;
             background: var(--md-surface-container-highest);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 13px;
+            cursor: pointer;
+            font-size: 0.82em;
+            font-weight: 500;
             color: var(--md-on-surface-variant);
-            border: none; border-radius: 10px; cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.25s ease;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            min-height: 48px; min-width: 48px;
+            min-height: 42px;
+            user-select: none;
         }
-        .lang-switch button.active {
-            background: var(--md-primary);
-            color: var(--md-on-primary);
+        .lang-trigger svg {
+            fill: currentColor;
+        }
+        .lang-trigger:hover {
+            border-color: var(--md-outline);
+            background: var(--md-surface-container-high);
+        }
+        .lang-trigger:active {
+            transform: scale(0.95);
+        }
+        .lang-trigger svg.lang-globe {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        .lang-trigger .lang-label {
+            font-variant-numeric: tabular-nums;
+        }
+        .lang-trigger svg.lang-chevron {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            transition: transform 0.3s var(--ease-spring);
+        }
+        .lang-trigger.open svg.lang-chevron {
+            transform: rotate(180deg);
+        }
+        .lang-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 130px;
+            background: var(--md-surface-container-high);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 14px;
+            padding: 6px;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 50;
+            transform-origin: top right;
+            transition: opacity 0.2s ease, transform 0.28s var(--ease-spring);
+        }
+        .lang-menu.closed {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.85) translateY(-6px);
+        }
+        .lang-menu.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1) translateY(0);
+        }
+        .lang-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px 14px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--md-on-surface-variant);
+            font-size: 0.85em;
+            font-weight: 400;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 44px;
+            text-align: left;
+        }
+        .lang-menu-item svg {
+            fill: currentColor;
+        }
+        .lang-menu-item:hover {
+            background: rgba(124,184,249,0.1);
+            color: var(--md-on-surface);
+        }
+        .lang-menu-item:active {
+            background: rgba(124,184,249,0.18);
+            transform: scale(0.97);
+        }
+        .lang-menu-item.active {
+            background: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+        }
+        .lang-menu-item .check-mark {
+            margin-left: auto;
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.18s ease;
+        }
+        .lang-menu-item.active .check-mark {
+            opacity: 1;
+        }
+        .lang-menu-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 49;
         }
 
         .status-card {
@@ -532,9 +641,23 @@
                     <div class="header-subtitle">Web Client</div>
                 </div>
             </div>
-            <div class="lang-switch">
-                <button @click="setLang('zh')" :class="{ active: lang === 'zh' }">中文</button>
-                <button @click="setLang('en')" :class="{ active: lang === 'en' }">EN</button>
+            <div class="lang-dropdown">
+                <button class="lang-trigger" :class="{ open: langOpen }" @click="toggleLangMenu()">
+                    <svg class="lang-globe" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_LANG_GLOBE"></svg>
+                    <span class="lang-label" x-text="lang === 'zh' ? '中' : 'EN'"></span>
+                    <svg class="lang-chevron" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_CHEVRON_DOWN"></svg>
+                </button>
+                <div class="lang-menu-backdrop" x-show="langOpen" @click="langOpen = false"></div>
+                <div class="lang-menu" :class="langOpen ? 'open' : 'closed'">
+                    <button class="lang-menu-item" :class="{ active: lang === 'zh' }" @click="setLang('zh'); langOpen = false">
+                        <span>中文</span>
+                        <svg class="check-mark" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_CHECK"></svg>
+                    </button>
+                    <button class="lang-menu-item" :class="{ active: lang === 'en' }" @click="setLang('en'); langOpen = false">
+                        <span>English</span>
+                        <svg class="check-mark" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_CHECK"></svg>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -621,6 +744,7 @@
                 streamState: 'idle',
                 isMuted: false,
                 showHelp: false,
+                langOpen: false,
                 audioLevel: 0,
                 errorMessage: '',
                 toastMessage: '',
@@ -638,6 +762,9 @@
                 SVG_MIC: '<path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>',
                 SVG_MIC_OFF: '<path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.34 3 3 3 .23 0 .44-.03.65-.07l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>',
                 SVG_HELP: '<path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/>',
+                SVG_LANG_GLOBE: '<path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/>',
+                SVG_CHEVRON_DOWN: '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>',
+                SVG_CHECK: '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>',
 
                 ws: null,
                 audioContext: null,
@@ -707,6 +834,10 @@
 
                 setLang(l) {
                     this.lang = l;
+                },
+
+                toggleLangMenu() {
+                    this.langOpen = !this.langOpen;
                 },
 
                 vibrate(pattern) {
