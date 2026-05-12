@@ -2,8 +2,14 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#111418">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MicYou">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>MicYou Web Audio</title>
+    <script defer src="alpine.min.js"></script>
     <style>
         :root {
             --md-primary: #7CB8F9;
@@ -30,40 +36,61 @@
             --md-surface-container-low: #1A1C20;
             --md-outline: #8C909A;
             --md-outline-variant: #42474F;
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-in-out-back: cubic-bezier(0.68, -0.6, 0.32, 1.6);
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { overflow-x: hidden; }
+        html, body { overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--md-surface);
-            min-height: 100vh; min-height: 100dvh;
+            min-height: 100dvh;
             display: flex; flex-direction: column;
             align-items: center;
             color: var(--md-on-surface);
-            padding: 16px;
-            padding-top: max(16px, env(safe-area-inset-top));
-            padding-bottom: max(16px, env(safe-area-inset-bottom));
-            padding-left: max(16px, env(safe-area-inset-left));
-            padding-right: max(16px, env(safe-area-inset-right));
+            padding: 0;
+            padding-left: max(0px, env(safe-area-inset-left));
+            padding-right: max(0px, env(safe-area-inset-right));
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .status-bar-bg {
+            width: 100%; max-width: 420px;
+            height: max(28px, env(safe-area-inset-top));
+            background: transparent;
+            flex-shrink: 0;
         }
         .app-container {
             max-width: 420px; width: 100%;
+            flex: 1;
             display: flex; flex-direction: column;
             gap: 10px;
-            margin: auto 0;
+            padding: 0 16px;
+            padding-bottom: 100px;
         }
 
         .card {
-            background: var(--md-surface-bright);
+            background: rgba(55, 57, 62, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border-radius: 20px;
             padding: 12px;
             width: 100%;
+        }
+        @supports not (backdrop-filter: blur(1px)) {
+            .card {
+                background: var(--md-surface-bright);
+            }
         }
 
         .header-card {
             display: flex; align-items: center;
             justify-content: space-between;
             padding: 12px 16px;
+            position: relative;
+            z-index: 10;
         }
         .header-left {
             display: flex; align-items: center; gap: 12px;
@@ -76,43 +103,154 @@
         }
         .app-icon-badge svg { width: 20px; height: 20px; }
         .header-title {
-            font-size: 0.95em; font-weight: 800;
+            font-size: 0.95em; font-weight: 600;
             color: var(--md-primary);
         }
         .header-subtitle {
             font-size: 0.72em; color: var(--md-on-surface-variant);
             margin-top: 1px;
         }
-        .lang-switch { display: flex; gap: 2px; }
-        .lang-switch button {
-            padding: 4px 10px; font-size: 0.75em;
+        .lang-dropdown {
+            position: relative;
+        }
+        .lang-trigger {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 13px;
             background: var(--md-surface-container-highest);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 13px;
+            cursor: pointer;
+            font-size: 0.82em;
+            font-weight: 500;
             color: var(--md-on-surface-variant);
-            border: none; border-radius: 8px; cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.25s ease;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            min-height: 32px;
+            min-height: 42px;
+            user-select: none;
         }
-        .lang-switch button.active {
-            background: var(--md-primary);
-            color: var(--md-on-primary);
+        .lang-trigger svg {
+            fill: currentColor;
+        }
+        .lang-trigger:hover {
+            border-color: var(--md-outline);
+            background: var(--md-surface-container-high);
+        }
+        .lang-trigger:active {
+            transform: scale(0.95);
+        }
+        .lang-trigger svg.lang-globe {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        .lang-trigger .lang-label {
+            font-variant-numeric: tabular-nums;
+        }
+        .lang-trigger svg.lang-chevron {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            transition: transform 0.3s var(--ease-spring);
+        }
+        .lang-trigger.open svg.lang-chevron {
+            transform: rotate(180deg);
+        }
+        .lang-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 130px;
+            background: var(--md-surface-container-high);
+            border: 1px solid var(--md-outline-variant);
+            border-radius: 14px;
+            padding: 6px;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 50;
+            transform-origin: top right;
+            transition: opacity 0.2s ease, transform 0.28s var(--ease-spring);
+        }
+        .lang-menu.closed {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.85) translateY(-6px);
+        }
+        .lang-menu.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1) translateY(0);
+        }
+        .lang-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 12px 14px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--md-on-surface-variant);
+            font-size: 0.85em;
+            font-weight: 400;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 44px;
+            text-align: left;
+        }
+        .lang-menu-item svg {
+            fill: currentColor;
+        }
+        .lang-menu-item:hover {
+            background: rgba(124,184,249,0.1);
+            color: var(--md-on-surface);
+        }
+        .lang-menu-item:active {
+            background: rgba(124,184,249,0.18);
+            transform: scale(0.97);
+        }
+        .lang-menu-item.active {
+            background: var(--md-primary-container);
+            color: var(--md-on-primary-container);
+        }
+        .lang-menu-item .check-mark {
+            margin-left: auto;
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.18s ease;
+        }
+        .lang-menu-item.active .check-mark {
+            opacity: 1;
+        }
+        .lang-menu-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 49;
         }
 
         .status-card {
             display: flex; flex-direction: column;
-            align-items: center; gap: 8px;
+            align-items: center; gap: 10px;
             padding: 16px 12px;
         }
         .status-icon-wrap {
-            width: 40px; height: 40px;
-            border-radius: 12px;
+            width: 52px; height: 52px;
+            border-radius: 14px;
             display: flex; align-items: center; justify-content: center;
             transition: background 0.3s ease;
         }
-        .status-icon-wrap svg { width: 20px; height: 20px; }
+        .status-icon-wrap svg { width: 26px; height: 26px; }
         .status-icon-wrap.idle { background: rgba(194,198,207,0.12); }
         .status-icon-wrap.idle svg { color: var(--md-on-surface-variant); fill: var(--md-on-surface-variant); }
+        .status-icon-wrap.acquiring { background: rgba(211,188,229,0.15); }
+        .status-icon-wrap.acquiring svg { color: var(--md-tertiary); fill: var(--md-tertiary); animation: mic-pulse 1.2s ease-in-out infinite; }
         .status-icon-wrap.connecting { background: rgba(211,188,229,0.12); }
         .status-icon-wrap.connecting svg { color: var(--md-tertiary); fill: var(--md-tertiary); }
         .status-icon-wrap.streaming { background: rgba(124,184,249,0.12); }
@@ -128,6 +266,7 @@
             transition: color 0.3s ease;
         }
         .status-text.idle { color: var(--md-on-surface-variant); }
+        .status-text.acquiring { color: var(--md-tertiary); }
         .status-text.connecting { color: var(--md-tertiary); }
         .status-text.streaming { color: var(--md-primary); }
         .status-text.error { color: var(--md-error); }
@@ -153,16 +292,19 @@
         .main-control-card {
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            position: relative; min-height: 280px;
-            padding: 20px 12px;
+            position: relative;
+            flex: 1;
+            min-height: 320px;
+            padding: 24px 12px;
+            gap: 12px;
         }
 
         .visualizer-ring {
             position: absolute;
-            width: min(240px, 60vw); height: min(240px, 60vw);
+            width: min(280px, 65vw); height: min(280px, 65vw);
             border-radius: 50%;
             pointer-events: none;
-            opacity: 0; transition: opacity 0.4s ease;
+            opacity: 0; transition: opacity 0.5s ease;
         }
         .visualizer-ring.active { opacity: 1; }
         .visualizer-ring-inner {
@@ -191,15 +333,16 @@
 
         .main-btn-wrap {
             position: relative; z-index: 2;
-            width: 104px; height: 104px;
+            width: 120px; height: 120px;
             display: flex; align-items: center; justify-content: center;
             touch-action: manipulation;
+            margin: 8px 0;
         }
         .main-btn-glow {
-            position: absolute; inset: -12px;
+            position: absolute; inset: -16px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(124,184,249,0.25) 0%, transparent 70%);
-            opacity: 0; transition: opacity 0.4s ease;
+            background: radial-gradient(circle, rgba(124,184,249,0.3) 0%, transparent 70%);
+            opacity: 0; transition: opacity 0.5s ease;
             pointer-events: none;
         }
         .main-btn-glow.active {
@@ -207,35 +350,48 @@
             animation: glow-pulse 1.5s ease-in-out infinite alternate;
         }
         @keyframes glow-pulse {
-            0% { opacity: 0.25; transform: scale(0.95); }
-            100% { opacity: 0.55; transform: scale(1.05); }
+            0% { opacity: 0.3; transform: scale(0.95); }
+            100% { opacity: 0.6; transform: scale(1.05); }
         }
 
         .main-btn {
-            width: 80px; height: 80px;
+            width: 96px; height: 96px;
             border-radius: 50%; border: none;
             cursor: pointer; position: relative;
             display: flex; align-items: center; justify-content: center;
-            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            transition: all 0.4s var(--ease-spring);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.35);
             outline: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
         }
+        .main-btn::after {
+            content: ''; position: absolute; inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%);
+            opacity: 0; transition: opacity 0.2s ease;
+        }
+        .main-btn:active::after { opacity: 1; }
         .main-btn.idle {
             background: var(--md-primary);
-            width: 80px; height: 80px;
+            width: 96px; height: 96px;
         }
         .main-btn.streaming {
             background: var(--md-error);
-            width: 100px; height: 100px;
+            width: 112px; height: 112px;
         }
         .main-btn.connecting {
             background: var(--md-tertiary);
-            width: 80px; height: 80px;
+            width: 96px; height: 96px;
         }
-        .main-btn:active { transform: scale(0.88); }
-        .main-btn svg { width: 32px; height: 32px; fill: white; }
+        .main-btn.acquiring {
+            background: var(--md-tertiary);
+            width: 96px; height: 96px;
+        }
+        .main-btn:active { transform: scale(0.9); }
+        .main-btn svg { width: 36px; height: 36px; fill: white; }
         .main-btn.idle svg { fill: white; }
         .main-btn.streaming svg { fill: white; }
         .main-btn.connecting svg {
@@ -246,37 +402,57 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        @keyframes mic-pulse {
+            0%, 100% { opacity: 0.6; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
 
         .audio-level {
-            width: 100%; height: 4px;
+            width: 80%; max-width: 280px; height: 5px;
             background: var(--md-surface-container-highest);
-            border-radius: 2px; overflow: hidden;
-            margin-top: 8px;
+            border-radius: 3px; overflow: hidden;
+            margin-top: 4px;
         }
         .audio-level-bar {
             height: 100%;
             background: linear-gradient(90deg, var(--md-primary), var(--md-tertiary));
-            width: 0%; transition: width 0.08s ease;
-            border-radius: 2px;
+            width: 0%; transition: width 0.06s ease;
+            border-radius: 3px;
         }
 
         .bottom-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
             display: flex; align-items: center;
             justify-content: space-between;
-            padding: 8px 12px;
+            padding: 12px 16px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            background: rgba(30, 32, 36, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--md-outline-variant);
+            z-index: 100;
+            max-width: 420px;
+            margin: 0 auto;
+            left: max(0px, env(safe-area-inset-left));
+            right: max(0px, env(safe-area-inset-right));
+        }
+        @supports not (backdrop-filter: blur(1px)) {
+            .bottom-bar {
+                background: var(--md-surface-container);
+            }
         }
         .bottom-left { display: flex; gap: 8px; }
 
         .pill-btn {
-            display: flex; align-items: center; gap: 6px;
-            padding: 10px 14px; border: none;
-            border-radius: 12px; cursor: pointer;
-            font-size: 0.8em; font-weight: 500;
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 18px; border: none;
+            border-radius: 14px; cursor: pointer;
+            font-size: 0.9em; font-weight: 500;
             transition: all 0.2s ease;
             outline: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            min-height: 44px;
+            min-height: 48px; min-width: 48px;
         }
         .pill-btn:active { transform: scale(0.92); }
         .pill-btn svg { width: 18px; height: 18px; }
@@ -307,6 +483,11 @@
             background: var(--md-tertiary);
             opacity: 1;
         }
+        .status-dot.acquiring {
+            background: var(--md-tertiary);
+            opacity: 1;
+            animation: dot-pulse 1.2s ease-in-out infinite;
+        }
         .status-dot.error {
             background: var(--md-error);
             opacity: 1;
@@ -316,56 +497,148 @@
             50% { transform: scale(1.2); }
         }
 
-        .help-box {
-            background: var(--md-surface-container);
-            border: 1px solid var(--md-outline-variant);
-            padding: 14px; border-radius: 16px;
-            font-size: 0.8em; line-height: 1.7;
-            text-align: left; color: var(--md-on-surface-variant);
+        .help-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            display: flex; align-items: flex-end;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
         }
-        .help-box h3 {
-            color: var(--md-primary); margin-bottom: 8px;
-            text-align: center; font-size: 0.95em;
+        .help-overlay.visible {
+            opacity: 1; pointer-events: auto;
         }
+        .help-sheet {
+            width: 100%; max-width: 420px;
+            margin: 0 auto;
+            background: rgba(40, 42, 47, 0.92);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-radius: 20px 20px 0 0;
+            padding: 16px 20px 24px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            transform: translateY(100%);
+            transition: transform 0.4s var(--ease-spring);
+        }
+        @supports not (backdrop-filter: blur(1px)) {
+            .help-sheet {
+                background: var(--md-surface-container-high);
+            }
+        }
+        .help-overlay.visible .help-sheet {
+            transform: translateY(0);
+        }
+        .help-sheet-handle {
+            width: 36px; height: 4px;
+            background: var(--md-outline-variant);
+            border-radius: 2px;
+            margin: 0 auto 14px;
+        }
+        .help-sheet-header {
+            display: flex; align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .help-sheet-header h3 {
+            color: var(--md-primary);
+            font-size: 1.05em;
+        }
+        .help-close-btn {
+            width: 36px; height: 36px;
+            border: none; background: none;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .help-close-btn:active { background: rgba(255,255,255,0.08); }
+        .help-sheet-content {
+            font-size: 0.85em; line-height: 2;
+            color: var(--md-on-surface-variant);
+        }
+        .help-sheet-content p {
+            padding: 6px 0;
+            border-bottom: 1px solid var(--md-outline-variant);
+        }
+        .help-sheet-content p:last-child { border-bottom: none; }
+
+        .pill-btn.help-btn {
+            background: var(--md-surface-container-highest);
+            color: var(--md-on-surface-variant);
+            padding: 12px;
+            justify-content: center;
+        }
+        .pill-btn.help-btn svg { fill: var(--md-on-surface-variant); }
+
+        .toast {
+            position: fixed; top: 16px; top: max(16px, env(safe-area-inset-top));
+            left: 50%; transform: translateX(-50%) translateY(-120%);
+            background: var(--md-surface-container-high);
+            color: var(--md-on-surface);
+            padding: 12px 24px;
+            border-radius: 14px;
+            font-size: 0.85em; font-weight: 500;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            z-index: 300;
+            transition: transform 0.45s var(--ease-spring), opacity 0.3s ease;
+            pointer-events: none;
+            white-space: nowrap;
+            opacity: 0;
+        }
+        .toast.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .toast.success { border-left: 3px solid var(--md-primary); }
+        .toast.error { border-left: 3px solid var(--md-error); }
 
         @media (max-width: 360px) {
-            body { padding: 10px; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
-            .app-container { gap: 8px; }
+            body { padding: 0; }
+            .app-container { gap: 8px; padding: 0 10px; padding-bottom: 90px; }
             .card { border-radius: 16px; padding: 10px; }
             .header-card { padding: 10px 12px; }
             .app-icon-badge { width: 32px; height: 32px; border-radius: 10px; }
             .app-icon-badge svg { width: 18px; height: 18px; }
             .header-title { font-size: 0.88em; }
-            .main-control-card { min-height: 240px; padding: 16px 8px; }
-            .visualizer-ring { width: min(200px, 55vw); height: min(200px, 55vw); }
-            .main-btn.idle { width: 72px; height: 72px; }
-            .main-btn.streaming { width: 88px; height: 88px; }
-            .main-btn.connecting { width: 72px; height: 72px; }
+            .main-control-card { min-height: 260px; padding: 16px 8px; }
+            .visualizer-ring { width: min(220px, 55vw); height: min(220px, 55vw); }
+            .main-btn.idle { width: 80px; height: 80px; }
+            .main-btn.streaming { width: 96px; height: 96px; }
+            .main-btn.connecting { width: 80px; height: 80px; }
+            .main-btn.acquiring { width: 80px; height: 80px; }
             .main-btn svg { width: 28px; height: 28px; }
-            .main-btn-wrap { width: 92px; height: 92px; }
-            .help-box { padding: 12px; font-size: 0.75em; }
+            .main-btn-wrap { width: 100px; height: 100px; }
+            .toast { padding: 10px 18px; font-size: 0.8em; }
         }
 
         @media (max-height: 600px) {
-            .main-control-card { min-height: 220px; padding: 12px 8px; }
-            .visualizer-ring { width: min(180px, 50vw); height: min(180px, 50vw); }
-            .main-btn.idle { width: 68px; height: 68px; }
-            .main-btn.streaming { width: 84px; height: 84px; }
-            .main-btn.connecting { width: 68px; height: 68px; }
+            .app-container { gap: 6px; padding-bottom: 90px; }
+            .main-control-card { min-height: 240px; padding: 12px 8px; }
+            .visualizer-ring { width: min(200px, 50vw); height: min(200px, 50vw); }
+            .main-btn.idle { width: 72px; height: 72px; }
+            .main-btn.streaming { width: 88px; height: 88px; }
+            .main-btn.connecting { width: 72px; height: 72px; }
+            .main-btn.acquiring { width: 72px; height: 72px; }
             .main-btn svg { width: 26px; height: 26px; }
-            .main-btn-wrap { width: 84px; height: 84px; }
-            .app-container { gap: 6px; }
-            .help-box { padding: 10px; }
+            .main-btn-wrap { width: 88px; height: 88px; }
+            .header-card { padding: 8px 12px; }
         }
 
         @media (min-width: 600px) {
             .app-container { max-width: 460px; }
-            .main-control-card { min-height: 320px; }
+            .main-control-card { min-height: 360px; }
+            .bottom-bar { max-width: 460px; }
+            .help-sheet { max-width: 460px; }
         }
     </style>
 </head>
 <body>
-    <div class="app-container">
+    <div class="toast" :class="{ visible: toastVisible, success: toastType === 'success', error: toastType === 'error' }" x-text="toastMessage"></div>
+    <div class="status-bar-bg"></div>
+    <div class="app-container"
+        x-data="micYouApp()">
+
         <div class="card header-card">
             <div class="header-left">
                 <div class="app-icon-badge">
@@ -378,23 +651,37 @@
                     <div class="header-subtitle">Web Client</div>
                 </div>
             </div>
-            <div class="lang-switch">
-                <button id="btnZh" onclick="setLang('zh')" class="active">中文</button>
-                <button id="btnEn" onclick="setLang('en')">EN</button>
+            <div class="lang-dropdown">
+                <button class="lang-trigger" :class="{ open: langOpen }" @click="toggleLangMenu()">
+                    <svg class="lang-globe" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_LANG_GLOBE"></svg>
+                    <span class="lang-label" x-text="lang === 'zh' ? '中' : 'EN'"></span>
+                    <svg class="lang-chevron" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_CHEVRON_DOWN"></svg>
+                </button>
+                <div class="lang-menu-backdrop" x-show="langOpen" @click="langOpen = false"></div>
+                <div class="lang-menu" :class="langOpen ? 'open' : 'closed'">
+                    <button class="lang-menu-item" :class="{ active: lang === 'zh' }" @click="setLang('zh'); langOpen = false">
+                        <span>中文</span>
+                        <svg class="check-mark" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_CHECK"></svg>
+                    </button>
+                    <button class="lang-menu-item" :class="{ active: lang === 'en' }" @click="setLang('en'); langOpen = false">
+                        <span>English</span>
+                        <svg class="check-mark" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_CHECK"></svg>
+                    </button>
+                </div>
             </div>
         </div>
 
         <div class="card main-control-card">
-            <div class="status-icon-wrap idle" id="statusIconWrap">
-                <svg id="statusIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            <div class="status-icon-wrap" :class="streamState" id="statusIconWrap">
+                <svg id="statusIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="statusIconSvg"></svg>
             </div>
             <div class="status-text-row">
-                <span class="status-text idle" id="statusText" data-zh="点击开始" data-en="Click to start">点击开始</span>
-                <span class="live-badge" id="liveBadge">LIVE</span>
+                <span class="status-text" :class="streamState" id="statusText" x-text="statusLabel"></span>
+                <span class="live-badge" :class="{ visible: streamState === 'streaming' }" id="liveBadge">LIVE</span>
             </div>
-            <div class="error-message" id="errorMessage"></div>
+            <div class="error-message" :class="{ visible: streamState === 'error' && errorMessage }" id="errorMessage" x-text="errorMessage"></div>
 
-            <div class="visualizer-ring" id="visualizerRing">
+            <div class="visualizer-ring" :class="{ active: streamState === 'streaming' }" id="visualizerRing">
                 <div class="visualizer-ring-inner"></div>
                 <div class="visualizer-ring-ripple"></div>
                 <div class="visualizer-ring-ripple"></div>
@@ -402,31 +689,42 @@
             </div>
 
             <div class="main-btn-wrap">
-                <div class="main-btn-glow" id="mainBtnGlow"></div>
-                <button class="main-btn idle" id="mainBtn" onclick="onMainButtonClick()">
-                    <svg id="mainBtnIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+                <div class="main-btn-glow" :class="{ active: streamState === 'streaming' }" id="mainBtnGlow"></div>
+                <button class="main-btn idle" :class="mainBtnClass" id="mainBtn" @click="onMainButtonClick()">
+                    <svg id="mainBtnIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="mainBtnIconSvg"></svg>
                 </button>
             </div>
 
-            <div class="audio-level"><div id="levelBar" class="audio-level-bar"></div></div>
+            <div class="audio-level" x-show="streamState === 'streaming'"><div id="levelBar" class="audio-level-bar" :style="'width: ' + audioLevel + '%'"></div></div>
         </div>
 
-        <div class="card bottom-bar">
+        <div class="bottom-bar">
             <div class="bottom-left">
-                <button class="pill-btn mute-btn" id="muteBtn" onclick="toggleMute()">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-                    <span id="muteLabel" data-zh="静音" data-en="Mute">静音</span>
+                <button class="pill-btn mute-btn" :class="{ muted: isMuted }" id="muteBtn" @click="toggleMute()">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="muteIconSvg"></svg>
+                    <span id="muteLabel" x-text="muteLabel"></span>
+                </button>
+                <button class="pill-btn help-btn" @click="showHelp = !showHelp">
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" x-html="SVG_HELP"></svg>
                 </button>
             </div>
-            <div class="status-dot" id="statusDot"></div>
+            <div class="status-dot" :class="streamState !== 'idle' ? streamState : ''" id="statusDot"></div>
         </div>
 
-        <div class="help-box">
-            <h3 id="helpTitle" data-zh="使用说明" data-en="Instructions">使用说明</h3>
-            <div id="helpContent">
-                <p data-zh="1. 点击中央按钮开始传输音频" data-en="1. Click the center button to start audio streaming">1. 点击中央按钮开始传输音频</p>
-                <p data-zh="2. 浏览器会请求麦克风权限，请点击允许" data-en="2. Browser will request microphone permission, please allow it">2. 浏览器会请求麦克风权限，请点击允许</p>
-                <p data-zh="3. 首次访问需信任自签名证书，点击「继续」即可" data-en="3. First visit requires trusting self-signed certificate, click 'Continue'">3. 首次访问需信任自签名证书，点击「继续」即可</p>
+        <div class="help-overlay" :class="{ visible: showHelp }" @click.self="showHelp = false">
+            <div class="help-sheet">
+                <div class="help-sheet-handle"></div>
+                <div class="help-sheet-header">
+                    <h3 x-text="helpTitle"></h3>
+                    <button class="help-close-btn" @click="showHelp = false">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><path fill="var(--md-on-surface-variant)" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                    </button>
+                </div>
+                <div class="help-sheet-content">
+                    <p x-text="helpStep1"></p>
+                    <p x-text="helpStep2"></p>
+                    <p x-text="helpStep3"></p>
+                </div>
             </div>
         </div>
     </div>
@@ -446,28 +744,9 @@
             }
             registerProcessor('mic-you-processor', MicYouProcessor);
         `;
-        const workletBlobUrl = URL.createObjectURL(new Blob([AUDIO_WORKLET_CODE], { type: 'application/javascript' }));
-        let ws = null;
-        let audioContext = null;
-        let workletNode = null;
-        let stream = null;
-        let currentLang = 'zh';
-        let isMuted = false;
-        let currentStreamState = 'idle';
-
-        const statusIconWrap = document.getElementById('statusIconWrap');
-        const statusIcon = document.getElementById('statusIcon');
-        const statusText = document.getElementById('statusText');
-        const liveBadge = document.getElementById('liveBadge');
-        const errorMessage = document.getElementById('errorMessage');
-        const visualizerRing = document.getElementById('visualizerRing');
-        const mainBtnGlow = document.getElementById('mainBtnGlow');
-        const mainBtn = document.getElementById('mainBtn');
-        const mainBtnIcon = document.getElementById('mainBtnIcon');
-        const levelBar = document.getElementById('levelBar');
-        const muteBtn = document.getElementById('muteBtn');
-        const muteLabel = document.getElementById('muteLabel');
-        const statusDot = document.getElementById('statusDot');
+        const workletBlobUrl = URL.createObjectURL(
+            new Blob([AUDIO_WORKLET_CODE], { type: 'application/javascript' })
+        );
 
         const SVG_LINK = '<path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/>';
         const SVG_LINK_OFF = '<path d="M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1 0 .87-.36 1.65-.93 2.22l1.42 1.42C18.95 14.48 19.7 13.32 19.7 12c0-2.76-2.24-5-5-5zm-2.01 4.98l1.53 1.53c.05-.16.08-.33.08-.51 0-1.66-1.34-3-3-3h-.02l1.41 1.98zM7 5h4v1.9H8.9L7 5.88V5zm11.56 14.56L5.44 6.44 3.02 4.02 1.6 5.44 4.07 7.91C2.79 8.88 2 10.36 2 12c0 2.76 2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1 0-1.1.58-2.06 1.44-2.61l1.37 1.37C6.29 11.07 6 11.5 6 12c0 .55.45 1 1 1h3.5l2 2H8v1.9h6.6L17.56 19.98l1.42-1.42z"/>';
@@ -478,174 +757,249 @@
         const SVG_ERROR = '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>';
         const SVG_MIC = '<path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>';
         const SVG_MIC_OFF = '<path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.34 3 3 3 .23 0 .44-.03.65-.07l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>';
+        const SVG_HELP = '<path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/>';
+        const SVG_LANG_GLOBE = '<path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2 0 .68.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2 0-.68.07-1.35.16-2h4.68c.09.65.16 1.32.16 2 0 .68-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2 0-.68-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/>';
+        const SVG_CHEVRON_DOWN = '<path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>';
+        const SVG_CHECK = '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>';
 
-        function setLang(lang) {
-            currentLang = lang;
-            document.getElementById('btnZh').className = lang === 'zh' ? 'active' : '';
-            document.getElementById('btnEn').className = lang === 'en' ? 'active' : '';
-            document.querySelectorAll('[data-zh]').forEach(function(el) {
-                el.textContent = el.getAttribute('data-' + lang);
-            });
-            updateStatusUI();
-        }
+        function micYouApp() {
+            return {
+                lang: 'zh',
+                streamState: 'idle',
+                isMuted: false,
+                showHelp: false,
+                langOpen: false,
+                audioLevel: 0,
+                errorMessage: '',
+                toastMessage: '',
+                toastVisible: false,
+                toastType: 'success',
+                toastTimer: null,
 
-        function updateStatusUI() {
-            var state = currentStreamState;
-            statusIconWrap.className = 'status-icon-wrap ' + state;
-            statusText.className = 'status-text ' + state;
-            statusDot.className = 'status-dot' + (state !== 'idle' ? ' ' + state : '');
+                ws: null,
+                audioContext: null,
+                workletNode: null,
+                stream: null,
 
-            if (state === 'idle') {
-                statusIcon.innerHTML = SVG_INFO;
-                statusText.setAttribute('data-zh', '点击开始');
-                statusText.setAttribute('data-en', 'Click to start');
-                mainBtn.className = 'main-btn idle';
-                mainBtnIcon.innerHTML = SVG_LINK;
-                liveBadge.className = 'live-badge';
-                visualizerRing.className = 'visualizer-ring';
-                mainBtnGlow.className = 'main-btn-glow';
-            } else if (state === 'connecting') {
-                statusIcon.innerHTML = SVG_HOURGLASS;
-                statusText.setAttribute('data-zh', '正在连接...');
-                statusText.setAttribute('data-en', 'Connecting...');
-                mainBtn.className = 'main-btn connecting';
-                mainBtnIcon.innerHTML = SVG_REFRESH;
-                liveBadge.className = 'live-badge';
-                visualizerRing.className = 'visualizer-ring';
-                mainBtnGlow.className = 'main-btn-glow';
-            } else if (state === 'streaming') {
-                statusIcon.innerHTML = SVG_CHECK_CIRCLE;
-                statusText.setAttribute('data-zh', '传输中');
-                statusText.setAttribute('data-en', 'Streaming');
-                mainBtn.className = 'main-btn streaming';
-                mainBtnIcon.innerHTML = SVG_LINK_OFF;
-                liveBadge.className = 'live-badge visible';
-                visualizerRing.className = 'visualizer-ring active';
-                mainBtnGlow.className = 'main-btn-glow active';
-            } else if (state === 'error') {
-                statusIcon.innerHTML = SVG_ERROR;
-                mainBtn.className = 'main-btn idle';
-                mainBtnIcon.innerHTML = SVG_LINK;
-                liveBadge.className = 'live-badge';
-                visualizerRing.className = 'visualizer-ring';
-                mainBtnGlow.className = 'main-btn-glow';
-            }
-
-            statusText.textContent = statusText.getAttribute('data-' + currentLang);
-        }
-
-        function onMainButtonClick() {
-            if (currentStreamState === 'streaming' || currentStreamState === 'connecting') {
-                stopStreaming();
-            } else {
-                startStreaming();
-            }
-        }
-
-        function toggleMute() {
-            isMuted = !isMuted;
-            if (isMuted) {
-                muteBtn.className = 'pill-btn mute-btn muted';
-                muteBtn.querySelector('svg').innerHTML = SVG_MIC_OFF;
-                muteLabel.setAttribute('data-zh', '取消静音');
-                muteLabel.setAttribute('data-en', 'Unmute');
-            } else {
-                muteBtn.className = 'pill-btn mute-btn';
-                muteBtn.querySelector('svg').innerHTML = SVG_MIC;
-                muteLabel.setAttribute('data-zh', '静音');
-                muteLabel.setAttribute('data-en', 'Mute');
-            }
-            muteLabel.textContent = muteLabel.getAttribute('data-' + currentLang);
-        }
-
-        async function startStreaming() {
-            currentStreamState = 'connecting';
-            updateStatusUI();
-            errorMessage.className = 'error-message';
-
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    audio: { sampleRate: 48000, channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-                });
-                audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
-                var source = audioContext.createMediaStreamSource(stream);
-
-                await audioContext.audioWorklet.addModule(workletBlobUrl);
-                workletNode = new AudioWorkletNode(audioContext, 'mic-you-processor');
-
-                var wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
-                ws = new WebSocket(wsUrl);
-                ws.binaryType = 'arraybuffer';
-
-                ws.onopen = function() {
-                    currentStreamState = 'streaming';
-                    updateStatusUI();
-                };
-
-                ws.onmessage = function(e) {
-                    if (e.data === 'SERVER_STOP') {
-                        currentStreamState = 'idle';
-                        updateStatusUI();
-                        stopStreaming();
+                get statusIconSvg() {
+                    switch (this.streamState) {
+                        case 'acquiring': return SVG_MIC;
+                        case 'connecting': return SVG_HOURGLASS;
+                        case 'streaming': return SVG_CHECK_CIRCLE;
+                        case 'error': return SVG_ERROR;
+                        default: return SVG_INFO;
                     }
-                };
+                },
 
-                ws.onclose = function() {
-                    currentStreamState = 'idle';
-                    updateStatusUI();
-                };
-
-                ws.onerror = function() {
-                    currentStreamState = 'error';
-                    statusText.setAttribute('data-zh', '连接失败');
-                    statusText.setAttribute('data-en', 'Connection Error');
-                    updateStatusUI();
-                    stopStreaming();
-                };
-
-                workletNode.port.onmessage = function(e) {
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        var inputData = e.data;
-                        if (isMuted) {
-                            var silentData = new Float32Array(inputData.length);
-                            ws.send(silentData.buffer);
-                        } else {
-                            ws.send(inputData.buffer);
-                        }
-                        var sum = 0;
-                        for (var i = 0; i < inputData.length; i++) {
-                            sum += inputData[i] * inputData[i];
-                        }
-                        var rms = Math.sqrt(sum / inputData.length);
-                        var level = Math.min(100, rms * 500);
-                        levelBar.style.width = level + '%';
+                get mainBtnIconSvg() {
+                    switch (this.streamState) {
+                        case 'acquiring': return SVG_MIC;
+                        case 'connecting': return SVG_REFRESH;
+                        case 'streaming': return SVG_LINK_OFF;
+                        default: return SVG_LINK;
                     }
-                };
+                },
 
-                source.connect(workletNode);
-                workletNode.connect(audioContext.destination);
+                get mainBtnClass() {
+                    let cls = 'main-btn ' + this.streamState;
+                    return cls;
+                },
 
-            } catch (err) {
-                currentStreamState = 'error';
-                var msgZh = '麦克风访问失败，请在浏览器设置中允许麦克风权限';
-                var msgEn = 'Microphone access failed. Allow microphone permission in browser settings';
-                statusText.setAttribute('data-zh', msgZh);
-                statusText.setAttribute('data-en', msgEn);
-                errorMessage.textContent = currentLang === 'zh' ? msgZh : msgEn;
-                errorMessage.className = 'error-message visible';
-                updateStatusUI();
-                console.error('MicYou WebAudio error:', err);
-            }
-        }
+                get muteIconSvg() {
+                    return this.isMuted ? SVG_MIC_OFF : SVG_MIC;
+                },
 
-        function stopStreaming() {
-            if (workletNode) { workletNode.disconnect(); workletNode = null; }
-            if (audioContext) { audioContext.close(); audioContext = null; }
-            if (stream) { stream.getTracks().forEach(function(t) { t.stop(); }); stream = null; }
-            if (ws) { ws.close(); ws = null; }
-            currentStreamState = 'idle';
-            updateStatusUI();
-            levelBar.style.width = '0%';
+                get SVG_HELP() { return SVG_HELP; },
+                get SVG_LANG_GLOBE() { return SVG_LANG_GLOBE; },
+                get SVG_CHEVRON_DOWN() { return SVG_CHEVRON_DOWN; },
+                get SVG_CHECK() { return SVG_CHECK; },
+
+                get statusLabel() {
+                    if (this.streamState === 'error') return this.lang === 'zh' ? '麦克风访问失败，请检查权限' : 'Microphone access failed, check permissions';
+                    const labels = {
+                        idle: { zh: '点击开始', en: 'Click to start' },
+                        acquiring: { zh: '获取麦克风权限...', en: 'Requesting Microphone...' },
+                        connecting: { zh: '连接服务器...', en: 'Connecting to Server...' },
+                        streaming: { zh: '传输中', en: 'Streaming' }
+                    };
+                    return labels[this.streamState]?.[this.lang] || '';
+                },
+
+                get muteLabel() {
+                    return this.isMuted
+                        ? (this.lang === 'zh' ? '取消静音' : 'Unmute')
+                        : (this.lang === 'zh' ? '静音' : 'Mute');
+                },
+
+                get helpTitle() {
+                    return this.lang === 'zh' ? '使用说明' : 'Instructions';
+                },
+
+                get helpStep1() {
+                    return this.lang === 'zh' ? '1. 点击中央按钮开始传输音频' : '1. Click the center button to start audio streaming';
+                },
+
+                get helpStep2() {
+                    return this.lang === 'zh' ? '2. 浏览器会请求麦克风权限，请点击允许' : '2. Browser will request microphone permission, please allow it';
+                },
+
+                get helpStep3() {
+                    return this.lang === 'zh' ? '3. 首次访问需信任自签名证书，点击「继续」即可' : '3. First visit requires trusting self-signed certificate, click Continue';
+                },
+
+                setLang(l) {
+                    this.lang = l;
+                },
+
+                toggleLangMenu() {
+                    this.langOpen = !this.langOpen;
+                },
+
+                vibrate(pattern) {
+                    if (navigator.vibrate) {
+                        navigator.vibrate(pattern);
+                    }
+                },
+
+                showToast(msg, type = 'success') {
+                    if (this.toastTimer) clearTimeout(this.toastTimer);
+                    this.toastMessage = msg;
+                    this.toastType = type;
+                    this.toastVisible = true;
+                    this.toastTimer = setTimeout(() => {
+                        this.toastVisible = false;
+                    }, 2000);
+                },
+
+                onMainButtonClick() {
+                    this.vibrate(10);
+                    if (this.streamState === 'streaming' || this.streamState === 'connecting' || this.streamState === 'acquiring') {
+                        this.stopStreaming();
+                    } else {
+                        this.startStreaming();
+                    }
+                },
+
+                toggleMute() {
+                    this.isMuted = !this.isMuted;
+                    this.vibrate(8);
+                    const msg = this.isMuted
+                        ? (this.lang === 'zh' ? '已静音' : 'Muted')
+                        : (this.lang === 'zh' ? '已取消静音' : 'Unmuted');
+                    this.showToast(msg);
+                },
+
+                async startStreaming() {
+                    this.streamState = 'acquiring';
+                    this.errorMessage = '';
+
+                    try {
+                        this.stream = await navigator.mediaDevices.getUserMedia({
+                            audio: {
+                                sampleRate: 48000,
+                                channelCount: 1,
+                                echoCancellation: false,
+                                noiseSuppression: false,
+                                autoGainControl: false
+                            }
+                        });
+
+                        this.streamState = 'connecting';
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+                        const source = this.audioContext.createMediaStreamSource(this.stream);
+
+                        await this.audioContext.audioWorklet.addModule(workletBlobUrl);
+                        this.workletNode = new AudioWorkletNode(this.audioContext, 'mic-you-processor');
+
+                        const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+                        this.ws = new WebSocket(wsUrl);
+                        this.ws.binaryType = 'arraybuffer';
+
+                        this.ws.onopen = () => {
+                            this.streamState = 'streaming';
+                            this.showToast(
+                                this.lang === 'zh' ? '音频传输中' : 'Streaming Audio',
+                                'success'
+                            );
+                        };
+
+                        this.ws.onmessage = (e) => {
+                            if (e.data === 'SERVER_STOP') {
+                                this.stopStreaming();
+                            }
+                        };
+
+                        this.ws.onclose = () => {
+                            if (this.streamState === 'streaming') {
+                                this.showToast(
+                                    this.lang === 'zh' ? '连接已断开' : 'Connection Lost',
+                                    'error'
+                                );
+                            }
+                            this.streamState = 'idle';
+                        };
+
+                        this.ws.onerror = () => {
+                            this.errorMessage = this.lang === 'zh'
+                                ? '连接失败，请检查网络'
+                                : 'Connection Error, please check network';
+                            this.showToast(this.errorMessage, 'error');
+                            this.streamState = 'error';
+                            this.stopStreaming();
+                        };
+
+                        this.workletNode.port.onmessage = (e) => {
+                            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                                const inputData = e.data;
+                                if (this.isMuted) {
+                                    const silentData = new Float32Array(inputData.length);
+                                    this.ws.send(silentData.buffer);
+                                } else {
+                                    this.ws.send(inputData.buffer);
+                                }
+                                let sum = 0;
+                                for (let i = 0; i < inputData.length; i++) {
+                                    sum += inputData[i] * inputData[i];
+                                }
+                                const rms = Math.sqrt(sum / inputData.length);
+                                this.audioLevel = Math.min(100, rms * 500);
+                            }
+                        };
+
+                        source.connect(this.workletNode);
+                        this.workletNode.connect(this.audioContext.destination);
+
+                    } catch (err) {
+                        const msgZh = '麦克风访问失败，请在浏览器设置中允许麦克风权限';
+                        const msgEn = 'Microphone access failed. Allow microphone permission in browser settings';
+                        this.errorMessage = this.lang === 'zh' ? msgZh : msgEn;
+                        this.showToast(this.errorMessage, 'error');
+                        this.streamState = 'error';
+                        console.error('MicYou WebAudio error:', err);
+                    }
+                },
+
+                stopStreaming() {
+                    if (this.workletNode) {
+                        this.workletNode.disconnect();
+                        this.workletNode = null;
+                    }
+                    if (this.audioContext) {
+                        this.audioContext.close();
+                        this.audioContext = null;
+                    }
+                    if (this.stream) {
+                        this.stream.getTracks().forEach(t => t.stop());
+                        this.stream = null;
+                    }
+                    if (this.ws) {
+                        this.ws.close();
+                        this.ws = null;
+                    }
+                    this.streamState = 'idle';
+                    this.audioLevel = 0;
+                }
+            };
         }
     </script>
 </body>
