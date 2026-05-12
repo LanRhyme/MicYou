@@ -18,7 +18,7 @@ class LoopbackManager(
     private val capture: LoopbackCapture = when {
         PlatformInfo.isWindows -> WindowsLoopbackCapture()
         PlatformInfo.isLinux -> LinuxLoopbackCapture()
-        PlatformInfo.isMac -> MacOSLoopbackCapture()
+        PlatformInfo.isMacOS -> MacOSLoopbackCapture()
         else -> StubLoopbackCapture()
     }
     
