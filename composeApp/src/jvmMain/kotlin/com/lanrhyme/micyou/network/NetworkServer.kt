@@ -112,10 +112,12 @@ class NetworkServer(
     }
 
     suspend fun sendAudioPlayback(playback: AudioPlaybackMessage) {
-        // Send via TCP because Android client only reads from TCP reader loop.
-        // UDP is used for high-frequency audio data from Android→Desktop,
-        // but AudioPlaybackMessage (Desktop→Android) goes through TCP control channel.
-        activeHandler?.sendAudioPlayback(playback)
+        val handler = udpHandler
+        if (handler != null) {
+            handler.sendAudioPlayback(playback)
+        } else {
+            activeHandler?.sendAudioPlayback(playback)
+        }
     }
 
     fun getUdpStats(): UdpConnectionHandler.UdpStats? = udpHandler?.getStats()

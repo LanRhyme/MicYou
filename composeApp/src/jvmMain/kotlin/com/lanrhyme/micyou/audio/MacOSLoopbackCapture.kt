@@ -53,7 +53,7 @@ class MacOSLoopbackCapture : LoopbackCapture {
                     16, // bits per sample
                     channelCount,
                     true, // signed
-                    true // big-endian (macOS native)
+                    false // little-endian
                 )
 
                 val blackHoleMixer = findBlackHoleMixer()
