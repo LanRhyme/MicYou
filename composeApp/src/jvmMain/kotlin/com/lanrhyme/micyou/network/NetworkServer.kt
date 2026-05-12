@@ -111,6 +111,13 @@ class NetworkServer(
         activeHandler?.sendPluginSync(plugins, platform)
     }
 
+    suspend fun sendAudioPlayback(playback: AudioPlaybackMessage) {
+        // Try UDP first for low latency
+        udpHandler?.sendAudioPlayback(playback)
+        // If not UDP, activeHandler (TCP) will be used if implemented there
+        // For now, we only implement UDP sending
+    }
+
     fun getUdpStats(): UdpConnectionHandler.UdpStats? = udpHandler?.getStats()
     
     fun getRtt(): Long = activeHandler?.getRtt() ?: 0L

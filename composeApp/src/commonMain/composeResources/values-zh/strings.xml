@@ -71,6 +71,8 @@
     <string name="enableAgcLabel">自动增益控制 (AGC)</string>
     <string name="enableAECLabel">回声消除 (AEC)</string>
     <string name="enableAECDesc">当手机作为扬声器使用时消除回声。需要使用 VOICE_COMMUNICATION 音频源。</string>
+    <string name="enableSpeakerModeLabel">手机作为扬声器</string>
+    <string name="enableSpeakerModeDesc">在手机上接收并播放来自电脑的声音</string>
     <string name="enableDereverbLabel">去混响</string>
 
     <string name="enableHazeEffectDesc">为卡片添加毛玻璃模糊效果</string>

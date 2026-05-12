@@ -91,6 +91,20 @@ data class PongMessage(
     val timestamp: Long
 )
 
+@Serializable
+data class AudioPlaybackMessage(
+    @ProtoNumber(1)
+    val buffer: ByteArray,
+    @ProtoNumber(2)
+    val sampleRate: Int,
+    @ProtoNumber(3)
+    val channelCount: Int,
+    @ProtoNumber(4)
+    val audioFormat: Int,
+    @ProtoNumber(5)
+    val sequenceNumber: Int
+)
+
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
 const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII
 
@@ -130,6 +144,8 @@ data class MessageWrapper(
     @ProtoNumber(5)
     val ping: PingMessage? = null,
     @ProtoNumber(6)
-    val pong: PongMessage? = null
+    val pong: PongMessage? = null,
+    @ProtoNumber(7)
+    val audioPlayback: AudioPlaybackMessage? = null
 )
 

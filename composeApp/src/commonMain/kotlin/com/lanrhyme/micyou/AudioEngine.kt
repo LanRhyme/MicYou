@@ -52,6 +52,9 @@ expect class AudioEngine() {
     // 设置是否启用 AEC（仅 Android 端有效）
     fun setAEC(enabled: Boolean)
 
+    // 设置是否启用扬声器模式（反向音频播放，仅 Android 端有效）
+    fun setSpeakerMode(enabled: Boolean)
+
     // 安装驱动进度（仅桌面端有效）
     val installProgress: Flow<String?>
     // 安装驱动（仅桌面端有效）

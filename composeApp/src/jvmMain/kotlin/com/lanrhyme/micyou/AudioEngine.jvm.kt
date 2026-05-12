@@ -321,6 +321,14 @@ actual class AudioEngine actual constructor() {
         // Not supported on JVM
     }
 
+    actual fun setSpeakerMode(enabled: Boolean) {
+        // Not supported on JVM
+    }
+
+    suspend fun sendAudioPlayback(playback: AudioPlaybackMessage) {
+        networkServer.sendAudioPlayback(playback)
+    }
+
     actual fun setStreamingNotificationEnabled(enabled: Boolean) {
     }
 

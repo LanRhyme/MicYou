@@ -42,6 +42,7 @@ data class AudioStreamUiState(
     val amplification: Float = 15.0f,
     val androidAudioSourceName: String = "Unprocessed",
     val enableAEC: Boolean = false,
+    val enableSpeakerMode: Boolean = false,
     val audioConfigRevision: Int = 0,
 
     // Performance Settings
@@ -132,6 +133,7 @@ class AudioStreamViewModel : ViewModel() {
     val savedAGC = settings.getBoolean("enable_agc", false)
     val savedAGCTarget = settings.getInt("agc_target", 32000)
     val savedAEC = settings.getBoolean("enable_aec", false)
+    val savedSpeakerMode = settings.getBoolean("enable_speaker_mode", false)
     val savedVAD = settings.getBoolean("enable_vad", false)
     val savedVADThreshold = settings.getInt("vad_threshold", 10)
     val savedDereverb = settings.getBoolean("enable_dereverb", false)
@@ -158,6 +160,7 @@ class AudioStreamViewModel : ViewModel() {
                 enableVAD = savedVAD,
                 vadThreshold = savedVADThreshold,
                 enableAEC = savedAEC,
+                enableSpeakerMode = savedSpeakerMode,
                 enableDereverb = savedDereverb,
                 dereverbLevel = savedDereverbLevel,
                 amplification = savedAmplification,
@@ -494,6 +497,12 @@ class AudioStreamViewModel : ViewModel() {
         _uiState.update { it.copy(enableAEC = enabled) }
         settings.putBoolean("enable_aec", enabled)
         _audioEngine.setAEC(enabled)
+    }
+
+    fun setEnableSpeakerMode(enabled: Boolean) {
+        _uiState.update { it.copy(enableSpeakerMode = enabled) }
+        settings.putBoolean("enable_speaker_mode", enabled)
+        _audioEngine.setSpeakerMode(enabled)
     }
     
     fun setAgcTargetLevel(level: Int) {

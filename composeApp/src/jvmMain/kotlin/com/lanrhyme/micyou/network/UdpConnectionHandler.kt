@@ -90,6 +90,39 @@ class UdpConnectionHandler(
         clientAddress = clientAddress
     )
 
+    /**
+     * Sends audio playback data to the client via UDP.
+     */
+    @OptIn(ExperimentalSerializationApi::class)
+    suspend fun sendAudioPlayback(playback: AudioPlaybackMessage) {
+        val address = clientAddress ?: return
+        val socket = udpSocket ?: return
+
+        try {
+            val wrapper = MessageWrapper(audioPlayback = playback)
+            val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), wrapper)
+            val length = packetBytes.size
+            
+            val header = ByteArray(8).apply {
+                this[0] = (UDP_PACKET_MAGIC shr 24).toByte()
+                this[1] = (UDP_PACKET_MAGIC shr 16).toByte()
+                this[2] = (UDP_PACKET_MAGIC shr 8).toByte()
+                this[3] = UDP_PACKET_MAGIC.toByte()
+                this[4] = (length shr 24).toByte()
+                this[5] = (length shr 16).toByte()
+                this[6] = (length shr 8).toByte()
+                this[7] = length.toByte()
+            }
+
+            val udpPacket = DatagramPacket(header + packetBytes, 8 + length, address)
+            withContext(Dispatchers.IO) {
+                socket.send(udpPacket)
+            }
+        } catch (e: Exception) {
+            Logger.w("UdpConnectionHandler", "Failed to send audio playback via UDP: ${e.message}")
+        }
+    }
+
     private suspend fun runUdpReceiver() {
         try {
             udpSocket = DatagramSocket(port).also { socket ->

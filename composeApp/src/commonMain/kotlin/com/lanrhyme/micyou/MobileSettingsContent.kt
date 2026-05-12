@@ -813,6 +813,22 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
         )
     }
 
+    // 手机作为扬声器 (Speaker Mode)
+    items.add { isFirst, isLast ->
+        ExpressiveSettingsSwitchItem(
+            title = stringResource(Res.string.enableSpeakerModeLabel),
+            description = stringResource(Res.string.enableSpeakerModeDesc),
+            checked = state.enableSpeakerMode,
+            onCheckedChange = { viewModel.setEnableSpeakerMode(it) },
+            enabled = manualSettingsEnabled,
+            isFirst = isFirst,
+            isLast = isLast,
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
+        )
+    }
+
     // 渲染设置项
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         items.forEachIndexed { index, item ->
