@@ -436,6 +436,11 @@
             left: max(0px, env(safe-area-inset-left));
             right: max(0px, env(safe-area-inset-right));
         }
+        @supports not (backdrop-filter: blur(1px)) {
+            .bottom-bar {
+                background: var(--md-surface-container);
+            }
+        }
         .bottom-left { display: flex; gap: 8px; }
 
         .pill-btn {
@@ -514,6 +519,11 @@
             padding-bottom: max(24px, env(safe-area-inset-bottom));
             transform: translateY(100%);
             transition: transform 0.4s var(--ease-spring);
+        }
+        @supports not (backdrop-filter: blur(1px)) {
+            .help-sheet {
+                background: var(--md-surface-container-high);
+            }
         }
         .help-overlay.visible .help-sheet {
             transform: translateY(0);
