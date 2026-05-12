@@ -1361,6 +1361,15 @@ fun VBCableManagementSection(
                             }
                         }
 
+                        // 手机作为扬声器 (Speaker Mode)
+                        SettingsSwitchItem(
+                            headline = stringResource(Res.string.enableSpeakerModeLabel),
+                            supporting = stringResource(Res.string.enableSpeakerModeDesc),
+                            checked = state.enableSpeakerMode,
+                            onCheckedChange = { viewModel.setEnableSpeakerMode(it) },
+                            cardOpacity = cardOpacity
+                        )
+
                         // 性能配置 - 新增
                         Box(
                             modifier = Modifier

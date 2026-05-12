@@ -503,6 +503,12 @@ class AudioStreamViewModel : ViewModel() {
         _uiState.update { it.copy(enableSpeakerMode = enabled) }
         settings.putBoolean("enable_speaker_mode", enabled)
         _audioEngine.setSpeakerMode(enabled)
+        
+        // Phase 3 Coordination: Auto-enable AEC when Speaker Mode is turned on 
+        // to prevent acoustic feedback from the phone speaker to the microphone.
+        if (enabled && !_uiState.value.enableAEC) {
+            setEnableAEC(true)
+        }
     }
     
     fun setAgcTargetLevel(level: Int) {
