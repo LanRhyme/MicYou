@@ -3,7 +3,6 @@ package com.lanrhyme.micyou
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
@@ -158,6 +157,7 @@ actual class AudioEngine actual constructor() {
     private var noiseSuppressor: NoiseSuppressor? = null
     private var automaticGainControl: AutomaticGainControl? = null
     private var acousticEchoCanceler: AcousticEchoCanceler? = null
+    @Volatile
     private var audioTrack: AudioTrack? = null
 
     private var savedIp: String = ""
@@ -460,13 +460,15 @@ actual class AudioEngine actual constructor() {
                                             }
                                             if (wrapper.audioPlayback != null && enableSpeakerMode) {
                                                 val playback = wrapper.audioPlayback
-                                                if (audioTrack == null || 
-                                                    audioTrack?.sampleRate != playback.sampleRate ||
-                                                    audioTrack?.channelCount != playback.channelCount) {
+                                                var currentTrack = audioTrack
+                                                
+                                                // Check if we need to (re)initialize the AudioTrack
+                                                if (currentTrack == null || 
+                                                    currentTrack.sampleRate != playback.sampleRate) {
                                                     
                                                     Logger.i("AudioEngine", "Initializing AudioTrack: rate=${playback.sampleRate}, channels=${playback.channelCount}")
-                                                    audioTrack?.stop()
-                                                    audioTrack?.release()
+                                                    currentTrack?.stop()
+                                                    currentTrack?.release()
                                                     
                                                     val channelConfig = if (playback.channelCount == 2) 
                                                         AudioFormat.CHANNEL_OUT_STEREO 
@@ -476,11 +478,15 @@ actual class AudioEngine actual constructor() {
                                                     val format = when(playback.audioFormat) {
                                                         com.lanrhyme.micyou.AudioFormat.PCM_8BIT.value -> AudioFormat.ENCODING_PCM_8BIT
                                                         com.lanrhyme.micyou.AudioFormat.PCM_FLOAT.value -> AudioFormat.ENCODING_PCM_FLOAT
+                                                        com.lanrhyme.micyou.AudioFormat.PCM_24BIT.value -> {
+                                                            Logger.w("AudioEngine", "PCM_24BIT playback requested, falling back to 16-bit (AEC/Speaker may have artifacts)")
+                                                            AudioFormat.ENCODING_PCM_16BIT
+                                                        }
                                                         else -> AudioFormat.ENCODING_PCM_16BIT
                                                     }
                                                     
                                                     val minBufSize = AudioTrack.getMinBufferSize(playback.sampleRate, channelConfig, format)
-                                                    audioTrack = AudioTrack.Builder()
+                                                    currentTrack = AudioTrack.Builder()
                                                         .setAudioAttributes(AudioAttributes.Builder()
                                                             .setUsage(AudioAttributes.USAGE_MEDIA)
                                                             .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -493,9 +499,18 @@ actual class AudioEngine actual constructor() {
                                                         .setBufferSizeInBytes(minBufSize * 2)
                                                         .setTransferMode(AudioTrack.MODE_STREAM)
                                                         .build()
-                                                    audioTrack?.play()
+                                                    currentTrack.play()
+                                                    audioTrack = currentTrack
                                                 }
-                                                audioTrack?.write(playback.buffer, 0, playback.buffer.size)
+                                                
+                                                try {
+                                                    currentTrack.write(playback.buffer, 0, playback.buffer.size)
+                                                } catch (e: Exception) {
+                                                    // This can happen if setSpeakerMode(false) releases it while we are writing
+                                                    if (enableSpeakerMode) {
+                                                        Logger.e("AudioEngine", "Error writing to AudioTrack: ${e.message}")
+                                                    }
+                                                }
                                             }
                                         } catch (e: Exception) {
                                             Logger.e("AudioEngine", "Error decoding incoming message", e)
