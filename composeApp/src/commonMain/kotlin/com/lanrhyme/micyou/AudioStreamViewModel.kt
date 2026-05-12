@@ -157,6 +157,7 @@ class AudioStreamViewModel : ViewModel() {
                 agcTargetLevel = savedAGCTarget,
                 enableVAD = savedVAD,
                 vadThreshold = savedVADThreshold,
+                enableAEC = savedAEC,
                 enableDereverb = savedDereverb,
                 dereverbLevel = savedDereverbLevel,
                 amplification = savedAmplification,

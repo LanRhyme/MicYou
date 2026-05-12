@@ -254,7 +254,7 @@ actual class AudioEngine actual constructor() {
                                     minBufSize * 3
                                 )
                             } catch (e: Exception) {
-                                Logger.w("AudioEngine", "Source $sourceId failed, falling back to MIC: ${e.message}")
+                                Logger.w("AudioEngine", "Source $sourceId failed, falling back to MIC (AEC may not work): ${e.message}")
                                 AudioRecord(
                                     MediaRecorder.AudioSource.MIC,
                                     androidSampleRate,
