@@ -181,21 +181,19 @@ actual class AudioEngine actual constructor() {
         }
     }
 
+    private val playbackChannel = Channel<AudioPlaybackMessage>(capacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
     actual fun setSpeakerMode(enabled: Boolean) {
         if (this.enableSpeakerMode != enabled) {
             this.enableSpeakerMode = enabled
             Logger.i("AudioEngine", "Speaker mode ${if (enabled) "enabled" else "disabled"}")
             
-            // If running, we might need to initialize or release AudioTrack
-            if (isRunning && _state.value == StreamState.Streaming) {
-                if (enabled) {
-                    // Initialization will happen when the first playback packet arrives
-                    // or we can pre-initialize if we have sample rate etc.
-                } else {
-                    audioTrack?.stop()
-                    audioTrack?.release()
-                    audioTrack = null
-                }
+            if (!enabled) {
+                // Clear the queue
+                while (playbackChannel.tryReceive().isSuccess) { }
+                audioTrack?.stop()
+                audioTrack?.release()
+                audioTrack = null
             }
         }
     }
@@ -355,7 +353,9 @@ actual class AudioEngine actual constructor() {
                             Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
                             udpSocket = DatagramSocket().also {
                                 it.sendBufferSize = 256 * 1024 // 256KB send buffer
-                                Logger.d("AudioEngine", "UDP send buffer: ${it.sendBufferSize / 1024}KB")
+                                it.receiveBufferSize = 256 * 1024 // 256KB receive buffer
+                                it.soTimeout = 1000 // 1s read timeout for responsive cancellation
+                                Logger.d("AudioEngine", "UDP send buffer: ${it.sendBufferSize / 1024}KB, receive buffer: ${it.receiveBufferSize / 1024}KB")
                             }
                             udpServerAddress = InetSocketAddress(targetIp, udpPort)
                             Logger.i("AudioEngine", "UDP connected to $targetIp:$udpPort")
@@ -411,7 +411,7 @@ actual class AudioEngine actual constructor() {
                                     val isWifi = mode == ConnectionMode.Wifi
                                     if (!isWifi || msg.hasControlMessage() || udpSocket == null) {
                                         val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
-    val length = packetBytes.size
+                                        val length = packetBytes.size
                                         output.writeInt(PACKET_MAGIC)
                                         output.writeInt(length)
                                         output.writeFully(packetBytes)
@@ -423,6 +423,109 @@ actual class AudioEngine actual constructor() {
                                 }
                             }
                             Logger.d("AudioEngine", "Writer loop stopped")
+                        }
+
+                        val playbackJob = launch {
+                            Logger.d("AudioEngine", "Playback consumer loop started")
+                            try {
+                                for (playback in playbackChannel) {
+                                    if (!enableSpeakerMode) continue
+                                    
+                                        var currentTrack = audioTrack
+                                        
+                                        val playbackFormat = when(playback.audioFormat) {
+                                            com.lanrhyme.micyou.AudioFormat.PCM_8BIT.value -> AudioFormat.ENCODING_PCM_8BIT
+                                            com.lanrhyme.micyou.AudioFormat.PCM_FLOAT.value -> AudioFormat.ENCODING_PCM_FLOAT
+                                            else -> AudioFormat.ENCODING_PCM_16BIT
+                                        }
+                                        
+                                        // Check if we need to (re)initialize the AudioTrack
+                                        val needsReinit = currentTrack == null || 
+                                                          currentTrack.sampleRate != playback.sampleRate ||
+                                                          currentTrack.audioFormat != playbackFormat ||
+                                                          (if (playback.channelCount == 2) currentTrack.channelCount != 2 else currentTrack.channelCount != 1)
+
+                                        if (needsReinit) {
+                                            Logger.i("AudioEngine", "Initializing AudioTrack: rate=${playback.sampleRate}, channels=${playback.channelCount}, format=$playbackFormat")
+                                            currentTrack?.stop()
+                                            currentTrack?.release()
+                                            
+                                            val channelConfig = if (playback.channelCount == 2) 
+                                                AudioFormat.CHANNEL_OUT_STEREO 
+                                            else 
+                                                AudioFormat.CHANNEL_OUT_MONO
+                                                
+                                            val mBufSize = AudioTrack.getMinBufferSize(playback.sampleRate, channelConfig, playbackFormat)
+                                            currentTrack = AudioTrack.Builder()
+                                                .setAudioAttributes(AudioAttributes.Builder()
+                                                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                                    .build())
+                                                .setAudioFormat(AudioFormat.Builder()
+                                                    .setEncoding(playbackFormat)
+                                                    .setSampleRate(playback.sampleRate)
+                                                    .setChannelMask(channelConfig)
+                                                    .build())
+                                                .setBufferSizeInBytes(mBufSize * 2)
+                                                .setTransferMode(AudioTrack.MODE_STREAM)
+                                                .build()
+                                            currentTrack.play()
+                                            audioTrack = currentTrack
+                                        }
+                                        
+                                        currentTrack.write(playback.buffer, 0, playback.buffer.size)
+                                    } catch (e: Exception) {
+                                        if (enableSpeakerMode) {
+                                            Logger.e("AudioEngine", "Error writing to AudioTrack: ${e.message}")
+                                        }
+                                    }
+                                }
+                            } catch (e: CancellationException) {
+                                // Normal
+                            } finally {
+                                Logger.d("AudioEngine", "Playback consumer loop stopped")
+                            }
+                        }
+
+                        val udpReaderJob = launch {
+                            if (mode != ConnectionMode.Wifi || udpSocket == null) return@launch
+                            Logger.d("AudioEngine", "UDP reader loop started")
+                            val udpBuffer = ByteArray(4096)
+                            val packet = DatagramPacket(udpBuffer, udpBuffer.size)
+                            while (isActive) {
+                                try {
+                                    udpSocket?.receive(packet)
+                                    val data = packet.data
+                                    val length = packet.length
+                                    if (length < 8) continue
+                                    
+                                    val magic = ((data[0].toInt() and 0xFF) shl 24) or
+                                                ((data[1].toInt() and 0xFF) shl 16) or
+                                                ((data[2].toInt() and 0xFF) shl 8) or
+                                                (data[3].toInt() and 0xFF)
+                                    
+                                    if (magic != UDP_PACKET_MAGIC) continue
+                                    
+                                    val payloadLength = ((data[4].toInt() and 0xFF) shl 24) or
+                                                        ((data[5].toInt() and 0xFF) shl 16) or
+                                                        ((data[6].toInt() and 0xFF) shl 8) or
+                                                        (data[7].toInt() and 0xFF)
+                                    
+                                    if (payloadLength <= 0 || payloadLength > length - 8) continue
+                                    
+                                    val payload = data.copyOfRange(8, 8 + payloadLength)
+                                    val wrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), payload)
+                                    
+                                    if (wrapper.audioPlayback != null && enableSpeakerMode) {
+                                        playbackChannel.send(wrapper.audioPlayback)
+                                    }
+                                } catch (e: Exception) {
+                                    if (isActive && !isNormalDisconnect(e) && e !is java.net.SocketTimeoutException) {
+                                        Logger.w("AudioEngine", "UDP receive error: ${e.message}")
+                                    }
+                                }
+                            }
+                            Logger.d("AudioEngine", "UDP reader loop stopped")
                         }
 
                         val readerJob = launch {
@@ -442,7 +545,7 @@ actual class AudioEngine actual constructor() {
                                         Logger.w("AudioEngine", "Invalid Magic: ${magic.toString(16)}")
                                         throw java.io.IOException("Invalid Packet Magic")
                                     }
-    val length = input.readInt()
+                                    val length = input.readInt()
 
                                     if (length > 0) {
                                         val packetBytes = ByteArray(length)
@@ -458,59 +561,9 @@ actual class AudioEngine actual constructor() {
                                                 lastPingReceivedTime = System.currentTimeMillis()
                                                 sendChannel?.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
                                             }
+                                            
                                             if (wrapper.audioPlayback != null && enableSpeakerMode) {
-                                                val playback = wrapper.audioPlayback
-                                                var currentTrack = audioTrack
-                                                
-                                                // Check if we need to (re)initialize the AudioTrack
-                                                if (currentTrack == null || 
-                                                    currentTrack.sampleRate != playback.sampleRate) {
-                                                    
-                                                    Logger.i("AudioEngine", "Initializing AudioTrack: rate=${playback.sampleRate}, channels=${playback.channelCount}")
-                                                    currentTrack?.stop()
-                                                    currentTrack?.release()
-                                                    
-                                                    val channelConfig = if (playback.channelCount == 2) 
-                                                        AudioFormat.CHANNEL_OUT_STEREO 
-                                                    else 
-                                                        AudioFormat.CHANNEL_OUT_MONO
-                                                        
-                                                    val format = when(playback.audioFormat) {
-                                                        com.lanrhyme.micyou.AudioFormat.PCM_8BIT.value -> AudioFormat.ENCODING_PCM_8BIT
-                                                        com.lanrhyme.micyou.AudioFormat.PCM_FLOAT.value -> AudioFormat.ENCODING_PCM_FLOAT
-                                                        com.lanrhyme.micyou.AudioFormat.PCM_24BIT.value -> {
-                                                            Logger.w("AudioEngine", "PCM_24BIT playback requested, falling back to 16-bit (AEC/Speaker may have artifacts)")
-                                                            AudioFormat.ENCODING_PCM_16BIT
-                                                        }
-                                                        else -> AudioFormat.ENCODING_PCM_16BIT
-                                                    }
-                                                    
-                                                    val minBufSize = AudioTrack.getMinBufferSize(playback.sampleRate, channelConfig, format)
-                                                    currentTrack = AudioTrack.Builder()
-                                                        .setAudioAttributes(AudioAttributes.Builder()
-                                                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                                                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                                            .build())
-                                                        .setAudioFormat(AudioFormat.Builder()
-                                                            .setEncoding(format)
-                                                            .setSampleRate(playback.sampleRate)
-                                                            .setChannelMask(channelConfig)
-                                                            .build())
-                                                        .setBufferSizeInBytes(minBufSize * 2)
-                                                        .setTransferMode(AudioTrack.MODE_STREAM)
-                                                        .build()
-                                                    currentTrack.play()
-                                                    audioTrack = currentTrack
-                                                }
-                                                
-                                                try {
-                                                    currentTrack.write(playback.buffer, 0, playback.buffer.size)
-                                                } catch (e: Exception) {
-                                                    // This can happen if setSpeakerMode(false) releases it while we are writing
-                                                    if (enableSpeakerMode) {
-                                                        Logger.e("AudioEngine", "Error writing to AudioTrack: ${e.message}")
-                                                    }
-                                                }
+                                                playbackChannel.send(wrapper.audioPlayback)
                                             }
                                         } catch (e: Exception) {
                                             Logger.e("AudioEngine", "Error decoding incoming message", e)
@@ -528,14 +581,20 @@ actual class AudioEngine actual constructor() {
                         sendChannel?.send(MessageWrapper(mute = MuteMessage(_isMuted.value)))
                         // Use read buffer sized to avoid IP fragmentation on WiFi
                         // Path MTU = 1500, minus IP(20)+UDP(8)+header(8)+ProtoBuf(~30) ≈ 1434 safe payload
-    val udpSafePayloadSize = 1400
-    val readBufSize = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) {
+                        val udpSafePayloadSize = 1400
+                        val androidAudioFormat = when(audioFormat) {
+                            com.lanrhyme.micyou.AudioFormat.PCM_8BIT -> AudioFormat.ENCODING_PCM_8BIT
+                            com.lanrhyme.micyou.AudioFormat.PCM_16BIT -> AudioFormat.ENCODING_PCM_16BIT
+                            com.lanrhyme.micyou.AudioFormat.PCM_FLOAT -> AudioFormat.ENCODING_PCM_FLOAT
+                            else -> AudioFormat.ENCODING_PCM_16BIT
+                        }
+                        val readBufSize = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) {
                             minOf(minBufSize, udpSafePayloadSize).coerceAtLeast(256)
                         } else {
                             minOf(minBufSize, udpSafePayloadSize).coerceAtLeast(512)
                         }
-    val buffer = ByteArray(readBufSize)
-    val floatBuffer = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
+                        val buffer = ByteArray(readBufSize)
+                        val floatBuffer = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
                         
                         var sequenceNumber = 0
                         lastPingReceivedTime = System.currentTimeMillis()
@@ -576,7 +635,7 @@ actual class AudioEngine actual constructor() {
                                         channelCount = if (channelCount == ChannelCount.Stereo) 2 else 1,
                                         audioFormat = audioFormat.value
                                     )
-    val wrapper = MessageWrapper(
+                                    val wrapper = MessageWrapper(
                                         audioPacket = AudioPacketMessageOrdered(sequenceNumber++, packet, System.currentTimeMillis())
                                     )
                                     

@@ -240,6 +240,14 @@ class ConnectionHandler(
         }
     }
 
+    suspend fun sendAudioPlayback(playback: AudioPlaybackMessage) {
+        try {
+            sendChannel?.send(MessageWrapper(audioPlayback = playback))
+        } catch (e: Exception) {
+            Logger.e("ConnectionHandler", "Failed to send audio playback", e)
+        }
+    }
+
     private fun cleanup() {
         writerJob?.cancel()
         sendChannel?.close()

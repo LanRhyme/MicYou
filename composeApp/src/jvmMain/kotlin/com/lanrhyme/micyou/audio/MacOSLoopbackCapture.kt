@@ -27,9 +27,11 @@ class MacOSLoopbackCapture : LoopbackCapture {
     private val _capturedData = MutableSharedFlow<ByteArray>(extraBufferCapacity = 64)
     override val capturedData: SharedFlow<ByteArray> = _capturedData.asSharedFlow()
 
+    @Volatile
     override var isActive: Boolean = false
         private set
 
+    @Volatile
     override var format: LoopbackCapture.LoopbackFormat = LoopbackCapture.LoopbackFormat(44100, 2, 16)
         private set
 
@@ -51,7 +53,7 @@ class MacOSLoopbackCapture : LoopbackCapture {
                     16, // bits per sample
                     channelCount,
                     true, // signed
-                    false // little-endian
+                    true // big-endian (macOS native)
                 )
 
                 val blackHoleMixer = findBlackHoleMixer()

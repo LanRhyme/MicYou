@@ -9,15 +9,18 @@ import java.io.InputStream
 
 class LinuxLoopbackCapture : LoopbackCapture {
     private var job: Job? = null
-    @Volatile private var process: Process? = null
+    @Volatile
+    private var process: Process? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
     private val _capturedData = MutableSharedFlow<ByteArray>(extraBufferCapacity = 64)
     override val capturedData: SharedFlow<ByteArray> = _capturedData.asSharedFlow()
     
+    @Volatile
     override var isActive: Boolean = false
         private set
         
+    @Volatile
     override var format: LoopbackCapture.LoopbackFormat = LoopbackCapture.LoopbackFormat(44100, 2, 16)
         private set
 
@@ -36,7 +39,7 @@ class LinuxLoopbackCapture : LoopbackCapture {
                 // We'll try 'parec' (PulseAudio) first, then fallback to 'pw-record' (PipeWire)
                 val commands = listOf(
                     listOf("parec", "--format=s16le", "--rate=$sampleRate", "--channels=$channelCount", "--device=$monitorSource"),
-                    listOf("pw-record", "--format=s16", "--rate=$sampleRate", "--channels=$channelCount", "--target=$monitorSource")
+                    listOf("pw-record", "--format=s16le", "--rate=$sampleRate", "--channels=$channelCount", "--target=$monitorSource")
                 )
 
                 var started = false
@@ -44,7 +47,7 @@ class LinuxLoopbackCapture : LoopbackCapture {
                     try {
                         val p = ProcessBuilder(command).start()
                         // Check if it immediately exited
-                        delay(200)
+                        delay(500)
                         if (p.isAlive) {
                             process = p
                             started = true
@@ -74,7 +77,9 @@ class LinuxLoopbackCapture : LoopbackCapture {
                     }
                 }
             } catch (e: Exception) {
-                Logger.e("LinuxLoopback", "Capture error: ${e.message}")
+                if (e !is CancellationException) {
+                    Logger.e("LinuxLoopback", "Capture error: ${e.message}")
+                }
             } finally {
                 stop()
             }
@@ -90,10 +95,12 @@ class LinuxLoopbackCapture : LoopbackCapture {
     }
 
     private fun findMonitorSource(): String? {
+        var p: Process? = null
         return try {
             // Get default sink name
-            val defaultSinkProcess = ProcessBuilder("pactl", "get-default-sink").start()
-            val defaultSink = defaultSinkProcess.inputStream.bufferedReader().readText().trim()
+            p = ProcessBuilder("pactl", "get-default-sink").start()
+            val defaultSink = p.inputStream.bufferedReader().readText().trim()
+            p.waitFor()
             if (defaultSink.isNotEmpty()) {
                 "$defaultSink.monitor"
             } else {
@@ -101,6 +108,8 @@ class LinuxLoopbackCapture : LoopbackCapture {
             }
         } catch (e: Exception) {
             null
+        } finally {
+            p?.destroy()
         }
     }
 }

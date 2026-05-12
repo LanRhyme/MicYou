@@ -21,14 +21,16 @@ import java.nio.ByteOrder
  */
 class WindowsLoopbackCapture : LoopbackCapture {
     private var job: Job? = null
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     
     private val _capturedData = MutableSharedFlow<ByteArray>(extraBufferCapacity = 128)
     override val capturedData: SharedFlow<ByteArray> = _capturedData.asSharedFlow()
     
+    @Volatile
     override var isActive: Boolean = false
         private set
         
+    @Volatile
     override var format: LoopbackCapture.LoopbackFormat = LoopbackCapture.LoopbackFormat(48000, 2, 16)
         private set
 
@@ -36,13 +38,18 @@ class WindowsLoopbackCapture : LoopbackCapture {
         if (isActive) return
         
         isActive = true
+        // Use a dedicated single thread or COINIT_MULTITHREADED carefully
         job = scope.launch {
             try {
                 runCaptureLoop()
             } catch (e: Exception) {
-                Logger.e("WindowsLoopback", "Capture loop error: ${e.message}")
+                if (e !is CancellationException) {
+                    Logger.e("WindowsLoopback", "Capture loop error: ${e.message}")
+                }
             } finally {
-                stop()
+                withContext(NonCancellable) {
+                    isActive = false
+                }
             }
         }
     }
@@ -56,12 +63,19 @@ class WindowsLoopbackCapture : LoopbackCapture {
     private suspend fun runCaptureLoop() {
         Logger.i("WindowsLoopback", "Initializing WASAPI loopback...")
         
-        var hr = Ole32.INSTANCE.CoInitialize(null)
-        val comInitialized = hr.toInt() >= 0
+        // CoInitializeEx with COINIT_MULTITHREADED
+        val hrInit = Ole32.INSTANCE.CoInitializeEx(null, WASAPIConstants.COINIT_MULTITHREADED)
+        val comInitialized = hrInit.toInt() >= 0
         
+        var pEnumerator: IMMDeviceEnumerator? = null
+        var pDevice: IMMDevice? = null
+        var pAudioClient: IAudioClient? = null
+        var pCaptureClient: IAudioCaptureClient? = null
+        var pFormat: Pointer? = null
+
         try {
             val pEnumeratorRef = PointerByReference()
-            hr = Ole32.INSTANCE.CoCreateInstance(
+            var hr = Ole32.INSTANCE.CoCreateInstance(
                 WASAPIConstants.CLSID_MMDeviceEnumerator,
                 null,
                 WASAPIConstants.CLSCTX_ALL,
@@ -69,28 +83,47 @@ class WindowsLoopbackCapture : LoopbackCapture {
                 pEnumeratorRef
             )
             if (hr.toInt() < 0) throw Exception("Failed to create MMDeviceEnumerator: $hr")
-            val pEnumerator = IMMDeviceEnumerator(pEnumeratorRef.value)
+            pEnumerator = IMMDeviceEnumerator(pEnumeratorRef.value)
 
             val pDeviceRef = PointerByReference()
             hr = pEnumerator.GetDefaultAudioEndpoint(WASAPIConstants.eRender, WASAPIConstants.eConsole, pDeviceRef)
             if (hr.toInt() < 0) throw Exception("Failed to get default endpoint: $hr")
-            val pDevice = IMMDevice(pDeviceRef.value)
+            pDevice = IMMDevice(pDeviceRef.value)
 
             val pAudioClientRef = PointerByReference()
             hr = pDevice.Activate(WASAPIConstants.IID_IAudioClient, WASAPIConstants.CLSCTX_ALL, null, pAudioClientRef)
             if (hr.toInt() < 0) throw Exception("Failed to activate AudioClient: $hr")
-            val pAudioClient = IAudioClient(pAudioClientRef.value)
+            pAudioClient = IAudioClient(pAudioClientRef.value)
 
             val pFormatRef = PointerByReference()
             hr = pAudioClient.GetMixFormat(pFormatRef)
             if (hr.toInt() < 0) throw Exception("Failed to get mix format: $hr")
-            val pFormat = pFormatRef.value
+            pFormat = pFormatRef.value
+            
             val waveFormat = WAVEFORMATEX()
             waveFormat.useMemory(pFormat)
             waveFormat.read()
             
-            Logger.i("WindowsLoopback", "Mix Format: ${waveFormat.nSamplesPerSec}Hz, ${waveFormat.nChannels} channels, ${waveFormat.wBitsPerSample} bits")
-            format = LoopbackCapture.LoopbackFormat(waveFormat.nSamplesPerSec, waveFormat.nChannels.toInt(), waveFormat.wBitsPerSample.toInt())
+            var bits = waveFormat.wBitsPerSample.toInt()
+            var isFloat = false
+
+            if (waveFormat.wFormatTag.toInt() == 0xFFFE) { // WAVE_FORMAT_EXTENSIBLE
+                val extFormat = WAVEFORMATEXTENSIBLE()
+                extFormat.useMemory(pFormat)
+                extFormat.read()
+                bits = extFormat.Format.wBitsPerSample.toInt()
+                if (extFormat.SubFormat == WASAPIConstants.KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) {
+                    isFloat = true
+                }
+            } else if (waveFormat.wFormatTag.toInt() == 0x0003) { // WAVE_FORMAT_IEEE_FLOAT
+                isFloat = true
+            }
+            
+            // Protocol format mapping
+            val protocolBits = if (isFloat) 32 else bits
+
+            Logger.i("WindowsLoopback", "Mix Format: ${waveFormat.nSamplesPerSec}Hz, ${waveFormat.nChannels} channels, $bits bits (Float=$isFloat)")
+            format = LoopbackCapture.LoopbackFormat(waveFormat.nSamplesPerSec, waveFormat.nChannels.toInt(), protocolBits)
 
             hr = pAudioClient.Initialize(
                 WASAPIConstants.AUDCLNT_SHAREMODE_SHARED,
@@ -102,7 +135,7 @@ class WindowsLoopbackCapture : LoopbackCapture {
             val pCaptureClientRef = PointerByReference()
             hr = pAudioClient.GetService(WASAPIConstants.IID_IAudioCaptureClient, pCaptureClientRef)
             if (hr.toInt() < 0) throw Exception("Failed to get CaptureClient: $hr")
-            val pCaptureClient = IAudioCaptureClient(pCaptureClientRef.value)
+            pCaptureClient = IAudioCaptureClient(pCaptureClientRef.value)
 
             hr = pAudioClient.Start()
             if (hr.toInt() < 0) throw Exception("Failed to start AudioClient: $hr")
@@ -124,24 +157,23 @@ class WindowsLoopbackCapture : LoopbackCapture {
                         pCaptureClient.ReleaseBuffer(numFrames)
                     }
                 }
-                delay(10) // Small sleep to prevent CPU spiking
+                delay(10)
             }
             
             pAudioClient.Stop()
             
-            // Explicit Release
-            pCaptureClient.Release()
-            pAudioClient.Release()
-            pDevice.Release()
-            pEnumerator.Release()
-            Ole32.INSTANCE.CoTaskMemFree(pFormat)
-            
-        } catch (e: Exception) {
-            Logger.e("WindowsLoopback", "Error: ${e.message}")
-            throw e
         } finally {
-            if (comInitialized) {
-                Ole32.INSTANCE.CoUninitialize()
+            withContext(NonCancellable) {
+                pCaptureClient?.Release()
+                pAudioClient?.Release()
+                pDevice?.Release()
+                pEnumerator?.Release()
+                if (pFormat != null) {
+                    Ole32.INSTANCE.CoTaskMemFree(pFormat)
+                }
+                if (comInitialized) {
+                    Ole32.INSTANCE.CoUninitialize()
+                }
             }
         }
     }

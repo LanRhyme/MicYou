@@ -103,7 +103,31 @@ data class AudioPlaybackMessage(
     val audioFormat: Int,
     @ProtoNumber(5)
     val sequenceNumber: Int
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as AudioPlaybackMessage
+
+        if (!buffer.contentEquals(other.buffer)) return false
+        if (sampleRate != other.sampleRate) return false
+        if (channelCount != other.channelCount) return false
+        if (audioFormat != other.audioFormat) return false
+        if (sequenceNumber != other.sequenceNumber) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = buffer.contentHashCode()
+        result = 31 * result + sampleRate
+        result = 31 * result + channelCount
+        result = 31 * result + audioFormat
+        result = 31 * result + sequenceNumber
+        return result
+    }
+}
 
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
 const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII

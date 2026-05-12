@@ -112,10 +112,10 @@ class NetworkServer(
     }
 
     suspend fun sendAudioPlayback(playback: AudioPlaybackMessage) {
-        // Try UDP first for low latency
-        udpHandler?.sendAudioPlayback(playback)
-        // If not UDP, activeHandler (TCP) will be used if implemented there
-        // For now, we only implement UDP sending
+        // Send via TCP because Android client only reads from TCP reader loop.
+        // UDP is used for high-frequency audio data from Android→Desktop,
+        // but AudioPlaybackMessage (Desktop→Android) goes through TCP control channel.
+        activeHandler?.sendAudioPlayback(playback)
     }
 
     fun getUdpStats(): UdpConnectionHandler.UdpStats? = udpHandler?.getStats()

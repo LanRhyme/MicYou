@@ -20,11 +20,17 @@ open class WAVEFORMATEX : Structure() {
 }
 
 @Structure.FieldOrder("Format", "Samples", "dwChannelMask", "SubFormat")
-class WAVEFORMATEXTENSIBLE : WAVEFORMATEX() {
+open class WAVEFORMATEXTENSIBLE : Structure() {
     @JvmField var Format: WAVEFORMATEX = WAVEFORMATEX()
     @JvmField var Samples: Short = 0
     @JvmField var dwChannelMask: Int = 0
     @JvmField var SubFormat: WinNT.GUID = WinNT.GUID()
+}
+
+abstract class Unknown(p: Pointer) : com.sun.jna.platform.win32.COM.Unknown(p) {
+    fun Release(): Int {
+        return _invokeNativeObject(2, arrayOf(this.pointer), Int::class.java) as Int
+    }
 }
 
 class IMMDeviceEnumerator(p: Pointer) : Unknown(p) {
@@ -86,4 +92,8 @@ object WASAPIConstants {
     const val eConsole = 0
     const val AUDCLNT_SHAREMODE_SHARED = 0
     const val AUDCLNT_STREAMFLAGS_LOOPBACK = 0x00020000
+    
+    const val COINIT_MULTITHREADED = 0x0
+    
+    val KSDATAFORMAT_SUBTYPE_IEEE_FLOAT = WinNT.GUID.fromString("00000003-0000-0010-8000-00AA00389B71")
 }

@@ -12,6 +12,9 @@ class StubLoopbackCapture : LoopbackCapture {
     override fun stop() {}
 
     override val capturedData: Flow<ByteArray> = emptyFlow()
-    override val isActive: Boolean = false
-    override val format: LoopbackCapture.LoopbackFormat = LoopbackCapture.LoopbackFormat(44100, 2, 16)
+    @Volatile
+    override var isActive: Boolean = false
+    
+    @Volatile
+    override var format: LoopbackCapture.LoopbackFormat = LoopbackCapture.LoopbackFormat(44100, 2, 16)
 }
