@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "agentchattr": {
+      "type": "http",
+      "url": "http://127.0.0.1:8200/mcp",
+      "trust": true,
+      "headers": {
+        "Authorization": "Bearer 275558219a7a6ba1dd3b65cd8f5c1776"
+      }
+    }
+  },
+  "security": {
+    "folderTrust": {
+      "enabled": true
+    }
+  }
+}

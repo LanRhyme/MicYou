@@ -47,6 +47,9 @@ actual class AudioEngine actual constructor() {
 
     private val audioOutputManager = AudioOutputManager()
     private val audioPipeline = AudioProcessorPipeline()
+    private val loopbackManager = LoopbackManager { playback ->
+        sendAudioPlayback(playback)
+    }
 
     // 当前音频参数（用于计算比特率）
     private var currentSampleRate: Int = 0
@@ -322,7 +325,7 @@ actual class AudioEngine actual constructor() {
     }
 
     actual fun setSpeakerMode(enabled: Boolean) {
-        // Not supported on JVM
+        loopbackManager.setSpeakerMode(enabled)
     }
 
     suspend fun sendAudioPlayback(playback: AudioPlaybackMessage) {
@@ -340,6 +343,7 @@ actual class AudioEngine actual constructor() {
          try {
              job?.cancel()
              job = null
+             loopbackManager.setSpeakerMode(false)
              // 使用协程异步停止，避免阻塞调用线程
              // 保存停止 Job 以便 start() 可以等待其完成，防止竞态条件
              // 检查是否已有活跃的停止操作，避免协程泄漏

@@ -112,6 +112,8 @@ kotlin {
             implementation(libs.onnxruntime)
             implementation(libs.jtransforms)
             implementation(libs.jmdns)
+            implementation(libs.jna)
+            implementation(libs.jna.platform)
         }
     }
 }

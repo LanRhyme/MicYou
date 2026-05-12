@@ -27,8 +27,11 @@ filekit = "0.13.0"
 materialKolor = "5.0.0-alpha07"
 jmdns = "3.6.3"
 zxing = "3.5.3"
+jna = "5.16.0"
 
 [libraries]
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { module = "junit:junit", version.ref = "junit" }
