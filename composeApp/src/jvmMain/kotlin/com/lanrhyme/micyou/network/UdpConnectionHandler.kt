@@ -201,7 +201,7 @@ class UdpConnectionHandler(
             val wrapper: MessageWrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), data.copyOfRange(payloadStart, payloadStart + payloadLength))
 
             // UDP channel only processes audio packets
-            val audioPacket = wrapper.audioPacket?.audioPacket
+            val audioPacket = wrapper.audioPacket?.packet
             if (audioPacket != null) {
                 // Sequence number tracking
                 val seqNum = wrapper.audioPacket.sequenceNumber

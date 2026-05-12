@@ -27,7 +27,8 @@ import java.net.BindException
 class NetworkServer(
     private val onAudioPacketReceived: suspend (AudioPacketMessage) -> Unit,
     private val onMuteStateChanged: (Boolean) -> Unit,
-    private val onPluginSyncReceived: ((PluginSyncMessage) -> Unit)? = null
+    private val onPluginSyncReceived: ((PluginSyncMessage) -> Unit)? = null,
+    private val onSpeakerModeReceived: ((Boolean) -> Unit)? = null
 ) {
     private val _state = MutableStateFlow(StreamState.Idle)
     val state = _state.asStateFlow()
@@ -215,6 +216,7 @@ class NetworkServer(
             onAudioPacketReceived = onAudioPacketReceived,
             onMuteStateChanged = onMuteStateChanged,
             onPluginSyncReceived = onPluginSyncReceived,
+            onSpeakerModeReceived = onSpeakerModeReceived,
             onError = { error ->
                 _lastError.value = error
             }

@@ -129,6 +129,9 @@ actual class AudioEngine actual constructor() {
     private val _isMuted = MutableStateFlow(false)
     actual val isMuted: Flow<Boolean> = _isMuted
 
+    private val _enableSpeakerMode = MutableStateFlow(false)
+    actual val enableSpeakerMode: Flow<Boolean> = _enableSpeakerMode
+
     private var job: Job? = null
     private val startStopMutex = Mutex()
     private val proto = ProtoBuf { }
@@ -151,7 +154,7 @@ actual class AudioEngine actual constructor() {
     @Volatile
     private var enableAEC: Boolean = false
     @Volatile
-    private var enableSpeakerMode: Boolean = false
+    private var isSpeakerModeActive: Boolean = false
     @Volatile
     private var audioSource: AndroidAudioSource = AndroidAudioSource.Mic
 
@@ -185,8 +188,9 @@ actual class AudioEngine actual constructor() {
     private val playbackChannel = Channel<AudioPlaybackMessage>(capacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     actual fun setSpeakerMode(enabled: Boolean) {
-        if (this.enableSpeakerMode != enabled) {
-            this.enableSpeakerMode = enabled
+        if (this.isSpeakerModeActive != enabled) {
+            this.isSpeakerModeActive = enabled
+            _enableSpeakerMode.value = enabled
             Logger.i("AudioEngine", "Speaker mode ${if (enabled) "enabled" else "disabled"}")
             
             if (!enabled) {
@@ -195,6 +199,14 @@ actual class AudioEngine actual constructor() {
                 audioTrack?.stop()
                 audioTrack?.release()
                 audioTrack = null
+            }
+
+            if (_state.value == StreamState.Streaming || _state.value == StreamState.Connecting) {
+                try {
+                    sendChannel?.trySend(MessageWrapper(speakerMode = SpeakerModeMessage(enabled)))
+                } catch (e: Exception) {
+                    Logger.e("AudioEngine", "Failed to send speaker mode message: ${e.message}")
+                }
             }
         }
     }
@@ -267,12 +279,8 @@ actual class AudioEngine actual constructor() {
                         }
 
                         try {
-                            val sourceId = if (enableAEC) {
-                                MediaRecorder.AudioSource.VOICE_COMMUNICATION
-                            } else {
-                                audioSource.sourceId
-                            }
-                            Logger.d("AudioEngine", "Initializing AudioRecord with source id=$sourceId (AEC=$enableAEC)")
+                            val sourceId = audioSource.sourceId
+                            Logger.d("AudioEngine", "Initializing AudioRecord with source id=$sourceId (AEC requested=$enableAEC)")
                             recorder = try {
                                 AudioRecord(
                                     sourceId,
@@ -386,6 +394,9 @@ actual class AudioEngine actual constructor() {
                         }
                         Logger.i("AudioEngine", "Handshake successful")
 
+                        // Sync initial state
+                        sendChannel?.send(MessageWrapper(speakerMode = SpeakerModeMessage(isSpeakerModeActive)))
+
                         recorder.startRecording()
                         _state.value = StreamState.Streaming
                         _lastError.value = null
@@ -430,7 +441,7 @@ actual class AudioEngine actual constructor() {
                             Logger.d("AudioEngine", "Playback consumer loop started")
                             try {
                                 for (playback in playbackChannel) {
-                                    if (!enableSpeakerMode) continue
+                                    if (!isSpeakerModeActive) continue
                                     try {
                                         var currentTrack = audioTrack
 
@@ -476,7 +487,7 @@ actual class AudioEngine actual constructor() {
 
                                         currentTrack.write(playback.buffer, 0, playback.buffer.size)
                                     } catch (e: Exception) {
-                                        if (enableSpeakerMode) {
+                                        if (isSpeakerModeActive) {
                                             Logger.e("AudioEngine", "Error writing to AudioTrack: ${e.message}")
                                         }
                                     }
@@ -517,7 +528,7 @@ actual class AudioEngine actual constructor() {
                                     val payload = data.copyOfRange(8, 8 + payloadLength)
                                     val wrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), payload)
 
-                                    if (wrapper.audioPlayback != null && enableSpeakerMode) {
+                                    if (wrapper.audioPlayback != null && isSpeakerModeActive) {
                                         playbackChannel.trySend(wrapper.audioPlayback)
                                     }
                                 } catch (e: java.net.SocketTimeoutException) {
@@ -565,7 +576,7 @@ actual class AudioEngine actual constructor() {
                                                 sendChannel?.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
                                             }
                                             
-                                            if (wrapper.audioPlayback != null && enableSpeakerMode) {
+                                            if (wrapper.audioPlayback != null && isSpeakerModeActive) {
                                                 playbackChannel.trySend(wrapper.audioPlayback)
                                             }
                                         } catch (e: Exception) {

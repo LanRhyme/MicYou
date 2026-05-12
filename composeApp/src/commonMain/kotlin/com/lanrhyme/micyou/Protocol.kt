@@ -1,7 +1,7 @@
 package com.lanrhyme.micyou
 
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -15,29 +15,7 @@ data class AudioPacketMessage(
     val channelCount: Int,
     @ProtoNumber(4)
     val audioFormat: Int
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || this::class != other::class) return false
-
-        other as AudioPacketMessage
-
-        if (!buffer.contentEquals(other.buffer)) return false
-        if (sampleRate != other.sampleRate) return false
-        if (channelCount != other.channelCount) return false
-        if (audioFormat != other.audioFormat) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = buffer.contentHashCode()
-        result = 31 * result + sampleRate
-        result = 31 * result + channelCount
-        result = 31 * result + audioFormat
-        return result
-    }
-}
+)
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
@@ -45,19 +23,42 @@ data class AudioPacketMessageOrdered(
     @ProtoNumber(1)
     val sequenceNumber: Int,
     @ProtoNumber(2)
-    val audioPacket: AudioPacketMessage,
+    val packet: AudioPacketMessage,
     @ProtoNumber(3)
-    val timestamp: Long = 0
+    val timestamp: Long
 )
 
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class ConnectMessage(
+    @ProtoNumber(1)
+    val clientName: String,
+    @ProtoNumber(2)
+    val version: Int
+)
+
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class MuteMessage(
     @ProtoNumber(1)
     val isMuted: Boolean
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
-class ConnectMessage
+data class SpeakerModeMessage(
+    @ProtoNumber(1)
+    val enabled: Boolean
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+data class PluginSyncMessage(
+    @ProtoNumber(1)
+    val plugins: List<PluginInfoMessage>,
+    @ProtoNumber(2)
+    val platform: String = ""
+)
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
@@ -67,30 +68,32 @@ data class PluginInfoMessage(
     @ProtoNumber(2)
     val name: String,
     @ProtoNumber(3)
-    val version: String
+    val version: String,
+    @ProtoNumber(4)
+    val author: String,
+    @ProtoNumber(5)
+    val description: String,
+    @ProtoNumber(6)
+    val enabled: Boolean,
+    @ProtoNumber(7)
+    val iconUrl: String? = null
 )
 
 @OptIn(ExperimentalSerializationApi::class)
-@Serializable
-data class PluginSyncMessage(
-    @ProtoNumber(1)
-    val plugins: List<PluginInfoMessage> = emptyList(),
-    @ProtoNumber(2)
-    val platform: String = ""
-)
-
 @Serializable
 data class PingMessage(
     @ProtoNumber(1)
     val timestamp: Long
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class PongMessage(
     @ProtoNumber(1)
     val timestamp: Long
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class AudioPlaybackMessage(
     @ProtoNumber(1)
@@ -151,7 +154,7 @@ fun calculateUdpPort(tcpPort: Int): Int {
 
 /** 判断 MessageWrapper 是否包含控制消息（应通过 TCP 发送） */
 fun MessageWrapper.hasControlMessage(): Boolean {
-    return connect != null || mute != null || pluginSync != null || ping != null || pong != null
+    return connect != null || mute != null || pluginSync != null || ping != null || pong != null || speakerMode != null
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -170,6 +173,7 @@ data class MessageWrapper(
     @ProtoNumber(6)
     val pong: PongMessage? = null,
     @ProtoNumber(7)
-    val audioPlayback: AudioPlaybackMessage? = null
+    val audioPlayback: AudioPlaybackMessage? = null,
+    @ProtoNumber(8)
+    val speakerMode: SpeakerModeMessage? = null
 )
-

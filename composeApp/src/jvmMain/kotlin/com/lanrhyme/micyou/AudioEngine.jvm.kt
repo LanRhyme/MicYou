@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import com.lanrhyme.micyou.audio.AudioOutputManager
 import com.lanrhyme.micyou.audio.AudioProcessorPipeline
+import com.lanrhyme.micyou.audio.LoopbackManager
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.errorAdbReverseFailed
 import org.jetbrains.compose.resources.getString
@@ -35,6 +36,9 @@ actual class AudioEngine actual constructor() {
 
     private val _isMuted = MutableStateFlow(false)
     actual val isMuted: Flow<Boolean> = _isMuted
+
+    private val _enableSpeakerMode = MutableStateFlow(false)
+    actual val enableSpeakerMode: Flow<Boolean> = _enableSpeakerMode
     
     private val _pluginSyncReceived = MutableStateFlow<PluginSyncMessage?>(null)
     val pluginSyncReceived: Flow<PluginSyncMessage?> = _pluginSyncReceived
@@ -48,7 +52,7 @@ actual class AudioEngine actual constructor() {
     private val audioOutputManager = AudioOutputManager()
     private val audioPipeline = AudioProcessorPipeline()
     private val loopbackManager = LoopbackManager { playback ->
-        sendAudioPlayback(playback)
+        scope.launch { sendAudioPlayback(playback) }
     }
 
     // 当前音频参数（用于计算比特率）
@@ -74,6 +78,10 @@ actual class AudioEngine actual constructor() {
         },
         onPluginSyncReceived = { syncMessage ->
             _pluginSyncReceived.value = syncMessage
+        },
+        onSpeakerModeReceived = { enabled ->
+            Logger.i("AudioEngine", "Received Speaker Mode command from client: $enabled")
+            setSpeakerMode(enabled)
         }
     )
 
@@ -325,6 +333,7 @@ actual class AudioEngine actual constructor() {
     }
 
     actual fun setSpeakerMode(enabled: Boolean) {
+        _enableSpeakerMode.value = enabled
         loopbackManager.setSpeakerMode(enabled)
     }
 

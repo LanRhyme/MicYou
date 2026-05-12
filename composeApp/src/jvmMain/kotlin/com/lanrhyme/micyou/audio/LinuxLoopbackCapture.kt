@@ -5,31 +5,30 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import java.io.InputStream
 
 class LinuxLoopbackCapture : LoopbackCapture {
     private var job: Job? = null
     @Volatile
     private var process: Process? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    
+
     private val _capturedData = MutableSharedFlow<ByteArray>(extraBufferCapacity = 64)
     override val capturedData: SharedFlow<ByteArray> = _capturedData.asSharedFlow()
-    
+
     @Volatile
-    override var isActive: Boolean = false
-        private set
-        
+    private var _isActive: Boolean = false
+    override val isActive: Boolean get() = _isActive
+
     @Volatile
-    override var format: LoopbackCapture.LoopbackFormat = LoopbackCapture.LoopbackFormat(44100, 2, 16)
-        private set
+    private var _format: LoopbackCapture.LoopbackFormat = LoopbackCapture.LoopbackFormat(44100, 2, 16)
+    override val format: LoopbackCapture.LoopbackFormat get() = _format
 
     override fun start(sampleRate: Int, channelCount: Int) {
         if (isActive) return
-        
-        format = LoopbackCapture.LoopbackFormat(sampleRate, channelCount, 16)
-        isActive = true
-        
+
+        _format = LoopbackCapture.LoopbackFormat(sampleRate, channelCount, 16)
+        _isActive = true
+
         job = scope.launch {
             try {
                 // Try to find the default monitor source
@@ -66,7 +65,7 @@ class LinuxLoopbackCapture : LoopbackCapture {
                 val inputStream = process?.inputStream ?: throw Exception("Failed to open process input stream")
 
                 val buffer = ByteArray(4096)
-                while (isActive && coroutineContext.isActive) {
+                while (_isActive && currentCoroutineContext().isActive) {
                     val read = withContext(Dispatchers.IO) {
                         inputStream.read(buffer)
                     }
@@ -87,7 +86,7 @@ class LinuxLoopbackCapture : LoopbackCapture {
     }
 
     override fun stop() {
-        isActive = false
+        _isActive = false
         process?.destroy()
         process = null
         job?.cancel()

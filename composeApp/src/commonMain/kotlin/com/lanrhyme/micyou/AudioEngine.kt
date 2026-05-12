@@ -16,6 +16,8 @@ expect class AudioEngine() {
     val lastError: Flow<String?>
     // 静音状态流
     val isMuted: Flow<Boolean>
+    // 扬声器模式流
+    val enableSpeakerMode: Flow<Boolean>
 
     // 启动音频引擎
     suspend fun start(

@@ -298,6 +298,8 @@ class MainViewModel : ViewModel() {
                         agcTargetLevel = audioState.agcTargetLevel,
                         enableVAD = audioState.enableVAD,
                         vadThreshold = audioState.vadThreshold,
+                        enableAEC = audioState.enableAEC,
+                        enableSpeakerMode = audioState.enableSpeakerMode,
                         enableDereverb = audioState.enableDereverb,
                         dereverbLevel = audioState.dereverbLevel,
                         amplification = audioState.amplification,

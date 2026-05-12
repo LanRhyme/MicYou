@@ -28,12 +28,12 @@ class MacOSLoopbackCapture : LoopbackCapture {
     override val capturedData: SharedFlow<ByteArray> = _capturedData.asSharedFlow()
 
     @Volatile
-    override var isActive: Boolean = false
-        private set
+    private var _isActive: Boolean = false
+    override val isActive: Boolean get() = _isActive
 
     @Volatile
-    override var format: LoopbackCapture.LoopbackFormat = LoopbackCapture.LoopbackFormat(44100, 2, 16)
-        private set
+    private var _format: LoopbackCapture.LoopbackFormat = LoopbackCapture.LoopbackFormat(44100, 2, 16)
+    override val format: LoopbackCapture.LoopbackFormat get() = _format
 
     override fun start(sampleRate: Int, channelCount: Int) {
         if (isActive) return
@@ -43,8 +43,8 @@ class MacOSLoopbackCapture : LoopbackCapture {
             return
         }
 
-        format = LoopbackCapture.LoopbackFormat(sampleRate, channelCount, 16)
-        isActive = true
+        _format = LoopbackCapture.LoopbackFormat(sampleRate, channelCount, 16)
+        _isActive = true
 
         job = scope.launch {
             try {
@@ -59,7 +59,7 @@ class MacOSLoopbackCapture : LoopbackCapture {
                 val blackHoleMixer = findBlackHoleMixer()
                 if (blackHoleMixer == null) {
                     Logger.e("MacOSLoopback", "BlackHole mixer not found in Java Sound API")
-                    isActive = false
+                    _isActive = false
                     return@launch
                 }
 
@@ -72,7 +72,7 @@ class MacOSLoopbackCapture : LoopbackCapture {
 
                 if (!blackHoleMixer.isLineSupported(info)) {
                     Logger.e("MacOSLoopback", "BlackHole does not support format: ${sampleRate}Hz, ${channelCount}ch, 16-bit")
-                    isActive = false
+                    _isActive = false
                     return@launch
                 }
 
@@ -83,7 +83,7 @@ class MacOSLoopbackCapture : LoopbackCapture {
                 Logger.i("MacOSLoopback", "Capture started: ${sampleRate}Hz, ${channelCount}ch")
 
                 val buffer = ByteArray(4096)
-                while (isActive && coroutineContext.isActive) {
+                while (_isActive && currentCoroutineContext().isActive) {
                     val read = targetDataLine?.read(buffer, 0, buffer.size) ?: -1
                     if (read > 0) {
                         _capturedData.emit(buffer.copyOfRange(0, read))
@@ -100,7 +100,7 @@ class MacOSLoopbackCapture : LoopbackCapture {
     }
 
     override fun stop() {
-        isActive = false
+        _isActive = false
         try {
             targetDataLine?.stop()
             targetDataLine?.close()

@@ -206,6 +206,19 @@ class AudioStreamViewModel : ViewModel() {
             }
         }
 
+        viewModelScope.launch {
+            _audioEngine.enableSpeakerMode.collect { enabled ->
+                _uiState.update { it.copy(enableSpeakerMode = enabled) }
+                settings.putBoolean("enable_speaker_mode", enabled)
+                
+                // Coordination: Auto-enable AEC when Speaker Mode is turned on
+                // Only on Android where acoustic feedback is a concern
+                if (enabled && getPlatform().type == PlatformType.Android && !_uiState.value.enableAEC) {
+                    setEnableAEC(true)
+                }
+            }
+        }
+
         // 监听音频电平数据并更新历史记录
         viewModelScope.launch {
             _audioEngine.audioLevelData.collect { levelData ->
