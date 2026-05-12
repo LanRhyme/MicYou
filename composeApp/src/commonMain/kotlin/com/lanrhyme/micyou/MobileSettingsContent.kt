@@ -800,11 +800,10 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
     // 回声消除 (AEC)
     items.add { isFirst, isLast ->
         ExpressiveSettingsSwitchItem(
-            title = stringResource(Res.string.enableAECLabel),
-            description = stringResource(Res.string.enableAECDesc),
+            headline = stringResource(Res.string.enableAECLabel),
+            supporting = stringResource(Res.string.enableAECDesc),
             checked = state.enableAEC,
             onCheckedChange = { viewModel.setEnableAEC(it) },
-            enabled = manualSettingsEnabled,
             isFirst = isFirst,
             isLast = isLast,
             containerColor = containerColor,
@@ -816,11 +815,10 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
     // 手机作为扬声器 (Speaker Mode)
     items.add { isFirst, isLast ->
         ExpressiveSettingsSwitchItem(
-            title = stringResource(Res.string.enableSpeakerModeLabel),
-            description = stringResource(Res.string.enableSpeakerModeDesc),
+            headline = stringResource(Res.string.enableSpeakerModeLabel),
+            supporting = stringResource(Res.string.enableSpeakerModeDesc),
             checked = state.enableSpeakerMode,
             onCheckedChange = { viewModel.setEnableSpeakerMode(it) },
-            enabled = manualSettingsEnabled,
             isFirst = isFirst,
             isLast = isLast,
             containerColor = containerColor,

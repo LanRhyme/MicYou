@@ -25,6 +25,7 @@ import io.ktor.utils.io.writeFully
 import io.ktor.utils.io.writeInt
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -430,17 +431,17 @@ actual class AudioEngine actual constructor() {
                             try {
                                 for (playback in playbackChannel) {
                                     if (!enableSpeakerMode) continue
-                                    
+                                    try {
                                         var currentTrack = audioTrack
-                                        
+
                                         val playbackFormat = when(playback.audioFormat) {
                                             com.lanrhyme.micyou.AudioFormat.PCM_8BIT.value -> AudioFormat.ENCODING_PCM_8BIT
                                             com.lanrhyme.micyou.AudioFormat.PCM_FLOAT.value -> AudioFormat.ENCODING_PCM_FLOAT
                                             else -> AudioFormat.ENCODING_PCM_16BIT
                                         }
-                                        
+
                                         // Check if we need to (re)initialize the AudioTrack
-                                        val needsReinit = currentTrack == null || 
+                                        val needsReinit = currentTrack == null ||
                                                           currentTrack.sampleRate != playback.sampleRate ||
                                                           currentTrack.audioFormat != playbackFormat ||
                                                           (if (playback.channelCount == 2) currentTrack.channelCount != 2 else currentTrack.channelCount != 1)
@@ -449,12 +450,12 @@ actual class AudioEngine actual constructor() {
                                             Logger.i("AudioEngine", "Initializing AudioTrack: rate=${playback.sampleRate}, channels=${playback.channelCount}, format=$playbackFormat")
                                             currentTrack?.stop()
                                             currentTrack?.release()
-                                            
-                                            val channelConfig = if (playback.channelCount == 2) 
-                                                AudioFormat.CHANNEL_OUT_STEREO 
-                                            else 
+
+                                            val channelConfig = if (playback.channelCount == 2)
+                                                AudioFormat.CHANNEL_OUT_STEREO
+                                            else
                                                 AudioFormat.CHANNEL_OUT_MONO
-                                                
+
                                             val mBufSize = AudioTrack.getMinBufferSize(playback.sampleRate, channelConfig, playbackFormat)
                                             currentTrack = AudioTrack.Builder()
                                                 .setAudioAttributes(AudioAttributes.Builder()
@@ -472,7 +473,7 @@ actual class AudioEngine actual constructor() {
                                             currentTrack.play()
                                             audioTrack = currentTrack
                                         }
-                                        
+
                                         currentTrack.write(playback.buffer, 0, playback.buffer.size)
                                     } catch (e: Exception) {
                                         if (enableSpeakerMode) {
@@ -490,7 +491,7 @@ actual class AudioEngine actual constructor() {
                         val udpReaderJob = launch {
                             if (mode != ConnectionMode.Wifi || udpSocket == null) return@launch
                             Logger.d("AudioEngine", "UDP reader loop started")
-                            val udpBuffer = ByteArray(4096)
+                            val udpBuffer = ByteArray(65536) // Must be large enough for full audio playback packets
                             val packet = DatagramPacket(udpBuffer, udpBuffer.size)
                             while (isActive) {
                                 try {
@@ -498,29 +499,31 @@ actual class AudioEngine actual constructor() {
                                     val data = packet.data
                                     val length = packet.length
                                     if (length < 8) continue
-                                    
+
                                     val magic = ((data[0].toInt() and 0xFF) shl 24) or
                                                 ((data[1].toInt() and 0xFF) shl 16) or
                                                 ((data[2].toInt() and 0xFF) shl 8) or
                                                 (data[3].toInt() and 0xFF)
-                                    
+
                                     if (magic != UDP_PACKET_MAGIC) continue
-                                    
+
                                     val payloadLength = ((data[4].toInt() and 0xFF) shl 24) or
                                                         ((data[5].toInt() and 0xFF) shl 16) or
                                                         ((data[6].toInt() and 0xFF) shl 8) or
                                                         (data[7].toInt() and 0xFF)
-                                    
+
                                     if (payloadLength <= 0 || payloadLength > length - 8) continue
-                                    
+
                                     val payload = data.copyOfRange(8, 8 + payloadLength)
                                     val wrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), payload)
-                                    
+
                                     if (wrapper.audioPlayback != null && enableSpeakerMode) {
-                                        playbackChannel.send(wrapper.audioPlayback)
+                                        playbackChannel.trySend(wrapper.audioPlayback)
                                     }
+                                } catch (e: java.net.SocketTimeoutException) {
+                                    // Normal — soTimeout allows periodic cancellation check
                                 } catch (e: Exception) {
-                                    if (isActive && !isNormalDisconnect(e) && e !is java.net.SocketTimeoutException) {
+                                    if (isActive && !isNormalDisconnect(e)) {
                                         Logger.w("AudioEngine", "UDP receive error: ${e.message}")
                                     }
                                 }
@@ -563,7 +566,7 @@ actual class AudioEngine actual constructor() {
                                             }
                                             
                                             if (wrapper.audioPlayback != null && enableSpeakerMode) {
-                                                playbackChannel.send(wrapper.audioPlayback)
+                                                playbackChannel.trySend(wrapper.audioPlayback)
                                             }
                                         } catch (e: Exception) {
                                             Logger.e("AudioEngine", "Error decoding incoming message", e)
@@ -582,12 +585,6 @@ actual class AudioEngine actual constructor() {
                         // Use read buffer sized to avoid IP fragmentation on WiFi
                         // Path MTU = 1500, minus IP(20)+UDP(8)+header(8)+ProtoBuf(~30) ≈ 1434 safe payload
                         val udpSafePayloadSize = 1400
-                        val androidAudioFormat = when(audioFormat) {
-                            com.lanrhyme.micyou.AudioFormat.PCM_8BIT -> AudioFormat.ENCODING_PCM_8BIT
-                            com.lanrhyme.micyou.AudioFormat.PCM_16BIT -> AudioFormat.ENCODING_PCM_16BIT
-                            com.lanrhyme.micyou.AudioFormat.PCM_FLOAT -> AudioFormat.ENCODING_PCM_FLOAT
-                            else -> AudioFormat.ENCODING_PCM_16BIT
-                        }
                         val readBufSize = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) {
                             minOf(minBufSize, udpSafePayloadSize).coerceAtLeast(256)
                         } else {

@@ -3,8 +3,7 @@ package com.lanrhyme.micyou.audio
 import com.lanrhyme.micyou.Logger
 import com.lanrhyme.micyou.platform.wasapi.*
 import com.sun.jna.Pointer
-import com.sun.jna.platform.win32.COM.COMUtils
-import com.sun.jna.platform.win32.Guid
+import com.sun.jna.platform.win32.Guid.GUID
 import com.sun.jna.platform.win32.Ole32
 import com.sun.jna.platform.win32.WinNT
 import com.sun.jna.ptr.IntByReference
@@ -100,16 +99,14 @@ class WindowsLoopbackCapture : LoopbackCapture {
             if (hr.toInt() < 0) throw Exception("Failed to get mix format: $hr")
             pFormat = pFormatRef.value
             
-            val waveFormat = WAVEFORMATEX()
-            waveFormat.useMemory(pFormat)
+            val waveFormat = WAVEFORMATEX(pFormat)
             waveFormat.read()
             
             var bits = waveFormat.wBitsPerSample.toInt()
             var isFloat = false
 
             if (waveFormat.wFormatTag.toInt() == 0xFFFE) { // WAVE_FORMAT_EXTENSIBLE
-                val extFormat = WAVEFORMATEXTENSIBLE()
-                extFormat.useMemory(pFormat)
+                val extFormat = WAVEFORMATEXTENSIBLE(pFormat)
                 extFormat.read()
                 bits = extFormat.Format.wBitsPerSample.toInt()
                 if (extFormat.SubFormat == WASAPIConstants.KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) {
