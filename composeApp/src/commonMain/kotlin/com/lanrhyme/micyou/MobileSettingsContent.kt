@@ -797,6 +797,22 @@ private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeSta
         )
     }
 
+    // 回声消除 (AEC)
+    items.add { isFirst, isLast ->
+        ExpressiveSettingsSwitchItem(
+            title = stringResource(Res.string.enableAECLabel),
+            description = stringResource(Res.string.enableAECDesc),
+            checked = state.enableAEC,
+            onCheckedChange = { viewModel.setEnableAEC(it) },
+            enabled = manualSettingsEnabled,
+            isFirst = isFirst,
+            isLast = isLast,
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
+        )
+    }
+
     // 渲染设置项
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         items.forEachIndexed { index, item ->

@@ -362,6 +362,8 @@
     <string name="audioSourceVoiceCommunication">VOICE_COMMUNICATION (VoIP优化) 喵~</string>
     <string name="audioSourceVoicePerformance">VOICE_PERFORMANCE (低延迟) 喵~</string>
     <string name="audioSourceVoiceRecognition">VOICE_RECOGNITION (语音识别) 喵~</string>
+    <string name="enableAECLabel">回声消除喵~</string>
+    <string name="enableAECDesc">当手机作为扬声器使用时消除回声喵~需要VOICE_COMMUNICATION音频源喵~</string>
     <string name="audioStreamingService">音频流服务喵~</string>
     <string name="connectionChannelClosed">连接通道已关闭喵~</string>
     <string name="connectionDisconnected">连接意外关闭了喵：远程设备断开了连接。</string>

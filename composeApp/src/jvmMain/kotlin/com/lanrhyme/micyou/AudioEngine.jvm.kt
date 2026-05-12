@@ -317,6 +317,10 @@ actual class AudioEngine actual constructor() {
         audioOutputManager.setMonitoring(enabled)
     }
 
+    actual fun setAEC(enabled: Boolean) {
+        // Not supported on JVM
+    }
+
     actual fun setStreamingNotificationEnabled(enabled: Boolean) {
     }
 

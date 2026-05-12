@@ -362,6 +362,8 @@
     <string name="audioSourceVoiceCommunication">VOICE_COMMUNICATION (VoIP最佳化)</string>
     <string name="audioSourceVoicePerformance">VOICE_PERFORMANCE (低延遲)</string>
     <string name="audioSourceVoiceRecognition">VOICE_RECOGNITION (語音辨識)</string>
+    <string name="enableAECLabel">回聲消除</string>
+    <string name="enableAECDesc">當手機作為揚聲器使用時消除回聲。需要VOICE_COMMUNICATION音訊源。</string>
     <string name="audioStreamingService">音訊串流服務</string>
     <string name="connectionChannelClosed">連線通道已閂咗。</string>
     <string name="connectionDisconnected">連線意外斷開：遠端裝置斷開咗連線。</string>

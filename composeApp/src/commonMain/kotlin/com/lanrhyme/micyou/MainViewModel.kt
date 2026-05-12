@@ -75,6 +75,7 @@ data class AppUiState(
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
     val androidAudioSourceName: String = "Unprocessed",
+    val enableAEC: Boolean = false,
     val audioConfigRevision: Int = 0,
     
     // Settings State
@@ -381,6 +382,7 @@ class MainViewModel : ViewModel() {
     fun setEnableNS(enabled: Boolean) = audioStreamViewModel.setEnableNS(enabled)
     fun setNsType(type: NoiseReductionType) = audioStreamViewModel.setNsType(type)
     fun setEnableAGC(enabled: Boolean) = audioStreamViewModel.setEnableAGC(enabled)
+    fun setEnableAEC(enabled: Boolean) = audioStreamViewModel.setEnableAEC(enabled)
     fun setAgcTargetLevel(level: Int) = audioStreamViewModel.setAgcTargetLevel(level)
     fun setEnableVAD(enabled: Boolean) = audioStreamViewModel.setEnableVAD(enabled)
     fun setVadThreshold(threshold: Int) = audioStreamViewModel.setVadThreshold(threshold)

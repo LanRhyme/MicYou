@@ -4,6 +4,7 @@ import android.content.Intent
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import io.ktor.network.selector.SelectorManager
@@ -145,10 +146,13 @@ actual class AudioEngine actual constructor() {
     @Volatile
     private var enableAGC: Boolean = false
     @Volatile
+    private var enableAEC: Boolean = false
+    @Volatile
     private var audioSource: AndroidAudioSource = AndroidAudioSource.Mic
 
     private var noiseSuppressor: NoiseSuppressor? = null
     private var automaticGainControl: AutomaticGainControl? = null
+    private var acousticEchoCanceler: AcousticEchoCanceler? = null
 
     private var savedIp: String = ""
     private var savedPort: Int = 0
@@ -161,6 +165,16 @@ actual class AudioEngine actual constructor() {
     private val CHECK_1 = "MicYouCheck1"
     private val CHECK_2 = "MicYouCheck2"
 
+    actual fun setAEC(enabled: Boolean) {
+        this.enableAEC = enabled
+        try {
+            acousticEchoCanceler?.enabled = enabled
+            Logger.d("AudioEngine", "AEC effect ${if (enabled) "enabled" else "disabled"}")
+        } catch (e: Exception) {
+            Logger.e("AudioEngine", "Error toggling AEC effect: ${e.message}")
+        }
+    }
+
     actual suspend fun start(
         ip: String, 
         port: Int, 
@@ -171,7 +185,7 @@ actual class AudioEngine actual constructor() {
         audioFormat: com.lanrhyme.micyou.AudioFormat
     ) {
         if (!isClient) return
-        Logger.i("AudioEngine", "Starting Android AudioEngine: mode=$mode, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}")
+        Logger.i("AudioEngine", "Starting Android AudioEngine: mode=$mode, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}, AEC=$enableAEC")
         _lastError.value = null
 
         savedIp = ip
@@ -225,8 +239,12 @@ actual class AudioEngine actual constructor() {
                         }
 
                         try {
-                            val sourceId = audioSource.sourceId
-                            Logger.d("AudioEngine", "Initializing AudioRecord with source ${audioSource.name} (id=$sourceId)")
+                            val sourceId = if (enableAEC) {
+                                MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                            } else {
+                                audioSource.sourceId
+                            }
+                            Logger.d("AudioEngine", "Initializing AudioRecord with source id=$sourceId (AEC=$enableAEC)")
                             recorder = try {
                                 AudioRecord(
                                     sourceId,
@@ -236,7 +254,7 @@ actual class AudioEngine actual constructor() {
                                     minBufSize * 3
                                 )
                             } catch (e: Exception) {
-                                Logger.w("AudioEngine", "${audioSource.name} failed, falling back to MIC: ${e.message}")
+                                Logger.w("AudioEngine", "Source $sourceId failed, falling back to MIC: ${e.message}")
                                 AudioRecord(
                                     MediaRecorder.AudioSource.MIC,
                                     androidSampleRate,
@@ -275,6 +293,14 @@ actual class AudioEngine actual constructor() {
                                 Logger.d("AudioEngine", "AutomaticGainControl initialized, enabled=$enableAGC")
                             } else {
                                 Logger.d("AudioEngine", "AutomaticGainControl not available")
+                            }
+
+                            if (AcousticEchoCanceler.isAvailable()) {
+                                acousticEchoCanceler = AcousticEchoCanceler.create(recorder.audioSessionId)
+                                acousticEchoCanceler?.enabled = enableAEC
+                                Logger.d("AudioEngine", "AcousticEchoCanceler initialized, enabled=$enableAEC")
+                            } else {
+                                Logger.d("AudioEngine", "AcousticEchoCanceler not available")
                             }
                         } catch (e: Exception) {
                              Logger.w("AudioEngine", "Failed to initialize audio effects: ${e.message}")
@@ -508,8 +534,10 @@ actual class AudioEngine actual constructor() {
                         try {
                             noiseSuppressor?.release()
                             automaticGainControl?.release()
+                            acousticEchoCanceler?.release()
                             noiseSuppressor = null
                             automaticGainControl = null
+                            acousticEchoCanceler = null
                             
                             sendChannel?.close()
                             recorder?.stop()

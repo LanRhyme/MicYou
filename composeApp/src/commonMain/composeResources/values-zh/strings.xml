@@ -69,7 +69,10 @@
     <string name="dynamicColorActiveHint">当前正在使用系统动态颜色</string>
     <string name="dynamicColorEnabledHint">动态取色已启用</string>
     <string name="enableAgcLabel">自动增益控制 (AGC)</string>
-    <string name="enableDereverbLabel">去混响 (Dereverb)</string>
+    <string name="enableAECLabel">回声消除 (AEC)</string>
+    <string name="enableAECDesc">当手机作为扬声器使用时消除回声。需要使用 VOICE_COMMUNICATION 音频源。</string>
+    <string name="enableDereverbLabel">去混响</string>
+
     <string name="enableHazeEffectDesc">为卡片添加毛玻璃模糊效果</string>
     <string name="enableHazeEffectLabel">毛玻璃效果</string>
     <string name="enableNsLabel">降噪 (Noise Suppression)</string>
@@ -363,6 +366,8 @@
     <string name="audioSourceVoiceCommunication">VOICE_COMMUNICATION (VoIP优化)</string>
     <string name="audioSourceVoicePerformance">VOICE_PERFORMANCE (低延迟)</string>
     <string name="audioSourceVoiceRecognition">VOICE_RECOGNITION (语音识别)</string>
+    <string name="enableAECLabel">回声消除</string>
+    <string name="enableAECDesc">当手机作为扬声器使用时消除回声。需要VOICE_COMMUNICATION音频源。</string>
     <string name="audioStreamingService">音频流服务</string>
     <string name="connectionChannelClosed">连接通道已关闭。</string>
     <string name="connectionDisconnected">连接意外关闭：远程设备断开了连接。</string>

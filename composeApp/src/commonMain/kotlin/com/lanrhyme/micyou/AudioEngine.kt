@@ -49,6 +49,9 @@ expect class AudioEngine() {
     // 设置是否启用本地监听（仅桌面端有效）
     fun setMonitoring(enabled: Boolean)
 
+    // 设置是否启用 AEC（仅 Android 端有效）
+    fun setAEC(enabled: Boolean)
+
     // 安装驱动进度（仅桌面端有效）
     val installProgress: Flow<String?>
     // 安装驱动（仅桌面端有效）

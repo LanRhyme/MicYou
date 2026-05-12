@@ -18,6 +18,8 @@
     <string name="audioSourceVoiceCommunication">VOICE_COMMUNICATION (VoIP Optimized)</string>
     <string name="audioSourceVoicePerformance">VOICE_PERFORMANCE (Low Latency)</string>
     <string name="audioSourceVoiceRecognition">VOICE_RECOGNITION (Speech Recognition)</string>
+    <string name="enableAECLabel">Acoustic Echo Cancellation</string>
+    <string name="enableAECDesc">Cancel echo when using phone as speaker. Requires VOICE_COMMUNICATION source.</string>
     <string name="audioStreamingService">Audio Streaming Service</string>
     <string name="autoCheckUpdateDesc">Automatically check for new versions on app launch</string>
     <string name="autoCheckUpdateLabel">Auto Check for Updates</string>
@@ -86,6 +88,8 @@
     <string name="dynamicColorActiveHint">Currently using system dynamic color</string>
     <string name="dynamicColorEnabledHint">Dynamic color is enabled</string>
     <string name="enableAgcLabel">AGC</string>
+    <string name="enableAecLabel">AEC (Echo Cancellation)</string>
+    <string name="enableAecDesc">Reduce echo from speakers when using as a microphone (Hardware AEC)</string>
     <string name="enableDereverbLabel">De-reverb</string>
     <string name="enableHazeEffectDesc">Add frosted glass blur effect to cards</string>
     <string name="enableHazeEffectLabel">Frosted Glass Effect</string>

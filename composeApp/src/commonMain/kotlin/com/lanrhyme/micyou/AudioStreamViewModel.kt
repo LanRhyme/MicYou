@@ -41,6 +41,7 @@ data class AudioStreamUiState(
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
     val androidAudioSourceName: String = "Unprocessed",
+    val enableAEC: Boolean = false,
     val audioConfigRevision: Int = 0,
 
     // Performance Settings
@@ -130,6 +131,7 @@ class AudioStreamViewModel : ViewModel() {
     val savedNSType = try { NoiseReductionType.valueOf(savedNSTypeName) } catch(e: Exception) { NoiseReductionType.Ulunas }
     val savedAGC = settings.getBoolean("enable_agc", false)
     val savedAGCTarget = settings.getInt("agc_target", 32000)
+    val savedAEC = settings.getBoolean("enable_aec", false)
     val savedVAD = settings.getBoolean("enable_vad", false)
     val savedVADThreshold = settings.getInt("vad_threshold", 10)
     val savedDereverb = settings.getBoolean("enable_dereverb", false)
@@ -485,6 +487,12 @@ class AudioStreamViewModel : ViewModel() {
         _uiState.update { it.copy(enableAGC = enabled) }
         settings.putBoolean("enable_agc", enabled)
         updateAudioEngineConfig()
+    }
+
+    fun setEnableAEC(enabled: Boolean) {
+        _uiState.update { it.copy(enableAEC = enabled) }
+        settings.putBoolean("enable_aec", enabled)
+        _audioEngine.setAEC(enabled)
     }
     
     fun setAgcTargetLevel(level: Int) {
