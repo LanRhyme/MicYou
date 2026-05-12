@@ -95,7 +95,7 @@ class WindowsLoopbackCapture : LoopbackCapture {
             hr = pAudioClient.Initialize(
                 WASAPIConstants.AUDCLNT_SHAREMODE_SHARED,
                 WASAPIConstants.AUDCLNT_STREAMFLAGS_LOOPBACK,
-                0, 0, pFormat, null
+                0L, 0L, pFormat, null
             )
             if (hr.toInt() < 0) throw Exception("Failed to initialize AudioClient: $hr")
 
@@ -129,13 +129,18 @@ class WindowsLoopbackCapture : LoopbackCapture {
             
             pAudioClient.Stop()
             
+            // Explicit Release
+            pCaptureClient.Release()
+            pAudioClient.Release()
+            pDevice.Release()
+            pEnumerator.Release()
+            Ole32.INSTANCE.CoTaskMemFree(pFormat)
+            
         } catch (e: Exception) {
             Logger.e("WindowsLoopback", "Error: ${e.message}")
             throw e
         } finally {
             if (comInitialized) {
-                // We should ideally release COM objects here, but JNA Unknown's Release 
-                // is handled via finalizers usually. For a long-running app, manual Release is better.
                 Ole32.INSTANCE.CoUninitialize()
             }
         }

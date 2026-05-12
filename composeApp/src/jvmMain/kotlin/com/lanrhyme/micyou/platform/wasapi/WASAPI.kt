@@ -49,7 +49,7 @@ class IAudioClient(p: Pointer) : Unknown(p) {
     }
 
     fun GetBufferSize(pNumBufferFrames: IntByReference): WinNT.HRESULT {
-        return _invokeNativeObject(7, arrayOf(this.pointer, pNumBufferFrames), WinNT.HRESULT::class.java) as WinNT.HRESULT
+        return _invokeNativeObject(4, arrayOf(this.pointer, pNumBufferFrames), WinNT.HRESULT::class.java) as WinNT.HRESULT
     }
 
     fun GetService(riid: WinNT.GUID, ppv: PointerByReference): WinNT.HRESULT {

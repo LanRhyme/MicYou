@@ -20,6 +20,7 @@ import javax.sound.sampled.TargetDataLine
 class MacOSLoopbackCapture : LoopbackCapture {
 
     private var job: Job? = null
+    @Volatile
     private var targetDataLine: TargetDataLine? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 

@@ -55,7 +55,7 @@ class LoopbackManager(
                     sampleRate = captureFormat.sampleRate,
                     channelCount = captureFormat.channelCount,
                     audioFormat = protocolFormat,
-                    seqNum = seqNum++
+                    sequenceNumber = (seqNum++).toInt()
                 )
                 onCapturedData(message)
             }

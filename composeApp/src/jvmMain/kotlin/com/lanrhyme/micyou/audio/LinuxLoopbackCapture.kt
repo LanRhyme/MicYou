@@ -9,7 +9,7 @@ import java.io.InputStream
 
 class LinuxLoopbackCapture : LoopbackCapture {
     private var job: Job? = null
-    private var process: Process? = null
+    @Volatile private var process: Process? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
     private val _capturedData = MutableSharedFlow<ByteArray>(extraBufferCapacity = 64)
@@ -33,17 +33,33 @@ class LinuxLoopbackCapture : LoopbackCapture {
                 val monitorSource = findMonitorSource() ?: "auto"
                 Logger.i("LinuxLoopback", "Starting capture from source: $monitorSource")
 
-                // We'll use 'parec' (PulseAudio) or 'pw-record' (PipeWire)
-                // parec --format=s16le --rate=44100 --channels=2 --device=...
-                val command = listOf(
-                    "parec",
-                    "--format=s16le",
-                    "--rate=$sampleRate",
-                    "--channels=$channelCount",
-                    "--device=$monitorSource"
+                // We'll try 'parec' (PulseAudio) first, then fallback to 'pw-record' (PipeWire)
+                val commands = listOf(
+                    listOf("parec", "--format=s16le", "--rate=$sampleRate", "--channels=$channelCount", "--device=$monitorSource"),
+                    listOf("pw-record", "--format=s16", "--rate=$sampleRate", "--channels=$channelCount", "--target=$monitorSource")
                 )
 
-                process = ProcessBuilder(command).start()
+                var started = false
+                for (command in commands) {
+                    try {
+                        val p = ProcessBuilder(command).start()
+                        // Check if it immediately exited
+                        delay(200)
+                        if (p.isAlive) {
+                            process = p
+                            started = true
+                            Logger.i("LinuxLoopback", "Successfully started capture with ${command[0]}")
+                            break
+                        } else {
+                            p.destroy()
+                        }
+                    } catch (e: Exception) {
+                        Logger.w("LinuxLoopback", "Failed to start ${command[0]}: ${e.message}")
+                    }
+                }
+
+                if (!started) throw Exception("Failed to start any capture tool (parec/pw-record)")
+
                 val inputStream = process?.inputStream ?: throw Exception("Failed to open process input stream")
 
                 val buffer = ByteArray(4096)
