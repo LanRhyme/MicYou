@@ -948,22 +948,21 @@
                             this.stopStreaming();
                         };
 
-                        const self = this;
-                        this.workletNode.port.onmessage = function (e) {
-                            if (self.ws && self.ws.readyState === WebSocket.OPEN) {
+                        this.workletNode.port.onmessage = (e) => {
+                            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                                 const inputData = e.data;
-                                if (self.isMuted) {
+                                if (this.isMuted) {
                                     const silentData = new Float32Array(inputData.length);
-                                    self.ws.send(silentData.buffer);
+                                    this.ws.send(silentData.buffer);
                                 } else {
-                                    self.ws.send(inputData.buffer);
+                                    this.ws.send(inputData.buffer);
                                 }
                                 let sum = 0;
                                 for (let i = 0; i < inputData.length; i++) {
                                     sum += inputData[i] * inputData[i];
                                 }
                                 const rms = Math.sqrt(sum / inputData.length);
-                                self.audioLevel = Math.min(100, rms * 500);
+                                this.audioLevel = Math.min(100, rms * 500);
                             }
                         };
 
