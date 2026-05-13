@@ -5,7 +5,7 @@ import kotlinx.coroutines.delay
 
 class PlaybackJitterBuffer(
     private val capacity: Int = 512,
-    private val minPrebuffer: Int = 15 // ~40-60ms prebuffer at 1024-byte chunks
+    private val minPrebuffer: Int = 20 // ~100-200ms prebuffer to absorb WiFi jitter
 ) {
     private val queue = PriorityQueue<AudioPlaybackMessage>(capacity) { a, b ->
         a.sequenceNumber.compareTo(b.sequenceNumber)
@@ -17,17 +17,17 @@ class PlaybackJitterBuffer(
     fun push(packet: AudioPlaybackMessage) {
         synchronized(lock) {
             if (!buffering && lastSeq != -1 && packet.sequenceNumber <= lastSeq) {
-                // Drop late packets
+                // Drop late packets that we've already passed
                 return
             }
-            
+
             // Deduplicate
             if (queue.any { it.sequenceNumber == packet.sequenceNumber }) {
                 return
             }
 
             queue.offer(packet)
-            
+
             // Drop oldest if we exceed capacity
             if (queue.size > capacity) {
                 queue.poll()
@@ -55,6 +55,8 @@ class PlaybackJitterBuffer(
                         if (lastSeq != -1 && nextPacket.sequenceNumber > lastSeq + 1) {
                             // Missing packet! Inject a silent frame to maintain audio clock sync.
                             // This is CRITICAL for AEC reference signal stability.
+                            // The prebuffer should absorb most out-of-order delivery;
+                            // any remaining gaps are real losses.
                             val missingSeq = lastSeq + 1
                             lastSeq = missingSeq
                             injectSilence = true
@@ -75,14 +77,14 @@ class PlaybackJitterBuffer(
                     }
                 }
             }
-            
+
             if (injectSilence && silencePacket != null) {
                 return silencePacket!!
             }
             if (result != null) {
                 return result!!
             }
-            
+
             // Wait for network
             delay(2)
         }

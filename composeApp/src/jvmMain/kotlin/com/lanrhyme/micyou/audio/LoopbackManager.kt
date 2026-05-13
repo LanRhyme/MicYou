@@ -36,6 +36,8 @@ class LoopbackManager(
         if (capture.isActive) return
         
         Logger.i("LoopbackManager", "Starting loopback capture...")
+        // Reset sequence number for each new capture session
+        seqNum = 0
         // WASAPI Mix Format is usually 48000Hz Stereo. We'll let the implementation report its format.
         capture.start(48000, 2)
         
@@ -50,22 +52,18 @@ class LoopbackManager(
                     else -> com.lanrhyme.micyou.AudioFormat.PCM_16BIT.value
                 }
                 
-                // Chunk the data to avoid UDP IP fragmentation over WiFi
-                val maxChunkSize = 1024
-                var offset = 0
-                while (offset < data.size) {
-                    val chunkSize = minOf(maxChunkSize, data.size - offset)
-                    val chunk = data.copyOfRange(offset, offset + chunkSize)
-                    val message = AudioPlaybackMessage(
-                        buffer = chunk,
-                        sampleRate = captureFormat.sampleRate,
-                        channelCount = captureFormat.channelCount,
-                        audioFormat = protocolFormat,
-                        sequenceNumber = (seqNum++).toInt()
-                    )
-                    onCapturedData(message)
-                    offset += chunkSize
-                }
+                // Send the full WASAPI buffer as one packet (~3840 bytes for 48kHz stereo float).
+                // Previous 1024-byte chunking caused ~375 packets/sec which overwhelmed WiFi and
+                // caused burst packet loss. One packet per capture (~93/sec) is much more reliable
+                // even with IP fragmentation on local networks.
+                val message = AudioPlaybackMessage(
+                    buffer = data,
+                    sampleRate = captureFormat.sampleRate,
+                    channelCount = captureFormat.channelCount,
+                    audioFormat = protocolFormat,
+                    sequenceNumber = (seqNum++).toInt()
+                )
+                onCapturedData(message)
             }
         }
     }

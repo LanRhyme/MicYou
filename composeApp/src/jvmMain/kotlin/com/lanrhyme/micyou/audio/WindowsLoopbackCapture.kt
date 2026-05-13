@@ -161,7 +161,7 @@ class WindowsLoopbackCapture : LoopbackCapture {
                             ByteArray(dataSize) // Return silence
                         }
                         _capturedData.emit(data)
-                        if (logCounter++ % 100 == 0) {
+                        if (logCounter++ % 6000 == 0) {
                             Logger.d("WindowsLoopback", "Captured packet: frames=$numFrames, size=$dataSize, silent=$isSilent")
                         }
                         pCaptureClient.ReleaseBuffer(numFrames)

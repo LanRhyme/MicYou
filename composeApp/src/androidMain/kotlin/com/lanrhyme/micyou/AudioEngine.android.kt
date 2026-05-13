@@ -176,29 +176,45 @@ actual class AudioEngine actual constructor() {
     private val CHECK_2 = "MicYouCheck2"
 
     actual fun setAEC(enabled: Boolean) {
+        val changed = this.enableAEC != enabled
         this.enableAEC = enabled
         try {
-            acousticEchoCanceler?.enabled = enabled
-            
+            if (acousticEchoCanceler != null) {
+                acousticEchoCanceler!!.enabled = enabled
+                Logger.d("AudioEngine", "AEC effect ${if (enabled) "enabled" else "disabled"}, hasControl=${acousticEchoCanceler!!.hasControl()}")
+            } else if (enabled) {
+                Logger.w("AudioEngine", "AEC enabled but AcousticEchoCanceler is null - effect not available")
+            }
+
             val context = ContextHelper.getContext()
             val audioManager = context?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
             if (isRunning) {
                 if (enabled) {
                     audioManager?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
                     audioManager?.isSpeakerphoneOn = true
+                    audioManager?.isBluetoothScoOn = false
                 } else {
                     audioManager?.mode = android.media.AudioManager.MODE_NORMAL
                     audioManager?.isSpeakerphoneOn = false
                 }
             }
-            
-            Logger.d("AudioEngine", "AEC effect ${if (enabled) "enabled" else "disabled"}")
         } catch (e: Exception) {
             Logger.e("AudioEngine", "Error toggling AEC effect: ${e.message}")
         }
+
+        // AEC requires VOICE_COMMUNICATION audio source to work properly.
+        // Restart the stream so that the AudioRecord is recreated with the correct source.
+        if (changed && isRunning && _state.value == StreamState.Streaming) {
+            Logger.i("AudioEngine", "AEC changed, restarting audio stream...")
+            CoroutineScope(Dispatchers.IO).launch {
+                stop()
+                delay(500)
+                start(savedIp, savedPort, savedMode, true, savedSampleRate, savedChannelCount, savedAudioFormat)
+            }
+        }
     }
 
-    private val jitterBuffer = PlaybackJitterBuffer(capacity = 256, minPrebuffer = 12)
+    private val jitterBuffer = PlaybackJitterBuffer(capacity = 256, minPrebuffer = 20)
 
     actual fun setSpeakerMode(enabled: Boolean) {
         if (this.isSpeakerModeActive != enabled) {
@@ -239,6 +255,12 @@ actual class AudioEngine actual constructor() {
         Logger.i("AudioEngine", "Starting Android AudioEngine: mode=$mode, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}, AEC=$enableAEC")
         _lastError.value = null
 
+        // Clear JitterBuffer BEFORE starting to ensure stale lastSeq from a previous
+        // session doesn't cause all new packets (starting from seq=0) to be dropped.
+        // This is critical: stop() doesn't wait for the old coroutine's cleanup, so
+        // jitterBuffer.clear() in the finally block may not have run yet.
+        jitterBuffer.clear()
+
         savedIp = ip
         savedPort = port
         savedMode = mode
@@ -271,17 +293,31 @@ actual class AudioEngine actual constructor() {
                         audioTrack?.release()
                         audioTrack = null
 
-                        val androidSampleRate = sampleRate.value
-                        val androidChannelConfig = if (channelCount == ChannelCount.Stereo) 
-                            AudioFormat.CHANNEL_IN_STEREO 
-                        else 
+                        // When AEC is enabled, override the audio format to 16kHz mono 16-bit PCM.
+                        // Android's AcousticEchoCanceler is designed for the VOICE_COMMUNICATION
+                        // audio path, which on most devices operates at 16kHz mono. Using 48kHz
+                        // stereo float with VOICE_COMMUNICATION causes the AEC to silently fail
+                        // on many devices because the internal voice path doesn't support those
+                        // parameters.
+                        var aecOverride = false
+                        var androidSampleRate = sampleRate.value
+                        var androidChannelConfig = if (channelCount == ChannelCount.Stereo)
+                            AudioFormat.CHANNEL_IN_STEREO
+                        else
                             AudioFormat.CHANNEL_IN_MONO
-                            
-                        val androidAudioFormat = when(audioFormat) {
+                        var androidAudioFormat = when(audioFormat) {
                             com.lanrhyme.micyou.AudioFormat.PCM_8BIT -> AudioFormat.ENCODING_PCM_8BIT
                             com.lanrhyme.micyou.AudioFormat.PCM_16BIT -> AudioFormat.ENCODING_PCM_16BIT
                             com.lanrhyme.micyou.AudioFormat.PCM_FLOAT -> AudioFormat.ENCODING_PCM_FLOAT
                             else -> AudioFormat.ENCODING_PCM_16BIT
+                        }
+
+                        if (enableAEC && (androidSampleRate != 16000 || androidChannelConfig != AudioFormat.CHANNEL_IN_MONO || androidAudioFormat != AudioFormat.ENCODING_PCM_16BIT)) {
+                            Logger.i("AudioEngine", "AEC enabled: overriding audio format from ${androidSampleRate}Hz/${if(androidChannelConfig == AudioFormat.CHANNEL_IN_STEREO) "stereo" else "mono"}/${androidAudioFormat} to 16000Hz/mono/16bit for voice call path compatibility")
+                            androidSampleRate = 16000
+                            androidChannelConfig = AudioFormat.CHANNEL_IN_MONO
+                            androidAudioFormat = AudioFormat.ENCODING_PCM_16BIT
+                            aecOverride = true
                         }
     val minBufSize = AudioRecord.getMinBufferSize(androidSampleRate, androidChannelConfig, androidAudioFormat)
 
@@ -294,12 +330,27 @@ actual class AudioEngine actual constructor() {
                         }
 
                         try {
+                            // Set AudioManager mode BEFORE creating AudioRecord.
+                            // Some devices require MODE_IN_COMMUNICATION to be active when
+                            // the AudioRecord is initialized, otherwise AEC won't work.
+                            val context = ContextHelper.getContext()
+                            val audioManager = context?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+                            if (enableAEC) {
+                                audioManager?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                                audioManager?.isSpeakerphoneOn = true
+                                audioManager?.isBluetoothScoOn = false
+                                Logger.i("AudioEngine", "AudioManager set to MODE_IN_COMMUNICATION + speakerphone ON + bluetooth SCO OFF")
+                            } else {
+                                audioManager?.mode = android.media.AudioManager.MODE_NORMAL
+                                audioManager?.isSpeakerphoneOn = false
+                            }
+
                             val sourceId = if (enableAEC) {
                                 MediaRecorder.AudioSource.VOICE_COMMUNICATION
                             } else {
                                 audioSource.sourceId
                             }
-                            Logger.d("AudioEngine", "Initializing AudioRecord with source id=$sourceId (AEC requested=$enableAEC)")
+                            Logger.i("AudioEngine", "Creating AudioRecord: source=$sourceId (AEC=$enableAEC), rate=$androidSampleRate, ch=$androidChannelConfig, fmt=$androidAudioFormat")
                             recorder = try {
                                 AudioRecord(
                                     sourceId,
@@ -334,13 +385,6 @@ actual class AudioEngine actual constructor() {
                         }
 
                         try {
-                            val context = ContextHelper.getContext()
-                            val audioManager = context?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
-                            if (enableAEC) {
-                                audioManager?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
-                                audioManager?.isSpeakerphoneOn = true
-                            }
-
                             if (NoiseSuppressor.isAvailable()) {
                                 noiseSuppressor = NoiseSuppressor.create(recorder.audioSessionId)
                                 noiseSuppressor?.enabled = enableNS
@@ -352,17 +396,23 @@ actual class AudioEngine actual constructor() {
                             if (AutomaticGainControl.isAvailable()) {
                                 automaticGainControl = AutomaticGainControl.create(recorder.audioSessionId)
                                 automaticGainControl?.enabled = enableAGC
-                                Logger.d("AudioEngine", "AutomaticGainControl initialized, enabled=$enableAGC")
+                                Logger.d("AudioEngine", "AutomaticGainControl initialized, enabled=$enableAGC, sessionId=${recorder.audioSessionId}")
                             } else {
                                 Logger.d("AudioEngine", "AutomaticGainControl not available")
                             }
 
-                            if (AcousticEchoCanceler.isAvailable()) {
-                                acousticEchoCanceler = AcousticEchoCanceler.create(recorder.audioSessionId)
-                                acousticEchoCanceler?.enabled = enableAEC
-                                Logger.d("AudioEngine", "AcousticEchoCanceler initialized, enabled=$enableAEC")
-                            } else {
-                                Logger.d("AudioEngine", "AcousticEchoCanceler not available")
+                            // AEC is NOT created here — it is deferred until the AudioTrack
+                            // starts playing. AcousticEchoCanceler needs the AudioTrack's
+                            // reference signal (playback output) to be active so it can
+                            // correlate it with the microphone input. Creating AEC before
+                            // the AudioTrack exists means the AEC has no reference signal
+                            // and silently fails to cancel echo.
+                            if (enableAEC) {
+                                if (AcousticEchoCanceler.isAvailable()) {
+                                    Logger.i("AudioEngine", "AEC will be created after AudioTrack starts playing (sessionId=${recorder.audioSessionId})")
+                                } else {
+                                    Logger.w("AudioEngine", "AcousticEchoCanceler NOT available on this device - AEC will not work")
+                                }
                             }
                         } catch (e: Exception) {
                              Logger.w("AudioEngine", "Failed to initialize audio effects: ${e.message}")
@@ -386,21 +436,27 @@ actual class AudioEngine actual constructor() {
                         if (mode == ConnectionMode.Wifi) {
                             val udpPort = calculateUdpPort(port)
                             Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
-                            udpSocket = DatagramSocket().also {
-                                it.sendBufferSize = 256 * 1024 // 256KB send buffer
-                                it.receiveBufferSize = 256 * 1024 // 256KB receive buffer
+                            val localUdpSocket = DatagramSocket().also {
+                                it.sendBufferSize = 512 * 1024 // 512KB send buffer
+                                it.receiveBufferSize = 2 * 1024 * 1024 // 2MB receive buffer (match desktop)
                                 it.soTimeout = 1000 // 1s read timeout for responsive cancellation
                                 Logger.d("AudioEngine", "UDP send buffer: ${it.sendBufferSize / 1024}KB, receive buffer: ${it.receiveBufferSize / 1024}KB")
                             }
+                            udpSocket = localUdpSocket
                             udpServerAddress = InetSocketAddress(targetIp, udpPort)
                             Logger.i("AudioEngine", "UDP connected to $targetIp:$udpPort")
-                        }
 
-                        closeConnection = {
-                            tcpSocket?.close()
-                            udpSocket?.close()
-                            udpSocket = null
-                            udpServerAddress = null
+                            closeConnection = {
+                                tcpSocket?.close()
+                                // Use captured local reference, NOT the class field.
+                                // If we reference the class field and a new session has
+                                // already started, we'd close the new session's socket.
+                                localUdpSocket.close()
+                            }
+                        } else {
+                            closeConnection = {
+                                tcpSocket?.close()
+                            }
                         }
 
                         // Handshake
@@ -473,7 +529,7 @@ actual class AudioEngine actual constructor() {
                                     if (!isSpeakerModeActive) continue
                                     packetCount++
                                     val now = System.currentTimeMillis()
-                                    if (now - lastLogTime > 1000) {
+                                    if (now - lastLogTime > 60000) {
                                         Logger.d("AudioEngine", "Playing back audio packets. Received $packetCount packets recently. Buffer size: ${playback.buffer.size}, format: ${playback.audioFormat}")
                                         lastLogTime = now
                                         packetCount = 0
@@ -487,32 +543,50 @@ actual class AudioEngine actual constructor() {
                                             else -> AudioFormat.ENCODING_PCM_16BIT
                                         }
 
-                                        // Check if we need to (re)initialize the AudioTrack
-                                        val needsReinit = currentTrack == null ||
-                                                          currentTrack.sampleRate != playback.sampleRate ||
-                                                          currentTrack.audioFormat != playbackFormat ||
-                                                          (if (playback.channelCount == 2) currentTrack.channelCount != 2 else currentTrack.channelCount != 1)
+                                        // When AEC is enabled, AudioTrack MUST match AudioRecord format
+                                        // (16kHz mono 16-bit). The AcousticEchoCanceler correlates the
+                                        // reference signal (AudioTrack output) with the captured signal
+                                        // (AudioRecord input). If the formats differ (e.g. 48kHz stereo
+                                        // vs 16kHz mono), the AEC cannot match the signals and silently
+                                        // fails to cancel any echo.
+                                        val targetSampleRate: Int
+                                        val targetChannelConfig: Int
+                                        val targetFormat: Int
 
-                                        if (needsReinit) {
-                                            Logger.i("AudioEngine", "Initializing AudioTrack: rate=${playback.sampleRate}, channels=${playback.channelCount}, format=$playbackFormat")
-                                            currentTrack?.stop()
-                                            currentTrack?.release()
-
-                                            val channelConfig = if (playback.channelCount == 2)
+                                        if (enableAEC) {
+                                            targetSampleRate = 16000
+                                            targetChannelConfig = AudioFormat.CHANNEL_OUT_MONO
+                                            targetFormat = AudioFormat.ENCODING_PCM_16BIT
+                                        } else {
+                                            targetSampleRate = playback.sampleRate
+                                            targetChannelConfig = if (playback.channelCount == 2)
                                                 AudioFormat.CHANNEL_OUT_STEREO
                                             else
                                                 AudioFormat.CHANNEL_OUT_MONO
+                                            targetFormat = playbackFormat
+                                        }
 
-                                            val mBufSize = AudioTrack.getMinBufferSize(playback.sampleRate, channelConfig, playbackFormat)
+                                        // Check if we need to (re)initialize the AudioTrack
+                                        val needsReinit = currentTrack == null ||
+                                                          currentTrack.sampleRate != targetSampleRate ||
+                                                          currentTrack.audioFormat != targetFormat ||
+                                                          currentTrack.channelCount != if (targetChannelConfig == AudioFormat.CHANNEL_OUT_STEREO) 2 else 1
+
+                                        if (needsReinit) {
+                                            Logger.i("AudioEngine", "Initializing AudioTrack: rate=$targetSampleRate, channels=${if (targetChannelConfig == AudioFormat.CHANNEL_OUT_STEREO) 2 else 1}, format=$targetFormat (AEC=$enableAEC)")
+                                            currentTrack?.stop()
+                                            currentTrack?.release()
+
+                                            val mBufSize = AudioTrack.getMinBufferSize(targetSampleRate, targetChannelConfig, targetFormat)
                                             currentTrack = AudioTrack.Builder()
                                                 .setAudioAttributes(AudioAttributes.Builder()
                                                     .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                                                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                                                     .build())
                                                 .setAudioFormat(AudioFormat.Builder()
-                                                    .setEncoding(playbackFormat)
-                                                    .setSampleRate(playback.sampleRate)
-                                                    .setChannelMask(channelConfig)
+                                                    .setEncoding(targetFormat)
+                                                    .setSampleRate(targetSampleRate)
+                                                    .setChannelMask(targetChannelConfig)
                                                     .build())
                                                 .setBufferSizeInBytes(mBufSize * 2)
                                                 .setSessionId(recorder?.audioSessionId ?: android.media.AudioManager.AUDIO_SESSION_ID_GENERATE)
@@ -520,9 +594,50 @@ actual class AudioEngine actual constructor() {
                                                 .build()
                                             currentTrack.play()
                                             audioTrack = currentTrack
+
+                                            // Create AEC AFTER AudioTrack starts playing.
+                                            // AcousticEchoCanceler correlates the AudioTrack's playback
+                                            // (reference signal) with the AudioRecord's microphone input.
+                                            // It must be created while both are active in the same session.
+                                            if (enableAEC && acousticEchoCanceler == null && AcousticEchoCanceler.isAvailable()) {
+                                                val recSessionId = recorder?.audioSessionId ?: 0
+                                                val trackSessionId = currentTrack.audioSessionId
+                                                try {
+                                                    acousticEchoCanceler = AcousticEchoCanceler.create(recSessionId)
+                                                    if (acousticEchoCanceler != null) {
+                                                        acousticEchoCanceler!!.enabled = true
+                                                        Logger.i("AudioEngine", "AEC created after AudioTrack play: recordSession=$recSessionId, trackSession=$trackSessionId, hasControl=${acousticEchoCanceler!!.hasControl()}")
+                                                        if (recSessionId != trackSessionId) {
+                                                            Logger.w("AudioEngine", "AEC WARNING: recordSession=$recSessionId != trackSession=$trackSessionId, AEC may not work!")
+                                                        }
+                                                    } else {
+                                                        Logger.w("AudioEngine", "AcousticEchoCanceler.create() returned null after AudioTrack play - device reports available but creation failed")
+                                                    }
+                                                } catch (e: Exception) {
+                                                    Logger.w("AudioEngine", "Failed to create AEC after AudioTrack play: ${e.message}")
+                                                }
+                                            }
+
+                                            // Re-apply audio routing - some devices reset it
+                                            // when a new AudioTrack starts playing.
+                                            if (enableAEC) {
+                                                try {
+                                                    val ctx = ContextHelper.getContext()
+                                                    val am = ctx?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+                                                    am?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                                                    am?.isSpeakerphoneOn = true
+                                                    am?.isBluetoothScoOn = false
+                                                } catch (e: Exception) {
+                                                    Logger.w("AudioEngine", "Failed to re-apply audio routing: ${e.message}")
+                                                }
+                                            }
                                         }
 
-                                        if (playbackFormat == AudioFormat.ENCODING_PCM_FLOAT) {
+                                        // Write audio data, converting format if AEC requires it
+                                        if (enableAEC && (playback.sampleRate != targetSampleRate || playback.channelCount != 1 || playbackFormat != targetFormat)) {
+                                            val converted = convertPlaybackForAec(playback)
+                                            currentTrack.write(converted, 0, converted.size)
+                                        } else if (playbackFormat == AudioFormat.ENCODING_PCM_FLOAT) {
                                             val floatBuffer = FloatArray(playback.buffer.size / 4)
                                             ByteBuffer.wrap(playback.buffer).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(floatBuffer)
                                             currentTrack.write(floatBuffer, 0, floatBuffer.size, AudioTrack.WRITE_BLOCKING)
@@ -725,25 +840,53 @@ actual class AudioEngine actual constructor() {
                     } finally {
                         Logger.d("AudioEngine", "Cleaning up resources")
                         try {
-                            noiseSuppressor?.release()
-                            automaticGainControl?.release()
-                            acousticEchoCanceler?.release()
-                            audioTrack?.stop()
-                            audioTrack?.release()
-                            noiseSuppressor = null
-                            automaticGainControl = null
-                            acousticEchoCanceler = null
-                            audioTrack = null
-                            
-                            sendChannel?.close()
-                            recorder?.stop()
-                            recorder?.release()
+                            // Capture current references to prevent race condition:
+                            // stop() doesn't wait for this finally block to complete,
+                            // so a new start() may have already set these class fields
+                            // to new objects. We must only release the objects we created,
+                            // not the new session's objects.
+                            val capturedNS = noiseSuppressor
+                            val capturedAGC = automaticGainControl
+                            val capturedAEC = acousticEchoCanceler
+                            val capturedTrack = audioTrack
+                            val capturedRecorder = recorder
+                            val capturedSendChannel = sendChannel
+                            val capturedUdpSocket = udpSocket
+
+                            capturedNS?.release()
+                            capturedAGC?.release()
+                            capturedAEC?.release()
+                            capturedTrack?.stop()
+                            capturedTrack?.release()
+                            jitterBuffer.clear()
+
+                            // Null out class fields only if they still point to our objects.
+                            // If a new session has already started, leave the new values intact.
+                            if (noiseSuppressor === capturedNS) noiseSuppressor = null
+                            if (automaticGainControl === capturedAGC) automaticGainControl = null
+                            if (acousticEchoCanceler === capturedAEC) acousticEchoCanceler = null
+                            if (audioTrack === capturedTrack) audioTrack = null
+                            if (recorder === capturedRecorder) recorder = null
+                            if (sendChannel === capturedSendChannel) sendChannel = null
+                            if (udpSocket === capturedUdpSocket) {
+                                udpSocket = null
+                                udpServerAddress = null
+                            }
+
+                            // Reset AudioManager mode
+                            val ctx = ContextHelper.getContext()
+                            val audioManager = ctx?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+                            audioManager?.mode = android.media.AudioManager.MODE_NORMAL
+                            audioManager?.isSpeakerphoneOn = false
+
+                            capturedSendChannel?.close()
+                            capturedRecorder?.stop()
+                            capturedRecorder?.release()
                             closeConnection()
-                            
-                            val context = ContextHelper.getContext()
-                            if (context != null) {
-                                val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
-                                context.startService(intent)
+
+                            if (ctx != null) {
+                                val intent = Intent(ctx, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
+                                ctx.startService(intent)
                             }
                         } catch (e: Exception) {
                             Logger.w("AudioEngine", "Error during cleanup: ${e.message}")
@@ -956,6 +1099,91 @@ actual class AudioEngine actual constructor() {
         val rms = Math.sqrt(sum / sampleCount).toFloat().coerceIn(0f, 1f)
     val peak = maxSample.toFloat().coerceIn(0f, 1f)
         return AudioLevelData.fromRmsAndPeak(rms, peak)
+    }
+
+    /**
+     * Converts playback audio to 16kHz mono 16-bit PCM for AEC compatibility.
+     *
+     * Android's AcousticEchoCanceler requires the AudioTrack (reference signal)
+     * to match the AudioRecord format (16kHz mono 16-bit). This method performs:
+     * 1. Decode input to float samples
+     * 2. Mix stereo to mono
+     * 3. Resample to 16kHz (linear interpolation)
+     * 4. Convert to 16-bit PCM
+     */
+    private fun convertPlaybackForAec(playback: AudioPlaybackMessage): ShortArray {
+        val inputSampleRate = playback.sampleRate
+        val inputChannelCount = playback.channelCount
+        val inputFormat = playback.audioFormat
+        val inputBuffer = playback.buffer
+
+        // Step 1: Decode to float samples (interleaved if stereo)
+        val samplesPerChannel: Int
+        val floatSamples: FloatArray
+
+        when (inputFormat) {
+            com.lanrhyme.micyou.AudioFormat.PCM_FLOAT.value -> {
+                samplesPerChannel = inputBuffer.size / (4 * inputChannelCount)
+                floatSamples = FloatArray(samplesPerChannel * inputChannelCount)
+                ByteBuffer.wrap(inputBuffer).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(floatSamples)
+            }
+            com.lanrhyme.micyou.AudioFormat.PCM_16BIT.value -> {
+                samplesPerChannel = inputBuffer.size / (2 * inputChannelCount)
+                floatSamples = FloatArray(samplesPerChannel * inputChannelCount)
+                for (i in floatSamples.indices) {
+                    val byteIndex = i * 2
+                    val sample = ((inputBuffer[byteIndex].toInt() and 0xFF) or
+                                 (inputBuffer[byteIndex + 1].toInt() shl 8)).toShort()
+                    floatSamples[i] = sample.toFloat() / 32768f
+                }
+            }
+            else -> { // PCM_8BIT
+                samplesPerChannel = inputBuffer.size / inputChannelCount
+                floatSamples = FloatArray(samplesPerChannel * inputChannelCount)
+                for (i in floatSamples.indices) {
+                    floatSamples[i] = ((inputBuffer[i].toInt() and 0xFF) - 128) / 128f
+                }
+            }
+        }
+
+        // Step 2: Mix to mono
+        val monoSamples: FloatArray
+        if (inputChannelCount == 2) {
+            monoSamples = FloatArray(samplesPerChannel)
+            for (i in 0 until samplesPerChannel) {
+                monoSamples[i] = (floatSamples[i * 2] + floatSamples[i * 2 + 1]) / 2f
+            }
+        } else {
+            monoSamples = floatSamples
+        }
+
+        // Step 3: Resample to 16kHz using linear interpolation
+        val outputSamples: FloatArray
+        if (inputSampleRate != 16000) {
+            val ratio = inputSampleRate.toDouble() / 16000.0
+            val outputLength = (monoSamples.size.toDouble() / ratio).toInt().coerceAtLeast(1)
+            outputSamples = FloatArray(outputLength)
+            for (i in 0 until outputLength) {
+                val srcPos = i * ratio
+                val srcIdx = srcPos.toInt()
+                val frac = srcPos - srcIdx
+                if (srcIdx + 1 < monoSamples.size) {
+                    outputSamples[i] = (monoSamples[srcIdx] * (1f - frac.toFloat()) +
+                                        monoSamples[srcIdx + 1] * frac.toFloat())
+                } else if (srcIdx < monoSamples.size) {
+                    outputSamples[i] = monoSamples[srcIdx]
+                }
+            }
+        } else {
+            outputSamples = monoSamples
+        }
+
+        // Step 4: Convert to 16-bit PCM
+        val result = ShortArray(outputSamples.size)
+        for (i in outputSamples.indices) {
+            result[i] = (outputSamples[i] * 32767f).toInt().coerceIn(-32768, 32767).toShort()
+        }
+        return result
     }
 
     actual fun updatePerformanceConfig(config: PerformanceConfig) {

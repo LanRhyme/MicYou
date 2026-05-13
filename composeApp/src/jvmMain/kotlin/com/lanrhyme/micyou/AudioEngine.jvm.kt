@@ -122,9 +122,14 @@ actual class AudioEngine actual constructor() {
                     audioPipeline.reset()
                     startAudioProcessing()
                     startPlaybackSender()
-                } else if (newState == StreamState.Idle || newState == StreamState.Error) {
+                } else {
+                    // Connecting, Idle, or Error — clean up playback pipeline.
+                    // Without this, the playback sender and LoopbackManager keep running
+                    // between client connections, causing stale data in outboundPlaybackChannel
+                    // and UDP packets sent to the old client address on reconnect.
                     stopAudioProcessing()
                     stopPlaybackSender()
+                    loopbackManager.setSpeakerMode(false)
                 }
                 _state.value = newState
             }

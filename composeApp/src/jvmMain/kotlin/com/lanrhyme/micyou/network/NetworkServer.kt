@@ -116,18 +116,10 @@ class NetworkServer(
 
     suspend fun sendAudioPlayback(playback: AudioPlaybackMessage) {
         val handler = udpHandler
-        val now = System.currentTimeMillis()
-        if (handler != null && handler.getStats()?.clientAddress != null) {
-            if (now - lastLogTime > 1000) {
-                Logger.d("NetworkServer", "Sending audio playback via UDP")
-                lastLogTime = now
-            }
+        val clientAddr = handler?.getStats()?.clientAddress
+        if (handler != null && clientAddr != null) {
             handler.sendAudioPlayback(playback)
         } else {
-            if (now - lastLogTime > 1000) {
-                Logger.d("NetworkServer", "Sending audio playback via TCP (fallback)")
-                lastLogTime = now
-            }
             activeHandler?.sendAudioPlayback(playback)
         }
     }
@@ -220,6 +212,15 @@ class NetworkServer(
     ) {
         _state.value = StreamState.Streaming
         _lastError.value = null
+
+        // Reset UDP client address on new TCP connection.
+        // The Android client creates a new DatagramSocket (random port) on each
+        // connection, so the old clientAddress is stale. Setting it to null causes
+        // sendAudioPlayback to fall back to TCP until the first UDP packet from
+        // the new client arrives and updates the address.
+        val oldUdpClient = udpHandler?.getStats()?.clientAddress
+        udpHandler?.resetClientAddress()
+        Logger.i("NetworkServer", "New TCP connection: reset UDP clientAddress (was $oldUdpClient), playback will use TCP until first UDP packet")
 
         val handler = ConnectionHandler(
             input = input,

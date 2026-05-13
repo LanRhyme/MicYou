@@ -46,6 +46,12 @@ class UdpConnectionHandler(
     @Volatile
     private var packetsLost = 0L
 
+    // Log rate limiting
+    @Volatile
+    private var lastLossLogTime = 0L
+    @Volatile
+    private var lastOooLogTime = 0L
+
     // Jitter calculation
     @Volatile
     private var lastTransmitTime = 0L
@@ -78,6 +84,22 @@ class UdpConnectionHandler(
             handlerJob?.join()
         }
         cleanup()
+    }
+
+    /**
+     * Resets the client address. Called when a new TCP connection is established,
+     * so that stale UDP addresses don't cause playback data to be sent to the
+     * wrong port. The address will be updated when the first UDP packet from
+     * the new client arrives.
+     */
+    fun resetClientAddress() {
+        clientAddress = null
+        expectedSequenceNumber = 0
+        packetsReceived = 0L
+        packetsLost = 0L
+        jitter = 0.0
+        lastTransmitTime = 0L
+        lastReceiveTime = 0L
     }
 
     /**
@@ -125,14 +147,21 @@ class UdpConnectionHandler(
 
     private suspend fun runUdpReceiver() {
         try {
-            udpSocket = DatagramSocket(port).also { socket ->
-                // Set receive buffer size for audio stream
-                socket.receiveBufferSize = 2 * 1024 * 1024 // 2MB
-                val actualBufferSize = socket.receiveBufferSize
-                Logger.i("UdpConnectionHandler", "UDP receiver started on port $port, receive buffer: ${actualBufferSize / 1024}KB (requested: 2048KB)")
-                if (actualBufferSize < 512 * 1024) {
-                    Logger.w("UdpConnectionHandler", "UDP receive buffer is smaller than expected (${actualBufferSize / 1024}KB). Consider adjusting OS UDP buffer limits.")
-                }
+            // Use SO_REUSEADDR to allow rebinding if the port is still in TIME_WAIT
+            // from a previous server instance. Without this, restarting the server
+            // quickly causes BindException: Address already in use.
+            val socket = DatagramSocket(null)
+            socket.reuseAddress = true
+            socket.bind(java.net.InetSocketAddress(port))
+            udpSocket = socket
+
+            socket.sendBufferSize = 1 * 1024 * 1024 // 1MB send buffer
+            socket.receiveBufferSize = 2 * 1024 * 1024 // 2MB receive buffer
+            val actualSendBuffer = socket.sendBufferSize
+            val actualBufferSize = socket.receiveBufferSize
+            Logger.i("UdpConnectionHandler", "UDP receiver started on port $port (SO_REUSEADDR=true), send buffer: ${actualSendBuffer / 1024}KB, receive buffer: ${actualBufferSize / 1024}KB")
+            if (actualBufferSize < 512 * 1024) {
+                Logger.w("UdpConnectionHandler", "UDP receive buffer is smaller than expected (${actualBufferSize / 1024}KB). Consider adjusting OS UDP buffer limits.")
             }
     val buffer = ByteArray(Constants.MAX_PACKET_SIZE)
 
@@ -149,10 +178,25 @@ class UdpConnectionHandler(
                 }
     val senderAddress = InetSocketAddress(packet.address, packet.port)
 
-                // Record the first client address
-                if (clientAddress == null) {
+                // Update client address. This is essential for reconnection: the Android
+                // client creates a new DatagramSocket (random port) on each connection,
+                // so the address changes. Without updating, playback data would be sent
+                // to the old (dead) address and never reach the client.
+                val prevAddress = clientAddress
+                if (clientAddress == null || clientAddress != senderAddress) {
                     clientAddress = senderAddress
-                    Logger.i("UdpConnectionHandler", "UDP client connected: ${senderAddress.address.hostAddress}:${senderAddress.port}")
+                    if (prevAddress == null) {
+                        Logger.i("UdpConnectionHandler", "UDP client connected: ${senderAddress.address.hostAddress}:${senderAddress.port}")
+                    } else {
+                        Logger.i("UdpConnectionHandler", "UDP client address changed: ${prevAddress.address.hostAddress}:${prevAddress.port} -> ${senderAddress.address.hostAddress}:${senderAddress.port}")
+                        // Reset sequence tracking for the new client session
+                        expectedSequenceNumber = 0
+                        packetsReceived = 0L
+                        packetsLost = 0L
+                        jitter = 0.0
+                        lastTransmitTime = 0L
+                        lastReceiveTime = 0L
+                    }
                 }
 
                 processUdpPacket(packet.data, packet.offset, packet.length)
@@ -224,12 +268,20 @@ class UdpConnectionHandler(
                             packetsLost += cappedLost
                             expectedSequenceNumber = seqNum
                             packetsReceived++
-                            Logger.d("UdpConnectionHandler", "UDP loss detected: expected $expected, received $seqNum, lost $cappedLost packets")
+                            val now = System.currentTimeMillis()
+                            if (now - lastLossLogTime > 60000) {
+                                Logger.d("UdpConnectionHandler", "UDP loss detected: expected $expected, received $seqNum, lost $cappedLost packets")
+                                lastLossLogTime = now
+                            }
                         } else {
                             // Out-of-order or duplicate packet: do NOT advance expectedSequenceNumber
                             // This prevents cascading false loss detection when UDP delivers packets out of order
                             packetsReceived++
-                            Logger.d("UdpConnectionHandler", "UDP out-of-order packet: expected $expected, received $seqNum (ignored for loss tracking)")
+                            val now = System.currentTimeMillis()
+                            if (now - lastOooLogTime > 60000) {
+                                Logger.d("UdpConnectionHandler", "UDP out-of-order packet: expected $expected, received $seqNum (ignored for loss tracking)")
+                                lastOooLogTime = now
+                            }
                         }
                     } else {
                         expectedSequenceNumber = seqNum
