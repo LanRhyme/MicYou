@@ -41,7 +41,7 @@ class IMMDeviceEnumerator(p: Pointer) : Unknown(p) {
 
 class IMMDevice(p: Pointer) : Unknown(p) {
     fun Activate(iid: GUID, dwClsCtx: Int, pActivationParams: Pointer?, ppInterface: PointerByReference): WinNT.HRESULT {
-        return _invokeNativeObject(3, arrayOf(this.getPointer(), iid, pActivationParams, ppInterface), WinNT.HRESULT::class.java) as WinNT.HRESULT
+        return _invokeNativeObject(3, arrayOf(this.getPointer(), iid, dwClsCtx, pActivationParams, ppInterface), WinNT.HRESULT::class.java) as WinNT.HRESULT
     }
 }
 
@@ -51,7 +51,7 @@ class IAudioClient(p: Pointer) : Unknown(p) {
     }
 
     fun Initialize(shareMode: Int, streamFlags: Int, hnsBufferDuration: Long, hnsPeriodicity: Long, pFormat: Pointer, audioSessionGuid: GUID?): WinNT.HRESULT {
-        return _invokeNativeObject(3, arrayOf(this.getPointer(), shareMode, streamFlags, hnsBufferDuration, hnsPeriodicity, pFormat, audioSessionGuid), WinNT.HRESULT::class.java) as WinNT.HRESULT
+        return _invokeNativeObject(3, arrayOf(this.getPointer(), shareMode, streamFlags, hnsBufferDuration, hnsPeriodicity, pFormat, audioSessionGuid?.getPointer()), WinNT.HRESULT::class.java) as WinNT.HRESULT
     }
 
     fun GetBufferSize(pNumBufferFrames: IntByReference): WinNT.HRESULT {
@@ -59,7 +59,7 @@ class IAudioClient(p: Pointer) : Unknown(p) {
     }
 
     fun GetService(riid: GUID, ppv: PointerByReference): WinNT.HRESULT {
-        return _invokeNativeObject(14, arrayOf(this.getPointer(), riid, ppv), WinNT.HRESULT::class.java) as WinNT.HRESULT
+        return _invokeNativeObject(14, arrayOf(this.getPointer(), riid.getPointer(), ppv), WinNT.HRESULT::class.java) as WinNT.HRESULT
     }
 
     fun Start(): WinNT.HRESULT {
@@ -78,6 +78,10 @@ class IAudioCaptureClient(p: Pointer) : Unknown(p) {
 
     fun ReleaseBuffer(numFramesRead: Int): WinNT.HRESULT {
         return _invokeNativeObject(4, arrayOf(this.getPointer(), numFramesRead), WinNT.HRESULT::class.java) as WinNT.HRESULT
+    }
+
+    fun GetNextPacketSize(pNumFramesInNextPacket: IntByReference): WinNT.HRESULT {
+        return _invokeNativeObject(5, arrayOf(this.getPointer(), pNumFramesInNextPacket), WinNT.HRESULT::class.java) as WinNT.HRESULT
     }
 }
 

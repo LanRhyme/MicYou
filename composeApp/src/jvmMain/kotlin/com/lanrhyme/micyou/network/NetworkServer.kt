@@ -112,11 +112,22 @@ class NetworkServer(
         activeHandler?.sendPluginSync(plugins, platform)
     }
 
+    private var lastLogTime = 0L
+
     suspend fun sendAudioPlayback(playback: AudioPlaybackMessage) {
         val handler = udpHandler
-        if (handler != null) {
+        val now = System.currentTimeMillis()
+        if (handler != null && handler.getStats()?.clientAddress != null) {
+            if (now - lastLogTime > 1000) {
+                Logger.d("NetworkServer", "Sending audio playback via UDP")
+                lastLogTime = now
+            }
             handler.sendAudioPlayback(playback)
         } else {
+            if (now - lastLogTime > 1000) {
+                Logger.d("NetworkServer", "Sending audio playback via TCP (fallback)")
+                lastLogTime = now
+            }
             activeHandler?.sendAudioPlayback(playback)
         }
     }

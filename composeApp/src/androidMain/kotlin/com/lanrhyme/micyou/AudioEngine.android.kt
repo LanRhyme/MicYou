@@ -179,13 +179,26 @@ actual class AudioEngine actual constructor() {
         this.enableAEC = enabled
         try {
             acousticEchoCanceler?.enabled = enabled
+            
+            val context = ContextHelper.getContext()
+            val audioManager = context?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+            if (isRunning) {
+                if (enabled) {
+                    audioManager?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                    audioManager?.isSpeakerphoneOn = true
+                } else {
+                    audioManager?.mode = android.media.AudioManager.MODE_NORMAL
+                    audioManager?.isSpeakerphoneOn = false
+                }
+            }
+            
             Logger.d("AudioEngine", "AEC effect ${if (enabled) "enabled" else "disabled"}")
         } catch (e: Exception) {
             Logger.e("AudioEngine", "Error toggling AEC effect: ${e.message}")
         }
     }
 
-    private val playbackChannel = Channel<AudioPlaybackMessage>(capacity = 32, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val jitterBuffer = PlaybackJitterBuffer(capacity = 256, minPrebuffer = 12)
 
     actual fun setSpeakerMode(enabled: Boolean) {
         if (this.isSpeakerModeActive != enabled) {
@@ -195,7 +208,9 @@ actual class AudioEngine actual constructor() {
             
             if (!enabled) {
                 // Clear the queue
-                while (playbackChannel.tryReceive().isSuccess) { }
+                CoroutineScope(Dispatchers.IO).launch {
+                    jitterBuffer.clear()
+                }
                 audioTrack?.stop()
                 audioTrack?.release()
                 audioTrack = null
@@ -279,7 +294,11 @@ actual class AudioEngine actual constructor() {
                         }
 
                         try {
-                            val sourceId = audioSource.sourceId
+                            val sourceId = if (enableAEC) {
+                                MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                            } else {
+                                audioSource.sourceId
+                            }
                             Logger.d("AudioEngine", "Initializing AudioRecord with source id=$sourceId (AEC requested=$enableAEC)")
                             recorder = try {
                                 AudioRecord(
@@ -315,6 +334,13 @@ actual class AudioEngine actual constructor() {
                         }
 
                         try {
+                            val context = ContextHelper.getContext()
+                            val audioManager = context?.getSystemService(android.content.Context.AUDIO_SERVICE) as? android.media.AudioManager
+                            if (enableAEC) {
+                                audioManager?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                                audioManager?.isSpeakerphoneOn = true
+                            }
+
                             if (NoiseSuppressor.isAvailable()) {
                                 noiseSuppressor = NoiseSuppressor.create(recorder.audioSessionId)
                                 noiseSuppressor?.enabled = enableNS
@@ -439,9 +465,19 @@ actual class AudioEngine actual constructor() {
 
                         val playbackJob = launch {
                             Logger.d("AudioEngine", "Playback consumer loop started")
+                            var lastLogTime = 0L
+                            var packetCount = 0
                             try {
-                                for (playback in playbackChannel) {
+                                while (isActive) {
+                                    val playback = jitterBuffer.popSuspend()
                                     if (!isSpeakerModeActive) continue
+                                    packetCount++
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastLogTime > 1000) {
+                                        Logger.d("AudioEngine", "Playing back audio packets. Received $packetCount packets recently. Buffer size: ${playback.buffer.size}, format: ${playback.audioFormat}")
+                                        lastLogTime = now
+                                        packetCount = 0
+                                    }
                                     try {
                                         var currentTrack = audioTrack
 
@@ -470,8 +506,8 @@ actual class AudioEngine actual constructor() {
                                             val mBufSize = AudioTrack.getMinBufferSize(playback.sampleRate, channelConfig, playbackFormat)
                                             currentTrack = AudioTrack.Builder()
                                                 .setAudioAttributes(AudioAttributes.Builder()
-                                                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                                                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                                                     .build())
                                                 .setAudioFormat(AudioFormat.Builder()
                                                     .setEncoding(playbackFormat)
@@ -479,13 +515,20 @@ actual class AudioEngine actual constructor() {
                                                     .setChannelMask(channelConfig)
                                                     .build())
                                                 .setBufferSizeInBytes(mBufSize * 2)
+                                                .setSessionId(recorder?.audioSessionId ?: android.media.AudioManager.AUDIO_SESSION_ID_GENERATE)
                                                 .setTransferMode(AudioTrack.MODE_STREAM)
                                                 .build()
                                             currentTrack.play()
                                             audioTrack = currentTrack
                                         }
 
-                                        currentTrack.write(playback.buffer, 0, playback.buffer.size)
+                                        if (playbackFormat == AudioFormat.ENCODING_PCM_FLOAT) {
+                                            val floatBuffer = FloatArray(playback.buffer.size / 4)
+                                            ByteBuffer.wrap(playback.buffer).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(floatBuffer)
+                                            currentTrack.write(floatBuffer, 0, floatBuffer.size, AudioTrack.WRITE_BLOCKING)
+                                        } else {
+                                            currentTrack.write(playback.buffer, 0, playback.buffer.size)
+                                        }
                                     } catch (e: Exception) {
                                         if (isSpeakerModeActive) {
                                             Logger.e("AudioEngine", "Error writing to AudioTrack: ${e.message}")
@@ -529,7 +572,7 @@ actual class AudioEngine actual constructor() {
                                     val wrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), payload)
 
                                     if (wrapper.audioPlayback != null && isSpeakerModeActive) {
-                                        playbackChannel.trySend(wrapper.audioPlayback)
+                                        jitterBuffer.push(wrapper.audioPlayback)
                                     }
                                 } catch (e: java.net.SocketTimeoutException) {
                                     // Normal — soTimeout allows periodic cancellation check
@@ -577,7 +620,7 @@ actual class AudioEngine actual constructor() {
                                             }
                                             
                                             if (wrapper.audioPlayback != null && isSpeakerModeActive) {
-                                                playbackChannel.trySend(wrapper.audioPlayback)
+                                                jitterBuffer.push(wrapper.audioPlayback)
                                             }
                                         } catch (e: Exception) {
                                             Logger.e("AudioEngine", "Error decoding incoming message", e)

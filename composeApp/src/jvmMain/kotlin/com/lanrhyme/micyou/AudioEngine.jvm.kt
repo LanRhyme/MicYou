@@ -51,8 +51,13 @@ actual class AudioEngine actual constructor() {
 
     private val audioOutputManager = AudioOutputManager()
     private val audioPipeline = AudioProcessorPipeline()
+    private val outboundPlaybackChannel = Channel<AudioPlaybackMessage>(
+        capacity = 256,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
     private val loopbackManager = LoopbackManager { playback ->
-        scope.launch { sendAudioPlayback(playback) }
+        outboundPlaybackChannel.trySend(playback)
     }
 
     // 当前音频参数（用于计算比特率）
@@ -97,6 +102,8 @@ actual class AudioEngine actual constructor() {
     actual val webUrl: Flow<String> = _webUrl.asStateFlow()
     actual val webClientCount: Flow<Int> = _webClientCount.asStateFlow()
     
+    private var playbackSenderJob: Job? = null
+    
     init {
         // Start mDNS advertisement immediately so Android clients can discover this server
         scope.launch(Dispatchers.IO) {
@@ -114,8 +121,10 @@ actual class AudioEngine actual constructor() {
                 if (newState == StreamState.Streaming) {
                     audioPipeline.reset()
                     startAudioProcessing()
+                    startPlaybackSender()
                 } else if (newState == StreamState.Idle || newState == StreamState.Error) {
                     stopAudioProcessing()
+                    stopPlaybackSender()
                 }
                 _state.value = newState
             }
@@ -159,6 +168,31 @@ actual class AudioEngine actual constructor() {
         }
     }
     
+    private fun startPlaybackSender() {
+        if (playbackSenderJob?.isActive == true) return
+        playbackSenderJob = scope.launch(Dispatchers.IO) {
+            Logger.d("AudioEngine", "Playback sender job started")
+            while (isActive) {
+                try {
+                    val playback = outboundPlaybackChannel.receiveCatching().getOrNull() ?: break
+                    sendAudioPlayback(playback)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Logger.e("AudioEngine", "Error sending audio playback", e)
+                }
+            }
+            Logger.d("AudioEngine", "Playback sender job stopped")
+        }
+    }
+
+    private fun stopPlaybackSender() {
+        playbackSenderJob?.cancel()
+        playbackSenderJob = null
+        while (outboundPlaybackChannel.tryReceive().isSuccess) {
+        }
+    }
+
     private fun startAudioProcessing() {
         if (audioProcessingJob?.isActive == true) return
         

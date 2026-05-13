@@ -105,7 +105,9 @@ class WindowsLoopbackCapture : LoopbackCapture {
                 val extFormat = WAVEFORMATEXTENSIBLE(pFormat)
                 extFormat.read()
                 bits = extFormat.Format.wBitsPerSample.toInt()
-                if (extFormat.SubFormat == WASAPIConstants.KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) {
+                val subFormatStr = extFormat.SubFormat.toString().uppercase()
+                Logger.d("WindowsLoopback", "SubFormat: $subFormatStr")
+                if (subFormatStr.contains("00000003-0000-0010-8000-00AA00389B71")) {
                     isFloat = true
                 }
             } else if (waveFormat.wFormatTag.toInt() == 0x0003) { // WAVE_FORMAT_IEEE_FLOAT
@@ -113,7 +115,8 @@ class WindowsLoopbackCapture : LoopbackCapture {
             }
 
             // Protocol format mapping
-            val protocolBits = if (isFloat) 32 else bits
+            val protocolBits = if (bits == 32) 32 else bits // Always treat 32-bit as float for network transfer
+            val needInt32ToFloat = bits == 32 && !isFloat
 
             Logger.i("WindowsLoopback", "Mix Format: ${waveFormat.nSamplesPerSec}Hz, ${waveFormat.nChannels} channels, $bits bits (Float=$isFloat)")
             _format = LoopbackCapture.LoopbackFormat(waveFormat.nSamplesPerSec, waveFormat.nChannels.toInt(), protocolBits)
@@ -139,18 +142,32 @@ class WindowsLoopbackCapture : LoopbackCapture {
 
             val bytesPerFrame = waveFormat.nBlockAlign.toInt()
 
+            var logCounter = 0
+
             while (_isActive && currentCoroutineContext().isActive) {
                 hr = pCaptureClient.GetBuffer(ppData, pNumFramesToRead, pdwFlags, null, null)
                 if (hr.toInt() == 0) {
                     val numFrames = pNumFramesToRead.value
                     if (numFrames > 0) {
                         val dataSize = numFrames * bytesPerFrame
-                        val data = ppData.value.getByteArray(0, dataSize)
+                        
+                        // Check for AUDCLNT_BUFFERFLAGS_SILENT (0x2)
+                        val isSilent = (pdwFlags.value and 0x2) != 0
+                        
+                        val pointer: Pointer? = ppData.pointer.getPointer(0)
+                        val data = if (!isSilent && pointer != null) {
+                            pointer.getByteArray(0, dataSize)
+                        } else {
+                            ByteArray(dataSize) // Return silence
+                        }
                         _capturedData.emit(data)
+                        if (logCounter++ % 100 == 0) {
+                            Logger.d("WindowsLoopback", "Captured packet: frames=$numFrames, size=$dataSize, silent=$isSilent")
+                        }
                         pCaptureClient.ReleaseBuffer(numFrames)
                     }
                 }
-                delay(10)
+                delay(1)
             }
 
             pAudioClient.Stop()

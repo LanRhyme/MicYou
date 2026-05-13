@@ -50,14 +50,22 @@ class LoopbackManager(
                     else -> com.lanrhyme.micyou.AudioFormat.PCM_16BIT.value
                 }
                 
-                val message = AudioPlaybackMessage(
-                    buffer = data,
-                    sampleRate = captureFormat.sampleRate,
-                    channelCount = captureFormat.channelCount,
-                    audioFormat = protocolFormat,
-                    sequenceNumber = (seqNum++).toInt()
-                )
-                onCapturedData(message)
+                // Chunk the data to avoid UDP IP fragmentation over WiFi
+                val maxChunkSize = 1024
+                var offset = 0
+                while (offset < data.size) {
+                    val chunkSize = minOf(maxChunkSize, data.size - offset)
+                    val chunk = data.copyOfRange(offset, offset + chunkSize)
+                    val message = AudioPlaybackMessage(
+                        buffer = chunk,
+                        sampleRate = captureFormat.sampleRate,
+                        channelCount = captureFormat.channelCount,
+                        audioFormat = protocolFormat,
+                        sequenceNumber = (seqNum++).toInt()
+                    )
+                    onCapturedData(message)
+                    offset += chunkSize
+                }
             }
         }
     }
