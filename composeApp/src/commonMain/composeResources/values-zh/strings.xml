@@ -435,10 +435,10 @@
     <string name="equalizerPreAmpLabel">前级增益</string>
     <string name="equalizerPresetsLabel">预设</string>
     <string name="equalizerBandsLabel">频段</string>
-    <string name="equalizerNormalPreset">标准</string>
-    <string name="equalizerPopPreset">流行</string>
-    <string name="equalizerRockPreset">摇滚</string>
-    <string name="equalizerJazzPreset">爵士</string>
-    <string name="equalizerClassicPreset">古典</string>
-    <string name="equalizerBassBoostPreset">低音增强</string>
+    <string name="equalizerNormalPreset">默认</string>
+    <string name="equalizerVocalClarityPreset">人声清晰</string>
+    <string name="equalizerWarmVocalPreset">温暖人声</string>
+    <string name="equalizerBrightVocalPreset">清亮人声</string>
+    <string name="equalizerDeepVoicePreset">深沉男声</string>
+    <string name="equalizerPodcastPreset">播客电台</string>
 </resources>

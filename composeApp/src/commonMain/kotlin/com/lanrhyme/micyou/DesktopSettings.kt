@@ -84,12 +84,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -143,15 +146,15 @@ import micyou.composeapp.generated.resources.enableNsLabel
 import micyou.composeapp.generated.resources.enableStreamingNotificationLabel
 import micyou.composeapp.generated.resources.enableVadLabel
 import micyou.composeapp.generated.resources.equalizerBandsLabel
-import micyou.composeapp.generated.resources.equalizerBassBoostPreset
-import micyou.composeapp.generated.resources.equalizerClassicPreset
-import micyou.composeapp.generated.resources.equalizerJazzPreset
+import micyou.composeapp.generated.resources.equalizerBrightVocalPreset
+import micyou.composeapp.generated.resources.equalizerDeepVoicePreset
 import micyou.composeapp.generated.resources.equalizerNormalPreset
-import micyou.composeapp.generated.resources.equalizerPopPreset
+import micyou.composeapp.generated.resources.equalizerPodcastPreset
 import micyou.composeapp.generated.resources.equalizerPreAmpLabel
 import micyou.composeapp.generated.resources.equalizerPresetsLabel
-import micyou.composeapp.generated.resources.equalizerRockPreset
 import micyou.composeapp.generated.resources.equalizerSection
+import micyou.composeapp.generated.resources.equalizerVocalClarityPreset
+import micyou.composeapp.generated.resources.equalizerWarmVocalPreset
 import micyou.composeapp.generated.resources.exportLog
 import micyou.composeapp.generated.resources.exportLogDesc
 import micyou.composeapp.generated.resources.floatingWindowDesc
@@ -1726,6 +1729,7 @@ fun SettingsSection.getLabel(): String {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
     val state by viewModel.uiState.collectAsState()
@@ -1733,11 +1737,11 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
     
     val presets = listOf(
         stringResource(Res.string.equalizerNormalPreset) to List(10) { 0f },
-        stringResource(Res.string.equalizerPopPreset) to listOf(2f, 1f, 0f, -1f, -2f, -2f, -1f, 0f, 1f, 2f),
-        stringResource(Res.string.equalizerRockPreset) to listOf(3f, 2f, 1f, 0f, -1f, -1f, 0f, 1f, 2f, 3f),
-        stringResource(Res.string.equalizerJazzPreset) to listOf(0f, 0f, 1f, 2f, -2f, -2f, 0f, 1f, 2f, 1f),
-        stringResource(Res.string.equalizerClassicPreset) to listOf(0f, 0f, 0f, 0f, 0f, 0f, -2f, -2f, -2f, -3f),
-        stringResource(Res.string.equalizerBassBoostPreset) to listOf(5f, 4f, 3f, 2f, 1f, 0f, 0f, 0f, 0f, 0f)
+        stringResource(Res.string.equalizerVocalClarityPreset) to listOf(-3f, -2f, 0f, 0f, 1f, 2f, 4f, 3f, 1f, 0f),
+        stringResource(Res.string.equalizerWarmVocalPreset) to listOf(2f, 3f, 2f, 1f, 0f, -1f, -2f, -2f, -1f, 0f),
+        stringResource(Res.string.equalizerBrightVocalPreset) to listOf(0f, 0f, -1f, -2f, 0f, 2f, 4f, 5f, 4f, 3f),
+        stringResource(Res.string.equalizerDeepVoicePreset) to listOf(4f, 5f, 4f, 1f, 0f, -2f, -3f, -2f, -1f, 0f),
+        stringResource(Res.string.equalizerPodcastPreset) to listOf(3f, 4f, 2f, 0f, 1f, 2f, 3f, 1f, 0f, 0f)
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1790,7 +1794,12 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                     Slider(
                         value = eqConfig.preAmp,
                         onValueChange = { viewModel.setEqualizerConfig(eqConfig.copy(preAmp = it)) },
-                        valueRange = -20f..20f
+                        valueRange = -30f..30f,
+                        modifier = Modifier.onPointerEvent(PointerEventType.Scroll) { event ->
+                            val delta = event.changes.first().scrollDelta.y
+                            val newValue = (eqConfig.preAmp - delta).coerceIn(-30f, 30f)
+                            viewModel.setEqualizerConfig(eqConfig.copy(preAmp = newValue))
+                        }
                     )
                 }
             }
@@ -1809,7 +1818,7 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                     val frequencies = listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
                     
                     Row(
-                        modifier = Modifier.fillMaxWidth().height(280.dp),
+                        modifier = Modifier.fillMaxWidth().height(350.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         eqConfig.gains.forEachIndexed { index, gain ->
@@ -1825,7 +1834,16 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                                 )
                                 Spacer(Modifier.height(8.dp))
                                 Box(
-                                    modifier = Modifier.weight(1f).width(44.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .width(44.dp)
+                                        .onPointerEvent(PointerEventType.Scroll) { event ->
+                                            val delta = event.changes.first().scrollDelta.y
+                                            val newValue = (gain - delta).coerceIn(-30f, 30f)
+                                            val newGains = eqConfig.gains.toMutableList()
+                                            newGains[index] = newValue
+                                            viewModel.setEqualizerConfig(eqConfig.copy(gains = newGains))
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Slider(
@@ -1835,12 +1853,54 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                                             newGains[index] = newValue
                                             viewModel.setEqualizerConfig(eqConfig.copy(gains = newGains))
                                         },
-                                        valueRange = -15f..15f,
+                                        valueRange = -30f..30f,
                                         modifier = Modifier
                                             .graphicsLayer {
                                                 rotationZ = -90f
                                             }
-                                            .requiredWidth(200.dp)
+                                            .requiredWidth(280.dp),
+                                        thumb = {
+                                            // 恢复圆角设计的滑块指示器
+                                            Surface(
+                                                modifier = Modifier.size(width = 14.dp, height = 28.dp),
+                                                shape = RoundedCornerShape(4.dp), // 保持较明显的圆角
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shadowElevation = 2.dp
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .padding(vertical = 10.dp, horizontal = 5.dp)
+                                                        .background(Color.White.copy(alpha = 0.5f), RoundedCornerShape(1.dp))
+                                                )
+                                            }
+                                        },
+                                        track = { sliderState ->
+                                            // 极简专业轨道设计 - 使用 Row 权重避开对私有属性 totalWidth 的访问
+                                            val thumbPos = sliderState.coercedValueAsFraction
+                                            val zeroPos = 0.5f 
+                                            val start = minOf(thumbPos, zeroPos)
+                                            val end = maxOf(thumbPos, zeroPos)
+
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(2.dp)
+                                                    .background(
+                                                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                                        RoundedCornerShape(1.dp)
+                                                    )
+                                            ) {
+                                                Spacer(modifier = Modifier.weight(start.coerceAtLeast(0.0001f)))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight((end - start).coerceAtLeast(0.0001f))
+                                                        .fillMaxHeight()
+                                                        .background(MaterialTheme.colorScheme.primary)
+                                                )
+                                                Spacer(modifier = Modifier.weight((1f - end).coerceAtLeast(0.0001f)))
+                                            }
+                                        }
                                     )
                                 }
                                 Spacer(Modifier.height(8.dp))

@@ -436,10 +436,10 @@
     <string name="equalizerPreAmpLabel">Pre-Amp</string>
     <string name="equalizerPresetsLabel">Presets</string>
     <string name="equalizerBandsLabel">Bands</string>
-    <string name="equalizerNormalPreset">Normal</string>
-    <string name="equalizerPopPreset">Pop</string>
-    <string name="equalizerRockPreset">Rock</string>
-    <string name="equalizerJazzPreset">Jazz</string>
-    <string name="equalizerClassicPreset">Classic</string>
-    <string name="equalizerBassBoostPreset">Bass Boost</string>
+    <string name="equalizerNormalPreset">Default</string>
+    <string name="equalizerVocalClarityPreset">Vocal Clarity</string>
+    <string name="equalizerWarmVocalPreset">Warm Vocal</string>
+    <string name="equalizerBrightVocalPreset">Bright Vocal</string>
+    <string name="equalizerDeepVoicePreset">Deep Voice</string>
+    <string name="equalizerPodcastPreset">Podcast</string>
 </resources>
