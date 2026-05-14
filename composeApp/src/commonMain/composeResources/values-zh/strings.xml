@@ -441,4 +441,5 @@
     <string name="equalizerBrightVocalPreset">清亮人声</string>
     <string name="equalizerDeepVoicePreset">深沉男声</string>
     <string name="equalizerPodcastPreset">播客电台</string>
+    <string name="monitoringRecordPlayLabel">录音与播放监测</string>
 </resources>

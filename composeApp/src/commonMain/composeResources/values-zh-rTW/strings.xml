@@ -428,4 +428,18 @@
     <string name="webScanHint">使用手機掃描QR碼開啟網頁，允許麥克風權限即可開始傳輸音訊</string>
     <string name="webClientCountLabel">已連線用戶端</string>
     <string name="modeWeb">Web</string>
+    <string name="enableEqualizerLabel">啟用均衡器</string>
+    <string name="equalizerBandsLabel">頻段</string>
+    <string name="equalizerBrightVocalPreset">清亮人聲</string>
+    <string name="equalizerDeepVoicePreset">深沉男聲</string>
+    <string name="equalizerNormalPreset">預設</string>
+    <string name="equalizerPodcastPreset">播客電台</string>
+    <string name="equalizerPreAmpLabel">前級增益</string>
+    <string name="equalizerPresetsLabel">預設</string>
+    <string name="equalizerSection">均衡器</string>
+    <string name="equalizerVocalClarityPreset">人聲清晰</string>
+    <string name="equalizerWarmVocalPreset">溫暖人聲</string>
+    <string name="monitoringRecordPlayLabel">錄音與播放監測</string>
+    <string name="webModeDesc">啟動 HTTPS + WebSocket 伺服器，支援手機瀏覽器麥克風輸入</string>
+    <string name="webUrlLabel">Web 網址</string>
     </resources>

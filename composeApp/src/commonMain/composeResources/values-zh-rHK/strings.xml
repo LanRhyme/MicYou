@@ -420,4 +420,26 @@
     <string name="webScanHint">用手機掃描QR碼打開網頁，允許麥克風權限即可開始傳輸音頻</string>
     <string name="webClientCountLabel">已連接用戶端</string>
     <string name="modeWeb">Web</string>
+    <string name="agcAttackRateLabel">起效速率</string>
+    <string name="agcDecayRateLabel">衰減速率</string>
+    <string name="audioProcessingChainTitle">音訊處理鏈路</string>
+    <string name="dereverbDecayTimeLabel">衰減時間</string>
+    <string name="enableEqualizerLabel">啟用等化器</string>
+    <string name="equalizerBandsLabel">頻段</string>
+    <string name="equalizerBrightVocalPreset">清亮人聲</string>
+    <string name="equalizerDeepVoicePreset">深沉男聲</string>
+    <string name="equalizerNormalPreset">預設</string>
+    <string name="equalizerPodcastPreset">播客電台</string>
+    <string name="equalizerPreAmpLabel">前級增益</string>
+    <string name="equalizerPresetsLabel">預設</string>
+    <string name="equalizerSection">等化器</string>
+    <string name="equalizerVocalClarityPreset">人聲清晰</string>
+    <string name="equalizerWarmVocalPreset">溫暖人聲</string>
+    <string name="monitoringRecordPlayLabel">錄音與播放監測</string>
+    <string name="nsIntensityLabel">強度</string>
+    <string name="processingChainDesc">點擊箭頭重新排序音訊效果</string>
+    <string name="processingChainLabel">處理鏈路</string>
+    <string name="realTimeSpectrumLabel">即時頻譜 (原始 vs 處理後)</string>
+    <string name="webModeDesc">啟動 HTTPS + WebSocket 伺服器，支援手機瀏覽器麥克風輸入</string>
+    <string name="webUrlLabel">Web 網址</string>
     </resources>
