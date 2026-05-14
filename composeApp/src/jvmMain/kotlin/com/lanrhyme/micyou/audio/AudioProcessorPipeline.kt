@@ -9,6 +9,10 @@ import java.nio.ByteOrder
 /**
  * 音频处理管道
  * 使用预分配的缓冲区池来避免频繁的内存分配和GC压力
+ *
+ * 帧累积器：确保降噪（RNNoise/Ulunas）始终获得 480 样本对齐的输入。
+ * UDP 包大小不一定对齐到降噪帧边界，因此先累积样本，
+ * 累积到足够的完整帧后再送入效果链处理。
  */
 class AudioProcessorPipeline {
     private val noiseReducer = NoiseReducer()
@@ -26,6 +30,13 @@ class AudioProcessorPipeline {
     private var scratchResultBuffer: ByteArray = ByteArray(config.initialBytesCapacity)
     private var scratchResultByteBuffer: ByteBuffer = ByteBuffer.wrap(scratchResultBuffer).order(ByteOrder.LITTLE_ENDIAN)
 
+    // 帧累积器：将非对齐的输入累积为 480 样本/声道的完整帧
+    private var accumBuffer: ShortArray = ShortArray(0)
+    private var accumCount: Int = 0
+
+    /** 降噪帧大小（样本/声道） */
+    private val nsFrameSize: Int = 480
+
     /**
      * 更新音频处理配置
      */
@@ -42,13 +53,13 @@ class AudioProcessorPipeline {
     ) {
         noiseReducer.enableNS = enableNS
         noiseReducer.nsType = nsType
-        
+
         agcEffect.enableAGC = enableAGC
         agcEffect.agcTargetLevel = agcTargetLevel
-        
+
         vadEffect.enableVAD = enableVAD
         vadEffect.vadThreshold = vadThreshold
-        
+
         dereverbEffect.enableDereverb = enableDereverb
         dereverbEffect.dereverbLevel = dereverbLevel
 
@@ -57,15 +68,10 @@ class AudioProcessorPipeline {
 
     /**
      * 音频处理管道
-     * 处理链顺序：降噪 -> 去混响 -> 放大 -> AGC -> VAD -> 重采样
+     * 处理链顺序：帧累积 → 降噪 → 去混响 → 放大 → AGC → VAD → 重采样
      *
-     * 顺序说明：
-     * 1. 降噪先处理原始信号中的噪声，避免后续放大把噪声也放大
-     * 2. 去混响在降噪后处理，避免混响和噪声叠加影响降噪效果
-     * 3. 放大在降噪后执行，只放大干净的声音信号
-     * 4. AGC 调整整体音量一致性
-     * 5. VAD 检测语音活动
-     * 6. 重采样调整播放速度
+     * 帧累积：将输入样本累积到降噪帧大小的整数倍后，再送入效果链。
+     * 这确保降噪器（RNNoise/Ulunas）始终获得 480 样本/声道的对齐输入。
      */
     fun process(
         inputBuffer: ByteArray,
@@ -76,7 +82,30 @@ class AudioProcessorPipeline {
         val shorts = convertToShorts(inputBuffer, audioFormat)
         if (shorts == null || shorts.isEmpty()) return null
 
-        var processed = shorts
+        // 将新样本追加到累积缓冲区
+        appendToAccumulator(shorts)
+
+        // 计算完整帧所需的最小样本数（480 * 声道数）
+        val samplesPerFrame = nsFrameSize * channelCount
+        if (accumCount < samplesPerFrame) {
+            // 累积不足一帧，返回 null（输出缓冲区会继续播放已有数据）
+            return null
+        }
+
+        // 提取对齐的帧数据
+        val frameCount = accumCount / samplesPerFrame
+        val processCount = frameCount * samplesPerFrame
+        val toProcess = accumBuffer.copyOfRange(0, processCount)
+
+        // 保留剩余样本
+        val remaining = accumCount - processCount
+        if (remaining > 0) {
+            System.arraycopy(accumBuffer, processCount, accumBuffer, 0, remaining)
+        }
+        accumCount = remaining
+
+        // 效果链处理
+        var processed = toProcess
 
         // 1. 先降噪，处理原始信号中的噪声
         processed = noiseReducer.process(processed, channelCount)
@@ -93,14 +122,32 @@ class AudioProcessorPipeline {
 
         // 6. 重采样
         resamplerEffect.updatePlaybackRatio(queuedDurationMs)
-    val maxOutputShorts = ((processed.size / playbackRatioLowerBound) + 16).toInt()
-    val neededBytes = maxOutputShorts * 2
+        val maxOutputShorts = ((processed.size / playbackRatioLowerBound) + 16).toInt()
+        val neededBytes = maxOutputShorts * 2
         ensureOutputBufferCapacity(neededBytes)
-    val outputBuffer = scratchResultByteBuffer
+        val outputBuffer = scratchResultByteBuffer
         outputBuffer.clear()
-    val processedShortCount = resamplerEffect.processToByteBuffer(processed, channelCount, outputBuffer)
+        val processedShortCount = resamplerEffect.processToByteBuffer(processed, channelCount, outputBuffer)
 
         return scratchResultBuffer.copyOf(processedShortCount * 2)
+    }
+
+    /**
+     * 将新样本追加到累积缓冲区
+     */
+    private fun appendToAccumulator(shorts: ShortArray) {
+        val needed = accumCount + shorts.size
+        if (accumBuffer.size < needed) {
+            // 扩容：1.5倍增长，最小保证能容纳当前数据
+            val newSize = (needed * 1.5).toInt().coerceAtLeast(needed)
+            val newBuffer = ShortArray(newSize)
+            if (accumCount > 0) {
+                System.arraycopy(accumBuffer, 0, newBuffer, 0, accumCount)
+            }
+            accumBuffer = newBuffer
+        }
+        System.arraycopy(shorts, 0, accumBuffer, accumCount, shorts.size)
+        accumCount += shorts.size
     }
 
     private val playbackRatioLowerBound: Double get() = 0.97
@@ -123,7 +170,7 @@ class AudioProcessorPipeline {
     private fun convertToShorts(buffer: ByteArray, format: Int): ShortArray? {
         val shortsSize = when (format) {
             4, 32 -> buffer.size / 4  // PCM_FLOAT
-            6, 24 -> buffer.size / 3  // PCM_24BIT (新增)
+            6, 24 -> buffer.size / 3  // PCM_24BIT
             3, 8 -> buffer.size       // PCM_8BIT
             else -> buffer.size / 2   // PCM_16BIT
         }
@@ -159,8 +206,6 @@ class AudioProcessorPipeline {
                                ((buffer[byteIndex + 3].toInt() and 0xFF) shl 24)
     val sample = Float.fromBits(bits)
                     // Clamp and convert to 16-bit PCM
-                    // 使用 32768.0f 以保持对称范围 (-1.0 ~ 1.0 -> -32768 ~ 32767)
-                    // 避免因使用 32767 导致的正向信号略微衰减产生量化噪声
                     shorts[i] = (sample * 32768.0f).toInt().coerceIn(-32768, 32767).toShort()
                 }
             }
@@ -201,6 +246,8 @@ class AudioProcessorPipeline {
         vadEffect.reset()
         amplifierEffect.reset()
         resamplerEffect.reset()
+        // 清空帧累积器
+        accumCount = 0
     }
 
     /**

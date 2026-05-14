@@ -8,6 +8,8 @@ import kotlinx.serialization.protobuf.ProtoBuf
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * Handles UDP audio data connection (Desktop server).
@@ -15,8 +17,8 @@ import java.net.InetSocketAddress
  * 1. Receiving UDP audio packets
  * 2. Parsing and validating packet format
  * 3. Detecting packet loss/reordering using sequence numbers
- * 4. Dispatching audio packets to listeners
- * 
+ * 4. Feeding packets into a jitter buffer for reordering, FEC recovery, and PLC
+ *
  * Unlike ConnectionHandler, the UDP processor:
  * - Does not require handshake (UDP is connectionless)
  * - Does not send control messages (control messages go through TCP channel)
@@ -54,6 +56,19 @@ class UdpConnectionHandler(
     @Volatile
     private var jitter = 0.0
 
+    // Jitter buffer for reordering, FEC recovery, and PLC
+    private val jitterBuffer = JitterBuffer(
+        onAudioPacketReady = onAudioPacketReceived,
+        targetDelayMs = 40,
+        maxDelayMs = 200
+    )
+
+    // Periodic loss logging (once per minute)
+    @Volatile
+    private var lastLossLogTime = 0L
+    @Volatile
+    private var lostSinceLastLog = 0L
+
     /**
      * Starts the UDP receiving loop.
      * This function is non-blocking and runs in a background coroutine.
@@ -64,6 +79,8 @@ class UdpConnectionHandler(
             return
         }
 
+        jitterBuffer.start()
+
         handlerJob = scope.launch {
             runUdpReceiver()
         }
@@ -73,6 +90,7 @@ class UdpConnectionHandler(
      * Stops the UDP receiver.
      */
     suspend fun stop() {
+        jitterBuffer.stop()
         handlerJob?.cancel()
         withTimeoutOrNull(2000) {
             handlerJob?.join()
@@ -148,7 +166,6 @@ class UdpConnectionHandler(
                     (data[offset + 3].toInt() and 0xFF)
 
         if (magic != UDP_PACKET_MAGIC) {
-            Logger.w("UdpConnectionHandler", "UDP packet magic mismatch: 0x${magic.toString(16).uppercase()}")
             return
         }
 
@@ -159,7 +176,6 @@ class UdpConnectionHandler(
                      (data[offset + 7].toInt() and 0xFF)
 
         if (payloadLength <= 0 || payloadLength > length - 8) {
-            Logger.w("UdpConnectionHandler", "UDP packet length invalid: $payloadLength")
             return
         }
     val payloadStart = offset + 8
@@ -168,10 +184,10 @@ class UdpConnectionHandler(
             val wrapper: MessageWrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), data.copyOfRange(payloadStart, payloadStart + payloadLength))
 
             // UDP channel only processes audio packets
-            val audioPacket = wrapper.audioPacket?.audioPacket
-            if (audioPacket != null) {
+            val orderedPacket = wrapper.audioPacket
+            if (orderedPacket != null) {
                 // Sequence number tracking
-                val seqNum = wrapper.audioPacket.sequenceNumber
+                val seqNum = orderedPacket.sequenceNumber
                 if (packetsReceived == 0L) {
                     expectedSequenceNumber = seqNum
                     packetsReceived++
@@ -180,23 +196,19 @@ class UdpConnectionHandler(
                     if (seqNum != expected) {
                         // Use unsigned comparison for sequence number (handles Int wrap correctly)
                         val diffUnsigned = (seqNum.toUInt() - expected.toUInt()).toLong() and 0xFFFFFFFFL
-                        // If diff < 0x80000000u, seqNum is "after" expected (normal loss)
-                        // If diff >= 0x80000000u, seqNum is "before" expected (out-of-order/repeat)
                         val isGapForward = diffUnsigned < 0x80000000L
                         if (isGapForward) {
-                            // Normal packet loss: received sequence number > expected
                             val lost = diffUnsigned
-                            // Sanity check: limit max loss per gap to prevent absurd counts
                             val cappedLost = minOf(lost, 1000L)
                             packetsLost += cappedLost
                             expectedSequenceNumber = seqNum
                             packetsReceived++
-                            Logger.d("UdpConnectionHandler", "UDP loss detected: expected $expected, received $seqNum, lost $cappedLost packets")
+                            // Accumulate loss for periodic logging
+                            lostSinceLastLog += cappedLost
+                            logLossPeriodically(expected, seqNum, cappedLost)
                         } else {
                             // Out-of-order or duplicate packet: do NOT advance expectedSequenceNumber
-                            // This prevents cascading false loss detection when UDP delivers packets out of order
                             packetsReceived++
-                            Logger.d("UdpConnectionHandler", "UDP out-of-order packet: expected $expected, received $seqNum (ignored for loss tracking)")
                         }
                     } else {
                         expectedSequenceNumber = seqNum
@@ -205,7 +217,7 @@ class UdpConnectionHandler(
                 }
 
                 // Jitter calculation (RFC 3550 variant)
-                val transmitTime = wrapper.audioPacket.timestamp
+                val transmitTime = orderedPacket.timestamp
                 val receiveTime = System.currentTimeMillis()
                 if (packetsReceived > 1 && transmitTime > 0 && lastTransmitTime > 0) {
                     val d = (receiveTime - lastReceiveTime) - (transmitTime - lastTransmitTime)
@@ -214,10 +226,27 @@ class UdpConnectionHandler(
                 lastTransmitTime = transmitTime
                 lastReceiveTime = receiveTime
 
-                onAudioPacketReceived(audioPacket)
+                // Feed into jitter buffer (handles reordering, FEC recovery, PLC, and delivery)
+                jitterBuffer.insert(orderedPacket)
             }
         } catch (e: Exception) {
             Logger.e("UdpConnectionHandler", "UDP packet decoding failed", e)
+        }
+    }
+
+    /**
+     * Log loss events once per minute in the specified format.
+     */
+    private fun logLossPeriodically(expected: Int, received: Int, lostCount: Long) {
+        val now = System.currentTimeMillis()
+        if (now - lastLossLogTime >= 60_000) {
+            lastLossLogTime = now
+            if (lostSinceLastLog > 0) {
+                val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
+                val timestamp = sdf.format(Date(now))
+                Logger.d("UdpConnectionHandler", "[$timestamp] DEBUG/UdpConnectionHandler: UDP loss detected: expected $expected, received $received, lost $lostCount packets (total in period: $lostSinceLastLog)")
+            }
+            lostSinceLastLog = 0
         }
     }
 
@@ -229,6 +258,7 @@ class UdpConnectionHandler(
         }
         udpSocket = null
         clientAddress = null
+        jitterBuffer.reset()
     }
 
     data class UdpStats(

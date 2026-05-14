@@ -84,7 +84,9 @@ class NoiseReducer(
     private val frameSize: Int = 480
 ) : AudioEffect {
 
+    @Volatile
     var enableNS: Boolean = false
+    @Volatile
     var nsType: NoiseReductionType = NoiseReductionType.Ulunas
 
     // RNNoise - 延迟初始化
@@ -225,11 +227,32 @@ class NoiseReducer(
             }
         } catch (e: Exception) {
             Logger.e("NoiseReducer", "Ulunas processing failed: ${e.message}", e)
-            enableNS = false
+            // 不再静默关闭降噪，仅记录错误
         }
     }
 
     override fun reset() {
+        // 重置 Ulunas OLA 状态，避免前一次会话的残留数据影响新会话
+        try {
+            ulunasProcessorLeft?.let { proc ->
+                val field = proc.javaClass.getDeclaredField("previous")
+                field.isAccessible = true
+                (field.get(proc) as? FloatArray)?.fill(0f)
+                val olaField = proc.javaClass.getDeclaredField("olaAccumulator")
+                olaField.isAccessible = true
+                (olaField.get(proc) as? FloatArray)?.fill(0f)
+            }
+            ulunasProcessorRight?.let { proc ->
+                val field = proc.javaClass.getDeclaredField("previous")
+                field.isAccessible = true
+                (field.get(proc) as? FloatArray)?.fill(0f)
+                val olaField = proc.javaClass.getDeclaredField("olaAccumulator")
+                olaField.isAccessible = true
+                (olaField.get(proc) as? FloatArray)?.fill(0f)
+            }
+        } catch (e: Exception) {
+            Logger.d("NoiseReducer", "Could not reset Ulunas state via reflection: ${e.message}")
+        }
     }
 
     override fun release() {

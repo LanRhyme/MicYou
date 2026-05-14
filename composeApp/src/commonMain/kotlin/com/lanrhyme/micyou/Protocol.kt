@@ -47,8 +47,41 @@ data class AudioPacketMessageOrdered(
     @ProtoNumber(2)
     val audioPacket: AudioPacketMessage,
     @ProtoNumber(3)
-    val timestamp: Long = 0
-)
+    val timestamp: Long = 0,
+    /** FEC: redundant copy of a previous packet's audio data for forward error correction */
+    @ProtoNumber(4)
+    val fecBuffer: ByteArray? = null,
+    /** FEC: the sequence number that fecBuffer corresponds to */
+    @ProtoNumber(5)
+    val fecSequenceNumber: Int = -1
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as AudioPacketMessageOrdered
+
+        if (sequenceNumber != other.sequenceNumber) return false
+        if (audioPacket != other.audioPacket) return false
+        if (timestamp != other.timestamp) return false
+        if (fecBuffer != null) {
+            if (other.fecBuffer == null) return false
+            if (!fecBuffer.contentEquals(other.fecBuffer)) return false
+        } else if (other.fecBuffer != null) return false
+        if (fecSequenceNumber != other.fecSequenceNumber) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = sequenceNumber
+        result = 31 * result + audioPacket.hashCode()
+        result = 31 * result + timestamp.hashCode()
+        result = 31 * result + (fecBuffer?.contentHashCode() ?: 0)
+        result = 31 * result + fecSequenceNumber
+        return result
+    }
+}
 
 @Serializable
 data class MuteMessage(
