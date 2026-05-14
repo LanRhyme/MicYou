@@ -84,7 +84,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
@@ -92,7 +91,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -1729,7 +1728,7 @@ fun SettingsSection.getLabel(): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
     val state by viewModel.uiState.collectAsState()
@@ -1795,10 +1794,17 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                         value = eqConfig.preAmp,
                         onValueChange = { viewModel.setEqualizerConfig(eqConfig.copy(preAmp = it)) },
                         valueRange = -30f..30f,
-                        modifier = Modifier.onPointerEvent(PointerEventType.Scroll) { event ->
-                            val delta = event.changes.first().scrollDelta.y
-                            val newValue = (eqConfig.preAmp - delta).coerceIn(-30f, 30f)
-                            viewModel.setEqualizerConfig(eqConfig.copy(preAmp = newValue))
+                        modifier = Modifier.pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    if (event.type == PointerEventType.Scroll) {
+                                        val delta = event.changes.first().scrollDelta.y
+                                        val newValue = (eqConfig.preAmp - delta).coerceIn(-30f, 30f)
+                                        viewModel.setEqualizerConfig(eqConfig.copy(preAmp = newValue))
+                                    }
+                                }
+                            }
                         }
                     )
                 }
@@ -1837,12 +1843,19 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                                     modifier = Modifier
                                         .weight(1f)
                                         .width(44.dp)
-                                        .onPointerEvent(PointerEventType.Scroll) { event ->
-                                            val delta = event.changes.first().scrollDelta.y
-                                            val newValue = (gain - delta).coerceIn(-30f, 30f)
-                                            val newGains = eqConfig.gains.toMutableList()
-                                            newGains[index] = newValue
-                                            viewModel.setEqualizerConfig(eqConfig.copy(gains = newGains))
+                                        .pointerInput(Unit) {
+                                            awaitPointerEventScope {
+                                                while (true) {
+                                                    val event = awaitPointerEvent()
+                                                    if (event.type == PointerEventType.Scroll) {
+                                                        val delta = event.changes.first().scrollDelta.y
+                                                        val newValue = (gain - delta).coerceIn(-30f, 30f)
+                                                        val newGains = eqConfig.gains.toMutableList()
+                                                        newGains[index] = newValue
+                                                        viewModel.setEqualizerConfig(eqConfig.copy(gains = newGains))
+                                                    }
+                                                }
+                                            }
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {

@@ -620,15 +620,17 @@ actual class AudioEngine actual constructor() {
         enableDereverb: Boolean,
         dereverbLevel: Float,
         amplification: Float,
-        processingChain: List<AudioEffectType>?
+        processingChain: List<AudioEffectType>,
+        equalizerConfig: EqualizerConfig
     ) {
         val nsChanged = this.enableNS != enableNS
         val agcChanged = this.enableAGC != enableAGC
 
         this.enableNS = enableNS
         this.enableAGC = enableAGC
-        // Note: nsIntensity, agcAttackRate, agcDecayRate, dereverbLevel, amplification, and processingChain
-        // are currently ignored on Android as it uses hardware-based processing.
+        // Note: nsIntensity, agcAttackRate, agcDecayRate, dereverbLevel, amplification,
+        // processingChain, and equalizerConfig are currently ignored on Android
+        // as it uses hardware-based processing.
 
         try {
             noiseSuppressor?.enabled = enableNS
