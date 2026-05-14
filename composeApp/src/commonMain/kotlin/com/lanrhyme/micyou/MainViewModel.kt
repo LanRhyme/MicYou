@@ -77,9 +77,11 @@ data class AppUiState(
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
     val nsIntensity: Float = 1.0f,
+    val equalizerConfig: EqualizerConfig = EqualizerConfig(),
     val processingChain: List<AudioEffectType> = listOf(
         AudioEffectType.NoiseReduction,
         AudioEffectType.Dereverb,
+        AudioEffectType.Equalizer,
         AudioEffectType.Amplifier,
         AudioEffectType.AGC,
         AudioEffectType.VAD
@@ -315,6 +317,7 @@ class MainViewModel : ViewModel() {
                         amplification = audioState.amplification,
                         nsIntensity = audioState.nsIntensity,
                         processingChain = audioState.processingChain,
+                        equalizerConfig = audioState.equalizerConfig,
                         androidAudioSourceName = audioState.androidAudioSourceName,
                         audioConfigRevision = audioState.audioConfigRevision,
                         themeMode = settingsState.themeMode,
@@ -405,6 +408,7 @@ class MainViewModel : ViewModel() {
     fun setVadThreshold(threshold: Int) = audioStreamViewModel.setVadThreshold(threshold)
     fun setEnableDereverb(enabled: Boolean) = audioStreamViewModel.setEnableDereverb(enabled)
     fun setDereverbLevel(level: Float) = audioStreamViewModel.setDereverbLevel(level)
+    fun setEqualizerConfig(config: EqualizerConfig) = audioStreamViewModel.setEqualizerConfig(config)
     fun setProcessingChain(chain: List<AudioEffectType>) = audioStreamViewModel.setProcessingChain(chain)
     fun setAmplification(amp: Float) = audioStreamViewModel.setAmplification(amp)
     fun setAndroidAudioSource(sourceName: String) = audioStreamViewModel.setAndroidAudioSource(sourceName)

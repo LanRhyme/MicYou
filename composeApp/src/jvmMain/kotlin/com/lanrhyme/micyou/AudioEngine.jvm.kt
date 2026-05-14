@@ -189,6 +189,7 @@ actual class AudioEngine actual constructor() {
                         inputBuffer = audioPacket.buffer,
                         audioFormat = audioPacket.audioFormat,
                         channelCount = audioPacket.channelCount,
+                        sampleRate = audioPacket.sampleRate,
                         queuedDurationMs = queuedMs
                     )
 
@@ -244,17 +245,28 @@ actual class AudioEngine actual constructor() {
         enableDereverb: Boolean,
         dereverbLevel: Float,
         amplification: Float,
-        processingChain: List<AudioEffectType>?
+        processingChain: List<AudioEffectType>,
+        equalizerConfig: EqualizerConfig
     ) {
         audioPipeline.updateConfig(
-            enableNS, nsType, nsIntensity, enableAGC, agcTargetLevel,
-            agcAttackRate, agcDecayRate,
-            enableVAD, vadThreshold, enableDereverb, dereverbLevel,
-            amplification, processingChain
+            enableNS = enableNS,
+            nsType = nsType,
+            nsIntensity = nsIntensity,
+            enableAGC = enableAGC,
+            agcTargetLevel = agcTargetLevel,
+            agcAttackRate = agcAttackRate,
+            agcDecayRate = agcDecayRate,
+            enableVAD = enableVAD,
+            vadThreshold = vadThreshold,
+            enableDereverb = enableDereverb,
+            dereverbLevel = dereverbLevel,
+            amplification = amplification,
+            newProcessingChain = processingChain,
+            equalizerConfig = equalizerConfig
         )
         
         if (System.getProperty("micyou.debugAudioConfig") == "true") {
-            Logger.d("AudioEngine", "配置更新: 放大器=$amplification, VAD=$enableVAD ($vadThreshold), AGC=$enableAGC ($agcTargetLevel), NS=$enableNS ($nsType, $nsIntensity)")
+            Logger.d("AudioEngine", "配置更新: 放大器=$amplification, VAD=$enableVAD ($vadThreshold), AGC=$enableAGC ($agcTargetLevel), NS=$enableNS ($nsType, $nsIntensity), EQ=${equalizerConfig.enabled}")
         }
     }
 

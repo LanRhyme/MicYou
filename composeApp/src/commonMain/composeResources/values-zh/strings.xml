@@ -430,4 +430,15 @@
     <string name="webClientCountLabel">已连接客户端</string>
     <string name="webUrlLabel">Web 地址</string>
     <string name="webModeDesc">启动 HTTPS + WebSocket 服务，支持手机浏览器麦克风输入</string>
+    <string name="equalizerSection">均衡器</string>
+    <string name="enableEqualizerLabel">启用均衡器</string>
+    <string name="equalizerPreAmpLabel">前级增益</string>
+    <string name="equalizerPresetsLabel">预设</string>
+    <string name="equalizerBandsLabel">频段</string>
+    <string name="equalizerNormalPreset">标准</string>
+    <string name="equalizerPopPreset">流行</string>
+    <string name="equalizerRockPreset">摇滚</string>
+    <string name="equalizerJazzPreset">爵士</string>
+    <string name="equalizerClassicPreset">古典</string>
+    <string name="equalizerBassBoostPreset">低音增强</string>
 </resources>

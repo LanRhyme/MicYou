@@ -46,8 +46,10 @@ expect class AudioEngine() {
         enableDereverb: Boolean,
         dereverbLevel: Float,
         amplification: Float,
-        processingChain: List<AudioEffectType>? = null
+        processingChain: List<AudioEffectType>,
+        equalizerConfig: EqualizerConfig = EqualizerConfig()
     )
+
 
     // 更新性能配置
     fun updatePerformanceConfig(config: PerformanceConfig)

@@ -32,6 +32,16 @@ enum class AudioEffectType(val label: String) {
     Dereverb("去混响"),
     Amplifier("增益放大"),
     AGC("自动增益 (AGC)"),
-    VAD("语音检测 (VAD)")
+    VAD("语音检测 (VAD)"),
+    Equalizer("均衡器 (EQ)")
 }
+
+/**
+ * 均衡器配置
+ */
+data class EqualizerConfig(
+    val enabled: Boolean = false,
+    val gains: List<Float> = List(10) { 0f }, // 10 bands, 0dB each
+    val preAmp: Float = 0f // Pre-amp gain in dB
+)
 

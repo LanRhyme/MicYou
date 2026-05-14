@@ -43,9 +43,11 @@ data class AudioStreamUiState(
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
     val nsIntensity: Float = 1.0f,
+    val equalizerConfig: EqualizerConfig = EqualizerConfig(),
     val processingChain: List<AudioEffectType> = listOf(
         AudioEffectType.NoiseReduction,
         AudioEffectType.Dereverb,
+        AudioEffectType.Equalizer,
         AudioEffectType.Amplifier,
         AudioEffectType.AGC,
         AudioEffectType.VAD
@@ -151,23 +153,44 @@ class AudioStreamViewModel : ViewModel() {
     val savedAgcAttackRate = settings.getFloat("agc_attack_rate", 0.01f)
     val savedAgcDecayRate = settings.getFloat("agc_decay_rate", 0.005f)
     val savedChainStr = settings.getString("processing_chain", "")
-    val savedChain = if (savedChainStr.isEmpty()) {
+    var savedChain = if (savedChainStr.isEmpty()) {
         listOf(
             AudioEffectType.NoiseReduction,
             AudioEffectType.Dereverb,
+            AudioEffectType.Equalizer,
             AudioEffectType.Amplifier,
             AudioEffectType.AGC,
             AudioEffectType.VAD
         )
     } else {
-        savedChainStr.split(",").mapNotNull { 
-            try { AudioEffectType.valueOf(it) } catch(e: Exception) { null }
+        savedChainStr.split(",").mapNotNull { name ->
+            AudioEffectType.entries.find { it.name == name }
+        }.toMutableList().apply {
+            if (!contains(AudioEffectType.Equalizer)) {
+                // Insert Equalizer before Amplifier if it exists, otherwise before AGC/VAD
+                val ampIndex = indexOf(AudioEffectType.Amplifier)
+                if (ampIndex != -1) {
+                    add(ampIndex, AudioEffectType.Equalizer)
+                } else {
+                    val lastSafeIndex = (size - 2).coerceAtLeast(0)
+                    add(lastSafeIndex, AudioEffectType.Equalizer)
+                }
+            }
         }
     }
+
     val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Unprocessed")
     val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
     val savedPerformanceMode = settings.getString("performance_mode", "Default")
     val savedBufferSizeMultiplier = settings.getFloat("buffer_size_multiplier", 1.0f)
+    
+    val savedEqEnabled = settings.getBoolean("equalizer_enabled", false)
+    val savedEqPreAmp = settings.getFloat("equalizer_preamp", 0f)
+    val savedEqGainsStr = settings.getString("equalizer_gains", "")
+    val savedEqGains = if (savedEqGainsStr.isEmpty()) List(10) { 0f } else {
+        savedEqGainsStr.split(",").mapNotNull { it.toFloatOrNull() }.takeIf { it.size == 10 } ?: List(10) { 0f }
+    }
+    val savedEqualizerConfig = EqualizerConfig(savedEqEnabled, savedEqGains, savedEqPreAmp)
 
         _uiState.update {
             it.copy(
@@ -191,6 +214,7 @@ class AudioStreamViewModel : ViewModel() {
                 agcAttackRate = savedAgcAttackRate,
                 agcDecayRate = savedAgcDecayRate,
                 processingChain = savedChain,
+                equalizerConfig = savedEqualizerConfig,
                 androidAudioSourceName = savedAndroidAudioSourceName,
                 isAutoConfig = savedIsAutoConfig,
                 performanceMode = savedPerformanceMode,
@@ -273,9 +297,18 @@ class AudioStreamViewModel : ViewModel() {
             enableDereverb = s.enableDereverb,
             dereverbLevel = s.dereverbLevel,
             amplification = s.amplification,
-            processingChain = s.processingChain
+            processingChain = s.processingChain,
+            equalizerConfig = s.equalizerConfig
         )
         _uiState.update { it.copy(audioConfigRevision = it.audioConfigRevision + 1) }
+    }
+
+    fun setEqualizerConfig(config: EqualizerConfig) {
+        _uiState.update { it.copy(equalizerConfig = config) }
+        settings.putBoolean("equalizer_enabled", config.enabled)
+        settings.putFloat("equalizer_preamp", config.preAmp)
+        settings.putString("equalizer_gains", config.gains.joinToString(","))
+        updateAudioEngineConfig()
     }
 
     private fun applyAutoConfig() {

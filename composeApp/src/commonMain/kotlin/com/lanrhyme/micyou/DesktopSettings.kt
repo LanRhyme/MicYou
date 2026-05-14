@@ -1,7 +1,6 @@
 package com.lanrhyme.micyou
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
@@ -12,8 +11,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,12 +26,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -54,6 +51,7 @@ import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.People
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -71,7 +69,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -79,8 +76,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -93,7 +88,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalUriHandler
@@ -104,15 +98,142 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.lanrhyme.micyou.animation.EasingFunctions
 import com.lanrhyme.micyou.theme.ExpressiveCard
-import com.lanrhyme.micyou.theme.ExpressiveElevatedCard
-import com.lanrhyme.micyou.theme.ExpressiveFilterChip
-import com.lanrhyme.micyou.theme.ExpressiveSlider
-import com.lanrhyme.micyou.theme.ExpressiveSwitch
-import com.lanrhyme.micyou.theme.SuperRoundedShape
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
-import micyou.composeapp.generated.resources.*
 import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.aboutSection
+import micyou.composeapp.generated.resources.agcAttackRateLabel
+import micyou.composeapp.generated.resources.agcDecayRateLabel
+import micyou.composeapp.generated.resources.agcTargetLabel
+import micyou.composeapp.generated.resources.appearanceSection
+import micyou.composeapp.generated.resources.audioFormatLabel
+import micyou.composeapp.generated.resources.audioProcessingChainTitle
+import micyou.composeapp.generated.resources.audioSection
+import micyou.composeapp.generated.resources.audioSourceLabel
+import micyou.composeapp.generated.resources.autoCheckUpdateDesc
+import micyou.composeapp.generated.resources.autoCheckUpdateLabel
+import micyou.composeapp.generated.resources.autoConfigDesc
+import micyou.composeapp.generated.resources.autoConfigLabel
+import micyou.composeapp.generated.resources.autoStartDesc
+import micyou.composeapp.generated.resources.autoStartLabel
+import micyou.composeapp.generated.resources.backgroundBlurLabel
+import micyou.composeapp.generated.resources.backgroundBrightnessLabel
+import micyou.composeapp.generated.resources.backgroundSettingsLabel
+import micyou.composeapp.generated.resources.cancel
+import micyou.composeapp.generated.resources.cardOpacityLabel
+import micyou.composeapp.generated.resources.channelCountLabel
+import micyou.composeapp.generated.resources.checkUpdate
+import micyou.composeapp.generated.resources.clearBackgroundImage
+import micyou.composeapp.generated.resources.close
+import micyou.composeapp.generated.resources.closeActionExit
+import micyou.composeapp.generated.resources.closeActionLabel
+import micyou.composeapp.generated.resources.closeActionMinimize
+import micyou.composeapp.generated.resources.closeActionPrompt
+import micyou.composeapp.generated.resources.contributorsDesc
+import micyou.composeapp.generated.resources.contributorsLabel
+import micyou.composeapp.generated.resources.dereverbLevelLabel
+import micyou.composeapp.generated.resources.developerLabel
+import micyou.composeapp.generated.resources.dynamicColorEnabledHint
+import micyou.composeapp.generated.resources.enableAgcLabel
+import micyou.composeapp.generated.resources.enableDereverbLabel
+import micyou.composeapp.generated.resources.enableEqualizerLabel
+import micyou.composeapp.generated.resources.enableHazeEffectDesc
+import micyou.composeapp.generated.resources.enableHazeEffectLabel
+import micyou.composeapp.generated.resources.enableNsLabel
+import micyou.composeapp.generated.resources.enableStreamingNotificationLabel
+import micyou.composeapp.generated.resources.enableVadLabel
+import micyou.composeapp.generated.resources.equalizerBandsLabel
+import micyou.composeapp.generated.resources.equalizerBassBoostPreset
+import micyou.composeapp.generated.resources.equalizerClassicPreset
+import micyou.composeapp.generated.resources.equalizerJazzPreset
+import micyou.composeapp.generated.resources.equalizerNormalPreset
+import micyou.composeapp.generated.resources.equalizerPopPreset
+import micyou.composeapp.generated.resources.equalizerPreAmpLabel
+import micyou.composeapp.generated.resources.equalizerPresetsLabel
+import micyou.composeapp.generated.resources.equalizerRockPreset
+import micyou.composeapp.generated.resources.equalizerSection
+import micyou.composeapp.generated.resources.exportLog
+import micyou.composeapp.generated.resources.exportLogDesc
+import micyou.composeapp.generated.resources.floatingWindowDesc
+import micyou.composeapp.generated.resources.floatingWindowLabel
+import micyou.composeapp.generated.resources.gainLabel
+import micyou.composeapp.generated.resources.generalSection
+import micyou.composeapp.generated.resources.githubRepoLabel
+import micyou.composeapp.generated.resources.introText
+import micyou.composeapp.generated.resources.keepScreenOnDesc
+import micyou.composeapp.generated.resources.keepScreenOnLabel
+import micyou.composeapp.generated.resources.languageLabel
+import micyou.composeapp.generated.resources.licensesTitle
+import micyou.composeapp.generated.resources.logExportFailed
+import micyou.composeapp.generated.resources.logExported
+import micyou.composeapp.generated.resources.mirrorCdkDesc
+import micyou.composeapp.generated.resources.mirrorCdkGetLink
+import micyou.composeapp.generated.resources.mirrorCdkLabel
+import micyou.composeapp.generated.resources.mirrorCdkPlaceholder
+import micyou.composeapp.generated.resources.mirrorDownloadDesc
+import micyou.composeapp.generated.resources.mirrorDownloadLabel
+import micyou.composeapp.generated.resources.nsAlgorithmAlternative
+import micyou.composeapp.generated.resources.nsAlgorithmCloseButton
+import micyou.composeapp.generated.resources.nsAlgorithmHelpTitle
+import micyou.composeapp.generated.resources.nsAlgorithmLightweight
+import micyou.composeapp.generated.resources.nsAlgorithmRNNoiseDesc
+import micyou.composeapp.generated.resources.nsAlgorithmRNNoiseTitle
+import micyou.composeapp.generated.resources.nsAlgorithmRecommended
+import micyou.composeapp.generated.resources.nsAlgorithmSpeexdspDesc
+import micyou.composeapp.generated.resources.nsAlgorithmSpeexdspTitle
+import micyou.composeapp.generated.resources.nsAlgorithmUlnasDesc
+import micyou.composeapp.generated.resources.nsAlgorithmUlnasTitle
+import micyou.composeapp.generated.resources.nsIntensityLabel
+import micyou.composeapp.generated.resources.nsTypeLabel
+import micyou.composeapp.generated.resources.ok
+import micyou.composeapp.generated.resources.oledPureBlackDesc
+import micyou.composeapp.generated.resources.oledPureBlackLabel
+import micyou.composeapp.generated.resources.openSourceLicense
+import micyou.composeapp.generated.resources.paletteStyleDesc
+import micyou.composeapp.generated.resources.paletteStyleLabel
+import micyou.composeapp.generated.resources.performanceDefault
+import micyou.composeapp.generated.resources.performanceDefaultDescription
+import micyou.composeapp.generated.resources.performanceHighQuality
+import micyou.composeapp.generated.resources.performanceHighQualityDescription
+import micyou.composeapp.generated.resources.performanceInfoDescription
+import micyou.composeapp.generated.resources.performanceInfoTitle
+import micyou.composeapp.generated.resources.performanceLabel
+import micyou.composeapp.generated.resources.performanceLowLatency
+import micyou.composeapp.generated.resources.performanceLowLatencyDescription
+import micyou.composeapp.generated.resources.pluginsSection
+import micyou.composeapp.generated.resources.pocketModeDesc
+import micyou.composeapp.generated.resources.pocketModeLabel
+import micyou.composeapp.generated.resources.processingChainDesc
+import micyou.composeapp.generated.resources.realTimeSpectrumLabel
+import micyou.composeapp.generated.resources.sampleRateLabel
+import micyou.composeapp.generated.resources.selectBackgroundImage
+import micyou.composeapp.generated.resources.settingsTitle
+import micyou.composeapp.generated.resources.softwareIntro
+import micyou.composeapp.generated.resources.themeColorLabel
+import micyou.composeapp.generated.resources.themeDark
+import micyou.composeapp.generated.resources.themeLabel
+import micyou.composeapp.generated.resources.themeLight
+import micyou.composeapp.generated.resources.themeSystem
+import micyou.composeapp.generated.resources.useDynamicColorDesc
+import micyou.composeapp.generated.resources.useDynamicColorLabel
+import micyou.composeapp.generated.resources.useExpressiveShapesDesc
+import micyou.composeapp.generated.resources.useExpressiveShapesLabel
+import micyou.composeapp.generated.resources.useSystemTitleBarDesc
+import micyou.composeapp.generated.resources.useSystemTitleBarLabel
+import micyou.composeapp.generated.resources.vadThresholdLabel
+import micyou.composeapp.generated.resources.vbcableInstall
+import micyou.composeapp.generated.resources.vbcableInstalled
+import micyou.composeapp.generated.resources.vbcableNotInstalled
+import micyou.composeapp.generated.resources.vbcableSettingsLabel
+import micyou.composeapp.generated.resources.versionLabel
+import micyou.composeapp.generated.resources.viewLibraries
+import micyou.composeapp.generated.resources.visualizerStyleBars
+import micyou.composeapp.generated.resources.visualizerStyleGlow
+import micyou.composeapp.generated.resources.visualizerStyleLabel
+import micyou.composeapp.generated.resources.visualizerStyleParticles
+import micyou.composeapp.generated.resources.visualizerStyleRipple
+import micyou.composeapp.generated.resources.visualizerStyleVolumeRing
+import micyou.composeapp.generated.resources.visualizerStyleWave
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
@@ -201,6 +322,7 @@ enum class SettingsSection {
     General,
     Appearance,
     Audio,
+    Equalizer,
     Plugins,
     About
 }
@@ -344,6 +466,7 @@ fun DesktopLayout(viewModel: MainViewModel, onClose: () -> Unit, contentVisible:
                         SettingsSection.General -> Icons.Rounded.Settings
                         SettingsSection.Appearance -> Icons.Rounded.Palette
                         SettingsSection.Audio -> Icons.Rounded.Mic
+                        SettingsSection.Equalizer -> Icons.Rounded.Tune
                         SettingsSection.Plugins -> Icons.Rounded.Extension
                         SettingsSection.About -> Icons.Rounded.Info
                     }
@@ -1427,6 +1550,9 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                     }
                 }
             }
+            SettingsSection.Equalizer -> {
+                EqualizerContent(viewModel, cardOpacity)
+            }
             SettingsSection.Plugins -> {
                 PluginSettingsContent(viewModel, cardOpacity)
             }
@@ -1594,8 +1720,141 @@ fun SettingsSection.getLabel(): String {
         SettingsSection.General -> stringResource(Res.string.generalSection)
         SettingsSection.Appearance -> stringResource(Res.string.appearanceSection)
         SettingsSection.Audio -> stringResource(Res.string.audioSection)
+        SettingsSection.Equalizer -> stringResource(Res.string.equalizerSection)
         SettingsSection.Plugins -> stringResource(Res.string.pluginsSection)
         SettingsSection.About -> stringResource(Res.string.aboutSection)
+    }
+}
+
+@Composable
+fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
+    val state by viewModel.uiState.collectAsState()
+    val eqConfig = state.equalizerConfig
+    
+    val presets = listOf(
+        stringResource(Res.string.equalizerNormalPreset) to List(10) { 0f },
+        stringResource(Res.string.equalizerPopPreset) to listOf(2f, 1f, 0f, -1f, -2f, -2f, -1f, 0f, 1f, 2f),
+        stringResource(Res.string.equalizerRockPreset) to listOf(3f, 2f, 1f, 0f, -1f, -1f, 0f, 1f, 2f, 3f),
+        stringResource(Res.string.equalizerJazzPreset) to listOf(0f, 0f, 1f, 2f, -2f, -2f, 0f, 1f, 2f, 1f),
+        stringResource(Res.string.equalizerClassicPreset) to listOf(0f, 0f, 0f, 0f, 0f, 0f, -2f, -2f, -2f, -3f),
+        stringResource(Res.string.equalizerBassBoostPreset) to listOf(5f, 4f, 3f, 2f, 1f, 0f, 0f, 0f, 0f, 0f)
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Enable Switch
+        SettingsSwitchItem(
+            headline = stringResource(Res.string.enableEqualizerLabel),
+            checked = eqConfig.enabled,
+            onCheckedChange = { viewModel.setEqualizerConfig(eqConfig.copy(enabled = it)) },
+            cardOpacity = cardOpacity
+        )
+
+        if (eqConfig.enabled) {
+            // Presets
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(Res.string.equalizerPresetsLabel), style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(8.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(presets) { preset ->
+                            FilterChip(
+                                selected = eqConfig.gains == preset.second,
+                                onClick = { viewModel.setEqualizerConfig(eqConfig.copy(gains = preset.second)) },
+                                label = { Text(preset.first) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Pre-Amp
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(stringResource(Res.string.equalizerPreAmpLabel), style = MaterialTheme.typography.bodyMedium)
+                        Text("${eqConfig.preAmp.toInt()} dB", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Slider(
+                        value = eqConfig.preAmp,
+                        onValueChange = { viewModel.setEqualizerConfig(eqConfig.copy(preAmp = it)) },
+                        valueRange = -20f..20f
+                    )
+                }
+            }
+
+            // Bands
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(stringResource(Res.string.equalizerBandsLabel), style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(16.dp))
+                    
+                    val frequencies = listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(280.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        eqConfig.gains.forEachIndexed { index, gain ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxHeight().width(44.dp)
+                            ) {
+                                Text(
+                                    if (gain >= 0) "+${gain.toInt()}" else "${gain.toInt()}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (gain != 0f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = if (gain != 0f) FontWeight.Bold else FontWeight.Normal
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Box(
+                                    modifier = Modifier.weight(1f).width(44.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Slider(
+                                        value = gain,
+                                        onValueChange = { newValue ->
+                                            val newGains = eqConfig.gains.toMutableList()
+                                            newGains[index] = newValue
+                                            viewModel.setEqualizerConfig(eqConfig.copy(gains = newGains))
+                                        },
+                                        valueRange = -15f..15f,
+                                        modifier = Modifier
+                                            .graphicsLayer {
+                                                rotationZ = -90f
+                                            }
+                                            .requiredWidth(200.dp)
+                                    )
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    frequencies[index],
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

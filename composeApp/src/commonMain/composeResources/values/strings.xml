@@ -431,4 +431,15 @@
     <string name="webClientCountLabel">Connected Clients</string>
     <string name="webUrlLabel">Web URL</string>
     <string name="webModeDesc">Start HTTPS + WebSocket server for browser microphone input</string>
+    <string name="equalizerSection">Equalizer</string>
+    <string name="enableEqualizerLabel">Enable Equalizer</string>
+    <string name="equalizerPreAmpLabel">Pre-Amp</string>
+    <string name="equalizerPresetsLabel">Presets</string>
+    <string name="equalizerBandsLabel">Bands</string>
+    <string name="equalizerNormalPreset">Normal</string>
+    <string name="equalizerPopPreset">Pop</string>
+    <string name="equalizerRockPreset">Rock</string>
+    <string name="equalizerJazzPreset">Jazz</string>
+    <string name="equalizerClassicPreset">Classic</string>
+    <string name="equalizerBassBoostPreset">Bass Boost</string>
 </resources>

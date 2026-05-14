@@ -4,6 +4,7 @@ import com.lanrhyme.micyou.NoiseReductionType
 import com.lanrhyme.micyou.PerformanceConfig
 import com.lanrhyme.micyou.Logger
 import com.lanrhyme.micyou.AudioEffectType
+import com.lanrhyme.micyou.EqualizerConfig
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -16,6 +17,7 @@ class AudioProcessorPipeline {
     private val dereverbEffect = DereverbEffect()
     private val agcEffect = AGCEffect()
     private val amplifierEffect = AmplifierEffect()
+    private val equalizerEffect = EqualizerEffect()
     private val vadEffect = VADEffect()
     private val resamplerEffect = ResamplerEffect()
 
@@ -23,6 +25,7 @@ class AudioProcessorPipeline {
     private var processingChain: List<AudioEffectType> = listOf(
         AudioEffectType.NoiseReduction,
         AudioEffectType.Dereverb,
+        AudioEffectType.Equalizer,
         AudioEffectType.Amplifier,
         AudioEffectType.AGC,
         AudioEffectType.VAD
@@ -52,7 +55,8 @@ class AudioProcessorPipeline {
         enableDereverb: Boolean,
         dereverbLevel: Float,
         amplification: Float,
-        newProcessingChain: List<AudioEffectType>? = null
+        newProcessingChain: List<AudioEffectType>? = null,
+        equalizerConfig: EqualizerConfig = EqualizerConfig()
     ) {
         noiseReducer.enableNS = enableNS
         noiseReducer.nsType = nsType
@@ -70,6 +74,10 @@ class AudioProcessorPipeline {
         dereverbEffect.dereverbLevel = dereverbLevel
 
         amplifierEffect.gainDb = amplification
+        
+        equalizerEffect.enabled = equalizerConfig.enabled
+        equalizerEffect.setGains(equalizerConfig.gains)
+        equalizerEffect.preAmpDb = equalizerConfig.preAmp
 
         if (newProcessingChain != null && newProcessingChain.isNotEmpty()) {
             processingChain = newProcessingChain
@@ -78,18 +86,21 @@ class AudioProcessorPipeline {
 
     /**
      * 音频处理管道
-     * 处理链顺序：根据 processingChain 动态决定，默认为 降噪 -> 去混响 -> 放大 -> AGC -> VAD -> 重采样
+     * 处理链顺序：根据 processingChain 动态决定，默认为 降噪 -> 去混响 -> 均衡器 -> 放大 -> AGC -> VAD -> 重采样
      */
     fun process(
         inputBuffer: ByteArray,
         audioFormat: Int,
         channelCount: Int,
+        sampleRate: Int,
         queuedDurationMs: Long
     ): ByteArray? {
         val shorts = convertToShorts(inputBuffer, audioFormat)
         if (shorts == null || shorts.isEmpty()) return null
 
         var processed: ShortArray = shorts
+        
+        equalizerEffect.updateSampleRate(sampleRate.toDouble())
 
         // 动态执行处理链
         for (effectType in processingChain) {
@@ -97,6 +108,7 @@ class AudioProcessorPipeline {
                 AudioEffectType.NoiseReduction -> noiseReducer.process(processed, channelCount)
                 AudioEffectType.Dereverb -> dereverbEffect.process(processed, channelCount)
                 AudioEffectType.Amplifier -> amplifierEffect.process(processed, channelCount)
+                AudioEffectType.Equalizer -> equalizerEffect.process(processed, channelCount)
                 AudioEffectType.AGC -> agcEffect.process(processed, channelCount)
                 AudioEffectType.VAD -> {
                     vadEffect.speechProbability = noiseReducer.speechProbability
@@ -208,6 +220,7 @@ class AudioProcessorPipeline {
         agcEffect.release()
         vadEffect.release()
         amplifierEffect.release()
+        equalizerEffect.release()
         resamplerEffect.release()
     }
 
@@ -217,6 +230,7 @@ class AudioProcessorPipeline {
         agcEffect.reset()
         vadEffect.reset()
         amplifierEffect.reset()
+        equalizerEffect.reset()
         resamplerEffect.reset()
     }
 

@@ -71,7 +71,7 @@ abstract class BasePluginHostImpl(
             enableDereverb = config.enableDereverb,
             dereverbLevel = config.dereverbLevel,
             amplification = config.amplification,
-            processingChain = null
+            processingChain = emptyList()
         )
     }
 
