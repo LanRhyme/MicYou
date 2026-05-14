@@ -69,11 +69,21 @@ data class AppUiState(
     val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
     val enableAGC: Boolean = false,
     val agcTargetLevel: Int = 32000,
+    val agcAttackRate: Float = 0.01f,
+    val agcDecayRate: Float = 0.005f,
     val enableVAD: Boolean = false,
     val vadThreshold: Int = 10,
     val enableDereverb: Boolean = false,
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
+    val nsIntensity: Float = 1.0f,
+    val processingChain: List<AudioEffectType> = listOf(
+        AudioEffectType.NoiseReduction,
+        AudioEffectType.Dereverb,
+        AudioEffectType.Amplifier,
+        AudioEffectType.AGC,
+        AudioEffectType.VAD
+    ),
     val androidAudioSourceName: String = "Unprocessed",
     val audioConfigRevision: Int = 0,
     
@@ -159,6 +169,8 @@ class MainViewModel : ViewModel() {
     
     // Expose audio levels from AudioStreamViewModel
     val audioLevels = audioStreamViewModel.audioLevels
+    val rawSpectrum = audioStreamViewModel.rawSpectrum
+    val processedSpectrum = audioStreamViewModel.processedSpectrum
     val audioLevelData = audioStreamViewModel.audioLevelData
     val audioMetricsFlow = audioStreamViewModel.audioMetrics
     val levelHistory = audioStreamViewModel.levelHistory
@@ -294,11 +306,15 @@ class MainViewModel : ViewModel() {
                         nsType = audioState.nsType,
                         enableAGC = audioState.enableAGC,
                         agcTargetLevel = audioState.agcTargetLevel,
+                        agcAttackRate = audioState.agcAttackRate,
+                        agcDecayRate = audioState.agcDecayRate,
                         enableVAD = audioState.enableVAD,
                         vadThreshold = audioState.vadThreshold,
                         enableDereverb = audioState.enableDereverb,
                         dereverbLevel = audioState.dereverbLevel,
                         amplification = audioState.amplification,
+                        nsIntensity = audioState.nsIntensity,
+                        processingChain = audioState.processingChain,
                         androidAudioSourceName = audioState.androidAudioSourceName,
                         audioConfigRevision = audioState.audioConfigRevision,
                         themeMode = settingsState.themeMode,
@@ -380,12 +396,16 @@ class MainViewModel : ViewModel() {
     fun setAndroidAudioProcessing(enabled: Boolean) = audioStreamViewModel.setAndroidAudioProcessing(enabled)
     fun setEnableNS(enabled: Boolean) = audioStreamViewModel.setEnableNS(enabled)
     fun setNsType(type: NoiseReductionType) = audioStreamViewModel.setNsType(type)
+    fun setNsIntensity(intensity: Float) = audioStreamViewModel.setNsIntensity(intensity)
     fun setEnableAGC(enabled: Boolean) = audioStreamViewModel.setEnableAGC(enabled)
     fun setAgcTargetLevel(level: Int) = audioStreamViewModel.setAgcTargetLevel(level)
+    fun setAgcAttackRate(rate: Float) = audioStreamViewModel.setAgcAttackRate(rate)
+    fun setAgcDecayRate(rate: Float) = audioStreamViewModel.setAgcDecayRate(rate)
     fun setEnableVAD(enabled: Boolean) = audioStreamViewModel.setEnableVAD(enabled)
     fun setVadThreshold(threshold: Int) = audioStreamViewModel.setVadThreshold(threshold)
     fun setEnableDereverb(enabled: Boolean) = audioStreamViewModel.setEnableDereverb(enabled)
     fun setDereverbLevel(level: Float) = audioStreamViewModel.setDereverbLevel(level)
+    fun setProcessingChain(chain: List<AudioEffectType>) = audioStreamViewModel.setProcessingChain(chain)
     fun setAmplification(amp: Float) = audioStreamViewModel.setAmplification(amp)
     fun setAndroidAudioSource(sourceName: String) = audioStreamViewModel.setAndroidAudioSource(sourceName)
     fun setAutoConfig(enabled: Boolean) = audioStreamViewModel.setAutoConfig(enabled)

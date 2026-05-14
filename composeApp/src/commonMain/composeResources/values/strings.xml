@@ -417,6 +417,15 @@
     <string name="monitoringStatusNormal">Normal</string>
     <string name="monitoringStatusPoor">Poor</string>
     <string name="monitoringHint">Tip: Data updates every 500ms. A full report is logged every minute.</string>
+    <string name="nsIntensityLabel">Intensity</string>
+    <string name="agcAttackRateLabel">Attack Rate</string>
+    <string name="agcDecayRateLabel">Decay Rate</string>
+    <string name="dereverbDecayTimeLabel">Decay Time</string>
+    <string name="processingChainLabel">Processing Chain</string>
+    <string name="processingChainDesc">Click arrows to reorder audio effects</string>
+    <string name="audioProcessingChainTitle">Audio Processing Chain</string>
+    <string name="realTimeSpectrumLabel">Real-time Spectrum (Raw vs Processed)</string>
+    <string name="monitoringRecordPlayLabel">Record &amp; Play Monitoring</string>
     <string name="webQrCodeTitle">Scan to Connect</string>
     <string name="webScanHint">Use your phone to scan the QR code, then allow microphone access</string>
     <string name="webClientCountLabel">Connected Clients</string>

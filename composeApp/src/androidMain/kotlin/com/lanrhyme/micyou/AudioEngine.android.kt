@@ -115,6 +115,12 @@ actual class AudioEngine actual constructor() {
     fun currentStreamState(): StreamState = _state.value
     private val _audioLevels = MutableStateFlow(0f)
     actual val audioLevels: Flow<Float> = _audioLevels
+
+    private val _rawSpectrum = MutableStateFlow(FloatArray(0))
+    actual val rawSpectrum: Flow<FloatArray> = _rawSpectrum
+
+    private val _processedSpectrum = MutableStateFlow(FloatArray(0))
+    actual val processedSpectrum: Flow<FloatArray> = _processedSpectrum
     private val _audioLevelData = MutableStateFlow(AudioLevelData.SILENT)
     actual val audioLevelData: Flow<AudioLevelData> = _audioLevelData
     private val _audioMetrics = MutableStateFlow<AudioMetrics?>(null)
@@ -604,19 +610,25 @@ actual class AudioEngine actual constructor() {
     actual fun updateConfig(
         enableNS: Boolean,
         nsType: NoiseReductionType,
+        nsIntensity: Float,
         enableAGC: Boolean,
         agcTargetLevel: Int,
+        agcAttackRate: Float,
+        agcDecayRate: Float,
         enableVAD: Boolean,
         vadThreshold: Int,
         enableDereverb: Boolean,
         dereverbLevel: Float,
-        amplification: Float
+        amplification: Float,
+        processingChain: List<AudioEffectType>?
     ) {
         val nsChanged = this.enableNS != enableNS
         val agcChanged = this.enableAGC != enableAGC
 
         this.enableNS = enableNS
         this.enableAGC = enableAGC
+        // Note: nsIntensity, agcAttackRate, agcDecayRate, dereverbLevel, amplification, and processingChain
+        // are currently ignored on Android as it uses hardware-based processing.
 
         try {
             noiseSuppressor?.enabled = enableNS

@@ -35,11 +35,21 @@ data class AudioStreamUiState(
     val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
     val enableAGC: Boolean = false,
     val agcTargetLevel: Int = 32000,
+    val agcAttackRate: Float = 0.01f,
+    val agcDecayRate: Float = 0.005f,
     val enableVAD: Boolean = false,
     val vadThreshold: Int = 10,
     val enableDereverb: Boolean = false,
     val dereverbLevel: Float = 0.5f,
     val amplification: Float = 15.0f,
+    val nsIntensity: Float = 1.0f,
+    val processingChain: List<AudioEffectType> = listOf(
+        AudioEffectType.NoiseReduction,
+        AudioEffectType.Dereverb,
+        AudioEffectType.Amplifier,
+        AudioEffectType.AGC,
+        AudioEffectType.VAD
+    ),
     val androidAudioSourceName: String = "Unprocessed",
     val audioConfigRevision: Int = 0,
 
@@ -63,6 +73,8 @@ class AudioStreamViewModel : ViewModel() {
 
     // 音频电平相关
     val audioLevels = _audioEngine.audioLevels
+    val rawSpectrum = _audioEngine.rawSpectrum
+    val processedSpectrum = _audioEngine.processedSpectrum
     val audioLevelData = _audioEngine.audioLevelData
     val audioMetrics = _audioEngine.audioMetrics
 
@@ -135,6 +147,23 @@ class AudioStreamViewModel : ViewModel() {
     val savedDereverb = settings.getBoolean("enable_dereverb", false)
     val savedDereverbLevel = settings.getFloat("dereverb_level", 0.5f)
     val savedAmplification = settings.getFloat("amplification", 15.0f)
+    val savedNsIntensity = settings.getFloat("ns_intensity", 1.0f)
+    val savedAgcAttackRate = settings.getFloat("agc_attack_rate", 0.01f)
+    val savedAgcDecayRate = settings.getFloat("agc_decay_rate", 0.005f)
+    val savedChainStr = settings.getString("processing_chain", "")
+    val savedChain = if (savedChainStr.isEmpty()) {
+        listOf(
+            AudioEffectType.NoiseReduction,
+            AudioEffectType.Dereverb,
+            AudioEffectType.Amplifier,
+            AudioEffectType.AGC,
+            AudioEffectType.VAD
+        )
+    } else {
+        savedChainStr.split(",").mapNotNull { 
+            try { AudioEffectType.valueOf(it) } catch(e: Exception) { null }
+        }
+    }
     val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Unprocessed")
     val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
     val savedPerformanceMode = settings.getString("performance_mode", "Default")
@@ -158,6 +187,10 @@ class AudioStreamViewModel : ViewModel() {
                 enableDereverb = savedDereverb,
                 dereverbLevel = savedDereverbLevel,
                 amplification = savedAmplification,
+                nsIntensity = savedNsIntensity,
+                agcAttackRate = savedAgcAttackRate,
+                agcDecayRate = savedAgcDecayRate,
+                processingChain = savedChain,
                 androidAudioSourceName = savedAndroidAudioSourceName,
                 isAutoConfig = savedIsAutoConfig,
                 performanceMode = savedPerformanceMode,
@@ -230,13 +263,17 @@ class AudioStreamViewModel : ViewModel() {
         _audioEngine.updateConfig(
             enableNS = s.enableNS,
             nsType = s.nsType,
+            nsIntensity = s.nsIntensity,
             enableAGC = s.enableAGC,
             agcTargetLevel = s.agcTargetLevel,
+            agcAttackRate = s.agcAttackRate,
+            agcDecayRate = s.agcDecayRate,
             enableVAD = s.enableVAD,
             vadThreshold = s.vadThreshold,
             enableDereverb = s.enableDereverb,
             dereverbLevel = s.dereverbLevel,
-            amplification = s.amplification
+            amplification = s.amplification,
+            processingChain = s.processingChain
         )
         _uiState.update { it.copy(audioConfigRevision = it.audioConfigRevision + 1) }
     }
@@ -517,6 +554,30 @@ class AudioStreamViewModel : ViewModel() {
     fun setDereverbLevel(level: Float) {
         _uiState.update { it.copy(dereverbLevel = level) }
         settings.putFloat("dereverb_level", level)
+        updateAudioEngineConfig()
+    }
+
+    fun setNsIntensity(intensity: Float) {
+        _uiState.update { it.copy(nsIntensity = intensity) }
+        settings.putFloat("ns_intensity", intensity)
+        updateAudioEngineConfig()
+    }
+
+    fun setAgcAttackRate(rate: Float) {
+        _uiState.update { it.copy(agcAttackRate = rate) }
+        settings.putFloat("agc_attack_rate", rate)
+        updateAudioEngineConfig()
+    }
+
+    fun setAgcDecayRate(rate: Float) {
+        _uiState.update { it.copy(agcDecayRate = rate) }
+        settings.putFloat("agc_decay_rate", rate)
+        updateAudioEngineConfig()
+    }
+
+    fun setProcessingChain(chain: List<AudioEffectType>) {
+        _uiState.update { it.copy(processingChain = chain) }
+        settings.putString("processing_chain", chain.joinToString(",") { it.name })
         updateAudioEngineConfig()
     }
     

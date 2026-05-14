@@ -61,13 +61,17 @@ abstract class BasePluginHostImpl(
         audioEngine.updateConfig(
             enableNS = config.enableNS,
             nsType = mapNsType(config.nsType),
+            nsIntensity = 1.0f,
             enableAGC = config.enableAGC,
             agcTargetLevel = config.agcTargetLevel,
+            agcAttackRate = 0.01f,
+            agcDecayRate = 0.005f,
             enableVAD = config.enableVAD,
             vadThreshold = config.vadThreshold,
             enableDereverb = config.enableDereverb,
             dereverbLevel = config.dereverbLevel,
-            amplification = config.amplification
+            amplification = config.amplification,
+            processingChain = null
         )
     }
 

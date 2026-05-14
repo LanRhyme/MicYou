@@ -3,6 +3,7 @@ package com.lanrhyme.micyou.audio
 import com.lanrhyme.micyou.NoiseReductionType
 import com.lanrhyme.micyou.PerformanceConfig
 import com.lanrhyme.micyou.Logger
+import com.lanrhyme.micyou.AudioEffectType
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -18,6 +19,15 @@ class AudioProcessorPipeline {
     private val vadEffect = VADEffect()
     private val resamplerEffect = ResamplerEffect()
 
+    // 默认处理链顺序
+    private var processingChain: List<AudioEffectType> = listOf(
+        AudioEffectType.NoiseReduction,
+        AudioEffectType.Dereverb,
+        AudioEffectType.Amplifier,
+        AudioEffectType.AGC,
+        AudioEffectType.VAD
+    )
+
     // 可配置的性能参数
     private var config: PerformanceConfig = PerformanceConfig.DEFAULT
 
@@ -32,19 +42,26 @@ class AudioProcessorPipeline {
     fun updateConfig(
         enableNS: Boolean,
         nsType: NoiseReductionType,
+        nsIntensity: Float,
         enableAGC: Boolean,
         agcTargetLevel: Int,
+        agcAttackRate: Float,
+        agcDecayRate: Float,
         enableVAD: Boolean,
         vadThreshold: Int,
         enableDereverb: Boolean,
         dereverbLevel: Float,
-        amplification: Float
+        amplification: Float,
+        newProcessingChain: List<AudioEffectType>? = null
     ) {
         noiseReducer.enableNS = enableNS
         noiseReducer.nsType = nsType
+        noiseReducer.intensity = nsIntensity
         
         agcEffect.enableAGC = enableAGC
         agcEffect.agcTargetLevel = agcTargetLevel
+        agcEffect.attackRate = agcAttackRate
+        agcEffect.decayRate = agcDecayRate
         
         vadEffect.enableVAD = enableVAD
         vadEffect.vadThreshold = vadThreshold
@@ -53,19 +70,15 @@ class AudioProcessorPipeline {
         dereverbEffect.dereverbLevel = dereverbLevel
 
         amplifierEffect.gainDb = amplification
+
+        if (newProcessingChain != null && newProcessingChain.isNotEmpty()) {
+            processingChain = newProcessingChain
+        }
     }
 
     /**
      * 音频处理管道
-     * 处理链顺序：降噪 -> 去混响 -> 放大 -> AGC -> VAD -> 重采样
-     *
-     * 顺序说明：
-     * 1. 降噪先处理原始信号中的噪声，避免后续放大把噪声也放大
-     * 2. 去混响在降噪后处理，避免混响和噪声叠加影响降噪效果
-     * 3. 放大在降噪后执行，只放大干净的声音信号
-     * 4. AGC 调整整体音量一致性
-     * 5. VAD 检测语音活动
-     * 6. 重采样调整播放速度
+     * 处理链顺序：根据 processingChain 动态决定，默认为 降噪 -> 去混响 -> 放大 -> AGC -> VAD -> 重采样
      */
     fun process(
         inputBuffer: ByteArray,
@@ -76,22 +89,23 @@ class AudioProcessorPipeline {
         val shorts = convertToShorts(inputBuffer, audioFormat)
         if (shorts == null || shorts.isEmpty()) return null
 
-        var processed = shorts
+        var processed: ShortArray = shorts
 
-        // 1. 先降噪，处理原始信号中的噪声
-        processed = noiseReducer.process(processed, channelCount)
-        // 2. 去混响
-        processed = dereverbEffect.process(processed, channelCount)
-        // 3. 放大干净的声音信号（降噪后）
-        processed = amplifierEffect.process(processed, channelCount)
-        // 4. AGC 调整整体音量
-        processed = agcEffect.process(processed, channelCount)
+        // 动态执行处理链
+        for (effectType in processingChain) {
+            processed = when (effectType) {
+                AudioEffectType.NoiseReduction -> noiseReducer.process(processed, channelCount)
+                AudioEffectType.Dereverb -> dereverbEffect.process(processed, channelCount)
+                AudioEffectType.Amplifier -> amplifierEffect.process(processed, channelCount)
+                AudioEffectType.AGC -> agcEffect.process(processed, channelCount)
+                AudioEffectType.VAD -> {
+                    vadEffect.speechProbability = noiseReducer.speechProbability
+                    vadEffect.process(processed, channelCount)
+                }
+            }
+        }
 
-        // 5. VAD 检测语音活动
-        vadEffect.speechProbability = noiseReducer.speechProbability
-        processed = vadEffect.process(processed, channelCount)
-
-        // 6. 重采样
+        // 最后执行重采样（重采样通常必须是最后一步，因为它涉及输出格式和长度的最终调整）
         resamplerEffect.updatePlaybackRatio(queuedDurationMs)
     val maxOutputShorts = ((processed.size / playbackRatioLowerBound) + 16).toInt()
     val neededBytes = maxOutputShorts * 2
@@ -120,7 +134,10 @@ class AudioProcessorPipeline {
         scratchResultByteBuffer = ByteBuffer.wrap(scratchResultBuffer).order(ByteOrder.LITTLE_ENDIAN)
     }
 
-    private fun convertToShorts(buffer: ByteArray, format: Int): ShortArray? {
+    /**
+     * 将字节数组转换为 ShortArray
+     */
+    internal fun convertToShorts(buffer: ByteArray, format: Int): ShortArray? {
         val shortsSize = when (format) {
             4, 32 -> buffer.size / 4  // PCM_FLOAT
             6, 24 -> buffer.size / 3  // PCM_24BIT (新增)

@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import com.lanrhyme.micyou.audio.AudioOutputManager
 import com.lanrhyme.micyou.audio.AudioProcessorPipeline
+import com.lanrhyme.micyou.audio.AudioSpectrumAnalyzer
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.errorAdbReverseFailed
 import org.jetbrains.compose.resources.getString
@@ -26,6 +27,16 @@ actual class AudioEngine actual constructor() {
     actual val streamState: Flow<StreamState> = _state
     private val _audioLevels = MutableStateFlow(0f)
     actual val audioLevels: Flow<Float> = _audioLevels
+    
+    private val _rawSpectrum = MutableStateFlow(FloatArray(0))
+    actual val rawSpectrum: Flow<FloatArray> = _rawSpectrum.asStateFlow()
+    
+    private val _processedSpectrum = MutableStateFlow(FloatArray(0))
+    actual val processedSpectrum: Flow<FloatArray> = _processedSpectrum.asStateFlow()
+    
+    private val rawSpectrumAnalyzer = AudioSpectrumAnalyzer()
+    private val processedSpectrumAnalyzer = AudioSpectrumAnalyzer()
+
     private val _audioLevelData = MutableStateFlow(AudioLevelData.SILENT)
     actual val audioLevelData: Flow<AudioLevelData> = _audioLevelData
     private val _audioMetrics = MutableStateFlow<AudioMetrics?>(null)
@@ -168,6 +179,12 @@ actual class AudioEngine actual constructor() {
                     currentChannelCount = audioPacket.channelCount
                     currentAudioFormatValue = audioPacket.audioFormat
 
+                    // 计算原始频谱 (Raw Spectrum)
+                    val rawShorts = audioPipeline.convertToShorts(audioPacket.buffer, audioPacket.audioFormat)
+                    if (rawShorts != null) {
+                        _rawSpectrum.value = rawSpectrumAnalyzer.calculateSpectrum(rawShorts)
+                    }
+
                     val processedBuffer = audioPipeline.process(
                         inputBuffer = audioPacket.buffer,
                         audioFormat = audioPacket.audioFormat,
@@ -176,6 +193,13 @@ actual class AudioEngine actual constructor() {
                     )
 
                     if (processedBuffer != null) {
+                        // 计算处理后频谱 (Processed Spectrum)
+                        // 注意：processedBuffer 始终是 16-bit PCM (value = 2)
+                        val processedShorts = audioPipeline.convertToShorts(processedBuffer, 2)
+                        if (processedShorts != null) {
+                            _processedSpectrum.value = processedSpectrumAnalyzer.calculateSpectrum(processedShorts)
+                        }
+
                         audioOutputManager.write(processedBuffer, 0, processedBuffer.size)
     val levelData = calculateAudioLevelData(processedBuffer)
                         _audioLevels.value = levelData.rms
@@ -210,22 +234,27 @@ actual class AudioEngine actual constructor() {
     actual fun updateConfig(
         enableNS: Boolean,
         nsType: NoiseReductionType,
+        nsIntensity: Float,
         enableAGC: Boolean,
         agcTargetLevel: Int,
+        agcAttackRate: Float,
+        agcDecayRate: Float,
         enableVAD: Boolean,
         vadThreshold: Int,
         enableDereverb: Boolean,
         dereverbLevel: Float,
-        amplification: Float
+        amplification: Float,
+        processingChain: List<AudioEffectType>?
     ) {
         audioPipeline.updateConfig(
-            enableNS, nsType, enableAGC, agcTargetLevel,
+            enableNS, nsType, nsIntensity, enableAGC, agcTargetLevel,
+            agcAttackRate, agcDecayRate,
             enableVAD, vadThreshold, enableDereverb, dereverbLevel,
-            amplification
+            amplification, processingChain
         )
         
         if (System.getProperty("micyou.debugAudioConfig") == "true") {
-            Logger.d("AudioEngine", "配置更新: 放大器=$amplification, VAD=$enableVAD ($vadThreshold), AGC=$enableAGC ($agcTargetLevel), NS=$enableNS ($nsType)")
+            Logger.d("AudioEngine", "配置更新: 放大器=$amplification, VAD=$enableVAD ($vadThreshold), AGC=$enableAGC ($agcTargetLevel), NS=$enableNS ($nsType, $nsIntensity)")
         }
     }
 

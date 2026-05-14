@@ -55,6 +55,10 @@ class AGCEffect : AudioEffect {
     var enableAGC: Boolean = false
     // 目标音量水平 (RMS)
     var agcTargetLevel: Int = 32000
+    
+    // 平滑系数
+    var attackRate: Float = AGC_ATTACK_RATE
+    var decayRate: Float = AGC_DECAY_RATE
 
     private var agcEnvelope: Float = 0f
 
@@ -82,9 +86,9 @@ class AGCEffect : AudioEffect {
 
             // 平滑增益变化：降低快、增加慢
             val smoothing = if (desiredGain < agcEnvelope) {
-                AGC_DECAY_RATE  // 快速降低，防止声音突增
+                decayRate  // 使用可配置的衰减率
             } else {
-                AGC_ATTACK_RATE  // 缓慢增加，平滑提升
+                attackRate  // 使用可配置的增长率
             }
             agcEnvelope = agcEnvelope * (1f - smoothing) + desiredGain * smoothing
         } else {
