@@ -425,15 +425,19 @@ actual class AudioEngine actual constructor() {
                         sendChannel?.send(MessageWrapper(mute = MuteMessage(_isMuted.value)))
                         // Use read buffer sized to avoid IP fragmentation on WiFi
                         // Path MTU = 1500, minus IP(20)+UDP(8)+header(8)+ProtoBuf(~30) ≈ 1434 safe payload
-    val udpSafePayloadSize = 1400
-    val readBufSize = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) {
-                            minOf(minBufSize, udpSafePayloadSize).coerceAtLeast(256)
-                        } else {
-                            minOf(minBufSize, udpSafePayloadSize).coerceAtLeast(512)
+                        // Align to 480-sample frames (required by noise reduction: RNNoise/Ulunas)
+                        val udpSafePayloadSize = 1400
+                        val bytesPerSample = when (androidAudioFormat) {
+                            AudioFormat.ENCODING_PCM_FLOAT -> 4
+                            AudioFormat.ENCODING_PCM_8BIT -> 1
+                            else -> 2
                         }
-    val buffer = ByteArray(readBufSize)
-    val floatBuffer = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
-                        
+                        val frameAlignBytes = 480 * bytesPerSample * channelCount.value
+                        val alignedPayloadSize = (udpSafePayloadSize / frameAlignBytes) * frameAlignBytes
+                        val readBufSize = minOf(minBufSize, alignedPayloadSize).coerceAtLeast(frameAlignBytes)
+                        val buffer = ByteArray(readBufSize)
+                        val floatBuffer = if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
+
                         var sequenceNumber = 0
                         var lastAudioData: ByteArray? = null
                         var lastSequenceNumber = -1
@@ -445,7 +449,7 @@ actual class AudioEngine actual constructor() {
                             if (System.currentTimeMillis() - lastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
                                 throw Exception("Heartbeat timeout - server unreachable ($HEARTBEAT_TIMEOUT_MS ms)")
                             }
-                            
+
                             var readBytes = 0
                             val audioData: ByteArray
 
@@ -475,10 +479,21 @@ actual class AudioEngine actual constructor() {
                                         channelCount = if (channelCount == ChannelCount.Stereo) 2 else 1,
                                         audioFormat = audioFormat.value
                                     )
-    val wrapper = MessageWrapper(
-                                        audioPacket = AudioPacketMessageOrdered(sequenceNumber++, packet, System.currentTimeMillis())
+                                    // FEC: carry previous packet's data as redundancy.
+                                    // Every packet carries the previous one, so any single loss is recoverable.
+                                    val fecData = lastAudioData
+                                    val fecSeq = lastSequenceNumber
+                                    lastAudioData = audioData
+                                    lastSequenceNumber = sequenceNumber
+
+                                    val wrapper = MessageWrapper(
+                                        audioPacket = AudioPacketMessageOrdered(
+                                            sequenceNumber++, packet, System.currentTimeMillis(),
+                                            fecBuffer = fecData,
+                                            fecSequenceNumber = fecSeq
+                                        )
                                     )
-                                    
+
                                     if (udpSocket != null && udpServerAddress != null) {
                                         sendAudioPacketViaUdp(wrapper)
                                     } else {

@@ -47,9 +47,14 @@ data class AudioPacketMessageOrdered(
     @ProtoNumber(2)
     val audioPacket: AudioPacketMessage,
     @ProtoNumber(3)
-    val timestamp: Long = 0
+    val timestamp: Long = 0,
+    @ProtoNumber(4)
+    val fecBuffer: ByteArray? = null,
+    @ProtoNumber(5)
+    val fecSequenceNumber: Int = -1
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class MuteMessage(
     @ProtoNumber(1)
@@ -79,12 +84,14 @@ data class PluginSyncMessage(
     val platform: String = ""
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class PingMessage(
     @ProtoNumber(1)
     val timestamp: Long
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class PongMessage(
     @ProtoNumber(1)

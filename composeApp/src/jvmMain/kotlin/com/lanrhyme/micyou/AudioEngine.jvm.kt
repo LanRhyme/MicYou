@@ -183,32 +183,32 @@ actual class AudioEngine actual constructor() {
                     val rawShorts = audioPipeline.convertToShorts(audioPacket.buffer, audioPacket.audioFormat)
                     if (rawShorts != null) {
                         _rawSpectrum.value = rawSpectrumAnalyzer.calculateSpectrum(rawShorts)
-                    }
 
-                    val processedBuffer = audioPipeline.process(
-                        inputBuffer = audioPacket.buffer,
-                        audioFormat = audioPacket.audioFormat,
-                        channelCount = audioPacket.channelCount,
-                        sampleRate = audioPacket.sampleRate,
-                        queuedDurationMs = queuedMs
-                    )
+                        val processedBuffer = audioPipeline.process(
+                            inputShorts = rawShorts,
+                            channelCount = audioPacket.channelCount,
+                            sampleRate = audioPacket.sampleRate,
+                            queuedDurationMs = queuedMs
+                        )
 
-                    if (processedBuffer != null) {
-                        // 计算处理后频谱 (Processed Spectrum)
-                        // 注意：processedBuffer 始终是 16-bit PCM (value = 2)
-                        val processedShorts = audioPipeline.convertToShorts(processedBuffer, 2)
-                        if (processedShorts != null) {
-                            _processedSpectrum.value = processedSpectrumAnalyzer.calculateSpectrum(processedShorts)
+                        if (processedBuffer != null) {
+                            // 计算处理后频谱 (Processed Spectrum)
+                            // 注意：processedBuffer 始终是 16-bit PCM (value = 2)
+                            val processedShorts = audioPipeline.convertToShorts(processedBuffer, 2)
+                            if (processedShorts != null) {
+                                _processedSpectrum.value = processedSpectrumAnalyzer.calculateSpectrum(processedShorts)
+                            }
+
+                            audioOutputManager.write(processedBuffer, 0, processedBuffer.size)
+                            val levelData = calculateAudioLevelData(processedBuffer)
+                            _audioLevels.value = levelData.rms
+                            _audioLevelData.value = levelData
+
+                            // 更新音频指标
+                            updateAudioMetrics(queuedMs)
                         }
-
-                        audioOutputManager.write(processedBuffer, 0, processedBuffer.size)
-    val levelData = calculateAudioLevelData(processedBuffer)
-                        _audioLevels.value = levelData.rms
-                        _audioLevelData.value = levelData
-
-                        // 更新音频指标
-                        updateAudioMetrics(queuedMs)
                     }
+
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

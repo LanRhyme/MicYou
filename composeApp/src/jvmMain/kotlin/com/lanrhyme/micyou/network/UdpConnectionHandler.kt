@@ -25,7 +25,8 @@ import java.net.InetSocketAddress
 class UdpConnectionHandler(
     private val port: Int,
     private val onAudioPacketReceived: suspend (AudioPacketMessage) -> Unit,
-    private val onError: (String) -> Unit
+    private val onError: (String) -> Unit,
+    private val onAudioPacketOrderedReceived: (suspend (AudioPacketMessageOrdered) -> Unit)? = null
 ) {
     @OptIn(ExperimentalSerializationApi::class)
     private val proto = ProtoBuf { }
@@ -214,7 +215,11 @@ class UdpConnectionHandler(
                 lastTransmitTime = transmitTime
                 lastReceiveTime = receiveTime
 
-                onAudioPacketReceived(audioPacket)
+                if (onAudioPacketOrderedReceived != null) {
+                    onAudioPacketOrderedReceived.invoke(wrapper.audioPacket)
+                } else {
+                    onAudioPacketReceived(audioPacket)
+                }
             }
         } catch (e: Exception) {
             Logger.e("UdpConnectionHandler", "UDP packet decoding failed", e)

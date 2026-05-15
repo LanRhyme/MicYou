@@ -47,9 +47,26 @@ class EqualizerEffect : AudioEffect {
 
     private fun updateFilters() {
         preAmpGain = 10.0f.pow(preAmpDb / 20.0f)
-        for (ch in 0 until 2) {
+        for (ch in filters.indices) {
             for (i in 0 until bands) {
                 filters[ch][i].setPeakingEQ(sampleRate, frequencies[i].toDouble(), 1.0, gains[i].toDouble())
+            }
+        }
+    }
+
+    private fun ensureChannelCapacity(channelCount: Int) {
+        if (filters.size >= channelCount) return
+        
+        val oldFilters = filters
+        filters = Array(channelCount) { ch ->
+            if (ch < oldFilters.size) {
+                oldFilters[ch]
+            } else {
+                Array(bands) { b ->
+                    BiquadFilter().apply {
+                        setPeakingEQ(sampleRate, frequencies[b].toDouble(), 1.0, gains[b].toDouble())
+                    }
+                }
             }
         }
     }
@@ -57,19 +74,16 @@ class EqualizerEffect : AudioEffect {
     override fun process(input: ShortArray, channelCount: Int): ShortArray {
         if (!enabled) return input
         
+        ensureChannelCapacity(channelCount)
+        
         val output = ShortArray(input.size)
         for (i in input.indices) {
             val channel = i % channelCount
-            // 目前仅支持前 2 个声道的均衡处理
-            if (channel >= 2) {
-                output[i] = input[i]
-                continue
-            }
-            
             var sample = input[i].toDouble() * preAmpGain
             
+            val channelFilters = filters[channel]
             for (b in 0 until bands) {
-                sample = filters[channel][b].process(sample)
+                sample = channelFilters[b].process(sample)
             }
             
             output[i] = sample.toInt().coerceIn(-32768, 32767).toShort()
@@ -78,7 +92,7 @@ class EqualizerEffect : AudioEffect {
     }
 
     override fun reset() {
-        for (ch in 0 until 2) {
+        for (ch in filters.indices) {
             for (b in 0 until bands) {
                 filters[ch][b].reset()
             }
