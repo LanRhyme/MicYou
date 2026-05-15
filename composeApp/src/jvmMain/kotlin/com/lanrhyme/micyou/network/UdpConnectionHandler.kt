@@ -55,6 +55,11 @@ class UdpConnectionHandler(
     @Volatile
     private var jitter = 0.0
 
+    private var lastLossLogTime = 0L
+    private var suppressedLossLogs = 0
+    private var lastOutOfOrderLogTime = 0L
+    private var suppressedOutOfOrderLogs = 0
+
     /**
      * Starts the UDP receiving loop.
      * This function is non-blocking and runs in a background coroutine.
@@ -192,12 +197,28 @@ class UdpConnectionHandler(
                             packetsLost += cappedLost
                             expectedSequenceNumber = seqNum
                             packetsReceived++
-                            Logger.d("UdpConnectionHandler", "UDP loss detected: expected $expected, received $seqNum, lost $cappedLost packets")
+                            
+                            val now = System.currentTimeMillis()
+                            if (now - lastLossLogTime > 1000) {
+                                Logger.d("UdpConnectionHandler", "UDP loss detected: expected $expected, received $seqNum, lost $cappedLost packets. (Suppressed $suppressedLossLogs similar logs)")
+                                lastLossLogTime = now
+                                suppressedLossLogs = 0
+                            } else {
+                                suppressedLossLogs++
+                            }
                         } else {
                             // Out-of-order or duplicate packet: do NOT advance expectedSequenceNumber
                             // This prevents cascading false loss detection when UDP delivers packets out of order
                             packetsReceived++
-                            Logger.d("UdpConnectionHandler", "UDP out-of-order packet: expected $expected, received $seqNum (ignored for loss tracking)")
+                            
+                            val now = System.currentTimeMillis()
+                            if (now - lastOutOfOrderLogTime > 1000) {
+                                Logger.d("UdpConnectionHandler", "UDP out-of-order packet: expected $expected, received $seqNum (ignored for loss tracking). (Suppressed $suppressedOutOfOrderLogs similar logs)")
+                                lastOutOfOrderLogTime = now
+                                suppressedOutOfOrderLogs = 0
+                            } else {
+                                suppressedOutOfOrderLogs++
+                            }
                         }
                     } else {
                         expectedSequenceNumber = seqNum

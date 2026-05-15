@@ -53,4 +53,35 @@ class AudioSpectrumAnalyzer(val fftSize: Int = 1024) {
         // 归一化并转换为对数刻度 (可选，这里先返回线性幅值，UI层可以再处理)
         return magnitudeBuffer.copyOf()
     }
+
+    /**
+     * 计算音频数据的频谱 (直接从 16-bit PCM 字节数组计算，避免不必要的类型转换)
+     * @param input 16-bit PCM 字节数组 (小端序)
+     * @return 频率幅值数组
+     */
+    fun calculateSpectrumFromBytes(input: ByteArray): FloatArray {
+        if (input.isEmpty()) return FloatArray(fftSize / 2)
+
+        val size = minOf(input.size / 2, fftSize)
+        for (i in 0 until fftSize) {
+            if (i < size) {
+                val byteIndex = i * 2
+                val sample = (input[byteIndex].toInt() and 0xFF) or ((input[byteIndex + 1].toInt()) shl 8)
+                fftBuffer[i] = (sample.toShort().toFloat() / 32768f) * window[i]
+            } else {
+                fftBuffer[i] = 0f
+            }
+        }
+
+        fft.realForward(fftBuffer)
+        magnitudeBuffer[0] = Math.abs(fftBuffer[0])
+        
+        for (i in 1 until fftSize / 2) {
+            val re = fftBuffer[2 * i]
+            val im = fftBuffer[2 * i + 1]
+            magnitudeBuffer[i] = sqrt(re * re + im * im)
+        }
+
+        return magnitudeBuffer.copyOf()
+    }
 }

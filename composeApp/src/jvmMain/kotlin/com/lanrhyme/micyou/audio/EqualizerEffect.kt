@@ -9,7 +9,7 @@ import kotlin.math.*
 class EqualizerEffect : AudioEffect {
     var enabled: Boolean = false
     var preAmpDb: Float = 0f
-        set(value) {
+        set(value) = synchronized(this) {
             if (field != value) {
                 field = value
                 updateFilters()
@@ -24,7 +24,7 @@ class EqualizerEffect : AudioEffect {
     private var gains = FloatArray(bands) { 0f }
     private var sampleRate = 48000.0
     
-    fun setGains(newGains: List<Float>) {
+    fun setGains(newGains: List<Float>) = synchronized(this) {
         if (newGains.size != bands) return
         var changed = false
         for (i in 0 until bands) {
@@ -38,7 +38,7 @@ class EqualizerEffect : AudioEffect {
         }
     }
     
-    fun updateSampleRate(newSampleRate: Double) {
+    fun updateSampleRate(newSampleRate: Double) = synchronized(this) {
         if (sampleRate != newSampleRate) {
             sampleRate = newSampleRate
             updateFilters()
@@ -71,7 +71,7 @@ class EqualizerEffect : AudioEffect {
         }
     }
 
-    override fun process(input: ShortArray, channelCount: Int): ShortArray {
+    override fun process(input: ShortArray, channelCount: Int): ShortArray = synchronized(this) {
         if (!enabled) return input
         
         ensureChannelCapacity(channelCount)
@@ -91,7 +91,7 @@ class EqualizerEffect : AudioEffect {
         return output
     }
 
-    override fun reset() {
+    override fun reset() = synchronized(this) {
         for (ch in filters.indices) {
             for (b in 0 until bands) {
                 filters[ch][b].reset()

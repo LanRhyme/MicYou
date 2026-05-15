@@ -255,7 +255,11 @@ class NoiseReducer(
             }
         } catch (e: Exception) {
             Logger.e("NoiseReducer", "Ulunas processing failed: ${e.message}", e)
-            enableNS = false
+            // Attempt to reset state instead of permanently disabling
+            ulunasProcessorLeft?.destroy()
+            ulunasProcessorLeft = null
+            ulunasProcessorRight?.destroy()
+            ulunasProcessorRight = null
         }
     }
 

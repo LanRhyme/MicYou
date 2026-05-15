@@ -194,10 +194,7 @@ actual class AudioEngine actual constructor() {
                         if (processedBuffer != null) {
                             // 计算处理后频谱 (Processed Spectrum)
                             // 注意：processedBuffer 始终是 16-bit PCM (value = 2)
-                            val processedShorts = audioPipeline.convertToShorts(processedBuffer, 2)
-                            if (processedShorts != null) {
-                                _processedSpectrum.value = processedSpectrumAnalyzer.calculateSpectrum(processedShorts)
-                            }
+                            _processedSpectrum.value = processedSpectrumAnalyzer.calculateSpectrumFromBytes(processedBuffer)
 
                             audioOutputManager.write(processedBuffer, 0, processedBuffer.size)
                             val levelData = calculateAudioLevelData(processedBuffer)
