@@ -31,6 +31,7 @@ class PluginDataChannelImpl(
     private var tcpSocket: Socket? = null
     private var tcpServerSocket: ServerSocket? = null
     private var udpSocket: DatagramSocket? = null
+    private var udpRemoteAddress: InetSocketAddress? = null
     
     override suspend fun connect(host: String, port: Int): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -72,6 +73,7 @@ class PluginDataChannelImpl(
                     val socket = DatagramSocket(port)
                     udpSocket = socket
                     _localPort = socket.localPort
+                    udpRemoteAddress = null
                     _isConnected.value = true
                     Logger.i("PluginDataChannel", "UDP socket bound to port $port")
                 }
@@ -93,7 +95,12 @@ class PluginDataChannelImpl(
                 }
                 DataChannelMode.Udp -> {
                     val socket = udpSocket ?: return@withContext Result.failure(Exception("Not bound"))
-    val packet = DatagramPacket(data, data.size)
+                    val remote = udpRemoteAddress
+                    val packet = if (remote != null) {
+                        DatagramPacket(data, data.size, remote)
+                    } else {
+                        DatagramPacket(data, data.size)
+                    }
                     socket.send(packet)
                 }
             }
@@ -129,10 +136,14 @@ class PluginDataChannelImpl(
             DataChannelMode.Udp -> {
                 val socket = udpSocket ?: return@flow
                 val buffer = ByteArray(config.bufferSize)
-    val packet = DatagramPacket(buffer, buffer.size)
+                val packet = DatagramPacket(buffer, buffer.size)
                 while (_isConnected.value && !socket.isClosed) {
                     try {
                         withContext(Dispatchers.IO) { socket.receive(packet) }
+                        if (udpRemoteAddress == null) {
+                            udpRemoteAddress = InetSocketAddress(packet.address, packet.port)
+                            Logger.i("PluginDataChannel", "UDP client address recorded: ${packet.address.hostAddress}:${packet.port}")
+                        }
                         emit(packet.data.copyOf(packet.length))
                     } catch (e: Exception) {
                         if (_isConnected.value) {
@@ -154,6 +165,7 @@ class PluginDataChannelImpl(
             tcpServerSocket = null
             udpSocket?.close()
             udpSocket = null
+            udpRemoteAddress = null
             Logger.i("PluginDataChannel", "Channel $id closed")
         }
     }
