@@ -3,6 +3,7 @@ package com.lanrhyme.micyou
 import com.lanrhyme.micyou.audio.AudioOutputManager
 import com.lanrhyme.micyou.audio.AudioProcessorPipeline
 import com.lanrhyme.micyou.audio.AudioSpectrumAnalyzer
+import com.lanrhyme.micyou.plugin.AudioEffectProvider
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.errorAdbReverseFailed
 import org.jetbrains.compose.resources.getString
@@ -265,6 +266,14 @@ actual class AudioEngine actual constructor() {
         if (System.getProperty("micyou.debugAudioConfig") == "true") {
             Logger.d("AudioEngine", "配置更新: 放大器=$amplification, VAD=$enableVAD ($vadThreshold), AGC=$enableAGC ($agcTargetLevel), NS=$enableNS ($nsType, $nsIntensity), EQ=${equalizerConfig.enabled}")
         }
+    }
+    
+    /**
+     * 设置插件音频效果器
+     */
+    fun setPluginAudioEffects(effects: List<AudioEffectProvider>) {
+        audioPipeline.setPluginEffects(effects)
+        Logger.d("AudioEngine", "Plugin audio effects updated: ${effects.size} effects")
     }
 
     actual suspend fun start(
