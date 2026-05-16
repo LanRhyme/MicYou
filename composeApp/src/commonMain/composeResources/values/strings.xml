@@ -25,6 +25,7 @@
     <string name="autoConfigLabel">Auto Configure Audio</string>
     <string name="autoStartDesc">Start streaming automatically on app launch</string>
     <string name="autoStartLabel">Auto Start</string>
+    <string name="autoSourceAuto">Auto (Recommended)</string>
     <string name="backgroundBlurLabel">Blur</string>
     <string name="backgroundBrightnessLabel">Brightness</string>
     <string name="backgroundSettingsLabel">Background</string>

@@ -18,6 +18,7 @@
     <string name="autoConfigLabel">自动配置音频</string>
     <string name="autoStartDesc">应用启动时自动开始串流</string>
     <string name="autoStartLabel">自动串流</string>
+    <string name="autoSourceAuto">自动 (推荐)</string>
     <string name="backgroundBlurLabel">模糊</string>
     <string name="backgroundBrightnessLabel">明度</string>
     <string name="backgroundSettingsLabel">背景</string>

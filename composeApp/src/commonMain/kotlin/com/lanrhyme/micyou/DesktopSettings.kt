@@ -628,7 +628,8 @@ private fun NavigationItem(
                         MaterialTheme.colorScheme.primary,
                         shape = RoundedCornerShape(50)
                     )
-        )
+            )
+        }
     }
 }
 
@@ -696,7 +697,6 @@ fun VBCableManagementSection(
             }
         }
     }
-}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -825,7 +825,24 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                         VBCableManagementSection(cardOpacity, viewModel)
                     }
 
-
+                    // Audio Source Selection (Desktop)
+                    if (platform.type == PlatformType.Desktop) {
+                        val audioSourceOptions = getAudioSourceOptions()
+                        val currentSource = audioSourceOptions.find { it.name == state.androidAudioSourceName } ?: audioSourceOptions.firstOrNull()
+                        if (audioSourceOptions.isNotEmpty() && currentSource != null) {
+                            val optionsWithLabels = audioSourceOptions.map { source ->
+                                source to (if (source.labelRes != null) stringResource(source.labelRes) else source.label ?: source.name)
+                            }
+                            SettingsDropdownItem(
+                                headline = stringResource(Res.string.audioSourceLabel),
+                                selected = optionsWithLabels.find { it.first == currentSource } ?: optionsWithLabels.first(),
+                                options = optionsWithLabels,
+                                labelProvider = { it.second },
+                                onSelect = { viewModel.setAndroidAudioSource(it.first.name) },
+                                cardOpacity = cardOpacity
+                            )
+                        }
+                    }
                 }
             }
             SettingsSection.Appearance -> {
@@ -1077,29 +1094,29 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                 }
             }
             SettingsSection.Audio -> {
-                if (platform.type == PlatformType.Android) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(stringResource(Res.string.autoConfigLabel)) },
-                                supportingContent = { Text(stringResource(Res.string.autoConfigDesc)) },
-                                trailingContent = {
-                                    Switch(
-                                        checked = state.isAutoConfig,
-                                        onCheckedChange = { viewModel.setAutoConfig(it) }
-                                    )
-                                },
-                                modifier = Modifier.clickable { viewModel.setAutoConfig(!state.isAutoConfig) },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
-    val manualSettingsEnabled = !state.isAutoConfig
-                        
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
+                    ) {
+                        ListItem(
+                            headlineContent = { Text(stringResource(Res.string.autoConfigLabel)) },
+                            supportingContent = { Text(stringResource(Res.string.autoConfigDesc)) },
+                            trailingContent = {
+                                Switch(
+                                    checked = state.isAutoConfig,
+                                    onCheckedChange = { viewModel.setAutoConfig(it) }
+                                )
+                            },
+                            modifier = Modifier.clickable { viewModel.setAutoConfig(!state.isAutoConfig) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+                    }
+                    val manualSettingsEnabled = !state.isAutoConfig
+                    
+                    if (platform.type == PlatformType.Android) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1187,45 +1204,54 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
                                 colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
                         }
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.medium)
-                                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
-                        ) {
-                            ListItem(
-                                headlineContent = { Text(stringResource(Res.string.audioSourceLabel)) },
-                                trailingContent = {
-                                    var expanded by remember { mutableStateOf(false) }
-    val audioSourceOptions = getAudioSourceOptions()
-    val currentSource = audioSourceOptions.find { it.name == state.androidAudioSourceName } ?: audioSourceOptions.firstOrNull()
-                                    if (audioSourceOptions.isNotEmpty() && currentSource != null) {
-                                        Box {
-                                            TextButton(onClick = { expanded = true }) { Text(stringResource(currentSource.labelRes)) }
-                                            DropdownMenu(
-                                                expanded = expanded,
-                                                onDismissRequest = { expanded = false },
-                                                shape = MaterialTheme.shapes.medium
-                                            ) {
-                                                audioSourceOptions.forEach { source ->
-                                                    DropdownMenuItem(
-                                                        text = { Text(stringResource(source.labelRes)) },
-                                                        onClick = { viewModel.setAndroidAudioSource(source.name); expanded = false },
-                                                        trailingIcon = { if (currentSource == source) Icon(Icons.Default.Check, contentDescription = null) }
-                                                    )
-                                                }
+                    }
+                    
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
+                    ) {
+                        ListItem(
+                            headlineContent = { Text(stringResource(Res.string.audioSourceLabel)) },
+                            trailingContent = {
+                                var expanded by remember { mutableStateOf(false) }
+                                val audioSourceOptions = getAudioSourceOptions()
+                                val currentSource = audioSourceOptions.find { it.name == state.androidAudioSourceName } ?: audioSourceOptions.firstOrNull()
+                                if (audioSourceOptions.isNotEmpty() && currentSource != null) {
+                                    Box {
+                                        TextButton(onClick = { expanded = true }) {
+                                            Text(
+                                                if (currentSource.labelRes != null) stringResource(currentSource.labelRes)
+                                                else currentSource.label ?: currentSource.name
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = expanded,
+                                            onDismissRequest = { expanded = false },
+                                            shape = MaterialTheme.shapes.medium
+                                        ) {
+                                            audioSourceOptions.forEach { source ->
+                                                DropdownMenuItem(
+                                                    text = {
+                                                        Text(
+                                                            if (source.labelRes != null) stringResource(source.labelRes)
+                                                            else source.label ?: source.name
+                                                        )
+                                                    },
+                                                    onClick = { viewModel.setAndroidAudioSource(source.name); expanded = false },
+                                                    trailingIcon = { if (currentSource == source) Icon(Icons.Default.Check, contentDescription = null) }
+                                                )
                                             }
                                         }
                                     }
-                                },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                            )
-                        }
+                                }
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
                     }
-                } else {
-                    // Desktop audio settings
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                    if (platform.type == PlatformType.Desktop) {
                         // 频谱分析仪 (Spectrum Analyzer)
                         Box(
                             modifier = Modifier
@@ -2254,63 +2280,4 @@ private fun PerformanceModeInfoItem(
     }
 }
 
-@Composable
-private fun VBCableManagementSection(
-    cardOpacity: Float,
-    viewModel: MainViewModel
-) {
-    val state by viewModel.uiState.collectAsState()
-    val isInstalled = isVirtualDeviceInstalled()
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
-        ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    "VB-Cable 虚拟音频设备",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Text(
-                    if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableNotInstalled),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Button(
-                        onClick = { viewModel.startVBCableInstallation() },
-                        enabled = !isInstalled,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Rounded.InstallDesktop, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableInstall))
-                    }
-                }
-
-                state.vbcableInstallProgress?.let { progress ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            progress,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-        }
-    }
-}

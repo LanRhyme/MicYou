@@ -929,7 +929,8 @@ private fun ExpressiveAudioSourceItem(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = stringResource(currentSource.labelRes),
+                            text = if (currentSource.labelRes != null) stringResource(currentSource.labelRes)
+                            else currentSource.label ?: currentSource.name,
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.primary,
                             maxLines = 1,
@@ -948,7 +949,12 @@ private fun ExpressiveAudioSourceItem(
                     ) {
                         audioSourceOptions.forEach { source ->
                             DropdownMenuItem(
-                                text = { Text(stringResource(source.labelRes)) },
+                                text = {
+                                    Text(
+                                        if (source.labelRes != null) stringResource(source.labelRes)
+                                        else source.label ?: source.name
+                                    )
+                                },
                                 onClick = { viewModel.setAndroidAudioSource(source.name); expanded = false },
                                 trailingIcon = {
                                     if (currentSource == source) Icon(Icons.Default.Check, contentDescription = null)

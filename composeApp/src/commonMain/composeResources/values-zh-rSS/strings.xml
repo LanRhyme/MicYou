@@ -16,8 +16,9 @@
     <string name="autoCheckUpdateLabel">自动检查更新</string>
     <string name="autoConfigDesc">基于连接模式自动选择最优音频设置项目项</string>
     <string name="autoConfigLabel">自动配置音频项目项</string>
-    <string name="autoStartDesc">在应用起动时自动开始流的媒体</string>
-    <string name="autoStartLabel">自动起动项</string>
+    <string name="autoStartDesc">应用启动时自动开始串流</string>
+    <string name="autoStartLabel">自动串流</string>
+    <string name="autoSourceAuto">自动 (推荐)</string>
     <string name="backgroundBlurLabel">模糊</string>
     <string name="backgroundBrightnessLabel">明度</string>
     <string name="backgroundSettingsLabel">背景</string>

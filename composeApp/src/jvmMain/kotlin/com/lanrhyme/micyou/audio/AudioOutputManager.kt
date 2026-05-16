@@ -12,9 +12,16 @@ class AudioOutputManager {
     private var monitorLine: SourceDataLine? = null
     private var pwCatProcess: Process? = null
     private var isUsingVirtualDevice = false
+    private var isManuallySelectedDevice = false
     private var isMonitoring = false
     private var currentSampleRate = 0
     private var currentChannelCount = 0
+    private var targetMixerName: String? = null
+    
+    fun setAudioSource(sourceName: String) {
+        targetMixerName = if (sourceName == "Auto") null else sourceName
+        Logger.i("AudioOutputManager", "Target mixer set to: ${targetMixerName ?: "Auto"}")
+    }
     
     fun init(sampleRate: Int, channelCount: Int): Boolean {
         if (outputLine != null) {
@@ -186,25 +193,56 @@ class AudioOutputManager {
     }
     
     private fun initDefault(audioFormat: AudioFormat, lineInfo: DataLine.Info): Boolean {
-        Logger.d("AudioOutputManager", "Try using the default audio device")
+        Logger.d("AudioOutputManager", "Try using the specified or default audio device")
+        
+        isManuallySelectedDevice = false
 
+        // 1. 如果指定了目标混音器，优先尝试打开它
+        targetMixerName?.let { name ->
+            val mixers = AudioSystem.getMixerInfo()
+            val mixerInfo = mixers.find { it.name == name }
+            if (mixerInfo != null) {
+                try {
+                    val mixer = AudioSystem.getMixer(mixerInfo)
+                    if (mixer.isLineSupported(lineInfo)) {
+                        outputLine = mixer.getLine(lineInfo) as SourceDataLine
+                        isUsingVirtualDevice = isKnownVirtualDevice(name)
+                        Logger.i("AudioOutputManager", "Using specified mixer: $name (isVirtual=$isUsingVirtualDevice)")
+                        if (openAndStartLine(audioFormat)) {
+                            isManuallySelectedDevice = true
+                            return true
+                        }
+                        Logger.w("AudioOutputManager", "Failed to start specified mixer: $name, falling back...")
+                    }
+                } catch (e: Exception) {
+                    Logger.e("AudioOutputManager", "Failed to open specified mixer: $name", e)
+                }
+            } else {
+                Logger.w("AudioOutputManager", "Specified mixer not found: $name")
+            }
+        }
+
+        // 2. 如果是 Windows 且未指定混音器或打开失败，尝试使用 VB-CABLE
         if (PlatformInfo.isWindows) {
             val cableMixer = findVBCableMixer(lineInfo)
             if (cableMixer != null) {
                 try {
                     outputLine = cableMixer.getLine(lineInfo) as SourceDataLine
                     isUsingVirtualDevice = true
-                    Logger.i("AudioOutputManager", "Using VB-CABLE Input")
-                    return openAndStartLine(audioFormat)
+                    Logger.i("AudioOutputManager", "Using VB-CABLE Input (Auto-detected)")
+                    if (openAndStartLine(audioFormat)) {
+                        return true
+                    }
+                    Logger.w("AudioOutputManager", "Failed to start VB-CABLE, falling back...")
                 } catch (e: Exception) {
                     Logger.e("AudioOutputManager", "Failed to initialize VB-CABLE", e)
                 }
             } else {
-                // Windows上没有找到VB-CABLE，给出明确警告
-                Logger.w("AudioOutputManager", "VB-CABLE not found on Windows. Audio will be muted for privacy. Please install VB-CABLE from https://vb-audio.com/Cable/ to enable audio transmission.")
+                Logger.w("AudioOutputManager", "VB-CABLE not found on Windows. Audio will be muted for privacy unless a device is manually selected.")
             }
         }
         
+        // 3. 最后回退到系统默认输出设备
         return try {
             outputLine = AudioSystem.getLine(lineInfo) as SourceDataLine
             isUsingVirtualDevice = false
@@ -214,6 +252,14 @@ class AudioOutputManager {
             Logger.e("AudioOutputManager", "Failed to obtain the default system output device.", e)
             false
         }
+    }
+
+    private fun isKnownVirtualDevice(name: String): Boolean {
+        val lowerName = name.lowercase()
+        return lowerName.contains("cable input") || 
+               lowerName.contains("blackhole") || 
+               lowerName.contains("micyou") || 
+               lowerName.contains("virtual")
     }
     
     private fun findVBCableMixer(lineInfo: DataLine.Info): Mixer? {
@@ -254,7 +300,7 @@ class AudioOutputManager {
     }
     
     fun write(buffer: ByteArray, offset: Int, length: Int) {
-        val shouldMute = !isUsingVirtualDevice && !isMonitoring && !usesSystemAudioSinkForVirtualOutput()
+        val shouldMute = !isUsingVirtualDevice && !isManuallySelectedDevice && !isMonitoring && !usesSystemAudioSinkForVirtualOutput()
         
         if (shouldMute) {
             buffer.fill(0, offset, offset + length)
