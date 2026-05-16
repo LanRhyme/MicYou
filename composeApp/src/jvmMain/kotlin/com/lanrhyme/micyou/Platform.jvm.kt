@@ -27,19 +27,29 @@ class JVMPlatform: Platform {
     override val ipAddresses: List<String>
         get() = getLocalIpAddresses()
 
+    companion object {
+        private val VIRTUAL_KEYWORDS = listOf(
+            "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
+            "tunnel", "teredo", "isatap", "vpn"
+        )
+    }
+
     private fun getLocalIpAddresses(): List<String> {
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-    val candidates = mutableListOf<java.net.InetAddress>()
+            val candidates = mutableListOf<java.net.InetAddress>()
 
             while (interfaces.hasMoreElements()) {
                 val iface = interfaces.nextElement()
-                if (iface.isLoopback || !iface.isUp) continue
+                if (iface.isLoopback || !iface.isUp || iface.isVirtual) continue
+                val name = iface.name.lowercase()
+                val displayName = iface.displayName?.lowercase() ?: ""
+                if (VIRTUAL_KEYWORDS.any { name.contains(it) || displayName.contains(it) }) continue
 
                 val addresses = iface.inetAddresses
                 while (addresses.hasMoreElements()) {
                     val addr = addresses.nextElement()
-                    if (addr is java.net.Inet4Address) {
+                    if (addr is java.net.Inet4Address && !addr.isLoopbackAddress) {
                         candidates.add(addr)
                     }
                 }
