@@ -114,9 +114,22 @@ class PluginDataChannelImpl(
     override fun receive(): Flow<ByteArray> = kotlinx.coroutines.flow.flow {
         when (config.mode) {
             DataChannelMode.Tcp -> {
+                // 服务端模式：先接受客户端连接
+                if (tcpServerSocket != null && tcpSocket == null) {
+                    Logger.i("PluginDataChannel", "Waiting for TCP client connection on port $_localPort...")
+                    try {
+                        val clientSocket = withContext(Dispatchers.IO) { tcpServerSocket!!.accept() }
+                        tcpSocket = clientSocket
+                        Logger.i("PluginDataChannel", "TCP client connected: ${clientSocket.inetAddress.hostAddress}:${clientSocket.port}")
+                    } catch (e: Exception) {
+                        Logger.e("PluginDataChannel", "Failed to accept TCP client: ${e.message}")
+                        return@flow
+                    }
+                }
+                
                 val socket = tcpSocket ?: return@flow
                 val input = socket.getInputStream()
-    val buffer = ByteArray(config.bufferSize)
+                val buffer = ByteArray(config.bufferSize)
                 while (_isConnected.value && !socket.isClosed) {
                     try {
                         val bytesRead = withContext(Dispatchers.IO) { input.read(buffer) }
