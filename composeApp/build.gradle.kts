@@ -207,7 +207,7 @@ compose.desktop {
             description = "MicYou Application"
             vendor = "LanRhyme"
             copyright = "Copyright (c) 2026 LanRhyme"
-            modules("java.net.http", "jdk.accessibility", "jdk.unsupported.desktop")
+            modules("java.desktop", "java.logging", "java.management", "java.net.http", "jdk.jfr", "jdk.unsupported")
             
             windows {
                 val generatedIcon = layout.buildDirectory.file("generated/icons/icon256.ico").get().asFile
@@ -309,6 +309,10 @@ tasks.register<GenerateWindowsIconIcoTask>("generateWindowsIconIco") {
 tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable", "packageExe", "packageReleaseExe", "packageWindowsNsis") }
     .configureEach { dependsOn("generateWindowsIconIco") }
 
+// 所有 release 打包任务依赖 runtime 压缩
+tasks.matching { it.name in setOf("packageWindowsNsis", "packageReleaseExe", "packageReleaseDmg", "packageReleaseDeb", "packageReleaseRpm") }
+    .configureEach { dependsOn("replaceRuntime") }
+
 // 修复 ProGuard 的 kotlin-metadata-jvm 版本不兼容问题
 // compose 插件捆绑的 2.1.0 不支持 Kotlin 2.3.x 的 metadata
 tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractProguardTask>().configureEach {
@@ -317,6 +321,64 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractProguardT
             dependencies.create("org.jetbrains.kotlin:kotlin-metadata-jvm:2.3.10")
         )
     )
+}
+
+// ==================== jlink 压缩 runtime ====================
+// 用 --strip-debug + --compress=zip-6 重新生成更小的 runtime
+abstract class CompressRuntimeTask @Inject constructor(
+    private val execOperations: ExecOperations,
+) : DefaultTask() {
+    @get:Input val javaHome: Property<String> = project.objects.property(String::class.java)
+    @get:OutputDirectory val outputRuntime: DirectoryProperty = project.objects.directoryProperty()
+    @get:Input val modules: ListProperty<String> = project.objects.listProperty(String::class.java)
+
+    @TaskAction
+    fun run() {
+        val output = outputRuntime.get().asFile
+        val moduleList = modules.get()
+        val jhome = javaHome.get()
+
+        if (output.exists()) output.deleteRecursively()
+        output.parentFile.mkdirs()
+
+        val jlink = File(jhome, "bin/jlink")
+        val jlinkExe = if (System.getProperty("os.name").lowercase().contains("windows")) "${jlink}.exe" else jlink.absolutePath
+        val jmodsPath = File(jhome, "jmods").absolutePath
+
+        execOperations.exec {
+            executable = jlinkExe
+            args(
+                "--module-path", jmodsPath,
+                "--add-modules", moduleList.joinToString(","),
+                "--output", output.absolutePath,
+                "--strip-debug",
+                "--no-header-files",
+                "--no-man-pages",
+                "--compress=zip-6",
+                "--strip-native-commands",
+            )
+        }
+    }
+}
+
+val modulesList = listOf(
+    "java.base", "java.datatransfer", "java.desktop", "java.logging",
+    "java.management", "java.net.http", "java.prefs", "java.xml",
+    "jdk.crypto.ec", "jdk.jfr", "jdk.unsupported",
+)
+
+val compressRuntime by tasks.registering(CompressRuntimeTask::class) {
+    val appName = project.property("project.name").toString()
+    javaHome.set(System.getProperty("java.home"))
+    outputRuntime.set(layout.buildDirectory.dir("compose/binaries/main-release/app/$appName/runtime-compressed"))
+    modules.set(modulesList)
+}
+
+val replaceRuntime by tasks.registering(Copy::class) {
+    dependsOn("createReleaseDistributable", compressRuntime, copyTrayIcon)
+    val appName = project.property("project.name").toString()
+    from(layout.buildDirectory.dir("compose/binaries/main-release/app/$appName/runtime-compressed"))
+    into(layout.buildDirectory.dir("compose/binaries/main-release/app/$appName/runtime"))
 }
 
 // Windows 打包后复制托盘图标 (32x32) 到应用目录
