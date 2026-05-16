@@ -25,38 +25,38 @@ MicYou/
 
 ## WHERE TO LOOK
 
-| Task | Location | Notes |
-|------|----------|-------|
-| Entry point (Desktop) | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/main.kt | Window setup, tray, ViewModel init |
-| Entry point (Android) | composeApp/src/androidMain/kotlin/com/lanrhyme/micyou/MainActivity.kt | Permission handling, quick start |
-| Main UI composition | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/App.kt | Theme, dialogs, platform routing |
-| Core state management | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/MainViewModel.kt | Facade for AudioStream/Settings/Plugin ViewModels |
-| Audio stream logic | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/AudioStreamViewModel.kt | Connection modes, config, stream control |
-| Audio engine interface | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/AudioEngine.kt | expect class - platform implementations |
-| Network server (Desktop) | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/network/NetworkServer.kt | TCP/UDP server, ConnectionHandler |
-| Audio effects pipeline | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/audio/ | Noise reduction, AGC, VAD, Dereverb, Amplifier |
-| Plugin interfaces | plugin-api/src/commonMain/kotlin/com/lanrhyme/micyou/plugin/ | Plugin, PluginHost, PluginManifest, AudioEffectPlugin |
-| Plugin impl (Desktop) | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/plugin/ | PluginManager, PluginClassLoader, PluginSecurityManager |
-| Plugin impl (Android) | composeApp/src/androidMain/kotlin/com/lanrhyme/micyou/plugin/ | AndroidPluginManager, AndroidPluginHostImpl |
-| Platform abstraction | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/Platform.kt | expect fun getPlatform(), Logger, VB-Cable |
-| Settings storage | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/util/Settings.kt | File-based settings (desktop) |
-| Localization | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/Localization.kt | AppStrings, AppLanguage enum |
+| Task                     | Location                                                                     | Notes                                                   |
+| ------------------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Entry point (Desktop)    | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/main.kt                    | Window setup, tray, ViewModel init                      |
+| Entry point (Android)    | composeApp/src/androidMain/kotlin/com/lanrhyme/micyou/MainActivity.kt        | Permission handling, quick start                        |
+| Main UI composition      | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/App.kt                  | Theme, dialogs, platform routing                        |
+| Core state management    | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/MainViewModel.kt        | Facade for AudioStream/Settings/Plugin ViewModels       |
+| Audio stream logic       | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/AudioStreamViewModel.kt | Connection modes, config, stream control                |
+| Audio engine interface   | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/AudioEngine.kt          | expect class - platform implementations                 |
+| Network server (Desktop) | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/network/NetworkServer.kt   | TCP/UDP server, ConnectionHandler                       |
+| Audio effects pipeline   | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/audio/                     | Noise reduction, AGC, VAD, Dereverb, Amplifier          |
+| Plugin interfaces        | plugin-api/src/commonMain/kotlin/com/lanrhyme/micyou/plugin/                 | Plugin, PluginHost, PluginManifest, AudioEffectPlugin   |
+| Plugin impl (Desktop)    | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/plugin/                    | PluginManager, PluginClassLoader, PluginSecurityManager |
+| Plugin impl (Android)    | composeApp/src/androidMain/kotlin/com/lanrhyme/micyou/plugin/                | AndroidPluginManager, AndroidPluginHostImpl             |
+| Platform abstraction     | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/Platform.kt             | expect fun getPlatform(), Logger, VB-Cable              |
+| Settings storage         | composeApp/src/jvmMain/kotlin/com/lanrhyme/micyou/util/Settings.kt           | File-based settings (desktop)                           |
+| Localization             | composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/Localization.kt         | AppStrings, AppLanguage enum                            |
 
 ## CODE MAP
 
-| Symbol | Type | Location | Role |
-|--------|------|----------|------|
-| MainViewModel | class | commonMain/MainViewModel.kt | Facade ViewModel, coordinates AudioStream/Settings/Plugin/Update VMs |
-| AudioStreamViewModel | class | commonMain/AudioStreamViewModel.kt | Handles connection modes, audio config, stream start/stop |
-| AudioEngine | expect class | commonMain/AudioEngine.kt | Platform-specific audio engine interface |
-| NetworkServer | class | jvmMain/network/NetworkServer.kt | TCP/UDP server for desktop |
-| ConnectionHandler | class | jvmMain/network/ConnectionHandler.kt | Protocol handling for incoming connections |
-| Plugin | interface | plugin-api/plugin/Plugin.kt | Base plugin interface |
-| PluginHost | interface | plugin-api/plugin/PluginHost.kt | Host API for plugins |
-| AudioEffectPlugin | interface | plugin-api/plugin/AudioEffectPlugin.kt | Audio processing plugin interface |
-| App | @Composable | commonMain/App.kt | Root UI, theme, dialog handling |
-| Platform | interface | commonMain/Platform.kt | Platform abstraction (Android/Desktop) |
-| Logger | object | commonMain/Platform.kt | Cross-platform logging |
+| Symbol               | Type         | Location                               | Role                                                                 |
+| -------------------- | ------------ | -------------------------------------- | -------------------------------------------------------------------- |
+| MainViewModel        | class        | commonMain/MainViewModel.kt            | Facade ViewModel, coordinates AudioStream/Settings/Plugin/Update VMs |
+| AudioStreamViewModel | class        | commonMain/AudioStreamViewModel.kt     | Handles connection modes, audio config, stream start/stop            |
+| AudioEngine          | expect class | commonMain/AudioEngine.kt              | Platform-specific audio engine interface                             |
+| NetworkServer        | class        | jvmMain/network/NetworkServer.kt       | TCP/UDP server for desktop                                           |
+| ConnectionHandler    | class        | jvmMain/network/ConnectionHandler.kt   | Protocol handling for incoming connections                           |
+| Plugin               | interface    | plugin-api/plugin/Plugin.kt            | Base plugin interface                                                |
+| PluginHost           | interface    | plugin-api/plugin/PluginHost.kt        | Host API for plugins                                                 |
+| AudioEffectPlugin    | interface    | plugin-api/plugin/AudioEffectPlugin.kt | Audio processing plugin interface                                    |
+| App                  | @Composable  | commonMain/App.kt                      | Root UI, theme, dialog handling                                      |
+| Platform             | interface    | commonMain/Platform.kt                 | Platform abstraction (Android/Desktop)                               |
+| Logger               | object       | commonMain/Platform.kt                 | Cross-platform logging                                               |
 
 ## CONVENTIONS
 
@@ -100,7 +100,7 @@ MicYou/
 # Desktop JVM run
 ./gradlew :composeApp:jvmRun           # Run desktop app
 
-# Desktop packaging
+# Desktop packaging (non-release, no ProGuard)
 ./gradlew :composeApp:createDistributable       # Create distributable
 ./gradlew :composeApp:packageWindowsZip          # Windows ZIP
 ./gradlew :composeApp:packageWindowsNsis         # Windows NSIS installer
@@ -108,6 +108,15 @@ MicYou/
 ./gradlew :composeApp:packageDmg                 # macOS DMG
 ./gradlew :composeApp:packageDeb                 # Linux DEB
 ./gradlew :composeApp:packageRpm                 # Linux RPM
+
+# Desktop packaging (release, with ProGuard)
+./gradlew :composeApp:createReleaseDistributable
+./gradlew :composeApp:packageWindowsZipRelease
+./gradlew :composeApp:packageWindowsNsisRelease
+./gradlew :composeApp:packageReleaseExe
+./gradlew :composeApp:packageReleaseDmg
+./gradlew :composeApp:packageReleaseDeb
+./gradlew :composeApp:packageReleaseRpm
 
 # No-JRE packaging (requires system Java)
 ./gradlew :composeApp:packageNoJreAll            # All platforms without bundled JRE

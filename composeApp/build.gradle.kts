@@ -305,11 +305,11 @@ tasks.register<GenerateWindowsIconIcoTask>("generateWindowsIconIco") {
     outputIco.set(layout.buildDirectory.file("generated/icons/icon256.ico"))
 }
 
-tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable", "packageExe", "packageReleaseExe", "packageWindowsNsis") }
+tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable", "packageExe", "packageReleaseExe", "packageWindowsNsis", "packageWindowsNsisRelease", "packageWindowsZip", "packageWindowsZipRelease") }
     .configureEach { dependsOn("generateWindowsIconIco") }
 
 // 所有 release 打包任务依赖 runtime 压缩
-tasks.matching { it.name in setOf("packageWindowsNsis", "packageReleaseExe", "packageReleaseDmg", "packageReleaseDeb", "packageReleaseRpm", "packageWindowsZip") }
+tasks.matching { it.name in setOf("packageWindowsNsisRelease", "packageReleaseExe", "packageReleaseDmg", "packageReleaseDeb", "packageReleaseRpm", "packageWindowsZipRelease") }
     .configureEach { dependsOn("replaceRuntime") }
 
 // 修复 ProGuard 的 kotlin-metadata-jvm 版本不兼容问题
@@ -388,32 +388,61 @@ tasks.matching { it.name == "replaceRuntime" }
 // 256x256 的图标在 Windows 托盘中无法正常显示，需要使用小尺寸图标
 val copyTrayIcon by tasks.registering(Copy::class) {
     from("src/commonMain/composeResources/drawable/icon32.ico")
+    into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}"))
+}
+
+val copyTrayIconRelease by tasks.registering(Copy::class) {
+    from("src/commonMain/composeResources/drawable/icon32.ico")
     into(layout.buildDirectory.dir("compose/binaries/main-release/app/${project.property("project.name")}"))
 }
 
 // 复制 Assets.car 到 macOS app bundle（支持液态玻璃图标）
 val copyAssetsCar by tasks.registering(Copy::class) {
     from("resources/macos/Assets.car")
+    into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}.app/Contents/Resources"))
+}
+
+val copyAssetsCarRelease by tasks.registering(Copy::class) {
+    from("resources/macos/Assets.car")
     into(layout.buildDirectory.dir("compose/binaries/main-release/app/${project.property("project.name")}.app/Contents/Resources"))
 }
 
-// Windows/macOS 打包时执行 copyTrayIcon
+// Windows/macOS 打包时执行 copyTrayIconRelease（release）
 tasks.matching { it.name in setOf("createReleaseDistributable") }
+    .configureEach {
+        dependsOn(copyTrayIconRelease)
+    }
+
+// Windows/macOS 打包时执行 copyTrayIcon（debug）
+tasks.matching { it.name in setOf("createDistributable") }
     .configureEach {
         dependsOn(copyTrayIcon)
     }
 
-// macOS DMG 打包 (debug 和 release 版本)
-tasks.matching { it.name.contains("Dmg") }
+// macOS DMG 打包 — release 版本
+tasks.matching { it.name == "packageReleaseDmg" }
+    .configureEach {
+        dependsOn(copyTrayIconRelease)
+        dependsOn("createReleaseDistributable")
+        dependsOn(copyAssetsCarRelease)
+    }
+
+// macOS DMG 打包 — 非 release 版本（无 ProGuard）
+tasks.matching { it.name == "packageDmg" }
     .configureEach {
         dependsOn(copyTrayIcon)
-        dependsOn("createReleaseDistributable")
+        dependsOn("createDistributable")
         dependsOn(copyAssetsCar)
+    }
+
+tasks.matching { it.name == "copyAssetsCarRelease" }
+    .configureEach {
+        mustRunAfter("createReleaseDistributable")
     }
 
 tasks.matching { it.name == "copyAssetsCar" }
     .configureEach {
-        mustRunAfter("createReleaseDistributable")
+        mustRunAfter("createDistributable")
     }
 
 tasks.matching { it.name == "jvmRun" }.configureEach {
@@ -426,8 +455,21 @@ tasks.matching { it.name == "jvmRun" }.configureEach {
     }
 }
 
+// 非 release 版本 Windows ZIP（无 ProGuard）
 tasks.register<Zip>("packageWindowsZip") {
-    dependsOn("createReleaseDistributable", copyTrayIcon)
+    dependsOn("createDistributable", copyTrayIcon)
+
+    val version = project.property("project.version").toString()
+    val distDir = layout.buildDirectory.dir("compose/binaries/main/app")
+
+    from(distDir)
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+    archiveBaseName.set("${project.property("project.name")}-windows")
+    archiveVersion.set(version)
+}
+
+tasks.register<Zip>("packageWindowsZipRelease") {
+    dependsOn("createReleaseDistributable", copyTrayIconRelease)
 
     val version = project.property("project.version").toString()
     val distDir = layout.buildDirectory.dir("compose/binaries/main-release/app")
@@ -508,8 +550,32 @@ abstract class PackageWindowsNsisTask @Inject constructor(
     }
 }
 
+// 非 release 版本 NSIS（无 ProGuard）
 tasks.register<PackageWindowsNsisTask>("packageWindowsNsis") {
-    dependsOn("createReleaseDistributable", copyTrayIcon)
+    dependsOn("createDistributable", copyTrayIcon)
+
+    val appNameValue = project.property("project.name").toString()
+    val versionValue = project.property("project.version").toString()
+
+    appName.set(appNameValue)
+    appVersion.set(versionValue)
+    vendor.set("LanRhyme")
+
+    inputDir.set(layout.buildDirectory.dir("compose/binaries/main/app/$appNameValue"))
+    scriptFile.set(layout.projectDirectory.file("nsis/installer.nsi"))
+    outputFile.set(layout.buildDirectory.file("distributions/$appNameValue-$versionValue-setup-nsis.exe"))
+
+    makensisPath.set(
+        providers.gradleProperty("nsis.makensis")
+            .orElse(providers.environmentVariable("NSIS_MAKENSIS"))
+            .orElse("")
+    )
+
+    iconPath.set(windowsIconIcoFile.absolutePath)
+}
+
+tasks.register<PackageWindowsNsisTask>("packageWindowsNsisRelease") {
+    dependsOn("createReleaseDistributable", copyTrayIconRelease)
 
     val appNameValue = project.property("project.name").toString()
     val versionValue = project.property("project.version").toString()

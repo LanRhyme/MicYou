@@ -97,7 +97,7 @@ jobs:
     - name: Build Windows Artifacts
       shell: pwsh
       run: |
-        ./gradlew :composeApp:packageWindowsZip :composeApp:packageWindowsNsis
+        ./gradlew :composeApp:packageWindowsZipRelease :composeApp:packageWindowsNsisRelease
     - name: Prepare Windows Artifacts
       shell: pwsh
       run: |
@@ -136,13 +136,13 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build Linux DEB and RPM packages
-      run: ./gradlew :composeApp:packageDeb :composeApp:packageRpm
+      run: ./gradlew :composeApp:packageReleaseDeb :composeApp:packageReleaseRpm
     - name: Prepare Linux Artifacts
       run: |
         mkdir -p ci-artifacts
         # 查找DEB和RPM文件
-        DEB_FILE=$(ls composeApp/build/compose/binaries/main/deb/*.deb 2>/dev/null | head -n 1)
-        RPM_FILE=$(ls composeApp/build/compose/binaries/main/rpm/*.rpm 2>/dev/null | head -n 1)
+        DEB_FILE=$(ls composeApp/build/compose/binaries/main-release/deb/*.deb 2>/dev/null | head -n 1)
+        RPM_FILE=$(ls composeApp/build/compose/binaries/main-release/rpm/*.rpm 2>/dev/null | head -n 1)
         
         if [ -f "$DEB_FILE" ]; then
           cp "$DEB_FILE" "ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.deb"
@@ -193,11 +193,11 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build macOS DMG
-      run: ./gradlew :composeApp:packageDmg
+      run: ./gradlew :composeApp:packageReleaseDmg
     - name: Prepare macOS Artifacts
       run: |
         mkdir -p ci-artifacts
-        DMG_FILE=$(ls composeApp/build/compose/binaries/main/dmg/*.dmg 2>/dev/null | head -n 1)
+        DMG_FILE=$(ls composeApp/build/compose/binaries/main-release/dmg/*.dmg 2>/dev/null | head -n 1)
         if [ -f "$DMG_FILE" ]; then
           cp "$DMG_FILE" "ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg"
         else

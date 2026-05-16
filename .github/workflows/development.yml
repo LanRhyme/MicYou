@@ -97,7 +97,7 @@ jobs:
       run: |
         New-Item -ItemType Directory -Force -Path ci-artifacts | Out-Null
         $version = '${{ steps.version.outputs.version }}'
-        $zip = Get-ChildItem -Path composeApp/build/distributions -Filter *.zip | Select-Object -First 1
+        $zip = Get-ChildItem -Path composeApp/build/distributions -Filter *windows*.zip | Select-Object -First 1
         if (-not $zip) { throw "No zip found in composeApp/build/distributions" }
         Copy-Item $zip.FullName ("ci-artifacts/MicYou-Win-$version.zip") -Force
 
