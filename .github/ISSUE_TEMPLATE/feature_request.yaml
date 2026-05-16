@@ -57,10 +57,12 @@ body:
     attributes:
       label: 适用范围
       description: 该功能适用于哪个平台？
+      multiple: true
       options:
         - Android 客户端
+        - Web 客户端
         - PC 服务端
-        - 两端都需要
+        - 三端都需要
       default: 0
     validations:
       required: true
