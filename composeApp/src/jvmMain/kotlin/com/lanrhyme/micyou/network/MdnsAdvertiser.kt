@@ -30,16 +30,23 @@ class MdnsAdvertiser {
         }
     }
 
+    companion object {
+        private val VIRTUAL_KEYWORDS = listOf(
+            "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
+            "tunnel", "teredo", "isatap", "vpn"
+        )
+    }
+
     private fun findLanAddress(): InetAddress? {
-        val virtualKeywords = listOf("vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker", "tunnel", "teredo", "isatap")
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
             val candidates = mutableListOf<Pair<java.net.NetworkInterface, java.net.Inet4Address>>()
             while (interfaces.hasMoreElements()) {
                 val networkInterface = interfaces.nextElement()
                 if (networkInterface.isLoopback || !networkInterface.isUp || networkInterface.isVirtual) continue
-                val name = networkInterface.displayName?.lowercase() ?: ""
-                if (virtualKeywords.any { name.contains(it) }) continue
+                val name = networkInterface.name.lowercase()
+                val displayName = networkInterface.displayName?.lowercase() ?: ""
+                if (VIRTUAL_KEYWORDS.any { name.contains(it) || displayName.contains(it) }) continue
                 val addresses = networkInterface.inetAddresses
                 while (addresses.hasMoreElements()) {
                     val address = addresses.nextElement()

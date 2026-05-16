@@ -27,11 +27,14 @@ class JVMPlatform: Platform {
     override val ipAddresses: List<String>
         get() = getLocalIpAddresses()
 
-    private fun getLocalIpAddresses(): List<String> {
-        val virtualKeywords = listOf(
+    companion object {
+        private val VIRTUAL_KEYWORDS = listOf(
             "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
-            "tunnel", "teredo", "isatap"
+            "tunnel", "teredo", "isatap", "vpn"
         )
+    }
+
+    private fun getLocalIpAddresses(): List<String> {
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
             val candidates = mutableListOf<java.net.InetAddress>()
@@ -39,8 +42,9 @@ class JVMPlatform: Platform {
             while (interfaces.hasMoreElements()) {
                 val iface = interfaces.nextElement()
                 if (iface.isLoopback || !iface.isUp || iface.isVirtual) continue
-                val name = iface.displayName?.lowercase() ?: ""
-                if (virtualKeywords.any { name.contains(it) }) continue
+                val name = iface.name.lowercase()
+                val displayName = iface.displayName?.lowercase() ?: ""
+                if (VIRTUAL_KEYWORDS.any { name.contains(it) || displayName.contains(it) }) continue
 
                 val addresses = iface.inetAddresses
                 while (addresses.hasMoreElements()) {
