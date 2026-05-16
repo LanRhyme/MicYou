@@ -628,7 +628,8 @@ private fun NavigationItem(
                         MaterialTheme.colorScheme.primary,
                         shape = RoundedCornerShape(50)
                     )
-        )
+            )
+        }
     }
 }
 
@@ -696,7 +697,6 @@ fun VBCableManagementSection(
             }
         }
     }
-}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -2280,63 +2280,4 @@ private fun PerformanceModeInfoItem(
     }
 }
 
-@Composable
-private fun VBCableManagementSection(
-    cardOpacity: Float,
-    viewModel: MainViewModel
-) {
-    val state by viewModel.uiState.collectAsState()
-    val isInstalled = isVirtualDeviceInstalled()
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
-        ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    "VB-Cable 虚拟音频设备",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Text(
-                    if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableNotInstalled),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Button(
-                        onClick = { viewModel.startVBCableInstallation() },
-                        enabled = !isInstalled,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Rounded.InstallDesktop, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (isInstalled) stringResource(Res.string.vbcableInstalled) else stringResource(Res.string.vbcableInstall))
-                    }
-                }
-
-                state.vbcableInstallProgress?.let { progress ->
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            progress,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-        }
-    }
-}

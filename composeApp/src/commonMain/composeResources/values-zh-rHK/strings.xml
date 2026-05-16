@@ -16,8 +16,9 @@
     <string name="autoCheckUpdateLabel">自動檢查更新</string>
     <string name="autoConfigDesc">根據連線模式自動揀最佳嘅音訊設定</string>
     <string name="autoConfigLabel">自動配置音訊</string>
-    <string name="autoStartDesc">開咗應用程式之後自動開始串流</string>
+    <string name="autoStartDesc">應用程式啟動時自動開始串流</string>
     <string name="autoStartLabel">自動串流</string>
+    <string name="autoSourceAuto">自動 (推薦)</string>
     <string name="backgroundBlurLabel">模糊</string>
     <string name="backgroundBrightnessLabel">光暗度</string>
     <string name="backgroundSettingsLabel">背景</string>

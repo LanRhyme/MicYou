@@ -18,6 +18,7 @@
     <string name="autoConfigLabel">自动配置音频喵~</string>
     <string name="autoStartDesc">应用启动时自动开始传输喵~</string>
     <string name="autoStartLabel">自动启动喵~</string>
+    <string name="autoSourceAuto">自动喵~ (推荐)</string>
     <string name="backgroundBlurLabel">模糊喵~</string>
     <string name="backgroundBrightnessLabel">明度~</string>
     <string name="backgroundSettingsLabel">背景喵~</string>

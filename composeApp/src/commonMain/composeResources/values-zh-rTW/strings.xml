@@ -18,6 +18,7 @@
     <string name="autoConfigLabel">自動配置音訊</string>
     <string name="autoStartDesc">應用程式啟動時自動開始串流</string>
     <string name="autoStartLabel">自動串流</string>
+    <string name="autoSourceAuto">自動 (推薦)</string>
     <string name="backgroundBlurLabel">模糊</string>
     <string name="backgroundBrightnessLabel">明度</string>
     <string name="backgroundSettingsLabel">背景</string>
