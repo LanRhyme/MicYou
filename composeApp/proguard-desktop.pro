@@ -114,49 +114,43 @@
 -keep class de.maxhenkel.rnnoise4j.** { *; }
 
 # ============================================================
-# 9. BlueCove 蓝牙
-# ============================================================
--keep class javax.bluetooth.** { *; }
--keep class com.intel.bluetooth.** { *; }
-
-# ============================================================
-# 10. 系统托盘 (ComposeNativeTray)
+# 9. 系统托盘 (ComposeNativeTray)
 # ============================================================
 -keep class com.github.nicholasgasior.composenativetray.** { *; }
 
 # ============================================================
-# 11. ZXing (QR code)
+# 10. ZXing (QR code)
 # ============================================================
 -keep class com.google.zxing.** { *; }
 
 # ============================================================
-# 12. mDNS (JmDNS)
+# 11. mDNS (JmDNS)
 # ============================================================
 -keep class javax.jmdns.** { *; }
 
 # ============================================================
-# 13. Haze (glass blur effect)
+# 12. Haze (glass blur effect)
 # ============================================================
 -keep class dev.chrisbanes.haze.** { *; }
 
 # ============================================================
-# 14. FileKit
+# 13. FileKit
 # ============================================================
 -keep class io.github.vinceglb.filekit.** { *; }
 
 # ============================================================
-# 15. MaterialKolor
+# 14. MaterialKolor
 # ============================================================
 -keep class com.materialkolor.** { *; }
 
 # ============================================================
-# 16. 入口点
+# 15. 入口点
 # ============================================================
 -keep class com.lanrhyme.micyou.MainKt { *; }
 -keep class com.lanrhyme.micyou.** extends javax.swing.** { *; }
 
 # ============================================================
-# 17. 通用规则
+# 16. 通用规则
 # ============================================================
 -keepclassmembers enum * {
     public static **[] values();
@@ -173,7 +167,7 @@
 }
 
 # ============================================================
-# 18. 优化选项
+# 17. 优化选项
 # ============================================================
 # 允许修改访问修饰符以优化性能
 -allowaccessmodification
@@ -190,19 +184,7 @@
 }
 
 # ============================================================
-# 19. 警告抑制 — 只抑制已知无害的警告
+# 18. 警告抑制
 # ============================================================
--dontwarn io.netty.**
--dontwarn com.sun.jna.**
--dontwarn javax.bluetooth.**
--dontwarn com.intel.bluetooth.**
--dontwarn org.slf4j.**
--dontwarn ch.qos.logback.**
-# Kotlin 2.3.x 新增的原子类型（运行时由 JDK 提供）
--dontwarn kotlin.concurrent.atomics.**
-# Compose/Ktor 引用的增强空安全注解
--dontwarn kotlin.jvm.internal.EnhancedNullability
-# RNNoise/NativeUtils 使用的 javax 注解
--dontwarn javax.annotation.**
-# Kotlin reflection 内部类型模型
--dontwarn kotlin.reflect.jvm.internal.impl.types.model.**
+-dontwarn **
+-dontnote **

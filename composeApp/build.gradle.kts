@@ -107,7 +107,6 @@ kotlin {
             implementation(libs.ktor.network.tls.certificates)
             implementation(libs.zxing.core)
             implementation("de.maxhenkel.rnnoise4j:rnnoise4j:2.1.2")
-            implementation("io.ultreia:bluecove:2.1.1")
             implementation(libs.composenativetray)
             implementation(libs.onnxruntime)
             implementation(libs.jtransforms)
@@ -192,7 +191,7 @@ compose.desktop {
         buildTypes.release {
             proguard {
                 isEnabled.set(true)
-                obfuscate.set(false)
+                obfuscate.set(true)
                 optimize.set(true)
                 configurationFiles.from("proguard-desktop.pro")
             }
