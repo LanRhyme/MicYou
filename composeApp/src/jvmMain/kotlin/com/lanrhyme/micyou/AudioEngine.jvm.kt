@@ -271,7 +271,7 @@ actual class AudioEngine actual constructor() {
     /**
      * 设置插件音频效果器
      */
-    fun setPluginAudioEffects(effects: List<AudioEffectProvider>) {
+    actual fun setPluginAudioEffects(effects: List<AudioEffectProvider>) {
         audioPipeline.setPluginEffects(effects)
         Logger.d("AudioEngine", "Plugin audio effects updated: ${effects.size} effects")
     }
