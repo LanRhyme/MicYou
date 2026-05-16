@@ -323,17 +323,17 @@ tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractProguardT
 // 256x256 的图标在 Windows 托盘中无法正常显示，需要使用小尺寸图标
 val copyTrayIcon by tasks.registering(Copy::class) {
     from("src/commonMain/composeResources/drawable/icon32.ico")
-    into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}"))
+    into(layout.buildDirectory.dir("compose/binaries/main-release/app/${project.property("project.name")}"))
 }
 
 // 复制 Assets.car 到 macOS app bundle（支持液态玻璃图标）
 val copyAssetsCar by tasks.registering(Copy::class) {
     from("resources/macos/Assets.car")
-    into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}.app/Contents/Resources"))
+    into(layout.buildDirectory.dir("compose/binaries/main-release/app/${project.property("project.name")}.app/Contents/Resources"))
 }
 
 // Windows/macOS 打包时执行 copyTrayIcon
-tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable") }
+tasks.matching { it.name in setOf("createReleaseDistributable") }
     .configureEach {
         dependsOn(copyTrayIcon)
     }
@@ -348,7 +348,7 @@ tasks.matching { it.name.contains("Dmg") }
 
 tasks.matching { it.name == "copyAssetsCar" }
     .configureEach {
-        mustRunAfter("createDistributable")
+        mustRunAfter("createReleaseDistributable")
     }
 
 tasks.matching { it.name == "jvmRun" }.configureEach {
