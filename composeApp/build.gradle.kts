@@ -310,7 +310,7 @@ tasks.matching { it.name in setOf("createDistributable", "createReleaseDistribut
     .configureEach { dependsOn("generateWindowsIconIco") }
 
 // 所有 release 打包任务依赖 runtime 压缩
-tasks.matching { it.name in setOf("packageWindowsNsis", "packageReleaseExe", "packageReleaseDmg", "packageReleaseDeb", "packageReleaseRpm") }
+tasks.matching { it.name in setOf("packageWindowsNsis", "packageReleaseExe", "packageReleaseDmg", "packageReleaseDeb", "packageReleaseRpm", "packageWindowsZip") }
     .configureEach { dependsOn("replaceRuntime") }
 
 // 修复 ProGuard 的 kotlin-metadata-jvm 版本不兼容问题
@@ -375,11 +375,15 @@ val compressRuntime by tasks.registering(CompressRuntimeTask::class) {
 }
 
 val replaceRuntime by tasks.registering(Copy::class) {
-    dependsOn("createReleaseDistributable", compressRuntime, copyTrayIcon)
+    dependsOn(compressRuntime)
     val appName = project.property("project.name").toString()
     from(layout.buildDirectory.dir("compose/binaries/main-release/app/$appName/runtime-compressed"))
     into(layout.buildDirectory.dir("compose/binaries/main-release/app/$appName/runtime"))
 }
+
+// 必须在 createReleaseDistributable 之后执行（输出目录重叠）
+tasks.matching { it.name == "replaceRuntime" }
+    .configureEach { mustRunAfter("createReleaseDistributable") }
 
 // Windows 打包后复制托盘图标 (32x32) 到应用目录
 // 256x256 的图标在 Windows 托盘中无法正常显示，需要使用小尺寸图标
