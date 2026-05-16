@@ -189,6 +189,15 @@ compose.desktop {
         mainClass = "com.lanrhyme.micyou.MainKt"
         jvmArgs("-Dfile.encoding=UTF-8", "-Dapp.version=${project.property("project.version")}")
 
+        buildTypes.release {
+            proguard {
+                isEnabled.set(true)
+                obfuscate.set(false)
+                optimize.set(true)
+                configurationFiles.from("proguard-desktop.pro")
+            }
+        }
+
         nativeDistributions {
             appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
 
@@ -300,6 +309,16 @@ tasks.register<GenerateWindowsIconIcoTask>("generateWindowsIconIco") {
 tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable", "packageExe", "packageReleaseExe", "packageWindowsNsis") }
     .configureEach { dependsOn("generateWindowsIconIco") }
 
+// 修复 ProGuard 的 kotlin-metadata-jvm 版本不兼容问题
+// compose 插件捆绑的 2.1.0 不支持 Kotlin 2.3.x 的 metadata
+tasks.withType<org.jetbrains.compose.desktop.application.tasks.AbstractProguardTask>().configureEach {
+    proguardFiles.from(
+        configurations.detachedConfiguration(
+            dependencies.create("org.jetbrains.kotlin:kotlin-metadata-jvm:2.3.10")
+        )
+    )
+}
+
 // Windows 打包后复制托盘图标 (32x32) 到应用目录
 // 256x256 的图标在 Windows 托盘中无法正常显示，需要使用小尺寸图标
 val copyTrayIcon by tasks.registering(Copy::class) {
@@ -323,7 +342,7 @@ tasks.matching { it.name in setOf("createDistributable", "createReleaseDistribut
 tasks.matching { it.name.contains("Dmg") }
     .configureEach {
         dependsOn(copyTrayIcon)
-        dependsOn("createDistributable")
+        dependsOn("createReleaseDistributable")
         dependsOn(copyAssetsCar)
     }
 
@@ -343,10 +362,10 @@ tasks.matching { it.name == "jvmRun" }.configureEach {
 }
 
 tasks.register<Zip>("packageWindowsZip") {
-    dependsOn("createDistributable", copyTrayIcon)
+    dependsOn("createReleaseDistributable", copyTrayIcon)
 
     val version = project.property("project.version").toString()
-    val distDir = layout.buildDirectory.dir("compose/binaries/main/app")
+    val distDir = layout.buildDirectory.dir("compose/binaries/main-release/app")
 
     from(distDir)
     destinationDirectory.set(layout.buildDirectory.dir("distributions"))
@@ -425,7 +444,7 @@ abstract class PackageWindowsNsisTask @Inject constructor(
 }
 
 tasks.register<PackageWindowsNsisTask>("packageWindowsNsis") {
-    dependsOn("createDistributable", copyTrayIcon)
+    dependsOn("createReleaseDistributable", copyTrayIcon)
 
     val appNameValue = project.property("project.name").toString()
     val versionValue = project.property("project.version").toString()
@@ -434,7 +453,7 @@ tasks.register<PackageWindowsNsisTask>("packageWindowsNsis") {
     appVersion.set(versionValue)
     vendor.set("LanRhyme")
 
-    inputDir.set(layout.buildDirectory.dir("compose/binaries/main/app/$appNameValue"))
+    inputDir.set(layout.buildDirectory.dir("compose/binaries/main-release/app/$appNameValue"))
     scriptFile.set(layout.projectDirectory.file("nsis/installer.nsi"))
     outputFile.set(layout.buildDirectory.file("distributions/$appNameValue-$versionValue-setup-nsis.exe"))
 
