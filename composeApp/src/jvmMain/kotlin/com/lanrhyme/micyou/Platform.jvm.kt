@@ -34,7 +34,7 @@ class JVMPlatform: Platform {
     companion object {
         private val VIRTUAL_KEYWORDS = listOf(
             "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
-            "tunnel", "teredo", "isatap", "vpn"
+            "tunnel", "teredo", "isatap", "vpn", "zerotier", "zt"
         )
     }
 

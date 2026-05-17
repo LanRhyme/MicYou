@@ -274,7 +274,8 @@ actual class AudioEngine actual constructor() {
         isClient: Boolean,
         sampleRate: SampleRate,
         channelCount: ChannelCount,
-        audioFormat: AudioFormat
+        audioFormat: AudioFormat,
+        preferredIp: String?
     ) {
         if (isClient) return 
         Logger.i("AudioEngine", "启动 JVM AudioEngine: 模式=$mode, 端口=$port, 采样率=${sampleRate.value}, 声道=${channelCount.label}, 格式=${audioFormat.label}")
@@ -299,7 +300,7 @@ actual class AudioEngine actual constructor() {
             Logger.i("AudioEngine", "启动 Web 模式，端口=$webPort")
 
             val platform = getPlatform()
-            val primaryIp = platform.ipAddress
+            val primaryIp = preferredIp ?: platform.ipAddress
             val webUrlStr = "https://$primaryIp:$webPort"
             _webUrl.value = webUrlStr
 

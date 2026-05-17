@@ -445,4 +445,9 @@
     <string name="equalizerDeepVoicePreset">深沉男声</string>
     <string name="equalizerPodcastPreset">播客电台</string>
     <string name="monitoringRecordPlayLabel">录音与播放监测</string>
+    <string name="ipSelectionTitle">检测到目前存在多个 IP，请选择正确的 IP 以便于生成二维码</string>
+    <string name="ipSelectionRemember">以后都使用此 IP</string>
+    <string name="ipSelectionChangeIp">更换 IP</string>
+    <string name="ipSelectionFixedLabel">已固定：%s</string>
+    <string name="ipSelectionNoIpAvailable">未检测到可用 IP 地址</string>
 </resources>

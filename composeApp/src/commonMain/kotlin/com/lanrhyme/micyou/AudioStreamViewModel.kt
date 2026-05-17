@@ -64,7 +64,11 @@ data class AudioStreamUiState(
 
     // Web Mode State
     val webUrl: String = "",
-    val webClientCount: Int = 0
+    val webClientCount: Int = 0,
+
+    // IP Selection Dialog
+    val showIpSelectionDialog: Boolean = false,
+    val preferredIp: String? = null
 )
 
 class AudioStreamViewModel : ViewModel() {
@@ -191,6 +195,7 @@ class AudioStreamViewModel : ViewModel() {
         savedEqGainsStr.split(",").mapNotNull { it.toFloatOrNull() }.takeIf { it.size == 10 } ?: List(10) { 0f }
     }
     val savedEqualizerConfig = EqualizerConfig(savedEqEnabled, savedEqGains, savedEqPreAmp)
+    val savedPreferredIp = settings.getString("preferred_ip", "").takeIf { it.isNotEmpty() }
 
         _uiState.update {
             it.copy(
@@ -218,7 +223,8 @@ class AudioStreamViewModel : ViewModel() {
                 androidAudioSourceName = savedAndroidAudioSourceName,
                 isAutoConfig = savedIsAutoConfig,
                 performanceMode = savedPerformanceMode,
-                performanceConfig = PerformanceConfig.withBufferSizeMultiplier(savedBufferSizeMultiplier)
+                performanceConfig = PerformanceConfig.withBufferSizeMultiplier(savedBufferSizeMultiplier),
+                preferredIp = savedPreferredIp
             )
         }
         
@@ -336,6 +342,7 @@ class AudioStreamViewModel : ViewModel() {
         Logger.i("AudioStreamViewModel", "Starting stream")
     val mode = _uiState.value.mode
         val ip = _uiState.value.ipAddress
+        val preferredIp = _uiState.value.preferredIp
 
         // 端口验证：确保端口在有效范围内 (1-65535)
     val rawPort = _uiState.value.port.toIntOrNull()
@@ -383,7 +390,7 @@ class AudioStreamViewModel : ViewModel() {
 
             try {
                 Logger.d("AudioStreamViewModel", "Calling _audioEngine.start()")
-                _audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat)
+                _audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat, preferredIp)
                 Logger.i("AudioStreamViewModel", "Stream started successfully")
             } catch (e: Exception) {
                 Logger.e("AudioStreamViewModel", "Failed to start stream", e)
@@ -738,5 +745,50 @@ class AudioStreamViewModel : ViewModel() {
             discoveryManager.stopDiscovery()
             discoveryManager.startDiscovery()
         }
+    }
+
+    // ==================== IP 选择对话框 ====================
+
+    fun onStartWebMode() {
+        val platform = getPlatform()
+        if (platform.type != PlatformType.Desktop) return
+
+        val ips = platform.ipAddresses
+        val preferred = _uiState.value.preferredIp
+
+        if (preferred != null) {
+            startStream()
+        } else if (ips.size > 1) {
+            _uiState.update { it.copy(showIpSelectionDialog = true) }
+        } else if (ips.size == 1) {
+            startStream()
+        } else {
+            _uiState.update {
+                it.copy(
+                    streamState = StreamState.Error,
+                    errorMessage = "No available IP address detected",
+                    showErrorDialog = true
+                )
+            }
+        }
+    }
+
+    fun confirmIpSelection(ip: String, remember: Boolean) {
+        if (remember) {
+            settings.putString("preferred_ip", ip)
+            _uiState.update { it.copy(preferredIp = ip, showIpSelectionDialog = false) }
+        } else {
+            _uiState.update { it.copy(preferredIp = ip, showIpSelectionDialog = false) }
+        }
+        startStream()
+    }
+
+    fun dismissIpSelection() {
+        _uiState.update { it.copy(showIpSelectionDialog = false, preferredIp = null) }
+    }
+
+    fun clearPreferredIp() {
+        settings.putString("preferred_ip", "")
+        _uiState.update { it.copy(preferredIp = null) }
     }
 }

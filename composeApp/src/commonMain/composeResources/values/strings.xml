@@ -445,4 +445,9 @@
     <string name="equalizerBrightVocalPreset">Bright Vocal</string>
     <string name="equalizerDeepVoicePreset">Deep Voice</string>
     <string name="equalizerPodcastPreset">Podcast</string>
+    <string name="ipSelectionTitle">Multiple IP addresses detected. Please select the correct IP for QR code generation.</string>
+    <string name="ipSelectionRemember">Always use this IP</string>
+    <string name="ipSelectionChangeIp">Change IP</string>
+    <string name="ipSelectionFixedLabel">Fixed: %s</string>
+    <string name="ipSelectionNoIpAvailable">No available IP address detected</string>
 </resources>

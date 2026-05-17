@@ -29,7 +29,8 @@ expect class AudioEngine() {
         isClient: Boolean,
         sampleRate: SampleRate,
         channelCount: ChannelCount,
-        audioFormat: AudioFormat
+        audioFormat: AudioFormat,
+        preferredIp: String? = null
     )
 
     // 更新音频处理配置

@@ -179,7 +179,8 @@ actual class AudioEngine actual constructor() {
         isClient: Boolean,
         sampleRate: SampleRate,
         channelCount: ChannelCount,
-        audioFormat: com.lanrhyme.micyou.AudioFormat
+        audioFormat: com.lanrhyme.micyou.AudioFormat,
+        preferredIp: String?
     ) {
         if (!isClient) return
         Logger.i("AudioEngine", "Starting Android AudioEngine: mode=$mode, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}")

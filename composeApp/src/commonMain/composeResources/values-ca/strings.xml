@@ -445,4 +445,9 @@
     <string name="realTimeSpectrumLabel">实时频谱（原始 vs 处理后）喵~ 📈</string>
     <string name="webModeDesc">启动 HTTPS + WebSocket 服务喵~支持手机浏览器麦克风输入喵~</string>
     <string name="webUrlLabel">Web 地址喵~</string>
+    <string name="ipSelectionTitle">检测到目前存在多个 IP 喵~请选择正确的 IP 以便于生成二维码喵~</string>
+    <string name="ipSelectionRemember">以后都使用此 IP 喵~</string>
+    <string name="ipSelectionChangeIp">更换 IP 喵~</string>
+    <string name="ipSelectionFixedLabel">已固定：%s 喵~</string>
+    <string name="ipSelectionNoIpAvailable">未检测到可用 IP 地址喵~</string>
 </resources>

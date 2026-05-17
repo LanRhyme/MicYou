@@ -445,4 +445,9 @@
     <string name="realTimeSpectrumLabel">即時頻譜 (原始 vs 處理後)</string>
     <string name="webModeDesc">啟動 HTTPS + WebSocket 伺服器，支援手機瀏覽器麥克風輸入</string>
     <string name="webUrlLabel">Web 網址</string>
-    </resources>
+    <string name="ipSelectionTitle">檢測到目前存在多個 IP，請選擇正確的 IP 以便於生成 QR 碼</string>
+    <string name="ipSelectionRemember">以後都使用此 IP</string>
+    <string name="ipSelectionChangeIp">更換 IP</string>
+    <string name="ipSelectionFixedLabel">已固定：%s</string>
+    <string name="ipSelectionNoIpAvailable">未檢測到可用 IP 位址</string>
+</resources>

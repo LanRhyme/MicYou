@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -205,6 +206,76 @@ fun DesktopHomeEnhanced(
         )
     }
 
+    // IP 选择对话框
+    if (state.showIpSelectionDialog) {
+        val ips = remember { platform.ipAddresses }
+        var selectedIp by remember { mutableStateOf(ips.firstOrNull() ?: "") }
+        var rememberChoice by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissIpSelection() },
+            title = { Text(stringResource(Res.string.ipSelectionTitle)) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .widthIn(min = 300.dp, max = 400.dp)
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    ips.forEach { ip ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedIp = ip }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            androidx.compose.material3.RadioButton(
+                                selected = selectedIp == ip,
+                                onClick = { selectedIp = ip }
+                            )
+                            Text(
+                                text = ip,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { rememberChoice = !rememberChoice }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        androidx.compose.material3.Checkbox(
+                            checked = rememberChoice,
+                            onCheckedChange = { rememberChoice = it }
+                        )
+                        Text(
+                            text = stringResource(Res.string.ipSelectionRemember),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.confirmIpSelection(selectedIp, rememberChoice) }) {
+                    Text(stringResource(Res.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissIpSelection() }) {
+                    Text(stringResource(Res.string.cancel))
+                }
+            }
+        )
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -222,6 +293,7 @@ fun DesktopHomeEnhanced(
                 HeaderSection(
                     platform = platform,
                     state = state,
+                    viewModel = viewModel,
                     onMinimize = onMinimize,
                     onClose = onClose,
                     cardOpacity = state.backgroundSettings.cardOpacity,
@@ -330,6 +402,7 @@ fun DesktopHomeEnhanced(
 private fun HeaderSection(
     platform: Platform,
     state: AppUiState,
+    viewModel: MainViewModel,
     onMinimize: () -> Unit,
     onClose: () -> Unit,
     cardOpacity: Float = 1f,
@@ -415,6 +488,7 @@ private fun HeaderSection(
                 }
             }
     val ipList = platform.ipAddresses
+    val preferredIp = state.preferredIp
             val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
             
@@ -425,6 +499,41 @@ private fun HeaderSection(
                 Box(
                     modifier = Modifier.widthIn(max = 200.dp)
                 ) {
+                    if (preferredIp != null) {
+                        // 显示固定 IP + 更换按钮
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Language,
+                                null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            SelectionContainer {
+                                Text(
+                                    preferredIp,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Text(
+                                stringResource(Res.string.ipSelectionChangeIp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .clip(MaterialTheme.shapes.extraSmall)
+                                    .clickable {
+                                        viewModel.clearPreferredIp()
+                                        viewModel.onStartWebMode()
+                                    }
+                                    .padding(horizontal = 2.dp)
+                            )
+                        }
+                    } else {
                     LazyRow(
                         state = lazyListState,
                         modifier = Modifier
@@ -521,6 +630,7 @@ private fun HeaderSection(
                                     )
                                 )
                         )
+                    }
                     }
                 }
             }
@@ -968,7 +1078,15 @@ private fun CenterPanel(
                 MainControlButton(
                     isRunning = isRunning,
                     isConnecting = isConnecting,
-                    onClick = { if (isRunning || isConnecting) viewModel.stopStream() else viewModel.startStream() }
+                    onClick = {
+                        if (isRunning || isConnecting) {
+                            viewModel.stopStream()
+                        } else if (state.mode == ConnectionMode.Web) {
+                            viewModel.onStartWebMode()
+                        } else {
+                            viewModel.startStream()
+                        }
+                    }
                 )
             }
             

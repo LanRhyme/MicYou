@@ -202,6 +202,77 @@ fun DesktopHome(
         )
     }
 
+    // IP 选择对话框
+    if (state.showIpSelectionDialog) {
+        val platform = remember { getPlatform() }
+        val ips = remember { platform.ipAddresses }
+        var selectedIp by remember { mutableStateOf(ips.firstOrNull() ?: "") }
+        var rememberChoice by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissIpSelection() },
+            title = { Text(stringResource(Res.string.ipSelectionTitle)) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .widthIn(min = 300.dp, max = 400.dp)
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    ips.forEach { ip ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedIp = ip }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            androidx.compose.material3.RadioButton(
+                                selected = selectedIp == ip,
+                                onClick = { selectedIp = ip }
+                            )
+                            Text(
+                                text = ip,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { rememberChoice = !rememberChoice }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        androidx.compose.material3.Checkbox(
+                            checked = rememberChoice,
+                            onCheckedChange = { rememberChoice = it }
+                        )
+                        Text(
+                            text = stringResource(Res.string.ipSelectionRemember),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.confirmIpSelection(selectedIp, rememberChoice) }) {
+                    Text(stringResource(Res.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissIpSelection() }) {
+                    Text(stringResource(Res.string.cancel))
+                }
+            }
+        )
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -389,14 +460,39 @@ private fun NetworkConfigCard(
     val currentIps = remember(showIpList) {
                         if (showIpList) platform.ipAddresses else emptyList()
                     }
+    val displayIp = state.preferredIp ?: platform.ipAddress
+    val isFixed = state.preferredIp != null
 
-                    SelectionContainer {
-                        Text(
-                            "${stringResource(Res.string.ipLabel)}${platform.ipAddress}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.clickable { showIpList = true }
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        SelectionContainer {
+                            Text(
+                                if (isFixed) String.format(stringResource(Res.string.ipSelectionFixedLabel), displayIp)
+                                else "${stringResource(Res.string.ipLabel)}$displayIp",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (isFixed) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.clickable { showIpList = !showIpList }
+                            )
+                        }
+
+                        if (isFixed) {
+                            Text(
+                                stringResource(Res.string.ipSelectionChangeIp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable {
+                                        viewModel.clearPreferredIp()
+                                        // 重新弹出选择对话框
+                                        viewModel.onStartWebMode()
+                                    }
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            )
+                        }
                     }
 
                     CompositionLocalProvider(
@@ -595,7 +691,8 @@ private fun ControlCenter(
                 isRunning = isRunning,
                 isConnecting = isConnecting,
                 viewModel = viewModel,
-                                visible = contentVisible
+                isWebMode = state.mode == ConnectionMode.Web,
+                visible = contentVisible
             )
         }
     }
@@ -636,6 +733,7 @@ private fun MainControlButton(
     isRunning: Boolean,
     isConnecting: Boolean,
     viewModel: MainViewModel,
+    isWebMode: Boolean = false,
     visible: Boolean
 ) {
     val buttonSize by animateDpAsState(
@@ -719,6 +817,8 @@ private fun MainControlButton(
             onClick = {
                 if (isRunning || isConnecting) {
                     viewModel.stopStream()
+                } else if (isWebMode) {
+                    viewModel.onStartWebMode()
                 } else {
                     viewModel.startStream()
                 }

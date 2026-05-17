@@ -146,7 +146,11 @@ data class AppUiState(
 
     // Web Mode State
     val webUrl: String = "",
-    val webClientCount: Int = 0
+    val webClientCount: Int = 0,
+
+    // IP Selection Dialog
+    val showIpSelectionDialog: Boolean = false,
+    val preferredIp: String? = null
 )
 
 enum class CloseAction(val label: String) {
@@ -359,7 +363,9 @@ class MainViewModel : ViewModel() {
                         showMonitoringPanel = audioState.showMonitoringPanel,
                         snackbarMessage = settingsState.snackbarMessage,
                         webUrl = audioState.webUrl,
-                        webClientCount = audioState.webClientCount
+                        webClientCount = audioState.webClientCount,
+                        showIpSelectionDialog = audioState.showIpSelectionDialog,
+                        preferredIp = audioState.preferredIp
                     )
                 }
             }.collect {
@@ -418,6 +424,12 @@ class MainViewModel : ViewModel() {
     fun confirmAddFirewallRule() = audioStreamViewModel.confirmAddFirewallRule()
     fun dismissErrorDialog() = audioStreamViewModel.dismissErrorDialog()
     fun retryAfterError() = audioStreamViewModel.retryAfterError()
+    
+    // IP Selection methods
+    fun onStartWebMode() = audioStreamViewModel.onStartWebMode()
+    fun confirmIpSelection(ip: String, remember: Boolean) = audioStreamViewModel.confirmIpSelection(ip, remember)
+    fun dismissIpSelection() = audioStreamViewModel.dismissIpSelection()
+    fun clearPreferredIp() = audioStreamViewModel.clearPreferredIp()
     
     // Settings methods
     fun setThemeMode(mode: ThemeMode) = settingsViewModel.setThemeMode(mode)
