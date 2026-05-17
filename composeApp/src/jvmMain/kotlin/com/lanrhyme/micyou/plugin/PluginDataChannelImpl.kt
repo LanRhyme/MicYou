@@ -10,14 +10,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.atomic.AtomicBoolean
 
 class PluginDataChannelImpl(
     override val id: String,
@@ -34,7 +33,7 @@ class PluginDataChannelImpl(
     private var tcpServerSocket: ServerSocket? = null
     private var udpSocket: DatagramSocket? = null
     private var udpRemoteAddress: InetSocketAddress? = null
-    private val tcpAcceptMutex = Mutex()
+    private val tcpAccepting = AtomicBoolean(false)
     
     override suspend fun connect(host: String, port: Int): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -48,8 +47,10 @@ class PluginDataChannelImpl(
                 }
                 DataChannelMode.Udp -> {
                     val socket = DatagramSocket()
-                    socket.connect(InetSocketAddress(host, port))
+                    val remoteAddress = InetSocketAddress(host, port)
+                    socket.connect(remoteAddress)
                     udpSocket = socket
+                    udpRemoteAddress = remoteAddress
                     _localPort = socket.localPort
                     _isConnected.value = true
                     Logger.i("PluginDataChannel", "UDP connected to $host:$port")
@@ -117,16 +118,27 @@ class PluginDataChannelImpl(
     override fun receive(): Flow<ByteArray> = kotlinx.coroutines.flow.flow {
         when (config.mode) {
             DataChannelMode.Tcp -> {
-                // 服务端模式：先接受客户端连接（使用 Mutex 防止竞态条件）
-                tcpAcceptMutex.withLock {
-                    if (tcpServerSocket != null && tcpSocket == null) {
-                        Logger.i("PluginDataChannel", "Waiting for TCP client connection on port $_localPort...")
+                // 服务端模式：先接受客户端连接（使用原子标志防止竞态条件）
+                if (tcpServerSocket != null && tcpSocket == null) {
+                    // 尝试获取 accept 权限，只有一个协程能成功
+                    if (tcpAccepting.compareAndSet(false, true)) {
                         try {
+                            Logger.i("PluginDataChannel", "Waiting for TCP client connection on port $_localPort...")
                             val clientSocket = withContext(Dispatchers.IO) { tcpServerSocket!!.accept() }
                             tcpSocket = clientSocket
                             Logger.i("PluginDataChannel", "TCP client connected: ${clientSocket.inetAddress.hostAddress}:${clientSocket.port}")
                         } catch (e: Exception) {
                             Logger.e("PluginDataChannel", "Failed to accept TCP client: ${e.message}")
+                            tcpAccepting.set(false)
+                            return@flow
+                        }
+                    } else {
+                        // 其他协程等待连接建立
+                        Logger.d("PluginDataChannel", "Another coroutine is accepting, waiting...")
+                        while (tcpSocket == null && _isConnected.value) {
+                            kotlinx.coroutines.delay(50)
+                        }
+                        if (tcpSocket == null) {
                             return@flow
                         }
                     }
