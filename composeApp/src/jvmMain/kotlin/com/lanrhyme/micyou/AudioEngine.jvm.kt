@@ -368,7 +368,12 @@ actual class AudioEngine actual constructor() {
     }
 
     actual fun setAudioSource(sourceName: String) {
-        // JVM 端不支持音频源选择
+        audioOutputManager.setAudioSource(sourceName)
+        // 如果当前正在推流，需要重启音频输出以切换设备
+        if (_state.value == StreamState.Streaming) {
+            Logger.i("AudioEngine", "Audio source changed while streaming, re-initializing output...")
+            audioOutputManager.init(currentSampleRate, currentChannelCount)
+        }
     }
 
     actual fun stop() {

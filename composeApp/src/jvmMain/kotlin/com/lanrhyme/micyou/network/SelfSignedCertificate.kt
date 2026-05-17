@@ -15,18 +15,20 @@ object SelfSignedCertificate {
 
     private var cachedKeyStore: KeyStore? = null
 
+    private val virtualKeywords = listOf(
+        "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker", "tunnel", "teredo", "isatap", "vpn"
+    )
+
     internal fun getLanIpAddresses(): List<String> {
-        val virtualKeywords = listOf(
-            "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker", "tunnel", "teredo", "isatap"
-        )
         try {
             val interfaces = NetworkInterface.getNetworkInterfaces()
             val candidates = mutableListOf<Pair<NetworkInterface, Inet4Address>>()
             while (interfaces.hasMoreElements()) {
                 val iface = interfaces.nextElement()
                 if (iface.isLoopback || !iface.isUp || iface.isVirtual) continue
-                val name = iface.displayName?.lowercase() ?: ""
-                if (virtualKeywords.any { name.contains(it) }) continue
+                val name = iface.name.lowercase()
+                val displayName = iface.displayName?.lowercase() ?: ""
+                if (virtualKeywords.any { name.contains(it) || displayName.contains(it) }) continue
                 val addresses = iface.inetAddresses
                 while (addresses.hasMoreElements()) {
                     val addr = addresses.nextElement()

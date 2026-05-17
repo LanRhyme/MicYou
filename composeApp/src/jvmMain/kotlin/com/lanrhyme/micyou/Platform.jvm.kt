@@ -17,6 +17,10 @@ import com.lanrhyme.micyou.util.QrCodeGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
+import javax.sound.sampled.AudioSystem
+import javax.sound.sampled.SourceDataLine
+import micyou.composeapp.generated.resources.Res
+import micyou.composeapp.generated.resources.autoSourceAuto
 
 class JVMPlatform: Platform {
     override val name: String = "Java ${System.getProperty("java.version")}"
@@ -27,19 +31,29 @@ class JVMPlatform: Platform {
     override val ipAddresses: List<String>
         get() = getLocalIpAddresses()
 
+    companion object {
+        private val VIRTUAL_KEYWORDS = listOf(
+            "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
+            "tunnel", "teredo", "isatap", "vpn"
+        )
+    }
+
     private fun getLocalIpAddresses(): List<String> {
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-    val candidates = mutableListOf<java.net.InetAddress>()
+            val candidates = mutableListOf<java.net.InetAddress>()
 
             while (interfaces.hasMoreElements()) {
                 val iface = interfaces.nextElement()
-                if (iface.isLoopback || !iface.isUp) continue
+                if (iface.isLoopback || !iface.isUp || iface.isVirtual) continue
+                val name = iface.name.lowercase()
+                val displayName = iface.displayName?.lowercase() ?: ""
+                if (VIRTUAL_KEYWORDS.any { name.contains(it) || displayName.contains(it) }) continue
 
                 val addresses = iface.inetAddresses
                 while (addresses.hasMoreElements()) {
                     val addr = addresses.nextElement()
-                    if (addr is java.net.Inet4Address) {
+                    if (addr is java.net.Inet4Address && !addr.isLoopbackAddress) {
                         candidates.add(addr)
                     }
                 }
@@ -150,7 +164,31 @@ actual fun getDynamicColorScheme(isDark: Boolean, paletteStyle: PaletteStyle): C
     }
 }
 
-actual fun getAudioSourceOptions(): List<AudioSourceOption> = emptyList()
+actual fun getAudioSourceOptions(): List<AudioSourceOption> {
+    val mixers = AudioSystem.getMixerInfo()
+    val options = mutableListOf<AudioSourceOption>()
+    
+    // 添加 "Auto (Recommended)" 选项
+    options.add(AudioSourceOption(name = "Auto", labelRes = Res.string.autoSourceAuto))
+    
+    mixers.forEach { mixerInfo ->
+        try {
+            val mixer = AudioSystem.getMixer(mixerInfo)
+            // 过滤出支持输出 (SourceDataLine) 的混音器
+            if (mixer.sourceLineInfo.any { it is javax.sound.sampled.DataLine.Info && it.lineClass == SourceDataLine::class.java }) {
+                // 排除一些显然不是物理/虚拟播放设备的混音器（可选）
+                val name = mixerInfo.name
+                if (!options.any { it.name == name }) {
+                    options.add(AudioSourceOption(name = name, label = name))
+                }
+            }
+        } catch (e: Exception) {
+            // 忽略有问题的混音器
+        }
+    }
+    
+    return options
+}
 
 actual fun isVirtualDeviceInstalled(): Boolean = VirtualAudioDeviceManager.isVirtualDeviceInstalled()
 

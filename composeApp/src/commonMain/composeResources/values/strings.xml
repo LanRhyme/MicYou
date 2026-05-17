@@ -25,6 +25,7 @@
     <string name="autoConfigLabel">Auto Configure Audio</string>
     <string name="autoStartDesc">Start streaming automatically on app launch</string>
     <string name="autoStartLabel">Auto Start</string>
+    <string name="autoSourceAuto">Auto (Recommended)</string>
     <string name="backgroundBlurLabel">Blur</string>
     <string name="backgroundBrightnessLabel">Brightness</string>
     <string name="backgroundSettingsLabel">Background</string>
@@ -398,6 +399,8 @@
     <string name="reloadPlugins">Reload Plugins</string>
     <string name="reloadingPlugins">Reloading plugins...</string>
     <string name="vbcableInstallFailed">VB-Cable installation failed: %s</string>
+    <string name="vbcableToolMissing">SoundVolumeView.exe not found. VB-Cable device configuration cannot proceed.</string>
+    <string name="vbcableConfigPartial">VB-Cable installed but configuration incomplete: %s. Sound output may not work correctly.</string>
     <string name="noPluginsFound">No plugins installed</string>
     <string name="showMore">Show More</string>
     <string name="showLess">Show Less</string>

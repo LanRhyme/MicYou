@@ -25,6 +25,7 @@ enum class VBCableInstallError {
     InstallationTimeout,
     ConfigurationFailed,
     DeviceNotDetected,
+    ToolMissing,
     Unknown
 }
 
@@ -39,6 +40,7 @@ object VBCableManager {
     private const val CABLE_INPUT_NAME = "CABLE Input"
     private const val INSTALLER_NAME = "VBCABLE_Setup_x64.exe"
     private const val SOUND_VOLUME_VIEW_NAME = "SoundVolumeView.exe"
+    private const val SVV_DOWNLOAD_URL = "https://www.nirsoft.net/utils/soundvolumeview-x64.zip"
     private const val KEY_ORIGINAL_SPEAKER = "original_speaker"
 
     private val settings = SettingsFactory.getSettings()
@@ -107,11 +109,75 @@ object VBCableManager {
     val toolsDir = File(baseDir, "tools")
     val svvInTools = File(toolsDir, SOUND_VOLUME_VIEW_NAME)
         if (svvInTools.exists()) return svvInTools
-        
+
         val svvInBase = File(baseDir, SOUND_VOLUME_VIEW_NAME)
         if (svvInBase.exists()) return svvInBase
-        
+
         return null
+    }
+
+    private suspend fun downloadSoundVolumeView(): File? = withContext(Dispatchers.IO) {
+        val baseDir = File(System.getProperty("user.dir"))
+        val toolsDir = File(baseDir, "tools")
+        if (!toolsDir.exists()) toolsDir.mkdirs()
+
+        val zipFile = File(toolsDir, "soundvolumeview-x64.zip")
+        val svvFile = File(toolsDir, SOUND_VOLUME_VIEW_NAME)
+
+        try {
+            val url = java.net.URI(SVV_DOWNLOAD_URL).toURL()
+            val connection = url.openConnection()
+            connection.connectTimeout = 30000
+            connection.readTimeout = 60000
+            connection.connect()
+
+            connection.getInputStream().use { input ->
+                FileOutputStream(zipFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            Logger.i("VBCableManager", "SoundVolumeView download complete. Extracting...")
+
+            java.util.zip.ZipFile(zipFile).use { zip ->
+                val entry = zip.getEntry(SOUND_VOLUME_VIEW_NAME)
+                if (entry != null) {
+                    zip.getInputStream(entry).use { input ->
+                        FileOutputStream(svvFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    Logger.i("VBCableManager", "Extracted $SOUND_VOLUME_VIEW_NAME")
+                } else {
+                    val entries = zip.entries()
+                    while (entries.hasMoreElements()) {
+                        val e = entries.nextElement()
+                        if (e.name.equals(SOUND_VOLUME_VIEW_NAME, ignoreCase = true)) {
+                            zip.getInputStream(e).use { input ->
+                                FileOutputStream(svvFile).use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            Logger.i("VBCableManager", "Extracted ${e.name} (case-insensitive match)")
+                            break
+                        }
+                    }
+                }
+            }
+            zipFile.delete()
+            if (svvFile.exists()) svvFile else null
+        } catch (e: Exception) {
+            Logger.e("VBCableManager", "Failed to download/extract SoundVolumeView: ${e.message}", e)
+            if (zipFile.exists()) zipFile.delete()
+            null
+        }
+    }
+
+    private suspend fun ensureSoundVolumeView(progressCallback: (String?) -> Unit) {
+        if (getSoundVolumeViewPath() != null) return
+
+        Logger.i("VBCableManager", "SoundVolumeView not found. Attempting to download...")
+        progressCallback(getString(Res.string.installDownloading))
+        downloadSoundVolumeView()
     }
 
     private fun getVBCableSetupPath(): File? {
@@ -239,19 +305,38 @@ object VBCableManager {
     private fun setCableOutputAsDefaultMic(): Boolean {
         val svv = getSoundVolumeViewPath() ?: return false
         
+        Logger.d("VBCableManager", "Attempting to set CABLE Output as default capture device")
+
         return try {
-            val process = ProcessBuilder(
-                svv.absolutePath, "/SetDefault",
-                "VB-Audio Virtual Cable\\Device\\CABLE Output\\Capture", "all"
+            // 1. 尝试使用 Friendly Name "CABLE Output"
+            var process = ProcessBuilder(
+                svv.absolutePath, "/SetDefault", "CABLE Output", "all"
             ).redirectErrorStream(true).start()
-    val exitCode = process.waitFor()
+            
+            var exitCode = process.waitFor()
             if (exitCode == 0) {
-                Logger.i("VBCableManager", "Set CABLE Output as default microphone")
-                true
-            } else {
-                Logger.w("VBCableManager", "Failed to set CABLE Output as default mic")
-                false
+                Logger.i("VBCableManager", "Successfully set CABLE Output as default microphone using friendly name")
+                return true
             }
+
+            // 2. 如果失败，尝试使用 Device Name (更具体)
+            val deviceNameFallback = "VB-Audio Virtual Cable\\Device\\CABLE Output\\Capture"
+            Logger.d("VBCableManager", "Friendly name failed, trying fallback: $deviceNameFallback")
+            
+            process = ProcessBuilder(
+                svv.absolutePath, "/SetDefault", deviceNameFallback, "all"
+            ).redirectErrorStream(true).start()
+            
+            exitCode = process.waitFor()
+            if (exitCode == 0) {
+                Logger.i("VBCableManager", "Successfully set CABLE Output as default microphone using device name")
+                return true
+            }
+            
+            // 3. 记录失败信息
+            val errorOutput = process.inputStream.bufferedReader().readText()
+            Logger.w("VBCableManager", "Failed to set CABLE Output as default mic. Exit code: $exitCode, Output: $errorOutput")
+            false
         } catch (e: Exception) {
             Logger.e("VBCableManager", "Error setting default microphone", e)
             false
@@ -259,22 +344,42 @@ object VBCableManager {
     }
 
     private fun configureVBCableDevices(sampleRate: Int = 48000, channelCount: Int = 2): Boolean {
+        val svv = getSoundVolumeViewPath()
+        if (svv == null) {
+            Logger.e("VBCableManager", "SoundVolumeView.exe not found. VB-Cable device configuration skipped. " +
+                "Please ensure SoundVolumeView.exe is in the tools/ directory or working directory.")
+            return false
+        }
+        Logger.d("VBCableManager", "Using SoundVolumeView at: ${svv.absolutePath}")
+
         var success = true
-        
+
         if (!disableCableInput16ch()) {
             Logger.w("VBCableManager", "Failed to disable CABLE Input 16ch, continuing...")
         }
-        
-        if (!setDeviceFormat("VB-Audio Virtual Cable\\Device\\CABLE Input\\Render", 16, sampleRate, channelCount)) {
-            Logger.w("VBCableManager", "Failed to set CABLE Input format")
-            success = false
+
+        // CABLE Input (Playback side)
+        val inputDeviceId = "VB-Audio Virtual Cable\\Device\\CABLE Input\\Render"
+        if (!setDeviceFormat(inputDeviceId, 16, sampleRate, channelCount)) {
+            // Try friendly name if device name fails
+            if (!setDeviceFormat("CABLE Input", 16, sampleRate, channelCount)) {
+                Logger.e("VBCableManager", "Failed to set CABLE Input format to ${sampleRate}Hz 16bit ${channelCount}ch. " +
+                    "Audio format mismatch may cause no sound output.")
+                success = false
+            }
         }
-        
-        if (!setDeviceFormat("VB-Audio Virtual Cable\\Device\\CABLE Output\\Capture", 16, sampleRate, 1)) {
-            Logger.w("VBCableManager", "Failed to set CABLE Output format")
-            success = false
+
+        // CABLE Output (Recording side)
+        val outputDeviceId = "VB-Audio Virtual Cable\\Device\\CABLE Output\\Capture"
+        if (!setDeviceFormat(outputDeviceId, 16, sampleRate, 1)) {
+            // Try friendly name if device name fails
+            if (!setDeviceFormat("CABLE Output", 16, sampleRate, 1)) {
+                Logger.e("VBCableManager", "Failed to set CABLE Output format to ${sampleRate}Hz 16bit mono. " +
+                    "Audio format mismatch may cause no sound output.")
+                success = false
+            }
         }
-        
+
         return success
     }
 
@@ -282,14 +387,25 @@ object VBCableManager {
         if (!isInstalled()) {
             return VBCableInstallResult(false, VBCableInstallError.DeviceNotDetected, "VB-Cable not installed")
         }
-    val configSuccess = configureVBCableDevices(sampleRate, channelCount)
-    val micSuccess = setCableOutputAsDefaultMic()
-        
+
+        if (getSoundVolumeViewPath() == null) {
+            Logger.e("VBCableManager", "Cannot configure VB-Cable: SoundVolumeView.exe not found")
+            return VBCableInstallResult(false, VBCableInstallError.ToolMissing,
+                "SoundVolumeView.exe not found. Please place it in the tools/ directory.")
+        }
+
+        val configSuccess = configureVBCableDevices(sampleRate, channelCount)
+        val micSuccess = setCableOutputAsDefaultMic()
+
         return if (configSuccess && micSuccess) {
             VBCableInstallResult(true, VBCableInstallError.None, "Configuration complete")
         } else {
-            VBCableInstallResult(false, VBCableInstallError.ConfigurationFailed, 
-                "Partial configuration failure: format=$configSuccess, mic=$micSuccess")
+            val details = mutableListOf<String>()
+            if (!configSuccess) details.add("audio format")
+            if (!micSuccess) details.add("default microphone")
+            VBCableInstallResult(false, VBCableInstallError.ConfigurationFailed,
+                "Configuration failed for: ${details.joinToString(", ")}. " +
+                    "Sound output may not work correctly.")
         }
     }
 
@@ -308,6 +424,9 @@ object VBCableManager {
     }
     
     private suspend fun installInternal(progressCallback: (String?) -> Unit): VBCableInstallResult {
+        progressCallback(getString(Res.string.installCheckingPackage))
+        ensureSoundVolumeView(progressCallback)
+
         if (isInstalled()) {
             Logger.i("VBCableManager", "VB-Cable already installed, configuring...")
             progressCallback(getString(Res.string.installConfiguring))
@@ -454,8 +573,12 @@ object VBCableManager {
                 return if (configSuccess && micSuccess) {
                     VBCableInstallResult(true, VBCableInstallError.None, "Installation and configuration complete")
                 } else {
-                    VBCableInstallResult(true, VBCableInstallError.ConfigurationFailed, 
-                        "Installed but configuration partially failed: format=$configSuccess, mic=$micSuccess")
+                    val details = mutableListOf<String>()
+                    if (!configSuccess) details.add("audio format")
+                    if (!micSuccess) details.add("default microphone")
+                    VBCableInstallResult(true, VBCableInstallError.ConfigurationFailed,
+                        "Installed but configuration failed for: ${details.joinToString(", ")}. " +
+                            "Sound output may not work correctly.")
                 }
             } else {
                 progressCallback(getString(Res.string.installNotCompleted))
@@ -500,35 +623,46 @@ object VBCableManager {
     )
 
     private fun downloadAndExtractInstaller(): DownloadResult {
+        val baseDir = File(System.getProperty("user.dir"))
         val downloadUrl = "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip"
-        val zipFile = File.createTempFile("vbcable_pack", ".zip")
-    val outputDir = File(System.getProperty("java.io.tmpdir"), "vbcable_extracted_${System.currentTimeMillis()}")
-        
-        Logger.i("VBCableManager", "Downloading VB-Cable driver from $downloadUrl...")
-        
-        try {
-            val url = java.net.URI(downloadUrl).toURL()
-    val connection = url.openConnection()
-            connection.connectTimeout = 30000
-            connection.readTimeout = 60000
-            connection.connect()
-            
-            connection.getInputStream().use { input ->
-                FileOutputStream(zipFile).use { output ->
-                    input.copyTo(output)
+        val zipFile = File(baseDir, "VBCABLE_Driver_Pack45.zip")
+        val outputDir = File(baseDir, "VBCABLE_Driver_Pack45")
+
+        if (zipFile.exists() && zipFile.length() > 1000000) {
+            Logger.i("VBCableManager", "Using cached VB-Cable driver pack: ${zipFile.absolutePath}")
+        } else {
+            Logger.i("VBCableManager", "Downloading VB-Cable driver from $downloadUrl...")
+            try {
+                val url = java.net.URI(downloadUrl).toURL()
+                val connection = url.openConnection()
+                connection.connectTimeout = 30000
+                connection.readTimeout = 60000
+                connection.connect()
+
+                connection.getInputStream().use { input ->
+                    FileOutputStream(zipFile).use { output ->
+                        input.copyTo(output)
+                    }
                 }
+                Logger.i("VBCableManager", "Download complete.")
+            } catch (e: Exception) {
+                Logger.e("VBCableManager", "Failed to download VB-Cable driver: ${e.message}", e)
+                if (zipFile.exists()) zipFile.delete() // Clean up partial download
+                return DownloadResult(null, VBCableInstallError.DownloadFailed, "Download error: ${e.message}")
             }
-            
-            Logger.i("VBCableManager", "Download complete. Extracting...")
-            
+        }
+
+        Logger.i("VBCableManager", "Extracting VB-Cable driver pack...")
+
+        try {
             if (!outputDir.exists()) outputDir.mkdirs()
-            
+
             java.util.zip.ZipFile(zipFile).use { zip ->
                 val entries = zip.entries()
                 while (entries.hasMoreElements()) {
                     val entry = entries.nextElement()
-    val entryFile = File(outputDir, entry.name)
-                    
+                    val entryFile = File(outputDir, entry.name)
+
                     if (entry.isDirectory) {
                         entryFile.mkdirs()
                     } else {
@@ -541,34 +675,25 @@ object VBCableManager {
                     }
                 }
             }
-    val setupFile = File(outputDir, INSTALLER_NAME)
+
+            val setupFile = File(outputDir, INSTALLER_NAME)
             if (setupFile.exists()) {
                 Logger.i("VBCableManager", "Found installer at ${setupFile.absolutePath}")
                 return DownloadResult(setupFile)
             }
-    val found = outputDir.walkTopDown().find { it.name.equals(INSTALLER_NAME, ignoreCase = true) }
+
+            val found = outputDir.walkTopDown().find { it.name.equals(INSTALLER_NAME, ignoreCase = true) }
             if (found != null) {
                 Logger.i("VBCableManager", "Found installer at ${found.absolutePath}")
                 return DownloadResult(found)
             }
-            
+
             return DownloadResult(null, VBCableInstallError.ExtractionFailed, 
                 "Installer not found in downloaded package")
-                
-        } catch (e: java.net.SocketTimeoutException) {
-            Logger.e("VBCableManager", "Download timeout: ${e.message}")
-            return DownloadResult(null, VBCableInstallError.DownloadFailed, "Download timeout: ${e.message}")
-        } catch (e: java.net.UnknownHostException) {
-            Logger.e("VBCableManager", "Network error: ${e.message}")
-            return DownloadResult(null, VBCableInstallError.DownloadFailed, "Network error: ${e.message}")
-        } catch (e: java.io.IOException) {
-            Logger.e("VBCableManager", "I/O error: ${e.message}")
-            return DownloadResult(null, VBCableInstallError.DownloadFailed, "I/O error: ${e.message}")
+
         } catch (e: Exception) {
-            Logger.e("VBCableManager", "Failed to download or extract VB-Cable driver: ${e.message}", e)
-            return DownloadResult(null, VBCableInstallError.Unknown, e.message ?: "Unknown error")
-        } finally {
-            zipFile.delete()
+            Logger.e("VBCableManager", "Failed to extract VB-Cable driver: ${e.message}", e)
+            return DownloadResult(null, VBCableInstallError.ExtractionFailed, e.message ?: "Extraction error")
         }
     }
 

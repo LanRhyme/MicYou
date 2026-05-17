@@ -18,6 +18,7 @@
     <string name="autoConfigLabel">自动配置音频喵~</string>
     <string name="autoStartDesc">应用启动时自动开始传输喵~</string>
     <string name="autoStartLabel">自动启动喵~</string>
+    <string name="autoSourceAuto">自动喵~ (推荐)</string>
     <string name="backgroundBlurLabel">模糊喵~</string>
     <string name="backgroundBrightnessLabel">明度~</string>
     <string name="backgroundSettingsLabel">背景喵~</string>
@@ -401,6 +402,8 @@
     <string name="installOsNotSupported">当前操作系统不支持自动安装喵~</string>
     <string name="reloadingPlugins">正在重新加载插件喵...</string>
     <string name="vbcableInstallFailed">VB-Cable 安装失败喵: %s</string>
+    <string name="vbcableToolMissing">未找到 SoundVolumeView.exe，无法配置 VB-Cable 设备喵...</string>
+    <string name="vbcableConfigPartial">VB-Cable 已安装但配置不完整: %s，声音输出可能无法正常工作喵...</string>
     <string name="webQrCodeTitle">扫码连接喵~</string>
     <string name="webScanHint">用手机扫码打开网页喵~允许麦克风权限即可开始传输音频喵~</string>
     <string name="webClientCountLabel">已连接客户端喵~</string>

@@ -57,8 +57,10 @@ body:
     attributes:
       label: Applicable Scope
       description: Which platform(s) should this feature apply to?
+      multiple: true
       options:
         - Android Client
+        - Web Client
         - PC Server
         - Both
       default: 0

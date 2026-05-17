@@ -18,6 +18,7 @@
     <string name="autoConfigLabel">自動配置音訊</string>
     <string name="autoStartDesc">應用程式啟動時自動開始串流</string>
     <string name="autoStartLabel">自動串流</string>
+    <string name="autoSourceAuto">自動 (推薦)</string>
     <string name="backgroundBlurLabel">模糊</string>
     <string name="backgroundBrightnessLabel">明度</string>
     <string name="backgroundSettingsLabel">背景</string>
@@ -401,6 +402,8 @@
     <string name="installOsNotSupported">目前作業系統不支援自動安裝</string>
     <string name="reloadingPlugins">正在重新載入插件...</string>
     <string name="vbcableInstallFailed">VB-Cable 安裝失败: %s</string>
+    <string name="vbcableToolMissing">未找到 SoundVolumeView.exe，無法配置 VB-Cable 設備</string>
+    <string name="vbcableConfigPartial">VB-Cable 已安裝但配置不完整: %s，聲音輸出可能無法正常工作</string>
     <string name="monitoringTitle">音訊品質即時監測</string>
     <string name="monitoringRtt">網路延遲 (RTT)</string>
     <string name="monitoringJitter">抖動 (Jitter)</string>
