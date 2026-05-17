@@ -22,7 +22,8 @@ class AudioProcessorPipeline {
     private val vadEffect = VADEffect()
     private val resamplerEffect = ResamplerEffect()
     
-    // 插件音频效果器
+    // 插件音频效果器（使用 @Volatile 确保音频处理线程可见性）
+    @Volatile
     private var pluginEffects: List<AudioEffectProvider> = emptyList()
 
     // 默认处理链顺序

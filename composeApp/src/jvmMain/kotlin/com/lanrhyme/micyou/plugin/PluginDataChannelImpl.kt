@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -32,6 +34,7 @@ class PluginDataChannelImpl(
     private var tcpServerSocket: ServerSocket? = null
     private var udpSocket: DatagramSocket? = null
     private var udpRemoteAddress: InetSocketAddress? = null
+    private val tcpAcceptMutex = Mutex()
     
     override suspend fun connect(host: String, port: Int): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -96,11 +99,11 @@ class PluginDataChannelImpl(
                 DataChannelMode.Udp -> {
                     val socket = udpSocket ?: return@withContext Result.failure(Exception("Not bound"))
                     val remote = udpRemoteAddress
-                    val packet = if (remote != null) {
-                        DatagramPacket(data, data.size, remote)
-                    } else {
-                        DatagramPacket(data, data.size)
+                    if (remote == null) {
+                        Logger.e("PluginDataChannel", "Cannot send UDP packet: remote address not yet known (no packet received yet)")
+                        return@withContext Result.failure(Exception("UDP remote address not yet known"))
                     }
+                    val packet = DatagramPacket(data, data.size, remote)
                     socket.send(packet)
                 }
             }
@@ -114,16 +117,18 @@ class PluginDataChannelImpl(
     override fun receive(): Flow<ByteArray> = kotlinx.coroutines.flow.flow {
         when (config.mode) {
             DataChannelMode.Tcp -> {
-                // 服务端模式：先接受客户端连接
-                if (tcpServerSocket != null && tcpSocket == null) {
-                    Logger.i("PluginDataChannel", "Waiting for TCP client connection on port $_localPort...")
-                    try {
-                        val clientSocket = withContext(Dispatchers.IO) { tcpServerSocket!!.accept() }
-                        tcpSocket = clientSocket
-                        Logger.i("PluginDataChannel", "TCP client connected: ${clientSocket.inetAddress.hostAddress}:${clientSocket.port}")
-                    } catch (e: Exception) {
-                        Logger.e("PluginDataChannel", "Failed to accept TCP client: ${e.message}")
-                        return@flow
+                // 服务端模式：先接受客户端连接（使用 Mutex 防止竞态条件）
+                tcpAcceptMutex.withLock {
+                    if (tcpServerSocket != null && tcpSocket == null) {
+                        Logger.i("PluginDataChannel", "Waiting for TCP client connection on port $_localPort...")
+                        try {
+                            val clientSocket = withContext(Dispatchers.IO) { tcpServerSocket!!.accept() }
+                            tcpSocket = clientSocket
+                            Logger.i("PluginDataChannel", "TCP client connected: ${clientSocket.inetAddress.hostAddress}:${clientSocket.port}")
+                        } catch (e: Exception) {
+                            Logger.e("PluginDataChannel", "Failed to accept TCP client: ${e.message}")
+                            return@flow
+                        }
                     }
                 }
                 
