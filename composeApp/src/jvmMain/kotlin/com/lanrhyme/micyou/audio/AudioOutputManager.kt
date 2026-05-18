@@ -115,7 +115,7 @@ class AudioOutputManager {
             val process = ProcessBuilder(
                 "pw-cat",
                 "--playback",
-                "--target=$sinkName",
+                "--target.object=$sinkName",
                 "--rate=${audioFormat.sampleRate.toInt()}",
                 "--channels=${audioFormat.channels}",
                 "--format=s16",
