@@ -484,9 +484,8 @@ actual class AudioEngine actual constructor() {
 
                         while (isActive) {
                             if (writerJob.isCancelled || writerJob.isCompleted) throw Exception("Writer job failed")
-                            if (readerJob != null && (readerJob.isCancelled || readerJob.isCompleted)) throw Exception("Reader job failed - connection lost")
-                            // 心跳检查：仅在 TCP 模式下需要（UDP 没有心跳机制）
-                            if (transportProtocol != TransportProtocol.Both && System.currentTimeMillis() - lastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
+                            if (readerJob.isCancelled || readerJob.isCompleted) throw Exception("Reader job failed - connection lost")
+                            if (System.currentTimeMillis() - lastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
                                 throw Exception("Heartbeat timeout - server unreachable ($HEARTBEAT_TIMEOUT_MS ms)")
                             }
 
