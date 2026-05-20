@@ -20,6 +20,11 @@ enum class ConnectionMode(val label: String) {
     Web("Web")
 }
 
+enum class TransportProtocol(val label: String) {
+    Tcp("TCP"),
+    Both("TCP+UDP")
+}
+
 enum class StreamState {
     Idle, Connecting, Streaming, Error
 }
@@ -47,6 +52,7 @@ enum class UpdateDownloadState {
 data class AppUiState(
     // Audio Stream State
     val mode: ConnectionMode = ConnectionMode.Wifi,
+    val transportProtocol: TransportProtocol = TransportProtocol.Both,
     val streamState: StreamState = StreamState.Idle,
     val ipAddress: String = "192.168.1.5",
     val port: String = Constants.DEFAULT_TCP_PORT.toString(),
@@ -290,6 +296,7 @@ class MainViewModel : ViewModel() {
                 _uiState.update { current ->
                     current.copy(
                         mode = audioState.mode,
+                        transportProtocol = audioState.transportProtocol,
                         streamState = audioState.streamState,
                         ipAddress = audioState.ipAddress,
                         port = audioState.port,
@@ -383,6 +390,7 @@ class MainViewModel : ViewModel() {
     fun startStream() = audioStreamViewModel.startStream()
     fun stopStream() = audioStreamViewModel.stopStream()
     fun setMode(mode: ConnectionMode) = audioStreamViewModel.setMode(mode)
+    fun setTransportProtocol(protocol: TransportProtocol) = audioStreamViewModel.setTransportProtocol(protocol)
     fun startDiscovery() = audioStreamViewModel.startDiscovery()
     fun stopDiscovery() = audioStreamViewModel.stopDiscovery()
     fun restartDiscovery() = audioStreamViewModel.restartDiscovery()

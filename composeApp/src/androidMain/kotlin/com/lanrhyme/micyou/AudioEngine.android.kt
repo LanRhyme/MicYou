@@ -163,6 +163,7 @@ actual class AudioEngine actual constructor() {
     private var savedSampleRate: SampleRate = SampleRate.Rate44100
     private var savedChannelCount: ChannelCount = ChannelCount.Mono
     private var savedAudioFormat: com.lanrhyme.micyou.AudioFormat = com.lanrhyme.micyou.AudioFormat.PCM_16BIT
+    private var savedTransportProtocol: TransportProtocol = TransportProtocol.Both
     private var isRunning: Boolean = false
 
     // FEC (前向纠错) 相关
@@ -179,10 +180,11 @@ actual class AudioEngine actual constructor() {
         isClient: Boolean,
         sampleRate: SampleRate,
         channelCount: ChannelCount,
-        audioFormat: com.lanrhyme.micyou.AudioFormat
+        audioFormat: com.lanrhyme.micyou.AudioFormat,
+        transportProtocol: TransportProtocol
     ) {
         if (!isClient) return
-        Logger.i("AudioEngine", "Starting Android AudioEngine: mode=$mode, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}")
+        Logger.i("AudioEngine", "Starting Android AudioEngine: mode=$mode, protocol=$transportProtocol, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}")
         _lastError.value = null
 
         savedIp = ip
@@ -191,6 +193,7 @@ actual class AudioEngine actual constructor() {
         savedSampleRate = sampleRate
         savedChannelCount = channelCount
         savedAudioFormat = audioFormat
+        savedTransportProtocol = transportProtocol
         isRunning = true
 
         connectionComplete = CompletableDeferred()
@@ -208,8 +211,8 @@ actual class AudioEngine actual constructor() {
                     val channel = Channel<MessageWrapper>(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
                     sendChannel = channel
                     
-                    var input: ByteReadChannel
-                    var output: ByteWriteChannel
+                    var input: ByteReadChannel? = null
+                    var output: ByteWriteChannel? = null
                     var closeConnection: () -> Unit = {}
                     
                     try {
@@ -295,18 +298,24 @@ actual class AudioEngine actual constructor() {
     var tcpSocket: Socket? = null
 
                         val targetIp = if (mode == ConnectionMode.Usb) "127.0.0.1" else ip
-                        Logger.i("AudioEngine", "Connecting via TCP to $targetIp:$port")
-    val socketBuilder = aSocket(selectorManager)
-                        tcpSocket = socketBuilder.tcp().connect(targetIp, port) {
-                            keepAlive = true
-                            socketTimeout = 10000L
-                            noDelay = true
-                        }
-                        Logger.i("AudioEngine", "TCP connected to $targetIp:$port")
-                        input = tcpSocket.openReadChannel()
-                        output = tcpSocket.openWriteChannel(autoFlush = true)
+                        Logger.i("AudioEngine", "Connecting with protocol $transportProtocol to $targetIp:$port")
 
-                        if (mode == ConnectionMode.Wifi) {
+                        // TCP-only 模式或 Both 模式：需要 TCP 连接进行握手
+                        if (transportProtocol == TransportProtocol.Tcp || transportProtocol == TransportProtocol.Both) {
+                            Logger.i("AudioEngine", "Connecting via TCP to $targetIp:$port")
+                            val socketBuilder = aSocket(selectorManager)
+                            tcpSocket = socketBuilder.tcp().connect(targetIp, port) {
+                                keepAlive = true
+                                socketTimeout = 10000L
+                                noDelay = true
+                            }
+                            Logger.i("AudioEngine", "TCP connected to $targetIp:$port")
+                            input = tcpSocket.openReadChannel()
+                            output = tcpSocket.openWriteChannel(autoFlush = true)
+                        }
+
+                        // UDP 音频传输：WiFi 模式下且协议为 TCP+UDP
+                        if (mode == ConnectionMode.Wifi && transportProtocol == TransportProtocol.Both) {
                             val udpPort = calculateUdpPort(port)
                             Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
                             udpSocket = DatagramSocket().also {
@@ -324,22 +333,29 @@ actual class AudioEngine actual constructor() {
                             udpServerAddress = null
                         }
 
-                        // Handshake
-                        Logger.d("AudioEngine", "Starting handshake")
-                        output.writeFully(CHECK_1.encodeToByteArray())
-                        output.flush()
-    val responseBuffer = ByteArray(CHECK_2.length)
-                        input.readFully(responseBuffer, 0, responseBuffer.size)
+                        // Handshake (always via TCP if available, otherwise skip)
+                        if (tcpSocket != null) {
+                            val out = output ?: return@launch
+                            val inChannel = input ?: return@launch
+                            Logger.d("AudioEngine", "Starting handshake")
+                            out.writeFully(CHECK_1.encodeToByteArray())
+                            out.flush()
+                            val responseBuffer = ByteArray(CHECK_2.length)
+                            inChannel.readFully(responseBuffer, 0, responseBuffer.size)
 
-                        if (!responseBuffer.decodeToString().equals(CHECK_2)) {
-                            val msg = getString(Res.string.errorHandshakeFailedDetailed)
-                            Logger.e("AudioEngine", "Handshake failed: received ${responseBuffer.decodeToString()}")
-                            _state.value = StreamState.Error
-                            _lastError.value = msg
-                            closeConnection()
-                            return@launch
+                            if (!responseBuffer.decodeToString().equals(CHECK_2)) {
+                                val msg = getString(Res.string.errorHandshakeFailedDetailed)
+                                Logger.e("AudioEngine", "Handshake failed: received ${responseBuffer.decodeToString()}")
+                                _state.value = StreamState.Error
+                                _lastError.value = msg
+                                closeConnection()
+                                return@launch
+                            }
+                            Logger.i("AudioEngine", "Handshake successful")
+                        } else {
+                            // UDP-only 模式不需要握手（但这可能会有连接问题）
+                            Logger.w("AudioEngine", "UDP-only mode: skipping handshake")
                         }
-                        Logger.i("AudioEngine", "Handshake successful")
 
                         recorder.startRecording()
                         _state.value = StreamState.Streaming
@@ -362,16 +378,26 @@ actual class AudioEngine actual constructor() {
                             Logger.d("AudioEngine", "Writer loop started")
                             for (msg in channel) {
                                 try {
-                                    // Non-WiFi mode: Send everything via TCP
-                                    // WiFi mode: ONLY send control messages via TCP (audio goes via UDP)
-                                    val isWifi = mode == ConnectionMode.Wifi
-                                    if (!isWifi || msg.hasControlMessage() || udpSocket == null) {
-                                        val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
-    val length = packetBytes.size
-                                        output.writeInt(PACKET_MAGIC)
-                                        output.writeInt(length)
-                                        output.writeFully(packetBytes)
-                                        output.flush()
+                                    // 根据传输协议决定发送方式
+                                    val shouldUseUdp = when (transportProtocol) {
+                                        TransportProtocol.Tcp -> false // 仅使用 TCP
+                                        TransportProtocol.Both -> mode == ConnectionMode.Wifi && !msg.hasControlMessage() // Both 模式下，WiFi 模式下音频走 UDP
+                                    }
+
+                                    if (shouldUseUdp && udpSocket != null && udpServerAddress != null) {
+                                        // 通过 UDP 发送
+                                        sendAudioPacketViaUdp(msg)
+                                    } else {
+                                        val out = output
+                                        if (out != null && !out.isClosedForWrite) {
+                                            // 通过 TCP 发送
+                                            val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
+                                            val length = packetBytes.size
+                                            out.writeInt(PACKET_MAGIC)
+                                            out.writeInt(length)
+                                            out.writeFully(packetBytes)
+                                            out.flush()
+                                        }
                                     }
                                 } catch (e: Exception) {
                                     Logger.e("AudioEngine", "Error writing to socket", e)
@@ -381,52 +407,59 @@ actual class AudioEngine actual constructor() {
                             Logger.d("AudioEngine", "Writer loop stopped")
                         }
 
-                        val readerJob = launch {
-                            Logger.d("AudioEngine", "Reader loop started")
-                            try {
-                                while (isActive) {
-                                    val magic = try {
-                                        input.readInt()
-                                    } catch (e: Exception) {
-                                        if (isActive && _state.value == StreamState.Streaming && !isNormalDisconnect(e)) {
-                                            Logger.d("AudioEngine", "Reader loop: socket closed or EOF: ${e.message}")
-                                        }
-                                        break
-                                    }
-                                    
-                                    if (magic != PACKET_MAGIC) {
-                                        Logger.w("AudioEngine", "Invalid Magic: ${magic.toString(16)}")
-                                        throw java.io.IOException("Invalid Packet Magic")
-                                    }
-    val length = input.readInt()
-
-                                    if (length > 0) {
-                                        val packetBytes = ByteArray(length)
-                                        input.readFully(packetBytes)
-                                        try {
-                                            val wrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), packetBytes)
-                                            if (wrapper.mute != null) {
-                                                _isMuted.value = wrapper.mute.isMuted
-                                                Logger.i("AudioEngine", "Received Mute Command: ${wrapper.mute.isMuted}")
-                                            }
-                                            
-                                            if (wrapper.ping != null) {
-                                                lastPingReceivedTime = System.currentTimeMillis()
-                                                sendChannel?.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
-                                            }
+                        val readerJob = if (tcpSocket != null) {
+                            launch {
+                                val inChannel = input ?: return@launch
+                                Logger.d("AudioEngine", "Reader loop started")
+                                try {
+                                    while (isActive) {
+                                        val magic = try {
+                                            inChannel.readInt()
                                         } catch (e: Exception) {
-                                            Logger.e("AudioEngine", "Error decoding incoming message", e)
+                                            if (isActive && _state.value == StreamState.Streaming && !isNormalDisconnect(e)) {
+                                                Logger.d("AudioEngine", "Reader loop: socket closed or EOF: ${e.message}")
+                                            }
+                                            break
+                                        }
+
+                                        if (magic != PACKET_MAGIC) {
+                                            Logger.w("AudioEngine", "Invalid Magic: ${magic.toString(16)}")
+                                            throw java.io.IOException("Invalid Packet Magic")
+                                        }
+                                        val length = inChannel.readInt()
+
+                                        if (length > 0) {
+                                            val packetBytes = ByteArray(length)
+                                            inChannel.readFully(packetBytes)
+                                            try {
+                                                val wrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), packetBytes)
+                                                if (wrapper.mute != null) {
+                                                    _isMuted.value = wrapper.mute.isMuted
+                                                    Logger.i("AudioEngine", "Received Mute Command: ${wrapper.mute.isMuted}")
+                                                }
+
+                                                if (wrapper.ping != null) {
+                                                    lastPingReceivedTime = System.currentTimeMillis()
+                                                    sendChannel?.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
+                                                }
+                                            } catch (e: Exception) {
+                                                Logger.e("AudioEngine", "Error decoding incoming message", e)
+                                            }
                                         }
                                     }
+                                } catch (e: Exception) {
+                                    if (isActive && _state.value == StreamState.Streaming && !isNormalDisconnect(e)) {
+                                        Logger.e("AudioEngine", "Error reading from socket", e)
+                                    }
                                 }
-                            } catch (e: Exception) {
-                                if (isActive && _state.value == StreamState.Streaming && !isNormalDisconnect(e)) {
-                                    Logger.e("AudioEngine", "Error reading from socket", e)
-                                }
+                                Logger.d("AudioEngine", "Reader loop stopped")
                             }
-                            Logger.d("AudioEngine", "Reader loop stopped")
+                        } else {
+                            // UDP-only 模式：不需要 readerJob
+                            Logger.d("AudioEngine", "UDP-only mode: skipping reader loop")
+                            null
                         }
-                        
+
                         sendChannel?.send(MessageWrapper(mute = MuteMessage(_isMuted.value)))
                         // Use read buffer sized to avoid IP fragmentation on WiFi
                         // Path MTU = 1500, minus IP(20)+UDP(8)+header(8)+ProtoBuf(~30) ≈ 1434 safe payload
@@ -451,8 +484,9 @@ actual class AudioEngine actual constructor() {
 
                         while (isActive) {
                             if (writerJob.isCancelled || writerJob.isCompleted) throw Exception("Writer job failed")
-                            if (readerJob.isCancelled || readerJob.isCompleted) throw Exception("Reader job failed - connection lost")
-                            if (System.currentTimeMillis() - lastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
+                            if (readerJob != null && (readerJob.isCancelled || readerJob.isCompleted)) throw Exception("Reader job failed - connection lost")
+                            // 心跳检查：仅在 TCP 模式下需要（UDP 没有心跳机制）
+                            if (transportProtocol != TransportProtocol.Both && System.currentTimeMillis() - lastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
                                 throw Exception("Heartbeat timeout - server unreachable ($HEARTBEAT_TIMEOUT_MS ms)")
                             }
 

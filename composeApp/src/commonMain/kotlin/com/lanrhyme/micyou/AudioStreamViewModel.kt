@@ -13,6 +13,7 @@ import org.jetbrains.compose.resources.getString
 
 data class AudioStreamUiState(
     val mode: ConnectionMode = ConnectionMode.Wifi,
+    val transportProtocol: TransportProtocol = TransportProtocol.Both,
     val streamState: StreamState = StreamState.Idle,
     val ipAddress: String = "192.168.1.5",
     val port: String = Constants.DEFAULT_TCP_PORT.toString(),
@@ -129,7 +130,9 @@ class AudioStreamViewModel : ViewModel() {
         } else {
             savedMode
         }
-    val savedIp = settings.getString("ip_address", "192.168.1.5")
+        val savedProtocolName = settings.getString("transport_protocol", TransportProtocol.Both.name)
+        val savedProtocol = try { TransportProtocol.valueOf(savedProtocolName) } catch(e: Exception) { TransportProtocol.Both }
+        val savedIp = settings.getString("ip_address", "192.168.1.5")
     val savedPort = settings.getString("port", Constants.DEFAULT_TCP_PORT.toString())
     val savedMonitoring = false
         settings.putBoolean("monitoring_enabled", false)
@@ -195,6 +198,7 @@ class AudioStreamViewModel : ViewModel() {
         _uiState.update {
             it.copy(
                 mode = effectiveMode,
+                transportProtocol = savedProtocol,
                 ipAddress = savedIp,
                 port = savedPort,
                 monitoringEnabled = savedMonitoring,
@@ -383,7 +387,7 @@ class AudioStreamViewModel : ViewModel() {
 
             try {
                 Logger.d("AudioStreamViewModel", "Calling _audioEngine.start()")
-                _audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat)
+                _audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat, _uiState.value.transportProtocol)
                 Logger.i("AudioStreamViewModel", "Stream started successfully")
             } catch (e: Exception) {
                 Logger.e("AudioStreamViewModel", "Failed to start stream", e)
@@ -484,7 +488,13 @@ class AudioStreamViewModel : ViewModel() {
             settings.putString("port", updatedPort)
         }
     }
-    
+
+    fun setTransportProtocol(protocol: TransportProtocol) {
+        Logger.i("AudioStreamViewModel", "Setting transport protocol to $protocol")
+        _uiState.update { it.copy(transportProtocol = protocol) }
+        settings.putString("transport_protocol", protocol.name)
+    }
+
     fun setIp(ip: String) {
         Logger.d("AudioStreamViewModel", "Setting IP to $ip")
         _uiState.update { it.copy(ipAddress = ip) }

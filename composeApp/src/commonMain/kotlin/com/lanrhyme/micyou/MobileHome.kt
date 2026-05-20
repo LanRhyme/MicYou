@@ -448,6 +448,8 @@ private fun ConnectionConfigCard(
                 }
             }
 
+
+
             // Discovered devices list (WiFi mode only, always visible during connection)
             if (isClient && state.mode == ConnectionMode.Wifi) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

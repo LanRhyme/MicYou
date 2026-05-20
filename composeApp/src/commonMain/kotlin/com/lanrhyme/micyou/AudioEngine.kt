@@ -29,7 +29,8 @@ expect class AudioEngine() {
         isClient: Boolean,
         sampleRate: SampleRate,
         channelCount: ChannelCount,
-        audioFormat: AudioFormat
+        audioFormat: AudioFormat,
+        transportProtocol: TransportProtocol = TransportProtocol.Both
     )
 
     // 更新音频处理配置

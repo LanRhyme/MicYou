@@ -55,6 +55,7 @@
     <string name="closeConfirmTitle">確認離開</string>
     <string name="confirm">確定</string>
     <string name="connectionModeLabel">連線模式</string>
+    <string name="transportProtocolLabel">傳輸協定</string>
     <string name="contributorsDesc">多謝每一位幫過呢個項目嘅人</string>
     <string name="contributorsLabel">貢獻者</string>
     <string name="contributorsLoading">載入緊貢獻者...</string>

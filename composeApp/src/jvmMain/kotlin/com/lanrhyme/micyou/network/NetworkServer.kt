@@ -52,7 +52,8 @@ class NetworkServer(
     private var activeHandler: ConnectionHandler? = null
 
     suspend fun start(
-        port: Int
+        port: Int,
+        protocol: TransportProtocol = TransportProtocol.Both
     ) {
         serverJob?.takeIf { it.isActive }?.let {
             Logger.w("NetworkServer", "服务器已在运行")
@@ -67,8 +68,17 @@ class NetworkServer(
 
         serverJob = serverScope.launch {
             try {
-                // Wifi 模式：同时启动 TCP + UDP 双协议
-                runDualProtocolServer(port, startupComplete)
+                // 根据协议类型启动服务器
+                when (protocol) {
+                    TransportProtocol.Tcp -> {
+                        // 纯 TCP 模式：同时传输音频和控制消息
+                        runTcpOnlyServer(port, startupComplete)
+                    }
+                    TransportProtocol.Both -> {
+                        // TCP+UDP 模式：TCP 控制通道 + UDP 音频通道
+                        runDualProtocolServer(port, startupComplete)
+                    }
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -146,6 +156,16 @@ class NetworkServer(
         udpHandler?.start()
 
         // 然后启动 TCP 控制通道
+        runTcpServer(port, startupComplete)
+    }
+
+    /**
+     * 运行仅 TCP 服务器：音频和控制消息都通过 TCP 传输
+     * 适用于需要简化网络配置的场景
+     */
+    private suspend fun runTcpOnlyServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
+        Logger.i("NetworkServer", "启动仅 TCP 服务器: 端口 $port")
+        // 仅启动 TCP 服务器，音频和控制消息都通过 TCP 传输
         runTcpServer(port, startupComplete)
     }
 

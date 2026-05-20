@@ -65,6 +65,7 @@
     <string name="connectionDisconnected">Connection closed unexpectedly: remote device disconnected.</string>
     <string name="connectionError">Connection error: %s</string>
     <string name="connectionModeLabel">Connection Mode</string>
+    <string name="transportProtocolLabel">Protocol</string>
     <string name="connectionPipeBroken">Pipe broken: cannot send data to a closed connection.</string>
     <string name="connectionRejected">Connection refused: please ensure the desktop server is running and the firewall has allowed TCP port %d.</string>
     <string name="connectionReset">Connection reset: remote device forcibly closed the connection.</string>
