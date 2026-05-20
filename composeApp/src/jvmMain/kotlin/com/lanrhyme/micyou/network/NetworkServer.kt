@@ -52,7 +52,8 @@ class NetworkServer(
     private var activeHandler: ConnectionHandler? = null
 
     suspend fun start(
-        port: Int
+        port: Int,
+        protocol: TransportProtocol = TransportProtocol.Both
     ) {
         serverJob?.takeIf { it.isActive }?.let {
             Logger.w("NetworkServer", "服务器已在运行")
@@ -67,8 +68,21 @@ class NetworkServer(
 
         serverJob = serverScope.launch {
             try {
-                // Wifi 模式：同时启动 TCP + UDP 双协议
-                runDualProtocolServer(port, startupComplete)
+                // 根据协议类型启动服务器
+                when (protocol) {
+                    TransportProtocol.Tcp -> {
+                        // 仅 TCP 模式：同时传输音频和控制消息
+                        runTcpOnlyServer(port, startupComplete)
+                    }
+                    TransportProtocol.Udp -> {
+                        // 仅 UDP 模式
+                        runUdpOnlyServer(port, startupComplete)
+                    }
+                    TransportProtocol.Both -> {
+                        // 双协议模式：TCP 控制通道 + UDP 音频通道
+                        runDualProtocolServer(port, startupComplete)
+                    }
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -147,6 +161,52 @@ class NetworkServer(
 
         // 然后启动 TCP 控制通道
         runTcpServer(port, startupComplete)
+    }
+
+    /**
+     * 运行仅 TCP 服务器：音频和控制消息都通过 TCP 传输
+     * 适用于需要简化网络配置的场景
+     */
+    private suspend fun runTcpOnlyServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
+        Logger.i("NetworkServer", "启动仅 TCP 服务器: 端口 $port")
+        // 仅启动 TCP 服务器，音频和控制消息都通过 TCP 传输
+        runTcpServer(port, startupComplete)
+    }
+
+    /**
+     * 运行仅 UDP 服务器：音频和控制消息都通过 UDP 传输
+     * 适用于低延迟但可能丢包的场景
+     */
+    private suspend fun runUdpOnlyServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
+        val udpPort = calculateUdpPort(port)
+        Logger.i("NetworkServer", "启动仅 UDP 服务器: 端口 $udpPort")
+
+        // 启动 Jitter Buffer（处理乱序包，带等待窗口和 FEC 恢复）
+        jitterBuffer = JitterBuffer(
+            onAudioPacketReady = onAudioPacketReceived,
+            fecGroupSize = 12
+        ).also { it.start() }
+
+        // 启动 UDP 接收器（包含音频和控制消息）
+        udpHandler = UdpConnectionHandler(
+            port = udpPort,
+            onAudioPacketReceived = onAudioPacketReceived,
+            onError = { error ->
+                Logger.w("UdpConnectionHandler", "UDP 错误: $error")
+                _lastError.value = error
+            },
+            onAudioPacketOrderedReceived = { packet ->
+                jitterBuffer?.insert(packet)
+            }
+        )
+        udpHandler?.start()
+
+        // 对于纯 UDP 模式，我们需要监听 UDP 连接
+        // 由于 UDP 是无连接的，我们使用一个特殊的方式来处理
+        // 实际上，我们直接设置为流式状态
+        _state.value = StreamState.Streaming
+        startupComplete?.complete(Unit)
+        Logger.i("NetworkServer", "UDP 服务器已启动，等待客户端连接...")
     }
 
     private suspend fun runTcpServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {

@@ -448,6 +448,52 @@ private fun ConnectionConfigCard(
                 }
             }
 
+            // Protocol selector (WiFi mode only)
+            AnimatedVisibility(
+                visible = state.mode == ConnectionMode.Wifi && isClient,
+                enter = fadeIn(tween(300)) + expandVertically(),
+                exit = fadeOut(tween(200)) + shrinkVertically()
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(Res.string.transportProtocolLabel),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TransportProtocol.entries.forEach { protocol ->
+                            val isSelected = state.transportProtocol == protocol
+                            val bgColor by animateColorAsState(
+                                targetValue = if (isSelected) MaterialTheme.colorScheme.secondary
+                                else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                animationSpec = tween(200)
+                            )
+                            val contentColor by animateColorAsState(
+                                targetValue = if (isSelected) MaterialTheme.colorScheme.onSecondary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                animationSpec = tween(200)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(bgColor)
+                                    .hoverable(interactionSource = remember { MutableInteractionSource() })
+                                    .clickable { viewModel.setTransportProtocol(protocol) }
+                            ) {
+                                Text(
+                                    protocol.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = contentColor,
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Discovered devices list (WiFi mode only, always visible during connection)
             if (isClient && state.mode == ConnectionMode.Wifi) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

@@ -55,6 +55,7 @@
     <string name="closeConfirmTitle">退出确认</string>
     <string name="confirm">确定</string>
     <string name="connectionModeLabel">连接模式</string>
+    <string name="transportProtocolLabel">传输协议</string>
     <string name="contributorsDesc">感谢每一位为本项目做出贡献的人</string>
     <string name="contributorsLabel">贡献者</string>
     <string name="contributorsLoading">正在加载贡献者...</string>

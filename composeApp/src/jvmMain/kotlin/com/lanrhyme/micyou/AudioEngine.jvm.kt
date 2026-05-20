@@ -274,10 +274,11 @@ actual class AudioEngine actual constructor() {
         isClient: Boolean,
         sampleRate: SampleRate,
         channelCount: ChannelCount,
-        audioFormat: AudioFormat
+        audioFormat: AudioFormat,
+        transportProtocol: TransportProtocol
     ) {
         if (isClient) return 
-        Logger.i("AudioEngine", "启动 JVM AudioEngine: 模式=$mode, 端口=$port, 采样率=${sampleRate.value}, 声道=${channelCount.label}, 格式=${audioFormat.label}")
+        Logger.i("AudioEngine", "启动 JVM AudioEngine: 模式=$mode, 协议=$transportProtocol, 端口=$port, 采样率=${sampleRate.value}, 声道=${channelCount.label}, 格式=${audioFormat.label}")
         
         _lastError.value = null
         
@@ -328,7 +329,7 @@ actual class AudioEngine actual constructor() {
             } else {
                 // 直接调用 networkServer.start()，不 launch 新协程
                 // NetworkServer 内部会管理自己的协程
-                networkServer.start(port)
+                networkServer.start(port, transportProtocol)
                 Logger.i("AudioEngine", "NetworkServer started successfully")
             }
         }

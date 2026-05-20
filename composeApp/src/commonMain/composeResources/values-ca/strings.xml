@@ -55,6 +55,7 @@
     <string name="closeConfirmTitle">关闭确认喵~</string>
     <string name="confirm">确定喵~</string>
     <string name="connectionModeLabel">连接模式 (=^･ω･^=)</string>
+    <string name="transportProtocolLabel">协议喵~ (=^･ω･^=)</string>
     <string name="contributorsDesc">感谢所有为本项目做出贡献的喵~</string>
     <string name="contributorsLabel">贡献者喵~ 💖</string>
     <string name="contributorsLoading">正在加载贡献者喵... (・_・)</string>
