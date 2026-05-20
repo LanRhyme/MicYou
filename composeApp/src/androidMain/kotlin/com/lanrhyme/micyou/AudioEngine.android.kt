@@ -314,8 +314,8 @@ actual class AudioEngine actual constructor() {
                             output = tcpSocket.openWriteChannel(autoFlush = true)
                         }
 
-                        // UDP 音频传输：WiFi 模式下且协议包含 UDP
-                        if (mode == ConnectionMode.Wifi && (transportProtocol == TransportProtocol.Udp || transportProtocol == TransportProtocol.Both)) {
+                        // UDP 音频传输：WiFi 模式下且协议为 TCP+UDP
+                        if (mode == ConnectionMode.Wifi && transportProtocol == TransportProtocol.Both) {
                             val udpPort = calculateUdpPort(port)
                             Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
                             udpSocket = DatagramSocket().also {
@@ -335,11 +335,13 @@ actual class AudioEngine actual constructor() {
 
                         // Handshake (always via TCP if available, otherwise skip)
                         if (tcpSocket != null) {
+                            val out = output ?: return@launch
+                            val inChannel = input ?: return@launch
                             Logger.d("AudioEngine", "Starting handshake")
-                            output!!.writeFully(CHECK_1.encodeToByteArray())
-                            output!!.flush()
+                            out.writeFully(CHECK_1.encodeToByteArray())
+                            out.flush()
                             val responseBuffer = ByteArray(CHECK_2.length)
-                            input!!.readFully(responseBuffer, 0, responseBuffer.size)
+                            inChannel.readFully(responseBuffer, 0, responseBuffer.size)
 
                             if (!responseBuffer.decodeToString().equals(CHECK_2)) {
                                 val msg = getString(Res.string.errorHandshakeFailedDetailed)
@@ -379,23 +381,23 @@ actual class AudioEngine actual constructor() {
                                     // 根据传输协议决定发送方式
                                     val shouldUseUdp = when (transportProtocol) {
                                         TransportProtocol.Tcp -> false // 仅使用 TCP
-                                        TransportProtocol.Udp -> true // 仅使用 UDP
                                         TransportProtocol.Both -> mode == ConnectionMode.Wifi && !msg.hasControlMessage() // Both 模式下，WiFi 模式下音频走 UDP
                                     }
 
                                     if (shouldUseUdp && udpSocket != null && udpServerAddress != null) {
-                                        // 通过 UDP 发送（仅发送音频包）
-                                        if (msg.audioPacket != null) {
-                                            sendAudioPacketViaUdp(msg)
+                                        // 通过 UDP 发送
+                                        sendAudioPacketViaUdp(msg)
+                                    } else {
+                                        val out = output
+                                        if (out != null && !out.isClosedForWrite) {
+                                            // 通过 TCP 发送
+                                            val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
+                                            val length = packetBytes.size
+                                            out.writeInt(PACKET_MAGIC)
+                                            out.writeInt(length)
+                                            out.writeFully(packetBytes)
+                                            out.flush()
                                         }
-                                    } else if (output != null && !output!!.isClosedForWrite) {
-                                        // 通过 TCP 发送
-                                        val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), msg)
-                                        val length = packetBytes.size
-                                        output!!.writeInt(PACKET_MAGIC)
-                                        output!!.writeInt(length)
-                                        output!!.writeFully(packetBytes)
-                                        output!!.flush()
                                     }
                                 } catch (e: Exception) {
                                     Logger.e("AudioEngine", "Error writing to socket", e)
@@ -407,11 +409,12 @@ actual class AudioEngine actual constructor() {
 
                         val readerJob = if (tcpSocket != null) {
                             launch {
+                                val inChannel = input ?: return@launch
                                 Logger.d("AudioEngine", "Reader loop started")
                                 try {
                                     while (isActive) {
                                         val magic = try {
-                                            input!!.readInt()
+                                            inChannel.readInt()
                                         } catch (e: Exception) {
                                             if (isActive && _state.value == StreamState.Streaming && !isNormalDisconnect(e)) {
                                                 Logger.d("AudioEngine", "Reader loop: socket closed or EOF: ${e.message}")
@@ -423,11 +426,11 @@ actual class AudioEngine actual constructor() {
                                             Logger.w("AudioEngine", "Invalid Magic: ${magic.toString(16)}")
                                             throw java.io.IOException("Invalid Packet Magic")
                                         }
-                                        val length = input!!.readInt()
+                                        val length = inChannel.readInt()
 
                                         if (length > 0) {
                                             val packetBytes = ByteArray(length)
-                                            input!!.readFully(packetBytes)
+                                            inChannel.readFully(packetBytes)
                                             try {
                                                 val wrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), packetBytes)
                                                 if (wrapper.mute != null) {
@@ -483,7 +486,7 @@ actual class AudioEngine actual constructor() {
                             if (writerJob.isCancelled || writerJob.isCompleted) throw Exception("Writer job failed")
                             if (readerJob != null && (readerJob.isCancelled || readerJob.isCompleted)) throw Exception("Reader job failed - connection lost")
                             // 心跳检查：仅在 TCP 模式下需要（UDP 没有心跳机制）
-                            if (transportProtocol != TransportProtocol.Udp && System.currentTimeMillis() - lastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
+                            if (transportProtocol != TransportProtocol.Both && System.currentTimeMillis() - lastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
                                 throw Exception("Heartbeat timeout - server unreachable ($HEARTBEAT_TIMEOUT_MS ms)")
                             }
 

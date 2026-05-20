@@ -71,15 +71,11 @@ class NetworkServer(
                 // 根据协议类型启动服务器
                 when (protocol) {
                     TransportProtocol.Tcp -> {
-                        // 仅 TCP 模式：同时传输音频和控制消息
+                        // 纯 TCP 模式：同时传输音频和控制消息
                         runTcpOnlyServer(port, startupComplete)
                     }
-                    TransportProtocol.Udp -> {
-                        // 仅 UDP 模式
-                        runUdpOnlyServer(port, startupComplete)
-                    }
                     TransportProtocol.Both -> {
-                        // 双协议模式：TCP 控制通道 + UDP 音频通道
+                        // TCP+UDP 模式：TCP 控制通道 + UDP 音频通道
                         runDualProtocolServer(port, startupComplete)
                     }
                 }

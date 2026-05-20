@@ -315,6 +315,36 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
         )
     }
 
+    // 传输协议选择 (仅 Android 客户端)
+    if (platform.type == PlatformType.Android) {
+        items.add { isFirst, isLast ->
+            ExpressiveSettingsBoxItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            ) {
+                Text(stringResource(Res.string.transportProtocolLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TransportProtocol.entries.forEach { protocol ->
+                        FilterChip(
+                            selected = state.transportProtocol == protocol,
+                            onClick = { viewModel.setTransportProtocol(protocol) },
+                            label = {
+                                Text(protocol.label)
+                            },
+                            leadingIcon = {
+                                if (state.transportProtocol == protocol) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     // Android 专属设置
     if (platform.type == PlatformType.Android) {
         items.add { isFirst, isLast ->

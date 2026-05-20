@@ -22,7 +22,6 @@ enum class ConnectionMode(val label: String) {
 
 enum class TransportProtocol(val label: String) {
     Tcp("TCP"),
-    Udp("UDP"),
     Both("TCP+UDP")
 }
 
