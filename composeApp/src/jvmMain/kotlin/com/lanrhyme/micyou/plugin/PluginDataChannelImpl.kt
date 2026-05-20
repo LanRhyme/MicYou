@@ -16,6 +16,7 @@ import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.atomic.AtomicBoolean
 
 class PluginDataChannelImpl(
     override val id: String,
@@ -31,6 +32,8 @@ class PluginDataChannelImpl(
     private var tcpSocket: Socket? = null
     private var tcpServerSocket: ServerSocket? = null
     private var udpSocket: DatagramSocket? = null
+    private var udpRemoteAddress: InetSocketAddress? = null
+    private val tcpAccepting = AtomicBoolean(false)
     
     override suspend fun connect(host: String, port: Int): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -44,8 +47,10 @@ class PluginDataChannelImpl(
                 }
                 DataChannelMode.Udp -> {
                     val socket = DatagramSocket()
-                    socket.connect(InetSocketAddress(host, port))
+                    val remoteAddress = InetSocketAddress(host, port)
+                    socket.connect(remoteAddress)
                     udpSocket = socket
+                    udpRemoteAddress = remoteAddress
                     _localPort = socket.localPort
                     _isConnected.value = true
                     Logger.i("PluginDataChannel", "UDP connected to $host:$port")
@@ -72,6 +77,7 @@ class PluginDataChannelImpl(
                     val socket = DatagramSocket(port)
                     udpSocket = socket
                     _localPort = socket.localPort
+                    udpRemoteAddress = null
                     _isConnected.value = true
                     Logger.i("PluginDataChannel", "UDP socket bound to port $port")
                 }
@@ -93,7 +99,12 @@ class PluginDataChannelImpl(
                 }
                 DataChannelMode.Udp -> {
                     val socket = udpSocket ?: return@withContext Result.failure(Exception("Not bound"))
-    val packet = DatagramPacket(data, data.size)
+                    val remote = udpRemoteAddress
+                    if (remote == null) {
+                        Logger.e("PluginDataChannel", "Cannot send UDP packet: remote address not yet known (no packet received yet)")
+                        return@withContext Result.failure(Exception("UDP remote address not yet known"))
+                    }
+                    val packet = DatagramPacket(data, data.size, remote)
                     socket.send(packet)
                 }
             }
@@ -107,9 +118,35 @@ class PluginDataChannelImpl(
     override fun receive(): Flow<ByteArray> = kotlinx.coroutines.flow.flow {
         when (config.mode) {
             DataChannelMode.Tcp -> {
+                // 服务端模式：先接受客户端连接（使用原子标志防止竞态条件）
+                if (tcpServerSocket != null && tcpSocket == null) {
+                    // 尝试获取 accept 权限，只有一个协程能成功
+                    if (tcpAccepting.compareAndSet(false, true)) {
+                        try {
+                            Logger.i("PluginDataChannel", "Waiting for TCP client connection on port $_localPort...")
+                            val clientSocket = withContext(Dispatchers.IO) { tcpServerSocket!!.accept() }
+                            tcpSocket = clientSocket
+                            Logger.i("PluginDataChannel", "TCP client connected: ${clientSocket.inetAddress.hostAddress}:${clientSocket.port}")
+                        } catch (e: Exception) {
+                            Logger.e("PluginDataChannel", "Failed to accept TCP client: ${e.message}")
+                            tcpAccepting.set(false)
+                            return@flow
+                        }
+                    } else {
+                        // 其他协程等待连接建立
+                        Logger.d("PluginDataChannel", "Another coroutine is accepting, waiting...")
+                        while (tcpSocket == null && _isConnected.value) {
+                            kotlinx.coroutines.delay(50)
+                        }
+                        if (tcpSocket == null) {
+                            return@flow
+                        }
+                    }
+                }
+                
                 val socket = tcpSocket ?: return@flow
                 val input = socket.getInputStream()
-    val buffer = ByteArray(config.bufferSize)
+                val buffer = ByteArray(config.bufferSize)
                 while (_isConnected.value && !socket.isClosed) {
                     try {
                         val bytesRead = withContext(Dispatchers.IO) { input.read(buffer) }
@@ -129,10 +166,14 @@ class PluginDataChannelImpl(
             DataChannelMode.Udp -> {
                 val socket = udpSocket ?: return@flow
                 val buffer = ByteArray(config.bufferSize)
-    val packet = DatagramPacket(buffer, buffer.size)
+                val packet = DatagramPacket(buffer, buffer.size)
                 while (_isConnected.value && !socket.isClosed) {
                     try {
                         withContext(Dispatchers.IO) { socket.receive(packet) }
+                        if (udpRemoteAddress == null) {
+                            udpRemoteAddress = InetSocketAddress(packet.address, packet.port)
+                            Logger.i("PluginDataChannel", "UDP client address recorded: ${packet.address.hostAddress}:${packet.port}")
+                        }
                         emit(packet.data.copyOf(packet.length))
                     } catch (e: Exception) {
                         if (_isConnected.value) {
@@ -154,6 +195,7 @@ class PluginDataChannelImpl(
             tcpServerSocket = null
             udpSocket?.close()
             udpSocket = null
+            udpRemoteAddress = null
             Logger.i("PluginDataChannel", "Channel $id closed")
         }
     }

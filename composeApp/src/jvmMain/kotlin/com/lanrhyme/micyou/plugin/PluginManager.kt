@@ -298,7 +298,7 @@ class PluginManager(
         return _plugins.value.filter { it.manifest.platform == platform }
     }
 
-    private val pluginsConfigFile = File(pluginsDir.parentFile, "plugins.conf")
+    private val pluginsConfigFile = pluginsDir.parentFile?.let { File(it, "plugins.conf") } ?: File(pluginsDir, "plugins.conf")
     private val pluginsConfig: FileSettings by lazy { FileSettings(pluginsConfigFile) }
 
     private fun isPluginEnabled(pluginId: String): Boolean {

@@ -834,6 +834,10 @@ actual class AudioEngine actual constructor() {
     actual fun updatePerformanceConfig(config: PerformanceConfig) {
         Logger.d("AudioEngine", "Android does not support dynamic performance config adjustment")
     }
+    
+    actual fun setPluginAudioEffects(effects: List<com.lanrhyme.micyou.plugin.AudioEffectProvider>) {
+        // Android 端不支持插件音频效果器
+    }
 
     actual val webUrl: Flow<String> = MutableStateFlow("")
     actual val webClientCount: Flow<Int> = MutableStateFlow(0)

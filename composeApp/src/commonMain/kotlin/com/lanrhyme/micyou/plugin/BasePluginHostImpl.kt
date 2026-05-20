@@ -118,10 +118,20 @@ abstract class BasePluginHostImpl(
      */
     override fun registerAudioEffect(effect: AudioEffectProvider, priority: Int) {
         registeredEffects[effect.id] = effect to priority
+        updateAudioEnginePluginEffects()
     }
 
     override fun unregisterAudioEffect(effect: AudioEffectProvider) {
         registeredEffects.remove(effect.id)
+        updateAudioEnginePluginEffects()
+    }
+    
+    /**
+     * 更新音频引擎中的插件效果器
+     */
+    private fun updateAudioEnginePluginEffects() {
+        val effects = getSortedEffects()
+        audioEngine.setPluginAudioEffects(effects)
     }
 
     /**

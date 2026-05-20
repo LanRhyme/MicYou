@@ -54,6 +54,9 @@ expect class AudioEngine() {
 
     // 更新性能配置
     fun updatePerformanceConfig(config: PerformanceConfig)
+    
+    // 设置插件音频效果器（仅桌面端有效）
+    fun setPluginAudioEffects(effects: List<com.lanrhyme.micyou.plugin.AudioEffectProvider>)
 
     // 停止音频引擎
     fun stop()

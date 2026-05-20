@@ -5,6 +5,7 @@ import com.lanrhyme.micyou.PerformanceConfig
 import com.lanrhyme.micyou.Logger
 import com.lanrhyme.micyou.AudioEffectType
 import com.lanrhyme.micyou.EqualizerConfig
+import com.lanrhyme.micyou.plugin.AudioEffectProvider
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -20,6 +21,10 @@ class AudioProcessorPipeline {
     private val equalizerEffect = EqualizerEffect()
     private val vadEffect = VADEffect()
     private val resamplerEffect = ResamplerEffect()
+    
+    // 插件音频效果器（使用 @Volatile 确保音频处理线程可见性）
+    @Volatile
+    private var pluginEffects: List<AudioEffectProvider> = emptyList()
 
     // 默认处理链顺序
     private var processingChain: List<AudioEffectType> = listOf(
@@ -163,6 +168,13 @@ class AudioProcessorPipeline {
                 }
             }
         }
+        
+        // 应用插件音频效果器
+        for (pluginEffect in pluginEffects) {
+            if (pluginEffect.isEnabled) {
+                processed = pluginEffect.process(processed, channelCount, sampleRate)
+            }
+        }
 
         // 最后执行重采样（重采样通常必须是最后一步，因为它涉及输出格式和长度的最终调整）
         resamplerEffect.updatePlaybackRatio(queuedDurationMs)
@@ -279,6 +291,13 @@ class AudioProcessorPipeline {
         amplifierEffect.reset()
         equalizerEffect.reset()
         resamplerEffect.reset()
+    }
+    
+    /**
+     * 设置插件音频效果器
+     */
+    fun setPluginEffects(effects: List<AudioEffectProvider>) {
+        pluginEffects = effects
     }
 
     /**
