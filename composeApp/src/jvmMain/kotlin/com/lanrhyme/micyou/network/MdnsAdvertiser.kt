@@ -8,10 +8,23 @@ import java.net.InetAddress
 class MdnsAdvertiser {
     private var jmdns: JmDNS? = null
     private var serviceInfo: ServiceInfo? = null
+    private var currentPort: Int = -1
+    private var currentBindAddress: String = "0.0.0.0"
 
-    fun advertise(port: Int) {
+    fun advertise(port: Int, bindAddress: String = "0.0.0.0") {
+        advertiseInternal(port, bindAddress, force = false)
+    }
+
+    private fun advertiseInternal(port: Int, bindAddress: String, force: Boolean) {
+        if (!force && jmdns != null && currentPort == port && currentBindAddress == bindAddress) {
+            Logger.d("MdnsAdvertiser", "mDNS already advertising on $bindAddress:$port")
+            return
+        }
+
+        close(resetPort = false)
+
         try {
-            val localHost = findLanAddress()
+            val localHost = resolveAdvertiseAddress(bindAddress)
             val hostName = "MicYou (${InetAddress.getLocalHost().hostName})"
             jmdns = JmDNS.create(localHost, hostName)
 
@@ -22,12 +35,26 @@ class MdnsAdvertiser {
                 "MicYou audio streaming server"
             )
             jmdns?.registerService(serviceInfo)
+            currentPort = port
+            currentBindAddress = bindAddress
             Logger.i("MdnsAdvertiser", "mDNS service advertised: $hostName on ${localHost?.hostAddress} port $port")
         } catch (e: Exception) {
             Logger.w("MdnsAdvertiser", "Failed to advertise mDNS service: ${e.message}")
-            close()
+            close(resetPort = true)
             throw e
         }
+    }
+
+    /**
+     * 重新广播 mDNS 服务（IP 变化时调用）
+     */
+    fun reAdvertise(port: Int = currentPort, bindAddress: String = currentBindAddress) {
+        if (port <= 0) {
+            Logger.w("MdnsAdvertiser", "Cannot re-advertise: invalid port $port")
+            return
+        }
+        Logger.i("MdnsAdvertiser", "Re-advertising mDNS service due to IP change")
+        advertiseInternal(port, bindAddress, force = true)
     }
 
     companion object {
@@ -35,6 +62,14 @@ class MdnsAdvertiser {
             "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
             "tunnel", "teredo", "isatap", "vpn"
         )
+    }
+
+    private fun resolveAdvertiseAddress(bindAddress: String): InetAddress? {
+        return if (bindAddress == "0.0.0.0") {
+            findLanAddress()
+        } else {
+            InetAddress.getByName(bindAddress)
+        }
     }
 
     private fun findLanAddress(): InetAddress? {
@@ -67,6 +102,10 @@ class MdnsAdvertiser {
     }
 
     fun close() {
+        close(resetPort = true)
+    }
+
+    private fun close(resetPort: Boolean) {
         try {
             val j = jmdns
             val si = serviceInfo
@@ -79,6 +118,10 @@ class MdnsAdvertiser {
         } finally {
             serviceInfo = null
             jmdns = null
+            if (resetPort) {
+                currentPort = -1
+                currentBindAddress = "0.0.0.0"
+            }
         }
     }
 }

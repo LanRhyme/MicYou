@@ -180,6 +180,12 @@
     <string name="importPlugin">导入插件</string>
     <string name="introText">MicYou 是一款开源的麦克风工具，可以将您的 Android 设备变成电脑的高质量麦克风，支持 Wi-Fi (TCP) 和 USB 连接，提供低延迟的音频传输体验。</string>
     <string name="ipLabel">IP： </string>
+    <string name="ipSwitchConfirmTitle">切换 IP 地址</string>
+    <string name="ipSwitchConfirmMessage">切换 IP 需要重启音频流，是否继续？</string>
+    <string name="ipSwitchRestart">重启</string>
+    <string name="ipSwitchCancel">取消</string>
+    <string name="ipAllInterfaces">全部</string>
+    <string name="ipAllInterfacesDesc">监听所有网络接口</string>
     <string name="isLatestVersion">当前已是最新版本</string>
     <string name="keepScreenOnDesc">使用应用时防止屏幕自动熄灭</string>
     <string name="keepScreenOnLabel">保持屏幕常亮</string>
@@ -388,6 +394,7 @@
     <string name="errorRecordingPermissionDenied">录音权限不足</string>
     <string name="errorServerGeneric">服务器错误: %s</string>
     <string name="errorSocketError">套接字错误: %s</string>
+    <string name="errorIpChangeRestartFailed">IP 切换后重启服务失败: %s</string>
     <string name="pluginConfiguration">插件配置</string>
     <string name="pluginNotSupportedAndroid">Android 平台不支持插件。</string>
     <string name="pluginSettingsTitle">插件设置</string>

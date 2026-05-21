@@ -10,7 +10,6 @@ import org.jetbrains.compose.resources.getString
 import io.ktor.network.selector.*
 import io.ktor.network.sockets.*
 import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,7 +40,7 @@ class NetworkServer(
     private val serverScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var serverJob: Job? = null
     private var selectorManager: SelectorManager? = null
-    
+
     // TCP 资源
     private var serverSocket: ServerSocket? = null
     private var activeSocket: Socket? = null
@@ -52,20 +51,27 @@ class NetworkServer(
 
     // 当前活动的连接处理器
     private var activeHandler: ConnectionHandler? = null
+    private var currentBindAddress: String = "0.0.0.0"
 
     // 当前连接模式，用于决定是否启动 UDP 监控
     private var currentMode: ConnectionMode = ConnectionMode.Wifi
 
     suspend fun start(
         port: Int,
+        bindAddress: String = "0.0.0.0",
         protocol: TransportProtocol = TransportProtocol.Both,
         mode: ConnectionMode = ConnectionMode.Wifi
     ) {
         serverJob?.takeIf { it.isActive }?.let {
-            Logger.w("NetworkServer", "服务器已在运行")
-            return
+            if (currentBindAddress == bindAddress) {
+                Logger.w("NetworkServer", "Server is already running on $bindAddress")
+                return
+            }
+            Logger.i("NetworkServer", "Bind address changed ($currentBindAddress -> $bindAddress), restarting server")
+            stop()
         }
 
+        currentBindAddress = bindAddress
         _state.value = StreamState.Connecting
         _lastError.value = null
         currentMode = mode
@@ -79,11 +85,11 @@ class NetworkServer(
                 when (protocol) {
                     TransportProtocol.Tcp -> {
                         // 纯 TCP 模式：同时传输音频和控制消息
-                        runTcpOnlyServer(port, startupComplete)
+                        runTcpOnlyServer(port, bindAddress, startupComplete)
                     }
                     TransportProtocol.Both -> {
                         // TCP+UDP 模式：TCP 控制通道 + UDP 音频通道
-                        runDualProtocolServer(port, startupComplete)
+                        runDualProtocolServer(port, bindAddress, startupComplete)
                     }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -100,7 +106,7 @@ class NetworkServer(
                 }
             }
         }
-        
+
         // 等待启动完成，失败时抛出异常
         try {
             startupComplete.await()
@@ -130,7 +136,7 @@ class NetworkServer(
     }
 
     fun getUdpStats(): UdpConnectionHandler.UdpStats? = udpHandler?.getStats()
-    
+
     fun getRtt(): Long = activeHandler?.getRtt() ?: 0L
 
     /**
@@ -138,7 +144,11 @@ class NetworkServer(
      * TCP 负责：握手、控制消息（静音/插件同步）
      * UDP 负责：音频数据传输
      */
-    private suspend fun runDualProtocolServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
+    private suspend fun runDualProtocolServer(
+        port: Int,
+        bindAddress: String = "0.0.0.0",
+        startupComplete: CompletableDeferred<Unit>? = null
+    ) {
         val udpPort = calculateUdpPort(port)
         Logger.i("NetworkServer", "启动双协议服务器: TCP 端口 $port, UDP 端口 $udpPort")
 
@@ -158,44 +168,53 @@ class NetworkServer(
             },
             onAudioPacketOrderedReceived = { packet ->
                 jitterBuffer?.insert(packet)
-            }
+            },
+            bindAddress = bindAddress
         )
         udpHandler?.start()
 
         // 然后启动 TCP 控制通道
-        runTcpServer(port, startupComplete)
+        runTcpServer(port, bindAddress, startupComplete)
     }
 
     /**
      * 运行仅 TCP 服务器：音频和控制消息都通过 TCP 传输
      * 适用于需要简化网络配置的场景
      */
-    private suspend fun runTcpOnlyServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
+    private suspend fun runTcpOnlyServer(
+        port: Int,
+        bindAddress: String = "0.0.0.0",
+        startupComplete: CompletableDeferred<Unit>? = null
+    ) {
         Logger.i("NetworkServer", "启动仅 TCP 服务器: 端口 $port")
         // 仅启动 TCP 服务器，音频和控制消息都通过 TCP 传输
-        runTcpServer(port, startupComplete)
+        runTcpServer(port, bindAddress, startupComplete)
     }
 
-    private suspend fun runTcpServer(port: Int, startupComplete: CompletableDeferred<Unit>? = null) {
+    private suspend fun runTcpServer(
+        port: Int,
+        bindAddress: String = "0.0.0.0",
+        startupComplete: CompletableDeferred<Unit>? = null
+    ) {
         try {
             val manager = SelectorManager(Dispatchers.IO)
             selectorManager = manager
-            serverSocket = aSocket(manager).tcp().bind("0.0.0.0", port = port)
+            serverSocket = aSocket(manager).tcp().bind(bindAddress, port = port)
             Logger.i("NetworkServer", "正在监听 TCP 端口 $port")
-            
+
             // 通知启动成功
             startupComplete?.complete(Unit)
-            
+
             while (currentCoroutineContext().isActive) {
                 val socket = serverSocket?.accept() ?: break
                 activeSocket = socket
                 Logger.i("NetworkServer", "接受来自 ${socket.remoteAddress} 的 TCP 连接")
-                
+
                 handleConnection(
                     input = socket.openReadChannel(),
                     output = socket.openWriteChannel(autoFlush = true),
-                    closeAction = { 
-                        socket.close() 
+                    closeAction = {
+                        socket.close()
                         activeSocket = null
                     }
                 )
@@ -296,8 +315,6 @@ class NetworkServer(
         )
         activeHandler = handler
         
-        // 启动 UDP 连接监控（仅在双协议模式下，且非 USB 模式）
-        // USB 模式下 Android 客户端通过 TCP 发送音频，不会发送 UDP 包，无需监控
         val udpMonitorJob = if (udpHandler != null && currentMode != ConnectionMode.Usb) {
             serverScope.launch {
                 monitorUdpConnection()

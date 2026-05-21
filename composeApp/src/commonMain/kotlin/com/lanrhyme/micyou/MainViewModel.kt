@@ -55,6 +55,8 @@ data class AppUiState(
     val transportProtocol: TransportProtocol = TransportProtocol.Both,
     val streamState: StreamState = StreamState.Idle,
     val ipAddress: String = "192.168.1.5",
+    val bindAddress: String = "0.0.0.0",
+    val isAutoBindAddress: Boolean = true,
     val port: String = Constants.DEFAULT_TCP_PORT.toString(),
     val errorMessage: String? = null,
     val monitoringEnabled: Boolean = false,
@@ -302,6 +304,8 @@ class MainViewModel : ViewModel() {
                         transportProtocol = audioState.transportProtocol,
                         streamState = audioState.streamState,
                         ipAddress = audioState.ipAddress,
+                        bindAddress = audioState.bindAddress,
+                        isAutoBindAddress = audioState.isAutoBindAddress,
                         port = audioState.port,
                         errorMessage = audioState.errorMessage,
                         monitoringEnabled = audioState.monitoringEnabled,
@@ -402,7 +406,7 @@ class MainViewModel : ViewModel() {
         audioStreamViewModel.setIp(device.hostAddress)
         audioStreamViewModel.setPort(device.port.toString())
     }
-    fun setIp(ip: String) = audioStreamViewModel.setIp(ip)
+    fun setIp(ip: String, isAutoSelect: Boolean = false, restartStream: Boolean = false) = audioStreamViewModel.setIp(ip, isAutoSelect, restartStream)
     fun setPort(port: String) = audioStreamViewModel.setPort(port)
     fun setMonitoringEnabled(enabled: Boolean) = audioStreamViewModel.setMonitoringEnabled(enabled)
     fun setSampleRate(rate: SampleRate) = audioStreamViewModel.setSampleRate(rate)

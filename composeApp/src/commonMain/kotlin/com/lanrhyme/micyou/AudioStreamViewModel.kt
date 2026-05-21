@@ -16,6 +16,8 @@ data class AudioStreamUiState(
     val transportProtocol: TransportProtocol = TransportProtocol.Both,
     val streamState: StreamState = StreamState.Idle,
     val ipAddress: String = "192.168.1.5",
+    val bindAddress: String = "0.0.0.0",
+    val isAutoBindAddress: Boolean = true,
     val port: String = Constants.DEFAULT_TCP_PORT.toString(),
     val errorMessage: String? = null,
     val monitoringEnabled: Boolean = false,
@@ -135,7 +137,24 @@ class AudioStreamViewModel : ViewModel() {
         }
         val savedProtocolName = settings.getString("transport_protocol", TransportProtocol.Both.name)
         val savedProtocol = try { TransportProtocol.valueOf(savedProtocolName) } catch(e: Exception) { TransportProtocol.Both }
+        val platform = getPlatform()
+        val isDesktop = platform.type == PlatformType.Desktop
         val savedIp = settings.getString("ip_address", "192.168.1.5")
+        val savedBindAddress = settings.getString("bind_address", "0.0.0.0")
+        val savedSelectedIp = settings.getString("selected_ip_address", "")
+        val defaultAutoBind = savedSelectedIp == "auto" ||
+            (savedSelectedIp.isBlank() && (savedBindAddress.isBlank() || savedBindAddress == "0.0.0.0"))
+        val savedAutoBindSetting = settings.getBoolean("is_auto_bind_address", defaultAutoBind)
+        val manualDesktopIp = when {
+            !isDesktop -> ""
+            savedSelectedIp == "auto" || savedAutoBindSetting -> ""
+            savedSelectedIp.isNotBlank() -> savedSelectedIp
+            savedBindAddress.isNotBlank() && savedBindAddress != "0.0.0.0" -> savedBindAddress
+            else -> ""
+        }
+        val effectiveIp = if (isDesktop) manualDesktopIp.ifBlank { platform.ipAddress } else savedIp
+        val effectiveBindAddress = if (isDesktop && manualDesktopIp.isNotBlank()) manualDesktopIp else "0.0.0.0"
+        val savedIsAutoBind = isDesktop && manualDesktopIp.isBlank()
     val savedPort = settings.getString("port", Constants.DEFAULT_TCP_PORT.toString())
     val savedMonitoring = false
         settings.putBoolean("monitoring_enabled", false)
@@ -202,7 +221,9 @@ class AudioStreamViewModel : ViewModel() {
             it.copy(
                 mode = effectiveMode,
                 transportProtocol = savedProtocol,
-                ipAddress = savedIp,
+                ipAddress = effectiveIp,
+                bindAddress = effectiveBindAddress,
+                isAutoBindAddress = savedIsAutoBind,
                 port = savedPort,
                 monitoringEnabled = savedMonitoring,
                 sampleRate = savedSampleRate,
@@ -345,12 +366,13 @@ class AudioStreamViewModel : ViewModel() {
 
     fun startStream() {
         Logger.i("AudioStreamViewModel", "Starting stream")
-    val mode = _uiState.value.mode
-        val ip = _uiState.value.ipAddress
+        val mode = _uiState.value.mode
+        val isDesktop = getPlatform().type == PlatformType.Desktop
+        val ip = if (isDesktop && _uiState.value.isAutoBindAddress) "0.0.0.0" else _uiState.value.ipAddress
 
         // 端口验证：确保端口在有效范围内 (1-65535)
-    val rawPort = _uiState.value.port.toIntOrNull()
-    val port = when {
+        val rawPort = _uiState.value.port.toIntOrNull()
+        val port = when {
             rawPort == null -> {
                 Logger.w("AudioStreamViewModel", "Invalid port format: ${_uiState.value.port}, using default ${Constants.DEFAULT_TCP_PORT}")
                 if (mode == ConnectionMode.Web) Constants.DEFAULT_WEB_PORT else Constants.DEFAULT_TCP_PORT
@@ -381,7 +403,7 @@ class AudioStreamViewModel : ViewModel() {
                 Logger.w("AudioStreamViewModel", "IP address format may be invalid: $ip")
             }
         }
-    val isClient = getPlatform().type == PlatformType.Android
+        val isClient = getPlatform().type == PlatformType.Android
         val sampleRate = _uiState.value.sampleRate
         val channelCount = _uiState.value.channelCount
         val audioFormat = _uiState.value.audioFormat
@@ -401,13 +423,13 @@ class AudioStreamViewModel : ViewModel() {
                 
                 // 分析错误并生成详细错误信息
                 val errorType = ConnectionErrorHelper.analyzeError(e, mode)
-    val savedLanguageName = settings.getString("language", AppLanguage.System.name)
-    val language = try {
+                val savedLanguageName = settings.getString("language", AppLanguage.System.name)
+                val language = try {
                     AppLanguage.valueOf(savedLanguageName)
                 } catch (ex: Exception) {
                     AppLanguage.System
                 }
-    val errorDetails = ConnectionErrorHelper.generateErrorDetails(
+                val errorDetails = ConnectionErrorHelper.generateErrorDetails(
                     type = errorType,
                     originalMessage = e.message ?: "Unknown error",
                     mode = mode,
@@ -430,8 +452,8 @@ class AudioStreamViewModel : ViewModel() {
         if (!isClient && mode == ConnectionMode.Wifi) {
             viewModelScope.launch {
                 val tcpAllowed = isPortAllowed(port, "TCP")
-    val udpPort = calculateUdpPort(port)
-    val udpAllowed = isPortAllowed(udpPort, "UDP")
+                    val udpPort = calculateUdpPort(port)
+                    val udpAllowed = isPortAllowed(udpPort, "UDP")
                 if (!tcpAllowed || !udpAllowed) {
                     Logger.w("AudioStreamViewModel", "Port $port (TCP) or $udpPort (UDP) is not allowed by firewall")
                     _uiState.update { it.copy(showFirewallDialog = true, pendingFirewallPort = port) }
@@ -448,7 +470,7 @@ class AudioStreamViewModel : ViewModel() {
 
     fun setMode(mode: ConnectionMode) {
         Logger.i("AudioStreamViewModel", "Setting connection mode to $mode")
-    val platformType = getPlatform().type
+        val platformType = getPlatform().type
 
         if (platformType == PlatformType.Android && mode == ConnectionMode.Web) {
             Logger.w("AudioStreamViewModel", "Web mode is not supported on Android, ignoring")
@@ -501,11 +523,54 @@ class AudioStreamViewModel : ViewModel() {
         _uiState.update { it.copy(transportProtocol = protocol) }
         settings.putString("transport_protocol", protocol.name)
     }
+    
+    fun setIp(ip: String, isAutoSelect: Boolean = false, restartStream: Boolean = false) {
+        Logger.d("AudioStreamViewModel", "Setting IP to $ip, autoSelect=$isAutoSelect, restartStream=$restartStream")
+        val wasRunning = _uiState.value.streamState == StreamState.Streaming || _uiState.value.streamState == StreamState.Connecting
 
-    fun setIp(ip: String) {
-        Logger.d("AudioStreamViewModel", "Setting IP to $ip")
-        _uiState.update { it.copy(ipAddress = ip) }
-        settings.putString("ip_address", ip)
+        val isDesktop = getPlatform().type == PlatformType.Desktop
+
+        if (isDesktop && isAutoSelect) {
+            val autoIp = getPlatform().ipAddress
+            _uiState.update {
+                it.copy(
+                    ipAddress = autoIp,
+                    isAutoBindAddress = true,
+                    bindAddress = "0.0.0.0"
+                )
+            }
+            settings.putString("ip_address", autoIp)
+            settings.putBoolean("is_auto_bind_address", true)
+            settings.putString("bind_address", "0.0.0.0")
+            settings.putString("selected_ip_address", "auto")
+        } else {
+            val selectedIp = ip.ifBlank { _uiState.value.ipAddress }
+            _uiState.update {
+                it.copy(
+                    ipAddress = selectedIp,
+                    isAutoBindAddress = if (isDesktop) false else it.isAutoBindAddress,
+                    bindAddress = if (isDesktop) selectedIp else it.bindAddress
+                )
+            }
+            settings.putString("ip_address", selectedIp)
+            if (isDesktop) {
+                settings.putBoolean("is_auto_bind_address", false)
+                settings.putString("bind_address", selectedIp)
+                settings.putString("selected_ip_address", selectedIp)
+            }
+        }
+
+        // 如果要求重启流（IP 切换时），先停止再启动
+        if (restartStream && wasRunning) {
+            viewModelScope.launch {
+                try {
+                    _audioEngine.stopAndWait()
+                    startStream()
+                } catch (e: Exception) {
+                    Logger.e("AudioStreamViewModel", "Failed to restart stream after IP change", e)
+                }
+            }
+        }
     }
 
     fun setPort(port: String) {
@@ -760,4 +825,5 @@ class AudioStreamViewModel : ViewModel() {
             discoveryManager.startDiscovery()
         }
     }
+
 }

@@ -37,6 +37,7 @@ class WebServer(
     private val port: Int,
     private val onAudioPacketReceived: (AudioPacketMessage) -> Unit
 ) {
+    private var currentBindAddress: String = "0.0.0.0"
     private var server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>? = null
 
     private val _state = MutableStateFlow(StreamState.Idle)
@@ -55,18 +56,24 @@ class WebServer(
 
     private val htmlContent: String by lazy { WebHtmlPage.getHtml() }
 
-    fun start(port: Int = this.port) {
+    fun start(port: Int = this.port, bindAddress: String = "0.0.0.0") {
         if (isRunning) {
-            Logger.w("WebServer", "WebServer is already running")
-            return
+            if (currentBindAddress == bindAddress) {
+                Logger.w("WebServer", "WebServer is already running on $bindAddress")
+                return
+            }
+            Logger.i("WebServer", "Bind address changed ($currentBindAddress -> $bindAddress), restarting")
+            stop()
         }
 
+        currentBindAddress = bindAddress
         _state.value = StreamState.Connecting
 
         try {
             val keyStore = SelfSignedCertificate.generate()
             val password = SelfSignedCertificate.getKeyStorePassword()
-            server = embeddedServer(Netty,
+            server = embeddedServer(
+                Netty,
                 environment = applicationEnvironment {},
                 configure = {
                     sslConnector(
@@ -76,7 +83,7 @@ class WebServer(
                         privateKeyPassword = { password.toCharArray() }
                     ) {
                         this.port = port
-                        host = "0.0.0.0"
+                        host = bindAddress
                     }
                 }
             ) {
@@ -116,11 +123,16 @@ class WebServer(
 
             isRunning = true
             _state.value = StreamState.Connecting
-            Logger.i("WebServer", "HTTPS+WebSocket server started on port $port")
+            Logger.i("WebServer", "HTTPS+WebSocket server started on $bindAddress:$port")
         } catch (e: Exception) {
+            isRunning = false
+            server = null
+            clientCount.set(0)
+            _clientCountFlow.value = 0
             _state.value = StreamState.Error
-            _lastError.value = "Failed to start web server: ${e.message}"
+            _lastError.value = "Web server error: ${e.message}"
             Logger.e("WebServer", "Failed to start web server", e)
+            throw e
         }
     }
 
@@ -136,15 +148,9 @@ class WebServer(
             for (frame in incoming) {
                 if (!isActive) break
                 when (frame) {
-                    is Frame.Binary -> {
-                        processAudioData(frame.data)
-                    }
-                    is Frame.Ping -> {
-                        send(Frame.Pong(frame.data))
-                    }
-                    is Frame.Close -> {
-                        break
-                    }
+                    is Frame.Binary -> processAudioData(frame.data)
+                    is Frame.Ping -> send(Frame.Pong(frame.data))
+                    is Frame.Close -> break
                     else -> {}
                 }
             }
@@ -190,6 +196,7 @@ class WebServer(
                 Logger.w("WebServer", "Rejected oversized audio frame: ${float32Bytes.size} bytes (max ${Constants.MAX_PACKET_SIZE})")
                 return
             }
+
             val numFloats = float32Bytes.size / 4
             if (numFloats == 0) return
             val pcmBytes = ByteArray(numFloats * 2)

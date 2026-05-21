@@ -669,6 +669,12 @@ actual class AudioEngine actual constructor() {
             context.startService(intent)
         }
     }
+
+    actual suspend fun stopAndWait() {
+        val currentJob = job
+        stop()
+        currentJob?.join()
+    }
     
     actual fun setMonitoring(enabled: Boolean) { }
 

@@ -22,9 +22,9 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,8 +41,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -63,6 +61,7 @@ import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Minimize
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Usb
 import androidx.compose.material.icons.rounded.Wifi
@@ -71,23 +70,27 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,13 +98,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -229,6 +229,7 @@ fun DesktopHomeEnhanced(
                 HeaderSection(
                     platform = platform,
                     state = state,
+                    viewModel = viewModel,
                     onMinimize = onMinimize,
                     onClose = onClose,
                     cardOpacity = state.backgroundSettings.cardOpacity,
@@ -337,6 +338,7 @@ fun DesktopHomeEnhanced(
 private fun HeaderSection(
     platform: Platform,
     state: AppUiState,
+    viewModel: MainViewModel,
     onMinimize: () -> Unit,
     onClose: () -> Unit,
     cardOpacity: Float = 1f,
@@ -421,120 +423,201 @@ private fun HeaderSection(
                     Text("Server", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-    val ipList = platform.ipAddresses
-            val lazyListState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-            
-            Surface(
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest
-            ) {
-                Box(
-                    modifier = Modifier.widthIn(max = 200.dp)
-                ) {
-                    LazyRow(
-                        state = lazyListState,
-                        modifier = Modifier
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                            .pointerInput(Unit) {
-                                awaitPointerEventScope {
-                                    while (true) {
-                                        val event = awaitPointerEvent()
-                                        if (event.type == PointerEventType.Scroll) {
-                                            val scrollDelta = event.changes.first().scrollDelta.y
-                                            coroutineScope.launch {
-                                                lazyListState.scrollBy(scrollDelta * 2f)
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        items(ipList.size) { index ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                if (index > 0) {
-                                    Text(
-                                        "•",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                    )
-                                }
-                                Icon(
-                                    Icons.Rounded.Language,
-                                    null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                SelectionContainer {
-                                    Text(
-                                        ipList[index],
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
-                    }
-    val showLeftFade by remember {
-                        derivedStateOf { lazyListState.firstVisibleItemIndex > 0 || lazyListState.firstVisibleItemScrollOffset > 0 }
-                    }
-    val showRightFade by remember {
-                        derivedStateOf {
-                            val layoutInfo = lazyListState.layoutInfo
-                            if (layoutInfo.totalItemsCount == 0) false
-                            else {
-                                val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()
-                                lastVisibleItem != null && (lastVisibleItem.index < layoutInfo.totalItemsCount - 1 || 
-                                    lastVisibleItem.offset + lastVisibleItem.size > layoutInfo.viewportEndOffset)
-                            }
-                        }
-                    }
-                    
-                    if (showLeftFade) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .width(20.dp)
-                                .height(24.dp)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.surfaceContainerHighest,
-                                            Color.Transparent
-                                        )
-                                    )
-                                )
-                        )
-                    }
-                    
-                    if (showRightFade) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .width(20.dp)
-                                .height(24.dp)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            MaterialTheme.colorScheme.surfaceContainerHighest
-                                        )
-                                    )
-                                )
-                        )
-                    }
-                }
-            }
-            
+            IpSelector(
+                platform = platform,
+                state = state,
+                viewModel = viewModel
+            )
+
             if (!isMacOSPlatform() && !state.useSystemTitleBar) {
                 WindowControls(onMinimize = onMinimize, onClose = onClose, useSystemTitleBar = state.useSystemTitleBar)
             }
+        }
+    }
+}
+
+@Composable
+private fun IpSelector(
+    platform: Platform,
+    state: AppUiState,
+    viewModel: MainViewModel
+) {
+    var showIpMenu by remember { mutableStateOf(false) }
+    var showIpSwitchConfirm by remember { mutableStateOf(false) }
+    var pendingIp by remember { mutableStateOf("") }
+    var pendingAutoSelect by remember { mutableStateOf(false) }
+    val ipDetails = remember(showIpMenu) {
+        if (showIpMenu) platform.ipAddressDetails else emptyList()
+    }
+    val currentIp = state.ipAddress
+    val isAutoBind = state.isAutoBindAddress
+
+    val ipInteractionSource = remember { MutableInteractionSource() }
+    val isIpHovered by ipInteractionSource.collectIsHoveredAsState()
+    val ipBgColor by animateColorAsState(
+        targetValue = if (isIpHovered)
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+        else
+            MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = tween(200),
+        label = "ipBgEnhanced"
+    )
+
+    Box {
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            color = ipBgColor,
+            modifier = Modifier
+                .hoverable(ipInteractionSource)
+                .clickable(
+                    interactionSource = ipInteractionSource,
+                    indication = null,
+                    onClick = { showIpMenu = true }
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .widthIn(max = 200.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Language,
+                    null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp)
+                )
+                SelectionContainer {
+                    Text(
+                        currentIp,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                }
+                Icon(
+                    Icons.Rounded.KeyboardArrowDown,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        CompositionLocalProvider(
+            LocalRippleConfiguration provides RippleConfiguration(
+                rippleAlpha = RippleAlpha(0f, 0f, 0f, 0f)
+            )
+        ) {
+            DropdownMenu(
+                expanded = showIpMenu,
+                onDismissRequest = { showIpMenu = false },
+                shape = MaterialTheme.shapes.medium
+            ) {
+                DropdownMenuItem(
+                    text = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Column {
+                                Text(stringResource(Res.string.ipAllInterfaces))
+                                Text(
+                                    stringResource(Res.string.ipAllInterfacesDesc),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (isAutoBind) {
+                                Icon(
+                                    Icons.Rounded.CheckCircle,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    },
+                    onClick = {
+                        if (!isAutoBind) {
+                            if (state.streamState == StreamState.Streaming || state.streamState == StreamState.Connecting) {
+                                pendingIp = ""
+                                pendingAutoSelect = true
+                                showIpSwitchConfirm = true
+                            } else {
+                                viewModel.setIp("", isAutoSelect = true)
+                            }
+                        }
+                        showIpMenu = false
+                    }
+                )
+                ipDetails.forEach { info ->
+                    val isSelected = !isAutoBind && currentIp == info.ip
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Column {
+                                    Text(info.ip)
+                                    Text(
+                                        info.interfaceName,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (isSelected) {
+                                    Icon(
+                                        Icons.Rounded.CheckCircle,
+                                        null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            if (!isSelected) {
+                                if (state.streamState == StreamState.Streaming || state.streamState == StreamState.Connecting) {
+                                    pendingIp = info.ip
+                                    pendingAutoSelect = false
+                                    showIpSwitchConfirm = true
+                                } else {
+                                    viewModel.setIp(info.ip)
+                                }
+                            }
+                            showIpMenu = false
+                        }
+                    )
+                }
+            }
+        }
+
+        if (showIpSwitchConfirm) {
+            AlertDialog(
+                onDismissRequest = { showIpSwitchConfirm = false },
+                title = { Text(stringResource(Res.string.ipSwitchConfirmTitle)) },
+                text = { Text(stringResource(Res.string.ipSwitchConfirmMessage)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (pendingAutoSelect) {
+                            viewModel.setIp("", isAutoSelect = true, restartStream = true)
+                        } else {
+                            viewModel.setIp(pendingIp, restartStream = true)
+                        }
+                        showIpSwitchConfirm = false
+                    }) {
+                        Text(stringResource(Res.string.ipSwitchRestart))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showIpSwitchConfirm = false }) {
+                        Text(stringResource(Res.string.ipSwitchCancel))
+                    }
+                }
+            )
         }
     }
 }

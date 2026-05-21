@@ -5,8 +5,12 @@ import com.lanrhyme.micyou.audio.AudioProcessorPipeline
 import com.lanrhyme.micyou.audio.AudioSpectrumAnalyzer
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.errorAdbReverseFailed
+import micyou.composeapp.generated.resources.errorIpChangeRestartFailed
 import org.jetbrains.compose.resources.getString
 import com.lanrhyme.micyou.network.MdnsAdvertiser
+import com.lanrhyme.micyou.network.NetworkAddressChangeEvent
+import com.lanrhyme.micyou.network.NetworkAddressChangeListener
+import com.lanrhyme.micyou.network.NetworkAddressMonitor
 import com.lanrhyme.micyou.network.NetworkServer
 import com.lanrhyme.micyou.network.WebServer
 import com.lanrhyme.micyou.platform.AdbManager
@@ -16,7 +20,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -72,6 +75,17 @@ actual class AudioEngine actual constructor() {
     )
     
     private val mdnsAdvertiser = MdnsAdvertiser()
+    private val networkAddressMonitor = NetworkAddressMonitor()
+    private val networkAddressChangeListener = object : NetworkAddressChangeListener {
+        override fun onAddressChanged(event: NetworkAddressChangeEvent) {
+            handleIpAddressChanged(event)
+        }
+    }
+
+    // Track current mode and config for IP change restart
+    private var currentMode: ConnectionMode? = null
+    private var currentPort: Int = -1
+    private var currentBindAddress: String = "0.0.0.0"
 
     private val networkServer = NetworkServer(
         onAudioPacketReceived = { audioPacket ->
@@ -96,7 +110,7 @@ actual class AudioEngine actual constructor() {
     private val _webClientCount = MutableStateFlow(0)
     actual val webUrl: Flow<String> = _webUrl.asStateFlow()
     actual val webClientCount: Flow<Int> = _webClientCount.asStateFlow()
-    
+
     init {
         // Start mDNS advertisement immediately so Android clients can discover this server
         scope.launch(Dispatchers.IO) {
@@ -108,6 +122,9 @@ actual class AudioEngine actual constructor() {
                 Logger.w("AudioEngine", "Failed to start mDNS advertisement: ${e.message}")
             }
         }
+
+        // Register IP change listener. Monitoring is started only while a stream is active.
+        networkAddressMonitor.addListener(networkAddressChangeListener)
 
         scope.launch {
             networkServer.state.collect { newState ->
@@ -155,6 +172,66 @@ actual class AudioEngine actual constructor() {
         scope.launch {
             webServer.clientCountFlow.collect { count ->
                 _webClientCount.value = count
+            }
+        }
+    }
+
+    /**
+     * Handles local IP address changes while using automatic bind mode.
+     */
+    private fun handleIpAddressChanged(event: NetworkAddressChangeEvent) {
+        // Manual bind mode should keep using the selected address.
+        if (currentBindAddress != "0.0.0.0") {
+            Logger.d("AudioEngine", "Manual bind mode (currentBindAddress=$currentBindAddress), skipping auto IP change")
+            return
+        }
+
+        val newPrimaryIp = event.newPrimaryIp ?: return
+        Logger.i("AudioEngine", "Handling IP change: ${event.oldPrimaryIp} -> $newPrimaryIp")
+
+        // Re-advertise mDNS with new IP
+        scope.launch(Dispatchers.IO) {
+            try {
+                mdnsAdvertiser.reAdvertise(currentPort, "0.0.0.0")
+            } catch (e: Exception) {
+                Logger.w("AudioEngine", "Failed to re-advertise mDNS: ${e.message}")
+            }
+        }
+
+        // Restart active servers with new IP if they are running
+        val mode = currentMode ?: return
+        if (_state.value != StreamState.Streaming && _state.value != StreamState.Connecting) {
+            Logger.d("AudioEngine", "No active stream, skipping server restart")
+            return
+        }
+
+        scope.launch {
+            try {
+                startStopMutex.withLock {
+                    stopJob?.join()
+                    stopJob = null
+
+                    when (mode) {
+                        ConnectionMode.Wifi -> {
+                            Logger.i("AudioEngine", "Restarting NetworkServer with new IP: $newPrimaryIp")
+                            networkServer.stop()
+                            networkServer.start(currentPort, "0.0.0.0")
+                        }
+                        ConnectionMode.Web -> {
+                            Logger.i("AudioEngine", "Restarting WebServer with new IP: $newPrimaryIp")
+                            val webUrlStr = "https://$newPrimaryIp:$currentPort"
+                            _webUrl.value = webUrlStr
+                            webServer.stop()
+                            webServer.start(currentPort, "0.0.0.0")
+                        }
+                        else -> {
+                            // USB mode does not depend on IP
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.e("AudioEngine", "Failed to restart server after IP change", e)
+                _lastError.value = String.format(getString(Res.string.errorIpChangeRestartFailed), e.message ?: "")
             }
         }
     }
@@ -268,20 +345,24 @@ actual class AudioEngine actual constructor() {
     }
 
     actual suspend fun start(
-        ip: String, 
-        port: Int, 
-        mode: ConnectionMode, 
+        ip: String,
+        port: Int,
+        mode: ConnectionMode,
         isClient: Boolean,
         sampleRate: SampleRate,
         channelCount: ChannelCount,
         audioFormat: AudioFormat,
         transportProtocol: TransportProtocol
     ) {
-        if (isClient) return 
+        if (isClient) return
         Logger.i("AudioEngine", "启动 JVM AudioEngine: 模式=$mode, 协议=$transportProtocol, 端口=$port, 采样率=${sampleRate.value}, 声道=${channelCount.label}, 格式=${audioFormat.label}")
-        
+
         _lastError.value = null
-        
+
+        // Save current mode and port for IP change handling
+        currentMode = mode
+        currentPort = port
+
         if (mode == ConnectionMode.Usb) {
             Logger.i("AudioEngine", "正在为 USB 模式执行 ADB reverse，端口 $port")
             if (AdbManager.runAdbReverse(port)) {
@@ -294,15 +375,16 @@ actual class AudioEngine actual constructor() {
                 throw Exception(errorMsg)
             }
         }
-        
+
         if (mode == ConnectionMode.Web) {
             val webPort = port.takeIf { it in 1..65535 } ?: Constants.DEFAULT_WEB_PORT
             Logger.i("AudioEngine", "启动 Web 模式，端口=$webPort")
 
-            val platform = getPlatform()
-            val primaryIp = platform.ipAddress
-            val webUrlStr = "https://$primaryIp:$webPort"
+            val bindAddress = ip.takeIf { it.isNotBlank() } ?: "0.0.0.0"
+            val displayIp = if (bindAddress == "0.0.0.0") getPlatform().ipAddress else bindAddress
+            val webUrlStr = "https://$displayIp:$webPort"
             _webUrl.value = webUrlStr
+            currentBindAddress = bindAddress
 
             startStopMutex.withLock {
                 stopJob?.join()
@@ -311,13 +393,15 @@ actual class AudioEngine actual constructor() {
                 if (webServer.isRunning) {
                     Logger.w("AudioEngine", "WebServer 已在运行，忽略启动请求")
                 } else {
-                    webServer.start(webPort)
+                    webServer.start(webPort, bindAddress)
+                    mdnsAdvertiser.reAdvertise(webPort, bindAddress)
+                    updateNetworkAddressMonitor(bindAddress)
                     Logger.i("AudioEngine", "WebServer started at $webUrlStr")
                 }
             }
             return
         }
-        
+
         startStopMutex.withLock {
             // 等待任何正在进行的停止操作完成，防止竞态条件
             stopJob?.join()
@@ -329,9 +413,21 @@ actual class AudioEngine actual constructor() {
             } else {
                 // 直接调用 networkServer.start()，不 launch 新协程
                 // NetworkServer 内部会管理自己的协程
-                networkServer.start(port, transportProtocol, mode)
-                Logger.i("AudioEngine", "NetworkServer started successfully")
+                val bindAddress = ip.takeIf { it.isNotBlank() } ?: getPlatform().ipAddress
+                currentBindAddress = bindAddress
+                networkServer.start(port, bindAddress, transportProtocol, mode)
+                mdnsAdvertiser.reAdvertise(port, bindAddress)
+                updateNetworkAddressMonitor(bindAddress)
+                Logger.i("AudioEngine", "NetworkServer started successfully on $bindAddress:$port")
             }
+        }
+    }
+
+    private fun updateNetworkAddressMonitor(bindAddress: String) {
+        if (bindAddress == "0.0.0.0") {
+            networkAddressMonitor.start()
+        } else {
+            networkAddressMonitor.stop()
         }
     }
 
@@ -372,6 +468,14 @@ actual class AudioEngine actual constructor() {
          try {
              job?.cancel()
              job = null
+             _lastError.value = null
+             _state.value = StreamState.Idle
+
+             // Reset current mode tracking
+             currentMode = null
+             currentPort = -1
+             currentBindAddress = "0.0.0.0"
+
              // 使用协程异步停止，避免阻塞调用线程
              // 保存停止 Job 以便 start() 可以等待其完成，防止竞态条件
              // 检查是否已有活跃的停止操作，避免协程泄漏
@@ -408,17 +512,32 @@ actual class AudioEngine actual constructor() {
                      } catch (e: Exception) {
                          Logger.w("AudioEngine", "Error closing MdnsAdvertiser: ${e.message}")
                      }
+                     try {
+                         networkAddressMonitor.stop()
+                     } catch (e: Exception) {
+                         Logger.w("AudioEngine", "Error stopping NetworkAddressMonitor: ${e.message}")
+                     }
                  }
              } else {
                  Logger.d("AudioEngine", "Stop operation already in progress, skipping duplicate stop request")
              }
-             _lastError.value = null
-             _state.value = StreamState.Idle
          } catch (e: Exception) {
              Logger.e("AudioEngine", "Error stopping audio engine: ${e.message}", e)
          }
     }
-    
+
+    /**
+     * 挂起函数版本的 stop，确保停止操作完全完成后再返回。
+     * 用于 IP 切换等需要严格顺序的场景。
+     */
+    actual suspend fun stopAndWait() {
+        stop()
+        startStopMutex.withLock {
+            stopJob?.join()
+            stopJob = null
+        }
+    }
+
     /**
      * 计算 16-bit PCM 音频数据的电平数据。
      * 返回 RMS、峰值和分贝值。

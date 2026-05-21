@@ -17,8 +17,11 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -240,11 +243,17 @@ fun DesktopHome(
                     hazeState = hazeState,
                     enableHaze = state.backgroundSettings.enableHazeEffect
                 ) {
-                    NetworkConfigCard(
-                        state = state,
-                        viewModel = viewModel,
-                        platform = platform
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        NetworkConfigCard(
+                            state = state,
+                            viewModel = viewModel,
+                            platform = platform,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
 
                 AnimatedCard(
@@ -352,11 +361,12 @@ private fun AnimatedCard(
 private fun NetworkConfigCard(
     state: AppUiState,
     viewModel: MainViewModel,
-    platform: Platform
+    platform: Platform,
+    modifier: Modifier = Modifier
 ) {
     var titleVisible by remember { mutableStateOf(false) }
     var fieldsVisible by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(Unit) {
         titleVisible = true
         delay(100)
@@ -364,7 +374,7 @@ private fun NetworkConfigCard(
     }
 
     Column(
-        modifier = Modifier.padding(10.dp).fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -393,16 +403,40 @@ private fun NetworkConfigCard(
             ) {
                 Box {
                     var showIpList by remember { mutableStateOf(false) }
-    val currentIps = remember(showIpList) {
-                        if (showIpList) platform.ipAddresses else emptyList()
+                    var showIpSwitchConfirm by remember { mutableStateOf(false) }
+                    var pendingIp by remember { mutableStateOf("") }
+                    var pendingAutoSelect by remember { mutableStateOf(false) }
+                    val ipDetails = remember(showIpList) {
+                        if (showIpList) platform.ipAddressDetails else emptyList()
                     }
+                    val currentIp = state.ipAddress
+                    val isAutoBind = state.isAutoBindAddress
+                    val ipInteractionSource = remember { MutableInteractionSource() }
+                    val isIpHovered by ipInteractionSource.collectIsHoveredAsState()
+                    val ipBgColor by animateColorAsState(
+                        targetValue = if (isIpHovered)
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                        else
+                            Color.Transparent,
+                        animationSpec = tween(200),
+                        label = "ipBg"
+                    )
 
                     SelectionContainer {
                         Text(
-                            "${stringResource(Res.string.ipLabel)}${platform.ipAddress}",
+                            "${stringResource(Res.string.ipLabel)}${currentIp}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.clickable { showIpList = true }
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .hoverable(ipInteractionSource)
+                                .clickable(
+                                    interactionSource = ipInteractionSource,
+                                    indication = null,
+                                    onClick = { showIpList = true }
+                                )
+                                .background(ipBgColor)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
 
@@ -416,13 +450,109 @@ private fun NetworkConfigCard(
                             onDismissRequest = { showIpList = false },
                             shape = MaterialTheme.shapes.medium
                         ) {
-                            currentIps.forEach { ip ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Column {
+                                            Text(stringResource(Res.string.ipAllInterfaces))
+                                            Text(
+                                                stringResource(Res.string.ipAllInterfacesDesc),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        if (isAutoBind) {
+                                            Icon(
+                                                Icons.Rounded.CheckCircle,
+                                                null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    if (!isAutoBind) {
+                                        if (state.streamState == StreamState.Streaming || state.streamState == StreamState.Connecting) {
+                                            pendingIp = ""
+                                            pendingAutoSelect = true
+                                            showIpSwitchConfirm = true
+                                        } else {
+                                            viewModel.setIp("", isAutoSelect = true)
+                                        }
+                                    }
+                                    showIpList = false
+                                }
+                            )
+                            ipDetails.forEach { info ->
+                                val isSelected = !isAutoBind && currentIp == info.ip
                                 DropdownMenuItem(
-                                    text = { Text(ip) },
-                                    onClick = { showIpList = false }
+                                    text = {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Column {
+                                                Text(info.ip)
+                                                Text(
+                                                    info.interfaceName,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            if (isSelected) {
+                                                Icon(
+                                                    Icons.Rounded.CheckCircle,
+                                                    null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    },
+                                    onClick = {
+                                        if (!isSelected) {
+                                            if (state.streamState == StreamState.Streaming || state.streamState == StreamState.Connecting) {
+                                                pendingIp = info.ip
+                                                pendingAutoSelect = false
+                                                showIpSwitchConfirm = true
+                                            } else {
+                                                viewModel.setIp(info.ip)
+                                            }
+                                        }
+                                        showIpList = false
+                                    }
                                 )
                             }
                         }
+                    }
+
+                    if (showIpSwitchConfirm) {
+                        AlertDialog(
+                            onDismissRequest = { showIpSwitchConfirm = false },
+                            title = { Text(stringResource(Res.string.ipSwitchConfirmTitle)) },
+                            text = { Text(stringResource(Res.string.ipSwitchConfirmMessage)) },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    if (pendingAutoSelect) {
+                                        viewModel.setIp("", isAutoSelect = true, restartStream = true)
+                                    } else {
+                                        viewModel.setIp(pendingIp, restartStream = true)
+                                    }
+                                    showIpSwitchConfirm = false
+                                }) {
+                                    Text(stringResource(Res.string.ipSwitchRestart))
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showIpSwitchConfirm = false }) {
+                                    Text(stringResource(Res.string.ipSwitchCancel))
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -1051,7 +1181,7 @@ private fun AnimatedIconButton(
             stiffness = Spring.StiffnessMedium
         )
     )
-    
+
     IconButton(
         onClick = onClick,
         interactionSource = interactionSource,

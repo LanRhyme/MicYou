@@ -26,7 +26,8 @@ class UdpConnectionHandler(
     private val port: Int,
     private val onAudioPacketReceived: suspend (AudioPacketMessage) -> Unit,
     private val onError: (String) -> Unit,
-    private val onAudioPacketOrderedReceived: ((AudioPacketMessageOrdered) -> Unit)? = null
+    private val onAudioPacketOrderedReceived: ((AudioPacketMessageOrdered) -> Unit)? = null,
+    private val bindAddress: String = "0.0.0.0"
 ) {
     @OptIn(ExperimentalSerializationApi::class)
     private val proto = ProtoBuf { }
@@ -105,9 +106,14 @@ class UdpConnectionHandler(
 
     private suspend fun runUdpReceiver() {
         try {
+            val bindInetAddress = if (bindAddress == "0.0.0.0") {
+                null
+            } else {
+                java.net.InetAddress.getByName(bindAddress)
+            }
             udpSocket = DatagramSocket(null).also { socket ->
                 socket.reuseAddress = true
-                socket.bind(java.net.InetSocketAddress(port))
+                socket.bind(java.net.InetSocketAddress(bindInetAddress, port))
                 // Set receive buffer size for audio stream
                 socket.receiveBufferSize = 2 * 1024 * 1024 // 2MB
                 val actualBufferSize = socket.receiveBufferSize

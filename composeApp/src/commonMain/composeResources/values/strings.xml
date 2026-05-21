@@ -161,6 +161,7 @@
     <string name="errorSuggestionsTitle">Suggestions:</string>
     <string name="errorServerGeneric">Server error: %s</string>
     <string name="errorSocketError">Socket error: %s</string>
+    <string name="errorIpChangeRestartFailed">Failed to restart service after IP change: %s</string>
     <string name="errorUnknownMessage">An unknown error occurred: %s</string>
     <string name="errorUnknownTitle">Unknown Error</string>
     <string name="errorUsbConnectionFailedMessage">USB connection failed. Please check your USB cable and ensure USB debugging is enabled on your Android device.</string>
@@ -217,6 +218,12 @@
     <string name="installOsNotSupported">Current operating system does not support automatic installation</string>
     <string name="introText">MicYou is an open source microphone tool that turns your Android device into a high-quality microphone for your computer. It supports Wi-Fi (TCP) and USB connections, providing low-latency audio transmission.</string>
     <string name="ipLabel">IP: </string>
+    <string name="ipSwitchConfirmTitle">Switch IP Address</string>
+    <string name="ipSwitchConfirmMessage">Switching IP requires restarting the audio stream. Continue?</string>
+    <string name="ipSwitchRestart">Restart</string>
+    <string name="ipSwitchCancel">Cancel</string>
+    <string name="ipAllInterfaces">ALL</string>
+    <string name="ipAllInterfacesDesc">Listen on all interfaces</string>
     <string name="isLatestVersion">Already the latest version</string>
     <string name="keepScreenOnDesc">Prevent the screen from turning off while using the app</string>
     <string name="keepScreenOnLabel">Keep Screen On</string>

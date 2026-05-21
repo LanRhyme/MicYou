@@ -57,6 +57,8 @@ expect class AudioEngine() {
 
     // 停止音频引擎
     fun stop()
+    // 停止并等待完成（用于需要严格顺序的场景，如 IP 切换）
+    suspend fun stopAndWait()
     // 设置是否启用本地监听（仅桌面端有效）
     fun setMonitoring(enabled: Boolean)
 

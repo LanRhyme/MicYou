@@ -9,11 +9,17 @@ enum class PlatformType {
     Android, Desktop
 }
 
+data class IpAddressInfo(
+    val ip: String,
+    val interfaceName: String
+)
+
 interface Platform {
     val name: String
     val type: PlatformType
     val ipAddress: String
     val ipAddresses: List<String>
+    val ipAddressDetails: List<IpAddressInfo>
 }
 
 expect fun getPlatform(): Platform

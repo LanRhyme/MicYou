@@ -31,6 +31,9 @@ class JVMPlatform: Platform {
     override val ipAddresses: List<String>
         get() = getLocalIpAddresses()
 
+    override val ipAddressDetails: List<IpAddressInfo>
+        get() = getLocalIpAddressDetails()
+
     companion object {
         private val VIRTUAL_KEYWORDS = listOf(
             "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
@@ -39,9 +42,13 @@ class JVMPlatform: Platform {
     }
 
     private fun getLocalIpAddresses(): List<String> {
+        return getLocalIpAddressDetails().map { it.ip }
+    }
+
+    private fun getLocalIpAddressDetails(): List<IpAddressInfo> {
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-            val candidates = mutableListOf<java.net.InetAddress>()
+            val candidates = mutableListOf<Pair<java.net.InetAddress, String>>()
 
             while (interfaces.hasMoreElements()) {
                 val iface = interfaces.nextElement()
@@ -54,11 +61,11 @@ class JVMPlatform: Platform {
                 while (addresses.hasMoreElements()) {
                     val addr = addresses.nextElement()
                     if (addr is java.net.Inet4Address && !addr.isLoopbackAddress) {
-                        candidates.add(addr)
+                        candidates.add(addr to (iface.displayName ?: iface.name))
                     }
                 }
             }
-    val sortedCandidates = candidates.sortedByDescending { addr ->
+            val sortedCandidates = candidates.sortedByDescending { (addr, _) ->
                 val ip = addr.hostAddress
                 when {
                     ip.startsWith("192.168.") -> 100
@@ -69,12 +76,14 @@ class JVMPlatform: Platform {
                     else -> 0
                 }
             }
-    val result = sortedCandidates.map { it.hostAddress }
+            val result = sortedCandidates.map { (addr, ifaceName) ->
+                IpAddressInfo(addr.hostAddress, ifaceName)
+            }
             if (result.isNotEmpty()) return result
-            
-            return listOf(java.net.InetAddress.getLocalHost().hostAddress)
+
+            return listOf(IpAddressInfo(java.net.InetAddress.getLocalHost().hostAddress, "Default"))
         } catch (e: Exception) {
-            return listOf("Unknown")
+            return listOf(IpAddressInfo("Unknown", "Unknown"))
         }
     }
 }

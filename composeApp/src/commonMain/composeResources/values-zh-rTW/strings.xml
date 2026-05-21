@@ -458,4 +458,11 @@
     <string name="sponsorsDisclaimer">此處僅顯示愛發電上對專案發起者個人 LanRhyme 的贊助。</string>
     <string name="sponsorsEmpty">暫無贊助者</string>
     <string name="sponsorsGoToAifadian">贊助</string>
-    </resources>
+    <string name="ipSwitchConfirmTitle">切換 IP 位址</string>
+    <string name="ipSwitchConfirmMessage">切換 IP 需要重新啟動音訊串流，是否繼續？</string>
+    <string name="ipSwitchRestart">重新啟動</string>
+    <string name="ipSwitchCancel">取消</string>
+    <string name="ipAllInterfaces">全部</string>
+    <string name="ipAllInterfacesDesc">監聽所有網路介面</string>
+    <string name="errorIpChangeRestartFailed">IP 切換後重新啟動服務失敗: %s</string>
+</resources>
