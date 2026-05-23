@@ -96,6 +96,8 @@
     <string name="errorDialogTitle">连接错误喵~ (ToT)</string>
     <string name="errorFirewallBlockedMessage">端口 %s 被防火墙阻止喵~请添加防火墙规则或以管理员身份运行应用喵~ (・_・;)</string>
     <string name="errorFirewallBlockedTitle">防火墙挡住了喵~</string>
+    <string name="errorUdpPortBlockedMessage">UDP 音频端口 %s 被防火墙阻止了喵~音频传输需要 TCP 和 UDP 端口都可以访问喵~请为 UDP 端口添加防火墙规则，或以管理员身份运行应用喵~ (´・ω・`)</string>
+    <string name="errorUdpPortBlockedTitle">UDP 端口被阻止了喵~</string>
     <string name="errorHandshakeFailedMessage">与目标设备握手失败喵~这可能表示版本不匹配或协议错误喵~</string>
     <string name="errorHandshakeFailedTitle">握手失败喵~</string>
     <string name="errorNetworkTimeoutMessage">连接超时喵~请检查网络连接和目标设备状态喵~ (・_・)</string>
@@ -148,6 +150,9 @@
     <string name="firewallDismiss">忽略喵~</string>
     <string name="firewallMessage">端口 %s 未被 Windows 防火墙允许喵~这可能会阻止安卓设备通过 Wi-Fi 连接喵~\n\n要尝试为此端口添加防火墙规则吗喵？(需要管理员权限) (・_・;)</string>
     <string name="firewallTitle">防火墙检查喵~ 🧱</string>
+    <string name="udpWarningTitle">UDP 音频警告喵~</string>
+    <string name="udpWarningMessage">TCP 连接已建立了喵~，但没有收到任何 UDP 音频包喵~。音频传输需要 TCP 和 UDP 端口都可以访问喵~\n\n请检查喵~：\n• 确保 UDP 端口 %1$d 已在防火墙中放行喵~（TCP 端口 %2$d + 1）\n• 两台设备应在同一网络中喵~\n• 尝试重新连接喵~ (´・ω・`)</string>
+    <string name="udpWarningConfirm">好的喵~</string>
     <string name="firstLaunchGotItButton">猫猫知道怎么使用喵~</string>
     <string name="firstLaunchGuideButton">看看使用指南喵~</string>
     <string name="firstLaunchMessage">猫猫似乎是第一次使用 MicYou 喵~本应用可以把你的安卓设备变成电脑的高质量麦克风喵</string>

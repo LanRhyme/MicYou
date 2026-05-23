@@ -70,6 +70,9 @@ data class AppUiState(
     val showErrorDialog: Boolean = false,
     val errorDetails: ConnectionErrorDetails? = null,
     
+    // UDP Warning Dialog State
+    val showUdpWarningDialog: Boolean = false,
+    
     // Audio Processing Settings
     val enableNS: Boolean = false,
     val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
@@ -311,6 +314,7 @@ class MainViewModel : ViewModel() {
                         pendingFirewallPort = audioState.pendingFirewallPort,
                         showErrorDialog = audioState.showErrorDialog,
                         errorDetails = audioState.errorDetails,
+                        showUdpWarningDialog = audioState.showUdpWarningDialog,
                         enableNS = audioState.enableNS,
                         nsType = audioState.nsType,
                         enableAGC = audioState.enableAGC,
@@ -425,6 +429,7 @@ class MainViewModel : ViewModel() {
     fun dismissFirewallDialog() = audioStreamViewModel.dismissFirewallDialog()
     fun confirmAddFirewallRule() = audioStreamViewModel.confirmAddFirewallRule()
     fun dismissErrorDialog() = audioStreamViewModel.dismissErrorDialog()
+    fun dismissUdpWarningDialog() = audioStreamViewModel.dismissUdpWarningDialog()
     fun retryAfterError() = audioStreamViewModel.retryAfterError()
     
     // Settings methods

@@ -96,6 +96,8 @@
     <string name="errorDialogTitle">连接错误</string>
     <string name="errorFirewallBlockedMessage">端口 %s 被 Windows 防火墙阻止。请添加防火墙规则或以管理员身份运行应用。</string>
     <string name="errorFirewallBlockedTitle">防火墙阻止</string>
+    <string name="errorUdpPortBlockedMessage">UDP 音频端口 %s 被防火墙阻止。音频传输需要 TCP 和 UDP 端口均可访问。请为 UDP 端口添加防火墙规则，或以管理员身份运行应用。</string>
+    <string name="errorUdpPortBlockedTitle">UDP 端口被阻止</string>
     <string name="errorHandshakeFailedMessage">与目标设备握手失败。这可能表示版本不匹配或协议错误。</string>
     <string name="errorHandshakeFailedTitle">握手失败</string>
     <string name="errorNetworkTimeoutMessage">连接超时。请检查网络连接和目标设备状态。</string>
@@ -148,6 +150,9 @@
     <string name="firewallDismiss">忽略</string>
     <string name="firewallMessage">端口 %s 似乎未被 Windows 防火墙放行。这可能会导致 Android 设备无法通过 Wi-Fi 连接。\n\n是否尝试自动添加防火墙规则？（需要管理员权限）</string>
     <string name="firewallTitle">防火墙检查</string>
+    <string name="udpWarningTitle">UDP 音频警告</string>
+    <string name="udpWarningMessage">TCP 连接已建立，但未收到任何 UDP 音频包。音频传输需要 TCP 和 UDP 端口均可访问。\n\n请检查：\n• 确保 UDP 端口 %1$d 已在防火墙中放行（TCP 端口 %2$d + 1）\n• 两台设备应在同一网络中\n• 尝试重新连接</string>
+    <string name="udpWarningConfirm">确定</string>
     <string name="firstLaunchGotItButton">我很清楚怎么使用</string>
     <string name="firstLaunchGuideButton">让我看看使用指南</string>
     <string name="firstLaunchMessage">您似乎是第一次使用 MicYou，本应用可以将您的 Android 设备通过 Wi-Fi 或 USB 变成电脑的高质量麦克风</string>

@@ -205,6 +205,33 @@ fun DesktopHomeEnhanced(
         )
     }
 
+    if (state.showUdpWarningDialog) {
+        val tcpPort = state.port.toIntOrNull() ?: Constants.DEFAULT_TCP_PORT
+        val udpPort = calculateUdpPort(tcpPort)
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissUdpWarningDialog() },
+            title = { Text(stringResource(Res.string.udpWarningTitle)) },
+            text = { 
+                Column(
+                    modifier = Modifier
+                        .widthIn(min = 400.dp, max = 500.dp)
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = String.format(stringResource(Res.string.udpWarningMessage), udpPort, tcpPort),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.dismissUdpWarningDialog() }) {
+                    Text(stringResource(Res.string.udpWarningConfirm))
+                }
+            }
+        )
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurface,

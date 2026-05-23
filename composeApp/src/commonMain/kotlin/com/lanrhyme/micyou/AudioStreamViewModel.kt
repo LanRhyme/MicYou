@@ -31,6 +31,9 @@ data class AudioStreamUiState(
     val showErrorDialog: Boolean = false,
     val errorDetails: ConnectionErrorDetails? = null,
 
+    // UDP Warning Dialog State
+    val showUdpWarningDialog: Boolean = false,
+
     // Audio Processing Settings
     val enableNS: Boolean = false,
     val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
@@ -251,7 +254,11 @@ class AudioStreamViewModel : ViewModel() {
 
         viewModelScope.launch {
             _audioEngine.lastError.collect { error ->
-                _uiState.update { it.copy(errorMessage = error) }
+                if (error == "UDP_AUDIO_WARNING") {
+                    _uiState.update { it.copy(showUdpWarningDialog = true) }
+                } else {
+                    _uiState.update { it.copy(errorMessage = error) }
+                }
             }
         }
 
@@ -654,6 +661,10 @@ class AudioStreamViewModel : ViewModel() {
     
     fun dismissErrorDialog() {
         _uiState.update { it.copy(showErrorDialog = false) }
+    }
+    
+    fun dismissUdpWarningDialog() {
+        _uiState.update { it.copy(showUdpWarningDialog = false) }
     }
     
     fun retryAfterError() {

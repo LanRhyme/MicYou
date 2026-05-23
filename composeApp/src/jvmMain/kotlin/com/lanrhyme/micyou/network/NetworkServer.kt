@@ -242,13 +242,67 @@ class NetworkServer(
         )
         activeHandler = handler
         
+        // 启动 UDP 连接监控（仅在双协议模式下）
+        val udpMonitorJob = if (udpHandler != null) {
+            serverScope.launch {
+                monitorUdpConnection()
+            }
+        } else null
+        
         try {
             handler.run()
         } finally {
+            udpMonitorJob?.cancel()
             activeHandler = null
             closeAction()
             Logger.i("NetworkServer", "连接已关闭")
             _state.value = StreamState.Connecting
+        }
+    }
+    
+    /**
+     * 监控 UDP 连接状态
+     * 当 TCP 连接成功后，如果一段时间内没有收到 UDP 包，发出警告
+     */
+    private suspend fun monitorUdpConnection() {
+        val monitorStartDelay = 5000L  // 等待5秒让客户端开始发送UDP
+        val monitorInterval = 3000L    // 每3秒检查一次
+        val noPacketWarningThreshold = 10000L  // 10秒没有收到UDP包则警告
+        
+        delay(monitorStartDelay)
+        
+        val monitorStartTime = System.currentTimeMillis()
+        var warningFired = false
+        
+        while (currentCoroutineContext().isActive) {
+            val stats = udpHandler?.getStats()
+            if (stats != null) {
+                val now = System.currentTimeMillis()
+                
+                if (stats.packetsReceived == 0L) {
+                    // 从未收到过UDP包，计算从监控开始到现在的时间
+                    val waitingTime = now - monitorStartTime
+                    if (waitingTime > noPacketWarningThreshold && !warningFired) {
+                        Logger.w("NetworkServer", "UDP 连接监控: TCP 连接已建立，但 ${waitingTime/1000} 秒内未收到任何 UDP 音频包。UDP 端口可能被防火墙阻止。")
+                        _lastError.value = "UDP_AUDIO_WARNING"
+                        warningFired = true
+                    }
+                } else {
+                    // 收到过UDP包，检查是否中断
+                    val timeSinceLastPacket = now - stats.lastPacketReceivedTime
+                    if (timeSinceLastPacket > noPacketWarningThreshold && !warningFired) {
+                        Logger.w("NetworkServer", "UDP 连接监控: 已 ${timeSinceLastPacket/1000} 秒未收到 UDP 包，连接可能中断。")
+                        _lastError.value = "UDP_AUDIO_WARNING"
+                        warningFired = true
+                    }
+                    // 收到新包后重置警告标志
+                    if (stats.lastPacketReceivedTime > monitorStartTime) {
+                        warningFired = false
+                    }
+                }
+            }
+            
+            delay(monitorInterval)
         }
     }
 

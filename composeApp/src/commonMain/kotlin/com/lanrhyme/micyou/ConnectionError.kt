@@ -355,8 +355,8 @@ object ConnectionErrorHelper {
             ConnectionErrorType.UdpPortBlocked -> ConnectionErrorDetails(
                 type = type,
                 originalMessage = originalMessage,
-                localizedTitle = getString(Res.string.errorFirewallBlockedTitle),
-                localizedMessage = "UDP 音频端口被防火墙阻止。请确保 UDP 端口 ${port?.let { calculateUdpPort(it) } ?: Constants.DEFAULT_UDP_PORT} 已放行。",
+                localizedTitle = getString(Res.string.errorUdpPortBlockedTitle),
+                localizedMessage = String.format(getString(Res.string.errorUdpPortBlockedMessage), port?.let { calculateUdpPort(it).toString() } ?: Constants.DEFAULT_UDP_PORT.toString()),
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionAddFirewallRule),
                     getString(Res.string.errorSuggestionRunAsAdmin)

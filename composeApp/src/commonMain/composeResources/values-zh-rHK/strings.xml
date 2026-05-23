@@ -96,6 +96,8 @@
     <string name="errorDialogTitle">連線錯誤</string>
     <string name="errorFirewallBlockedMessage">埠口 %s 俾 Windows 防火牆擋住。請加防火牆規則或者以管理員身份行應用程式。</string>
     <string name="errorFirewallBlockedTitle">防火牆擋住咗</string>
+    <string name="errorUdpPortBlockedMessage">UDP 音訊埠口 %s 俾防火牆擋住。音訊傳輸需要 TCP 同 UDP 埠口都可以用。請為 UDP 埠口加防火牆規則，或者以管理員身份行應用程式。</string>
+    <string name="errorUdpPortBlockedTitle">UDP 埠口俾擋住咗</string>
     <string name="errorHandshakeFailedMessage">同目標裝置握手失敗。咁可能係版本唔夾或者協定錯誤。</string>
     <string name="errorHandshakeFailedTitle">握手失敗</string>
     <string name="errorNetworkTimeoutMessage">連線超時。請檢查網路連線同目標裝置狀態。</string>
@@ -148,6 +150,9 @@
     <string name="firewallDismiss">是但啦</string>
     <string name="firewallMessage">埠口 %s 似乎未畀 Windows 防火牆放行。咁樣可能搞到 Android 裝置冇辦法經 Wi-Fi 連線。\n\n試唔試吓自動加返條防火牆規則？（要管理員權限）</string>
     <string name="firewallTitle">防火牆檢查</string>
+    <string name="udpWarningTitle">UDP 音訊警告</string>
+    <string name="udpWarningMessage">TCP 連線已建立，但未收到任何 UDP 音訊封包。音訊傳輸需要 TCP 同 UDP 埠口都可以用。\n\n請檢查：\n• 確保 UDP 埠口 %1$d 已在防火牆中放行（TCP 埠口 %2$d + 1）\n• 兩部裝置應在同一網絡中\n• 試吓重新連線</string>
+    <string name="udpWarningConfirm">確定</string>
     <string name="firstLaunchGotItButton">我很清楚點樣使用</string>
     <string name="firstLaunchGuideButton">等我睇下使用指南</string>
     <string name="firstLaunchMessage">您好似係第一次使用 MicYou，呢個 App 可以將你嘅 Android 裝置透過 Wi-Fi 或者 USB 變做電腦嘅高質量咪高峰</string>

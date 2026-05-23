@@ -96,6 +96,8 @@
     <string name="errorDialogTitle">連線錯誤</string>
     <string name="errorFirewallBlockedMessage">連接埠 %s 被 Windows 防火牆封鎖。請新增防火牆規則或以管理員身分執行應用程式。</string>
     <string name="errorFirewallBlockedTitle">防火牆封鎖</string>
+    <string name="errorUdpPortBlockedMessage">UDP 音訊連接埠 %s 被防火牆封鎖。音訊傳輸需要 TCP 和 UDP 連接埠均可存取。請為 UDP 連接埠新增防火牆規則，或以管理員身分執行應用程式。</string>
+    <string name="errorUdpPortBlockedTitle">UDP 連接埠被封鎖</string>
     <string name="errorHandshakeFailedMessage">與目標裝置握手失敗。這可能表示版本不相符或通訊協定錯誤。</string>
     <string name="errorHandshakeFailedTitle">握手失敗</string>
     <string name="errorNetworkTimeoutMessage">連線逾時。請檢查網路連線和目標裝置狀態。</string>
@@ -148,6 +150,9 @@
     <string name="firewallDismiss">忽略</string>
     <string name="firewallMessage">連接埠 %s 似乎未被 Windows 防火牆放行。這可能會導致 Android 裝置無法透過 Wi-Fi 連線。\n\n是否嘗試自動新增防火牆規則？（需要管理員權限）</string>
     <string name="firewallTitle">防火牆檢查</string>
+    <string name="udpWarningTitle">UDP 音訊警告</string>
+    <string name="udpWarningMessage">TCP 連線已建立，但未收到任何 UDP 音訊封包。音訊傳輸需要 TCP 和 UDP 連接埠均可存取。\n\n請檢查：\n• 確保 UDP 連接埠 %1$d 已在防火牆中放行（TCP 連接埠 %2$d + 1）\n• 兩台裝置應在同一網路中\n• 嘗試重新連線</string>
+    <string name="udpWarningConfirm">確定</string>
     <string name="firstLaunchGotItButton">我很清楚怎麼使用</string>
     <string name="firstLaunchGuideButton">讓我看看使用指南</string>
     <string name="firstLaunchMessage">您似乎是第一次使用 MicYou，本應用可以將您的 Android 裝置透過 Wi-Fi 或 USB 變成電腦的高品質麥克風</string>
