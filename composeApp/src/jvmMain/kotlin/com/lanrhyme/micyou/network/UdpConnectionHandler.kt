@@ -55,11 +55,11 @@ class UdpConnectionHandler(
     @Volatile
     private var jitter = 0.0
 
-    // UDP connection monitoring
+    // UDP connection monitoring (using monotonic clock)
     @Volatile
-    private var firstPacketReceivedTime = 0L
+    private var firstPacketReceivedTimeNano = 0L
     @Volatile
-    private var lastPacketReceivedTime = 0L
+    private var lastPacketReceivedTimeNano = 0L
 
     private var lastLossLogTime = 0L
     private var suppressedLossLogs = 0
@@ -99,8 +99,8 @@ class UdpConnectionHandler(
         packetsLost = packetsLost,
         jitter = jitter,
         clientAddress = clientAddress,
-        firstPacketReceivedTime = firstPacketReceivedTime,
-        lastPacketReceivedTime = lastPacketReceivedTime
+        firstPacketReceivedTimeNano = firstPacketReceivedTimeNano,
+        lastPacketReceivedTimeNano = lastPacketReceivedTimeNano
     )
 
     private suspend fun runUdpReceiver() {
@@ -185,13 +185,13 @@ class UdpConnectionHandler(
             // UDP channel only processes audio packets
             val audioPacket = wrapper.audioPacket?.audioPacket
             if (audioPacket != null) {
-                // Update packet receive timestamps for connection monitoring
-                val now = System.currentTimeMillis()
-                if (firstPacketReceivedTime == 0L) {
-                    firstPacketReceivedTime = now
-                    Logger.i("UdpConnectionHandler", "First UDP packet received at $now")
+                // Update packet receive timestamps for connection monitoring (monotonic clock)
+                val nowNano = System.nanoTime()
+                if (firstPacketReceivedTimeNano == 0L) {
+                    firstPacketReceivedTimeNano = nowNano
+                    Logger.i("UdpConnectionHandler", "First UDP packet received")
                 }
-                lastPacketReceivedTime = now
+                lastPacketReceivedTimeNano = nowNano
 
                 // Sequence number tracking
                 val seqNum = wrapper.audioPacket.sequenceNumber
@@ -278,8 +278,8 @@ class UdpConnectionHandler(
         val packetsLost: Long,
         val jitter: Double,
         val clientAddress: InetSocketAddress?,
-        val firstPacketReceivedTime: Long,
-        val lastPacketReceivedTime: Long
+        val firstPacketReceivedTimeNano: Long,
+        val lastPacketReceivedTimeNano: Long
     ) {
         val lossRate: Double
             get() = if (packetsReceived + packetsLost > 0) {

@@ -96,7 +96,7 @@
     <string name="errorDialogTitle">連線錯誤</string>
     <string name="errorFirewallBlockedMessage">埠口 %s 俾 Windows 防火牆擋住。請加防火牆規則或者以管理員身份行應用程式。</string>
     <string name="errorFirewallBlockedTitle">防火牆擋住咗</string>
-    <string name="errorUdpPortBlockedMessage">UDP 音訊埠口 %s 俾防火牆擋住。音訊傳輸需要 TCP 同 UDP 埠口都可以用。請為 UDP 埠口加防火牆規則，或者以管理員身份行應用程式。</string>
+    <string name="errorUdpPortBlockedMessage">UDP 音訊埠口 %d 俾防火牆擋住。音訊傳輸需要 TCP 同 UDP 埠口都可以用。請為 UDP 埠口加防火牆規則，或者以管理員身份行應用程式。</string>
     <string name="errorUdpPortBlockedTitle">UDP 埠口俾擋住咗</string>
     <string name="errorHandshakeFailedMessage">同目標裝置握手失敗。咁可能係版本唔夾或者協定錯誤。</string>
     <string name="errorHandshakeFailedTitle">握手失敗</string>

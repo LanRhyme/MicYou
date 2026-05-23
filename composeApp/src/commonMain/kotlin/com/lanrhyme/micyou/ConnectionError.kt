@@ -356,7 +356,7 @@ object ConnectionErrorHelper {
                 type = type,
                 originalMessage = originalMessage,
                 localizedTitle = getString(Res.string.errorUdpPortBlockedTitle),
-                localizedMessage = String.format(getString(Res.string.errorUdpPortBlockedMessage), port?.let { calculateUdpPort(it).toString() } ?: Constants.DEFAULT_UDP_PORT.toString()),
+                localizedMessage = getString(Res.string.errorUdpPortBlockedMessage, port?.let { calculateUdpPort(it) } ?: Constants.DEFAULT_UDP_PORT),
                 recoverySuggestions = listOf(
                     getString(Res.string.errorSuggestionAddFirewallRule),
                     getString(Res.string.errorSuggestionRunAsAdmin)

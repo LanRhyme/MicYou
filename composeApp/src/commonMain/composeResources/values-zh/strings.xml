@@ -96,7 +96,7 @@
     <string name="errorDialogTitle">连接错误</string>
     <string name="errorFirewallBlockedMessage">端口 %s 被 Windows 防火墙阻止。请添加防火墙规则或以管理员身份运行应用。</string>
     <string name="errorFirewallBlockedTitle">防火墙阻止</string>
-    <string name="errorUdpPortBlockedMessage">UDP 音频端口 %s 被防火墙阻止。音频传输需要 TCP 和 UDP 端口均可访问。请为 UDP 端口添加防火墙规则，或以管理员身份运行应用。</string>
+    <string name="errorUdpPortBlockedMessage">UDP 音频端口 %d 被防火墙阻止。音频传输需要 TCP 和 UDP 端口均可访问。请为 UDP 端口添加防火墙规则，或以管理员身份运行应用。</string>
     <string name="errorUdpPortBlockedTitle">UDP 端口被阻止</string>
     <string name="errorHandshakeFailedMessage">与目标设备握手失败。这可能表示版本不匹配或协议错误。</string>
     <string name="errorHandshakeFailedTitle">握手失败</string>

@@ -271,33 +271,39 @@ class NetworkServer(
         
         delay(monitorStartDelay)
         
-        val monitorStartTime = System.currentTimeMillis()
+        // 记录初始包数，避免受之前连接的统计数据干扰
+        val initialPackets = udpHandler?.getStats()?.packetsReceived ?: 0L
+        val monitorStartTime = System.nanoTime()
         var warningFired = false
         
         while (currentCoroutineContext().isActive) {
             val stats = udpHandler?.getStats()
             if (stats != null) {
-                val now = System.currentTimeMillis()
+                val now = System.nanoTime()
+                val currentPackets = stats.packetsReceived - initialPackets
                 
-                if (stats.packetsReceived == 0L) {
-                    // 从未收到过UDP包，计算从监控开始到现在的时间
-                    val waitingTime = now - monitorStartTime
-                    if (waitingTime > noPacketWarningThreshold && !warningFired) {
-                        Logger.w("NetworkServer", "UDP 连接监控: TCP 连接已建立，但 ${waitingTime/1000} 秒内未收到任何 UDP 音频包。UDP 端口可能被防火墙阻止。")
+                if (currentPackets == 0L) {
+                    // 从未收到过新 UDP 包
+                    val waitingTimeMs = (now - monitorStartTime) / 1_000_000
+                    if (waitingTimeMs > noPacketWarningThreshold && !warningFired) {
+                        Logger.w("NetworkServer", "UDP 连接监控: TCP 连接已建立，但 ${waitingTimeMs/1000} 秒内未收到任何 UDP 音频包。UDP 端口可能被防火墙阻止。")
                         _lastError.value = "UDP_AUDIO_WARNING"
                         warningFired = true
                     }
                 } else {
-                    // 收到过UDP包，检查是否中断
-                    val timeSinceLastPacket = now - stats.lastPacketReceivedTime
-                    if (timeSinceLastPacket > noPacketWarningThreshold && !warningFired) {
-                        Logger.w("NetworkServer", "UDP 连接监控: 已 ${timeSinceLastPacket/1000} 秒未收到 UDP 包，连接可能中断。")
+                    // 检查 UDP 包是否中断
+                    val timeSinceLastPacketMs = (now - stats.lastPacketReceivedTimeNano) / 1_000_000
+                    if (timeSinceLastPacketMs > noPacketWarningThreshold && !warningFired) {
+                        Logger.w("NetworkServer", "UDP 连接监控: 已 ${timeSinceLastPacketMs/1000} 秒未收到 UDP 包，连接可能中断。")
                         _lastError.value = "UDP_AUDIO_WARNING"
                         warningFired = true
                     }
-                    // 收到新包后重置警告标志
-                    if (stats.lastPacketReceivedTime > monitorStartTime) {
-                        warningFired = false
+                    // 收到新包后重置警告标志，并清除错误状态以允许下次触发
+                    if (stats.lastPacketReceivedTimeNano > monitorStartTime) {
+                        if (warningFired) {
+                            _lastError.value = null
+                            warningFired = false
+                        }
                     }
                 }
             }

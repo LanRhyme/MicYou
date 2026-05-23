@@ -116,7 +116,7 @@
     <string name="errorDialogTitle">Connection Error</string>
     <string name="errorFirewallBlockedMessage">Port %s is blocked by Windows Firewall. Please add a firewall rule or run the application as administrator.</string>
     <string name="errorFirewallBlockedTitle">Firewall Blocked</string>
-    <string name="errorUdpPortBlockedMessage">UDP audio port %s is blocked by firewall. Audio transmission requires both TCP and UDP ports to be accessible. Please add a firewall rule for the UDP port or run the application as administrator.</string>
+    <string name="errorUdpPortBlockedMessage">UDP audio port %d is blocked by firewall. Audio transmission requires both TCP and UDP ports to be accessible. Please add a firewall rule for the UDP port or run the application as administrator.</string>
     <string name="errorUdpPortBlockedTitle">UDP Port Blocked</string>
     <string name="errorHandshakeFailedMessage">Handshake failed with the target device. This may indicate a version mismatch or protocol error.</string>
     <string name="errorHandshakeFailedDetailed">Handshake failed: verification with the target device failed. This may be due to a version mismatch or protocol error. Please ensure both devices are using the same version of MicYou.</string>
