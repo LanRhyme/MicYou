@@ -248,9 +248,14 @@ class NetworkServer(
         when (magic) {
             IosProtocolConstants.MAGIC_HEADER -> {
                 Logger.i("NetworkServer", "检测到 iOS 协议客户端")
-                // Read remaining 12 bytes of iOS packet header
                 val headerRemaining = ByteArray(12)
-                input.readFully(headerRemaining)
+                try {
+                    input.readFully(headerRemaining)
+                } catch (e: Exception) {
+                    Logger.e("NetworkServer", "Failed to read iOS header", e)
+                    closeAction()
+                    return
+                }
                 val fullHeader = magicBytes + headerRemaining
                 handleIosConnection(input, output, fullHeader, closeAction)
             }
