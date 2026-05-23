@@ -27,10 +27,29 @@ data class IosHelloPayload(
     val channelCount: Int
 )
 
-data class IosAudioFramePayload(
+class IosAudioFramePayload(
     val sequence: Int,
     val timestamp: Long,
     val sampleRate: Int,
     val channelCount: Int,
     val pcmData: ByteArray
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || other !is IosAudioFramePayload) return false
+        return sequence == other.sequence &&
+                timestamp == other.timestamp &&
+                sampleRate == other.sampleRate &&
+                channelCount == other.channelCount &&
+                pcmData.contentEquals(other.pcmData)
+    }
+
+    override fun hashCode(): Int {
+        var result = sequence
+        result = 31 * result + timestamp.hashCode()
+        result = 31 * result + sampleRate
+        result = 31 * result + channelCount
+        result = 31 * result + pcmData.contentHashCode()
+        return result
+    }
+}

@@ -15,6 +15,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.EOFException
+import java.io.IOException
 import java.net.BindException
 
 /**
@@ -231,38 +232,44 @@ class NetworkServer(
         _state.value = StreamState.Streaming
         _lastError.value = null
 
-        // Read first 4 bytes for protocol detection
-        val magicBytes = ByteArray(4)
         try {
-            input.readFully(magicBytes)
-        } catch (e: EOFException) {
-            closeAction()
-            return
-        }
-
-        val magic = ((magicBytes[0].toInt() and 0xFF) shl 24) or
-                    ((magicBytes[1].toInt() and 0xFF) shl 16) or
-                    ((magicBytes[2].toInt() and 0xFF) shl 8) or
-                    (magicBytes[3].toInt() and 0xFF)
-
-        when (magic) {
-            IosProtocolConstants.MAGIC_HEADER -> {
-                Logger.i("NetworkServer", "检测到 iOS 协议客户端")
-                val headerRemaining = ByteArray(12)
-                try {
-                    input.readFully(headerRemaining)
-                } catch (e: Exception) {
-                    Logger.e("NetworkServer", "Failed to read iOS header", e)
-                    closeAction()
-                    return
-                }
-                val fullHeader = magicBytes + headerRemaining
-                handleIosConnection(input, output, fullHeader, closeAction)
+            // Read first 4 bytes for protocol detection
+            val magicBytes = ByteArray(4)
+            try {
+                input.readFully(magicBytes)
+            } catch (e: EOFException) {
+                closeAction()
+                return
             }
-            else -> {
-                // Android protocol: prepend read bytes back to stream
-                val androidInput = prependByteReadChannel(input, magicBytes)
-                handleAndroidConnection(androidInput, output, closeAction)
+
+            val magic = ((magicBytes[0].toInt() and 0xFF) shl 24) or
+                        ((magicBytes[1].toInt() and 0xFF) shl 16) or
+                        ((magicBytes[2].toInt() and 0xFF) shl 8) or
+                        (magicBytes[3].toInt() and 0xFF)
+
+            when (magic) {
+                IosProtocolConstants.MAGIC_HEADER -> {
+                    Logger.i("NetworkServer", "检测到 iOS 协议客户端")
+                    val headerRemaining = ByteArray(12)
+                    try {
+                        input.readFully(headerRemaining)
+                    } catch (e: IOException) {
+                        Logger.e("NetworkServer", "Failed to read iOS header", e)
+                        closeAction()
+                        return
+                    }
+                    val fullHeader = magicBytes + headerRemaining
+                    handleIosConnection(input, output, fullHeader, closeAction)
+                }
+                else -> {
+                    // Android protocol: prepend read bytes back to stream
+                    val androidInput = prependByteReadChannel(input, magicBytes)
+                    handleAndroidConnection(androidInput, output, closeAction)
+                }
+            }
+        } finally {
+            if (_state.value == StreamState.Streaming) {
+                _state.value = StreamState.Connecting
             }
         }
     }

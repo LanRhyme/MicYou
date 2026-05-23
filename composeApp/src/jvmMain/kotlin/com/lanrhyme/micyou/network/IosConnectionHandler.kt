@@ -2,11 +2,9 @@ package com.lanrhyme.micyou.network
 
 import com.lanrhyme.micyou.AudioFormat
 import com.lanrhyme.micyou.AudioPacketMessage
+import com.lanrhyme.micyou.Constants
 import com.lanrhyme.micyou.Logger
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.ByteWriteChannel
-import io.ktor.utils.io.readFully
-import io.ktor.utils.io.writeFully
+import io.ktor.utils.io.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,8 +39,8 @@ class IosConnectionHandler(
                 return
             }
 
-            if (header.payloadLength <= 0) {
-                onError("iOS protocol: Hello payload is empty")
+            if (header.payloadLength <= 0 || header.payloadLength > Constants.MAX_PACKET_SIZE) {
+                onError("iOS protocol: Hello payload length invalid: ${header.payloadLength}")
                 return
             }
 
@@ -122,12 +120,27 @@ class IosConnectionHandler(
     private fun parseHelloPayload(bytes: ByteArray): IosHelloPayload {
         var offset = 0
 
+        if (bytes.size < 4) {
+            throw IllegalArgumentException("iOS protocol: Hello payload too short for nameLen")
+        }
         val nameLen = readBigEndianInt(bytes, offset); offset += 4
+        if (nameLen < 0 || offset + nameLen > bytes.size) {
+            throw IllegalArgumentException("iOS protocol: invalid nameLen $nameLen in Hello payload")
+        }
         val deviceName = bytes.copyOfRange(offset, offset + nameLen).decodeToString(); offset += nameLen
 
+        if (offset + 4 > bytes.size) {
+            throw IllegalArgumentException("iOS protocol: Hello payload too short for idLen")
+        }
         val idLen = readBigEndianInt(bytes, offset); offset += 4
+        if (idLen < 0 || offset + idLen > bytes.size) {
+            throw IllegalArgumentException("iOS protocol: invalid idLen $idLen in Hello payload")
+        }
         val deviceId = bytes.copyOfRange(offset, offset + idLen).decodeToString(); offset += idLen
 
+        if (offset + 8 > bytes.size) {
+            throw IllegalArgumentException("iOS protocol: Hello payload too short for sampleRate/channelCount")
+        }
         val sampleRate = readBigEndianInt(bytes, offset); offset += 4
         val channelCount = readBigEndianInt(bytes, offset); offset += 4
 
@@ -195,14 +208,36 @@ class IosConnectionHandler(
             val headerBytes = ByteArray(IosProtocolConstants.HEADER_SIZE)
             input.readFully(headerBytes)
 
-            val header = parseHeader(headerBytes)
+            var header = parseHeader(headerBytes)
 
             if (header.magic != IosProtocolConstants.MAGIC_HEADER) {
                 Logger.w("IosConnectionHandler", "Invalid magic: 0x${header.magic.toString(16).uppercase()}, resyncing")
-                continue
+                var resyncMagic = header.magic
+                while (currentCoroutineContext().isActive) {
+                    val byte = input.readByte().toInt() and 0xFF
+                    resyncMagic = ((resyncMagic shl 8) or byte) and 0xFFFFFFFF.toInt()
+                    if (resyncMagic == IosProtocolConstants.MAGIC_HEADER) {
+                        break
+                    }
+                }
+                if (!currentCoroutineContext().isActive) return
+                val remainingBytes = ByteArray(12)
+                input.readFully(remainingBytes)
+                val syncedHeaderBytes = ByteArray(IosProtocolConstants.HEADER_SIZE)
+                val magic = IosProtocolConstants.MAGIC_HEADER
+                syncedHeaderBytes[0] = (magic shr 24).toByte()
+                syncedHeaderBytes[1] = (magic shr 16).toByte()
+                syncedHeaderBytes[2] = (magic shr 8).toByte()
+                syncedHeaderBytes[3] = magic.toByte()
+                remainingBytes.copyInto(syncedHeaderBytes, 4)
+                header = parseHeader(syncedHeaderBytes)
             }
 
             val payload = if (header.payloadLength > 0) {
+                if (header.payloadLength > Constants.MAX_PACKET_SIZE) {
+                    Logger.w("IosConnectionHandler", "Payload too large: ${header.payloadLength} bytes, closing connection")
+                    return
+                }
                 val payloadBytes = ByteArray(header.payloadLength)
                 input.readFully(payloadBytes)
                 payloadBytes
