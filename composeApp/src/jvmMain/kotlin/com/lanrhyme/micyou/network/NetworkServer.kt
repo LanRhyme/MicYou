@@ -14,6 +14,7 @@ import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.EOFException
 import java.net.BindException
 
 /**
@@ -230,6 +231,42 @@ class NetworkServer(
         _state.value = StreamState.Streaming
         _lastError.value = null
 
+        // Read first 4 bytes for protocol detection
+        val magicBytes = ByteArray(4)
+        try {
+            input.readFully(magicBytes)
+        } catch (e: EOFException) {
+            closeAction()
+            return
+        }
+
+        val magic = ((magicBytes[0].toInt() and 0xFF) shl 24) or
+                    ((magicBytes[1].toInt() and 0xFF) shl 16) or
+                    ((magicBytes[2].toInt() and 0xFF) shl 8) or
+                    (magicBytes[3].toInt() and 0xFF)
+
+        when (magic) {
+            IosProtocolConstants.MAGIC_HEADER -> {
+                Logger.i("NetworkServer", "检测到 iOS 协议客户端")
+                // Read remaining 12 bytes of iOS packet header
+                val headerRemaining = ByteArray(12)
+                input.readFully(headerRemaining)
+                val fullHeader = magicBytes + headerRemaining
+                handleIosConnection(input, output, fullHeader, closeAction)
+            }
+            else -> {
+                // Android protocol: prepend read bytes back to stream
+                val androidInput = prependByteReadChannel(input, magicBytes)
+                handleAndroidConnection(androidInput, output, closeAction)
+            }
+        }
+    }
+
+    private suspend fun handleAndroidConnection(
+        input: ByteReadChannel,
+        output: ByteWriteChannel,
+        closeAction: suspend () -> Unit
+    ) {
         val handler = ConnectionHandler(
             input = input,
             output = output,
@@ -241,14 +278,13 @@ class NetworkServer(
             }
         )
         activeHandler = handler
-        
-        // 启动 UDP 连接监控（仅在双协议模式下）
+
         val udpMonitorJob = if (udpHandler != null) {
             serverScope.launch {
                 monitorUdpConnection()
             }
         } else null
-        
+
         try {
             handler.run()
         } finally {
@@ -258,6 +294,52 @@ class NetworkServer(
             Logger.i("NetworkServer", "连接已关闭")
             _state.value = StreamState.Connecting
         }
+    }
+
+    private suspend fun handleIosConnection(
+        input: ByteReadChannel,
+        output: ByteWriteChannel,
+        headerBytes: ByteArray,
+        closeAction: suspend () -> Unit
+    ) {
+        val handler = IosConnectionHandler(
+            input = input,
+            output = output,
+            headerBytes = headerBytes,
+            onAudioPacketReceived = onAudioPacketReceived,
+            onError = { error ->
+                _lastError.value = error
+            }
+        )
+
+        try {
+            handler.run()
+        } finally {
+            closeAction()
+            Logger.i("NetworkServer", "iOS 连接已关闭")
+            _state.value = StreamState.Connecting
+        }
+    }
+
+    private fun prependByteReadChannel(source: ByteReadChannel, prefix: ByteArray): ByteReadChannel {
+        val out = ByteChannel(autoFlush = true)
+        serverScope.launch {
+            try {
+                out.writeFully(prefix)
+                out.flush()
+                val buffer = ByteArray(4096)
+                while (!source.isClosedForRead) {
+                    val read = source.readAvailable(buffer, 0, buffer.size)
+                    if (read == -1) break
+                    if (read > 0) {
+                        out.writeFully(buffer, 0, read)
+                    }
+                }
+            } finally {
+                out.close()
+            }
+        }
+        return out
     }
     
     /**
