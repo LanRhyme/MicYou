@@ -329,7 +329,7 @@ actual class AudioEngine actual constructor() {
             } else {
                 // 直接调用 networkServer.start()，不 launch 新协程
                 // NetworkServer 内部会管理自己的协程
-                networkServer.start(port, transportProtocol)
+                networkServer.start(port, transportProtocol, mode)
                 Logger.i("AudioEngine", "NetworkServer started successfully")
             }
         }

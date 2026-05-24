@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -90,16 +91,43 @@ fun MobileSettingsPage(
     viewModel: MainViewModel,
     onClose: () -> Unit,
     hazeState: HazeState?
-) {    val state by viewModel.uiState.collectAsState()
-    val isDarkTheme = isDarkThemeActive(state.themeMode)
+) {
+    val state by viewModel.uiState.collectAsState()
     val platform = getPlatform()
     val backgroundColor = MaterialTheme.colorScheme.surfaceContainer
     val topBarBackgroundColor = backgroundColor.copy(alpha = 0.8f)
-    // 独立的 HazeState 用于顶部导航栏毛玻璃效果
     val topBarHazeState = rememberHazeState()
+    val cardOpacity = state.backgroundSettings.cardOpacity
+    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
+    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
+
+    // About section dialog states
+    var showLicenseDialog by remember { mutableStateOf(false) }
+    var showContributorsDialog by remember { mutableStateOf(false) }
+    var showSponsorsDialog by remember { mutableStateOf(false) }
+
+    // About section dialogs
+    if (showContributorsDialog) {
+        ContributorsDialog(onDismiss = { showContributorsDialog = false })
+    }
+    if (showSponsorsDialog) {
+        SponsorsDialog(onDismiss = { showSponsorsDialog = false })
+    }
+    if (showLicenseDialog) {
+        AlertDialog(
+            onDismissRequest = { showLicenseDialog = false },
+            title = { Text(stringResource(Res.string.licensesTitle)) },
+            text = { OpenSourceLibrariesList() },
+            confirmButton = {
+                TextButton(onClick = { showLicenseDialog = false }) {
+                    Text(stringResource(Res.string.close))
+                }
+            }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 内容区域 - 作为 hazeSource（与 TopAppBar 的 hazeEffect 是兄弟关系）
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -109,7 +137,6 @@ fun MobileSettingsPage(
                 )
                 .hazeSource(state = topBarHazeState)
         ) {
-        // 内容列表 - 使用 contentPadding 让内容从 TopAppBar 下方开始，滚动时可穿过半透明导航栏
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -117,130 +144,36 @@ fun MobileSettingsPage(
             contentPadding = PaddingValues(top = 64.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
-            }
+            item { Spacer(modifier = Modifier.height(32.dp)) }
+
             // General Section
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(height = 18.dp, width = 5.dp)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(Res.string.generalSection),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                ExpressiveGeneralSettings(viewModel, hazeState)
-            }
+            item { SectionHeader(stringResource(Res.string.generalSection)) }
+            generalSettingsItems(state, viewModel, containerColor, enableHaze, hazeState, platform)
 
             // Appearance Section
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(height = 18.dp, width = 5.dp)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(Res.string.appearanceSection),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                ExpressiveAppearanceSettings(viewModel, hazeState)
-            }
+            item { SectionHeader(stringResource(Res.string.appearanceSection)) }
+            appearanceSettingsItems(state, viewModel, containerColor, enableHaze, hazeState, platform)
 
-            // Audio Section (Android only for mobile)
+            // Audio Section (Android only)
             if (platform.type == PlatformType.Android) {
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(height = 18.dp, width = 5.dp)
-                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            stringResource(Res.string.audioSection),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    ExpressiveAudioSettings(viewModel, hazeState)
-                }
+                item { SectionHeader(stringResource(Res.string.audioSection)) }
+                audioSettingsItems(state, viewModel, containerColor, enableHaze, hazeState)
             }
 
             // Plugins Section
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(height = 18.dp, width = 5.dp)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(Res.string.pluginsSection),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                ExpressivePluginSettings(viewModel, hazeState)
-            }
+            item { SectionHeader(stringResource(Res.string.pluginsSection)) }
+            pluginSettingsItems(state, viewModel, containerColor, enableHaze, hazeState)
 
             // About Section
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(height = 18.dp, width = 5.dp)
-                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        stringResource(Res.string.aboutSection),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                ExpressiveAboutSettings(viewModel, hazeState)
-            }
+            item { SectionHeader(stringResource(Res.string.aboutSection)) }
+            aboutSettingsItems(
+                state, viewModel, containerColor, enableHaze, hazeState,
+                onShowLicenseDialog = { showLicenseDialog = true },
+                onShowContributorsDialog = { showContributorsDialog = true },
+                onShowSponsorsDialog = { showSponsorsDialog = true }
+            )
 
-            // 底部额外间距
-            item {
-                Spacer(Modifier.height(16.dp))
-            }
+            item { Spacer(Modifier.height(16.dp)) }
         }
         }
 
@@ -285,46 +218,46 @@ fun MobileSettingsPage(
     }
 }
 
-/**
- * Expressive 风格的通用设置部分
- */
 @Composable
-private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeState?) {
-    val state by viewModel.uiState.collectAsState()
-    val platform = getPlatform()
-    val cardOpacity = state.backgroundSettings.cardOpacity
-    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
-    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
-
-    // 收集所有设置项
-    val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
-
-    // 语言选择
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsDropdownItem(
-            headline = stringResource(Res.string.languageLabel),
-            selected = state.language,
-            options = AppLanguage.entries.toList(),
-            labelProvider = { it.label },
-            onSelect = { viewModel.setLanguage(it) },
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
+private fun SectionHeader(title: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(height = 18.dp, width = 5.dp)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(3.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.Bold
         )
     }
+}
 
-    // 传输协议选择 (仅 Android 客户端)
-    if (platform.type == PlatformType.Android) {
+private fun LazyListScope.generalSettingsItems(
+    state: AppUiState,
+    viewModel: MainViewModel,
+    containerColor: Color,
+    enableHaze: Boolean,
+    hazeState: HazeState?,
+    platform: Platform
+) {
+    item {
+        val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
+
         items.add { isFirst, isLast ->
             ExpressiveSettingsDropdownItem(
-                headline = stringResource(Res.string.transportProtocolLabel),
-                selected = state.transportProtocol,
-                options = TransportProtocol.entries.toList(),
+                headline = stringResource(Res.string.languageLabel),
+                selected = state.language,
+                options = AppLanguage.entries.toList(),
                 labelProvider = { it.label },
-                onSelect = { viewModel.setTransportProtocol(it) },
+                onSelect = { viewModel.setLanguage(it) },
                 isFirst = isFirst,
                 isLast = isLast,
                 containerColor = containerColor,
@@ -332,15 +265,59 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
                 enableHaze = enableHaze
             )
         }
-    }
 
-    // Android 专属设置
-    if (platform.type == PlatformType.Android) {
+        if (platform.type == PlatformType.Android) {
+            items.add { isFirst, isLast ->
+                ExpressiveSettingsDropdownItem(
+                    headline = stringResource(Res.string.transportProtocolLabel),
+                    selected = state.transportProtocol,
+                    options = TransportProtocol.entries.toList(),
+                    labelProvider = { it.label },
+                    onSelect = { viewModel.setTransportProtocol(it) },
+                    isFirst = isFirst,
+                    isLast = isLast,
+                    containerColor = containerColor,
+                    hazeState = hazeState,
+                    enableHaze = enableHaze
+                )
+            }
+        }
+
+        if (platform.type == PlatformType.Android) {
+            items.add { isFirst, isLast ->
+                ExpressiveSettingsSwitchItem(
+                    headline = stringResource(Res.string.enableStreamingNotificationLabel),
+                    checked = state.enableStreamingNotification,
+                    onCheckedChange = { viewModel.setEnableStreamingNotification(it) },
+                    isFirst = isFirst,
+                    isLast = isLast,
+                    containerColor = containerColor,
+                    hazeState = hazeState,
+                    enableHaze = enableHaze
+                )
+            }
+
+            items.add { isFirst, isLast ->
+                ExpressiveSettingsSwitchItem(
+                    headline = stringResource(Res.string.keepScreenOnLabel),
+                    supporting = stringResource(Res.string.keepScreenOnDesc),
+                    checked = state.keepScreenOn,
+                    onCheckedChange = { viewModel.setKeepScreenOn(it) },
+                    isFirst = isFirst,
+                    isLast = isLast,
+                    containerColor = containerColor,
+                    hazeState = hazeState,
+                    enableHaze = enableHaze
+                )
+            }
+        }
+
         items.add { isFirst, isLast ->
             ExpressiveSettingsSwitchItem(
-                headline = stringResource(Res.string.enableStreamingNotificationLabel),
-                checked = state.enableStreamingNotification,
-                onCheckedChange = { viewModel.setEnableStreamingNotification(it) },
+                headline = stringResource(Res.string.autoCheckUpdateLabel),
+                supporting = stringResource(Res.string.autoCheckUpdateDesc),
+                checked = state.autoCheckUpdate,
+                onCheckedChange = { viewModel.setAutoCheckUpdate(it) },
                 isFirst = isFirst,
                 isLast = isLast,
                 containerColor = containerColor,
@@ -351,10 +328,10 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
 
         items.add { isFirst, isLast ->
             ExpressiveSettingsSwitchItem(
-                headline = stringResource(Res.string.keepScreenOnLabel),
-                supporting = stringResource(Res.string.keepScreenOnDesc),
-                checked = state.keepScreenOn,
-                onCheckedChange = { viewModel.setKeepScreenOn(it) },
+                headline = stringResource(Res.string.mirrorDownloadLabel),
+                supporting = stringResource(Res.string.mirrorDownloadDesc),
+                checked = state.useMirrorDownload,
+                onCheckedChange = { viewModel.setUseMirrorDownload(it) },
                 isFirst = isFirst,
                 isLast = isLast,
                 containerColor = containerColor,
@@ -362,466 +339,420 @@ private fun ExpressiveGeneralSettings(viewModel: MainViewModel, hazeState: HazeS
                 enableHaze = enableHaze
             )
         }
-    }
 
-    // 全平台通用设置
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsSwitchItem(
-            headline = stringResource(Res.string.autoCheckUpdateLabel),
-            supporting = stringResource(Res.string.autoCheckUpdateDesc),
-            checked = state.autoCheckUpdate,
-            onCheckedChange = { viewModel.setAutoCheckUpdate(it) },
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        )
-    }
-
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsSwitchItem(
-            headline = stringResource(Res.string.mirrorDownloadLabel),
-            supporting = stringResource(Res.string.mirrorDownloadDesc),
-            checked = state.useMirrorDownload,
-            onCheckedChange = { viewModel.setUseMirrorDownload(it) },
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        )
-    }
-
-    // 渲染设置项
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        items.forEachIndexed { index, item ->
-            val isFirst = index == 0
-            val isLast = index == items.size - 1
-            item(isFirst, isLast)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            items.forEachIndexed { index, item ->
+                item(index == 0, index == items.size - 1)
+            }
         }
     }
 }
 
-/**
- * Expressive 风格的外观设置部分
- */
-@Composable
-private fun ExpressiveAppearanceSettings(viewModel: MainViewModel, hazeState: HazeState?) {
-    val state by viewModel.uiState.collectAsState()
-    val platform = getPlatform()
-    val cardOpacity = state.backgroundSettings.cardOpacity
-    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
-    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
-    val seedColors = listOf(
-        0xFF1565C0L, // Ocean Blue
-        0xFF6750A4L, // M3 Purple
-        0xFFE91E63L, // Rose Pink
-        0xFF2E7D32L, // Forest Green
-        0xFFFF5722L, // Sunset Orange
-        0xFF00695CL, // Deep Teal
-        0xFF283593L, // Midnight Indigo
-        0xFF7B1FA2L  // Lavender Violet
-    )
+private fun LazyListScope.appearanceSettingsItems(
+    state: AppUiState,
+    viewModel: MainViewModel,
+    containerColor: Color,
+    enableHaze: Boolean,
+    hazeState: HazeState?,
+    platform: Platform
+) {
+    item {
+        val seedColors = listOf(
+            0xFF1565C0L, // Ocean Blue
+            0xFF6750A4L, // M3 Purple
+            0xFFE91E63L, // Rose Pink
+            0xFF2E7D32L, // Forest Green
+            0xFFFF5722L, // Sunset Orange
+            0xFF00695CL, // Deep Teal
+            0xFF283593L, // Midnight Indigo
+            0xFF7B1FA2L  // Lavender Violet
+        )
 
-    // 收集所有设置项
-    val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
+        val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
 
-    // 主题选择 - 复杂内容
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsBoxItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Text(stringResource(Res.string.themeLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(ThemeMode.entries) { mode ->
-                    FilterChip(
-                        selected = state.themeMode == mode,
-                        onClick = { viewModel.setThemeMode(mode) },
-                        label = {
-                            Text(when(mode) {
-                                ThemeMode.System -> stringResource(Res.string.themeSystem)
-                                ThemeMode.Light -> stringResource(Res.string.themeLight)
-                                ThemeMode.Dark -> stringResource(Res.string.themeDark)
-                            })
-                        },
-                        leadingIcon = {
-                            if (state.themeMode == mode) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    // 动态取色
-    if (platform.type == PlatformType.Android || isDynamicColorSupported()) {
+        // 主题选择
         items.add { isFirst, isLast ->
-            ExpressiveSettingsSwitchItem(
-                headline = stringResource(Res.string.useDynamicColorLabel),
-                supporting = stringResource(Res.string.useDynamicColorDesc),
-                checked = state.useDynamicColor,
-                onCheckedChange = { viewModel.setUseDynamicColor(it) },
+            ExpressiveSettingsBoxItem(
                 isFirst = isFirst,
                 isLast = isLast,
                 containerColor = containerColor,
                 hazeState = hazeState,
                 enableHaze = enableHaze
-            )
-        }
-    }
-
-    // OLED 纯黑
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsSwitchItem(
-            headline = stringResource(Res.string.oledPureBlackLabel),
-            supporting = stringResource(Res.string.oledPureBlackDesc),
-            checked = state.oledPureBlack,
-            onCheckedChange = { viewModel.setOledPureBlack(it) },
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        )
-    }
-
-    // 主题颜色选择 - 复杂内容
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsBoxItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze,
-            overlay = {
-                // 开启动态取色时，显示遮罩覆盖整个卡片
-                if (state.useDynamicColor) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
-                            .clickable(enabled = false) { },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.dynamicColorEnabledHint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp)
+            ) {
+                Text(stringResource(Res.string.themeLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(ThemeMode.entries) { mode ->
+                        FilterChip(
+                            selected = state.themeMode == mode,
+                            onClick = { viewModel.setThemeMode(mode) },
+                            label = {
+                                Text(when(mode) {
+                                    ThemeMode.System -> stringResource(Res.string.themeSystem)
+                                    ThemeMode.Light -> stringResource(Res.string.themeLight)
+                                    ThemeMode.Dark -> stringResource(Res.string.themeDark)
+                                })
+                            },
+                            leadingIcon = {
+                                if (state.themeMode == mode) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
+                            }
                         )
                     }
                 }
             }
-        ) {
-            Text(stringResource(Res.string.themeColorLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(8.dp))
-    val isSeedColorEnabled = !state.useDynamicColor
-            val displayColor = if (state.useDynamicColor) {
-                MaterialTheme.colorScheme.primary.toArgb().toLong() and 0xFFFFFFFF
-            } else {
-                state.seedColor
+        }
+
+        // 动态取色
+        if (platform.type == PlatformType.Android || isDynamicColorSupported()) {
+            items.add { isFirst, isLast ->
+                ExpressiveSettingsSwitchItem(
+                    headline = stringResource(Res.string.useDynamicColorLabel),
+                    supporting = stringResource(Res.string.useDynamicColorDesc),
+                    checked = state.useDynamicColor,
+                    onCheckedChange = { viewModel.setUseDynamicColor(it) },
+                    isFirst = isFirst,
+                    isLast = isLast,
+                    containerColor = containerColor,
+                    hazeState = hazeState,
+                    enableHaze = enableHaze
+                )
             }
-            ColorSelectorWithPicker(
-                selectedColor = displayColor,
-                presetColors = seedColors,
-                onColorSelected = { viewModel.setSeedColor(it) },
-                enabled = isSeedColorEnabled,
-                disabledHint = stringResource(Res.string.dynamicColorEnabledHint),
-                modifier = Modifier.fillMaxWidth()
+        }
+
+        // OLED 纯黑
+        items.add { isFirst, isLast ->
+            ExpressiveSettingsSwitchItem(
+                headline = stringResource(Res.string.oledPureBlackLabel),
+                supporting = stringResource(Res.string.oledPureBlackDesc),
+                checked = state.oledPureBlack,
+                onCheckedChange = { viewModel.setOledPureBlack(it) },
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
             )
         }
-    }
 
-    // Palette Style - 复杂内容
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsBoxItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Text(stringResource(Res.string.paletteStyleLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Text(stringResource(Res.string.paletteStyleDesc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(PaletteStyle.entries) { style ->
-                    FilterChip(
-                        selected = state.paletteStyle == style,
-                        onClick = { viewModel.setPaletteStyle(style) },
-                        label = {
-                            Text(style.name)
-                        },
-                        leadingIcon = {
-                            if (state.paletteStyle == style) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
+        // 主题颜色选择
+        items.add { isFirst, isLast ->
+            ExpressiveSettingsBoxItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze,
+                overlay = {
+                    if (state.useDynamicColor) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                                .clickable(enabled = false) { },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.dynamicColorEnabledHint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
                         }
-                    )
+                    }
                 }
-            }
-        }
-    }
-
-    // Expressive Shapes
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsSwitchItem(
-            headline = stringResource(Res.string.useExpressiveShapesLabel),
-            supporting = stringResource(Res.string.useExpressiveShapesDesc),
-            checked = state.useExpressiveShapes,
-            onCheckedChange = { viewModel.setUseExpressiveShapes(it) },
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        )
-    }
-
-    // 可视化样式 - 复杂内容
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsBoxItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Text(stringResource(Res.string.visualizerStyleLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(8.dp))
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(VisualizerStyle.entries) { style ->
-                    FilterChip(
-                        selected = state.visualizerStyle == style,
-                        onClick = { viewModel.setVisualizerStyle(style) },
-                        label = {
-                            Text(when(style) {
-                                VisualizerStyle.VolumeRing -> stringResource(Res.string.visualizerStyleVolumeRing)
-                                VisualizerStyle.Ripple -> stringResource(Res.string.visualizerStyleRipple)
-                                VisualizerStyle.Bars -> stringResource(Res.string.visualizerStyleBars)
-                                VisualizerStyle.Wave -> stringResource(Res.string.visualizerStyleWave)
-                                VisualizerStyle.Glow -> stringResource(Res.string.visualizerStyleGlow)
-                                VisualizerStyle.Particles -> stringResource(Res.string.visualizerStyleParticles)
-                            })
-                        },
-                        leadingIcon = {
-                            if (state.visualizerStyle == style) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    // 背景设置 - 复杂内容
-    items.add { isFirst, isLast ->
-        ExpressiveSettingsBoxItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Text(stringResource(Res.string.backgroundSettingsLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = { viewModel.pickBackgroundImage() },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(stringResource(Res.string.selectBackgroundImage))
+                Text(stringResource(Res.string.themeColorLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(8.dp))
+                val isSeedColorEnabled = !state.useDynamicColor
+                val displayColor = if (state.useDynamicColor) {
+                    MaterialTheme.colorScheme.primary.toArgb().toLong() and 0xFFFFFFFF
+                } else {
+                    state.seedColor
                 }
-                if (state.backgroundSettings.hasCustomBackground) {
-                    OutlinedButton(
-                        onClick = { viewModel.clearBackgroundImage() },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(stringResource(Res.string.clearBackgroundImage))
+                ColorSelectorWithPicker(
+                    selectedColor = displayColor,
+                    presetColors = seedColors,
+                    onColorSelected = { viewModel.setSeedColor(it) },
+                    enabled = isSeedColorEnabled,
+                    disabledHint = stringResource(Res.string.dynamicColorEnabledHint),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // Palette Style
+        items.add { isFirst, isLast ->
+            ExpressiveSettingsBoxItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            ) {
+                Text(stringResource(Res.string.paletteStyleLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(Res.string.paletteStyleDesc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(PaletteStyle.entries) { style ->
+                        FilterChip(
+                            selected = state.paletteStyle == style,
+                            onClick = { viewModel.setPaletteStyle(style) },
+                            label = { Text(style.name) },
+                            leadingIcon = {
+                                if (state.paletteStyle == style) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
+                            }
+                        )
                     }
                 }
             }
+        }
 
-            if (state.backgroundSettings.hasCustomBackground) {
+        // Expressive Shapes
+        items.add { isFirst, isLast ->
+            ExpressiveSettingsSwitchItem(
+                headline = stringResource(Res.string.useExpressiveShapesLabel),
+                supporting = stringResource(Res.string.useExpressiveShapesDesc),
+                checked = state.useExpressiveShapes,
+                onCheckedChange = { viewModel.setUseExpressiveShapes(it) },
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            )
+        }
+
+        // 可视化样式
+        items.add { isFirst, isLast ->
+            ExpressiveSettingsBoxItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            ) {
+                Text(stringResource(Res.string.visualizerStyleLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(8.dp))
-                Text("${stringResource(Res.string.backgroundBrightnessLabel)}: ${(state.backgroundSettings.brightness * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
-                Slider(
-                    value = state.backgroundSettings.brightness,
-                    onValueChange = { viewModel.setBackgroundBrightness(it) },
-                    valueRange = 0f..1f
-                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(VisualizerStyle.entries) { style ->
+                        FilterChip(
+                            selected = state.visualizerStyle == style,
+                            onClick = { viewModel.setVisualizerStyle(style) },
+                            label = {
+                                Text(when(style) {
+                                    VisualizerStyle.VolumeRing -> stringResource(Res.string.visualizerStyleVolumeRing)
+                                    VisualizerStyle.Ripple -> stringResource(Res.string.visualizerStyleRipple)
+                                    VisualizerStyle.Bars -> stringResource(Res.string.visualizerStyleBars)
+                                    VisualizerStyle.Wave -> stringResource(Res.string.visualizerStyleWave)
+                                    VisualizerStyle.Glow -> stringResource(Res.string.visualizerStyleGlow)
+                                    VisualizerStyle.Particles -> stringResource(Res.string.visualizerStyleParticles)
+                                })
+                            },
+                            leadingIcon = {
+                                if (state.visualizerStyle == style) Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp)) else null
+                            }
+                        )
+                    }
+                }
+            }
+        }
 
-                Text("${stringResource(Res.string.backgroundBlurLabel)}: ${state.backgroundSettings.blurRadius.toInt()}px", style = MaterialTheme.typography.bodySmall)
-                Slider(
-                    value = state.backgroundSettings.blurRadius,
-                    onValueChange = { viewModel.setBackgroundBlur(it) },
-                    valueRange = 0f..50f
-                )
-
-                Text("${stringResource(Res.string.cardOpacityLabel)}: ${(state.backgroundSettings.cardOpacity * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
-                Slider(
-                    value = state.backgroundSettings.cardOpacity,
-                    onValueChange = { viewModel.setCardOpacity(it) },
-                    valueRange = 0f..1f
-                )
+        // 背景设置
+        items.add { isFirst, isLast ->
+            ExpressiveSettingsBoxItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            ) {
+                Text(stringResource(Res.string.backgroundSettingsLabel), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column {
-                        Text(stringResource(Res.string.enableHazeEffectLabel), style = MaterialTheme.typography.bodySmall)
-                        Text(stringResource(Res.string.enableHazeEffectDesc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Button(
+                        onClick = { viewModel.pickBackgroundImage() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(stringResource(Res.string.selectBackgroundImage))
                     }
-                    Switch(
-                        checked = state.backgroundSettings.enableHazeEffect,
-                        onCheckedChange = { viewModel.setEnableHazeEffect(it) }
+                    if (state.backgroundSettings.hasCustomBackground) {
+                        OutlinedButton(
+                            onClick = { viewModel.clearBackgroundImage() },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(Res.string.clearBackgroundImage))
+                        }
+                    }
+                }
+
+                if (state.backgroundSettings.hasCustomBackground) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("${stringResource(Res.string.backgroundBrightnessLabel)}: ${(state.backgroundSettings.brightness * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                    Slider(
+                        value = state.backgroundSettings.brightness,
+                        onValueChange = { viewModel.setBackgroundBrightness(it) },
+                        valueRange = 0f..1f
                     )
+
+                    Text("${stringResource(Res.string.backgroundBlurLabel)}: ${state.backgroundSettings.blurRadius.toInt()}px", style = MaterialTheme.typography.bodySmall)
+                    Slider(
+                        value = state.backgroundSettings.blurRadius,
+                        onValueChange = { viewModel.setBackgroundBlur(it) },
+                        valueRange = 0f..50f
+                    )
+
+                    Text("${stringResource(Res.string.cardOpacityLabel)}: ${(state.backgroundSettings.cardOpacity * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                    Slider(
+                        value = state.backgroundSettings.cardOpacity,
+                        onValueChange = { viewModel.setCardOpacity(it) },
+                        valueRange = 0f..1f
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(stringResource(Res.string.enableHazeEffectLabel), style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(Res.string.enableHazeEffectDesc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(
+                            checked = state.backgroundSettings.enableHazeEffect,
+                            onCheckedChange = { viewModel.setEnableHazeEffect(it) }
+                        )
+                    }
                 }
             }
         }
-    }
 
-    // 渲染设置项
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        items.forEachIndexed { index, item ->
-            val isFirst = index == 0
-            val isLast = index == items.size - 1
-            item(isFirst, isLast)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            items.forEachIndexed { index, item ->
+                item(index == 0, index == items.size - 1)
+            }
         }
     }
 }
 
-/**
- * Expressive 风格的音频设置部分 (Android)
- */
-@Composable
-private fun ExpressiveAudioSettings(viewModel: MainViewModel, hazeState: HazeState?) {
-    val state by viewModel.uiState.collectAsState()
-    val cardOpacity = state.backgroundSettings.cardOpacity
-    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
-    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
+private fun LazyListScope.audioSettingsItems(
+    state: AppUiState,
+    viewModel: MainViewModel,
+    containerColor: Color,
+    enableHaze: Boolean,
+    hazeState: HazeState?
+) {
+    item {
+        val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
 
-    // 收集所有设置项
-    val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
-
-    // 自动配置
-    items.add { isFirst, isLast ->
-        ExpressiveListItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            onClick = { viewModel.setAutoConfig(!state.isAutoConfig) },
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+        // 自动配置
+        items.add { isFirst, isLast ->
+            ExpressiveListItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                onClick = { viewModel.setAutoConfig(!state.isAutoConfig) },
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
             ) {
-                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                    Text(
-                        stringResource(Res.string.autoConfigLabel),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        stringResource(Res.string.autoConfigDesc),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                        Text(
+                            stringResource(Res.string.autoConfigLabel),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            stringResource(Res.string.autoConfigDesc),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = state.isAutoConfig,
+                        onCheckedChange = null // Handled by row click
                     )
                 }
-                Switch(
-                    checked = state.isAutoConfig,
-                    onCheckedChange = null // Handled by row click
-                )
             }
         }
-    }
-    val manualSettingsEnabled = !state.isAutoConfig
+        val manualSettingsEnabled = !state.isAutoConfig
 
-    // 采样率
-    items.add { isFirst, isLast ->
-        ExpressiveAudioDropdownItem(
-            headline = stringResource(Res.string.sampleRateLabel),
-            selected = "${state.sampleRate.value} Hz",
-            options = SampleRate.entries.map { "${it.value} Hz" },
-            onSelect = { index -> viewModel.setSampleRate(SampleRate.entries[index]) },
-            enabled = manualSettingsEnabled,
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        )
-    }
+        // 采样率
+        items.add { isFirst, isLast ->
+            ExpressiveAudioDropdownItem(
+                headline = stringResource(Res.string.sampleRateLabel),
+                selected = "${state.sampleRate.value} Hz",
+                options = SampleRate.entries.map { "${it.value} Hz" },
+                onSelect = { index -> viewModel.setSampleRate(SampleRate.entries[index]) },
+                enabled = manualSettingsEnabled,
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            )
+        }
 
-    // 声道数
-    items.add { isFirst, isLast ->
-        ExpressiveAudioDropdownItem(
-            headline = stringResource(Res.string.channelCountLabel),
-            selected = state.channelCount.label,
-            options = ChannelCount.entries.map { it.label },
-            onSelect = { index -> viewModel.setChannelCount(ChannelCount.entries[index]) },
-            enabled = manualSettingsEnabled,
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        )
-    }
+        // 声道数
+        items.add { isFirst, isLast ->
+            ExpressiveAudioDropdownItem(
+                headline = stringResource(Res.string.channelCountLabel),
+                selected = state.channelCount.label,
+                options = ChannelCount.entries.map { it.label },
+                onSelect = { index -> viewModel.setChannelCount(ChannelCount.entries[index]) },
+                enabled = manualSettingsEnabled,
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            )
+        }
 
-    // 音频格式
-    items.add { isFirst, isLast ->
-        ExpressiveAudioDropdownItem(
-            headline = stringResource(Res.string.audioFormatLabel),
-            selected = state.audioFormat.label,
-            options = AudioFormat.entries.map { it.label },
-            onSelect = { index -> viewModel.setAudioFormat(AudioFormat.entries[index]) },
-            enabled = manualSettingsEnabled,
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        )
-    }
+        // 音频格式
+        items.add { isFirst, isLast ->
+            ExpressiveAudioDropdownItem(
+                headline = stringResource(Res.string.audioFormatLabel),
+                selected = state.audioFormat.label,
+                options = AudioFormat.entries.map { it.label },
+                onSelect = { index -> viewModel.setAudioFormat(AudioFormat.entries[index]) },
+                enabled = manualSettingsEnabled,
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            )
+        }
 
-    // 音频源
-    items.add { isFirst, isLast ->
-        ExpressiveAudioSourceItem(
-            viewModel = viewModel,
-            isFirst = isFirst,
-            isLast = isLast,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        )
-    }
+        // 音频源
+        items.add { isFirst, isLast ->
+            ExpressiveAudioSourceItem(
+                viewModel = viewModel,
+                isFirst = isFirst,
+                isLast = isLast,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            )
+        }
 
-    // 渲染设置项
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        items.forEachIndexed { index, item ->
-            val isFirst = index == 0
-            val isLast = index == items.size - 1
-            item(isFirst, isLast)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            items.forEachIndexed { index, item ->
+                item(index == 0, index == items.size - 1)
+            }
         }
     }
 }
@@ -987,304 +918,277 @@ private fun ExpressiveAudioSourceItem(
     }
 }
 
-/**
- * Expressive 风格的插件设置部分
- */
-@Composable
-private fun ExpressivePluginSettings(viewModel: MainViewModel, hazeState: HazeState?) {
-    val state by viewModel.uiState.collectAsState()
-    val cardOpacity = state.backgroundSettings.cardOpacity
-    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
-    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
-
-    // 使用单层卡片包裹插件设置内容
-    ExpressiveSettingsBoxItem(
-        isSingle = true,
-        containerColor = containerColor,
-        hazeState = hazeState,
-        enableHaze = enableHaze
-    ) {
-        Text(stringResource(Res.string.pluginsSection), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(12.dp))
-        PluginSettingsContent(viewModel, state.backgroundSettings.cardOpacity)
+private fun LazyListScope.pluginSettingsItems(
+    state: AppUiState,
+    viewModel: MainViewModel,
+    containerColor: Color,
+    enableHaze: Boolean,
+    hazeState: HazeState?
+) {
+    item {
+        ExpressiveSettingsBoxItem(
+            isSingle = true,
+            containerColor = containerColor,
+            hazeState = hazeState,
+            enableHaze = enableHaze
+        ) {
+            Text(stringResource(Res.string.pluginsSection), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(12.dp))
+            PluginSettingsContent(viewModel, state.backgroundSettings.cardOpacity)
+        }
     }
 }
 
-/**
- * Expressive 风格的关于设置部分
- */
-@Composable
-private fun ExpressiveAboutSettings(viewModel: MainViewModel, hazeState: HazeState?) {
-    val state by viewModel.uiState.collectAsState()
-    val uriHandler = LocalUriHandler.current
-    var showLicenseDialog by remember { mutableStateOf(false) }
-    var showContributorsDialog by remember { mutableStateOf(false) }
-    var showSponsorsDialog by remember { mutableStateOf(false) }
-    val cardOpacity = state.backgroundSettings.cardOpacity
-    val enableHaze = state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceBright
-    val containerColor = baseContainerColor.copy(alpha = cardOpacity)
+private fun LazyListScope.aboutSettingsItems(
+    state: AppUiState,
+    viewModel: MainViewModel,
+    containerColor: Color,
+    enableHaze: Boolean,
+    hazeState: HazeState?,
+    onShowLicenseDialog: () -> Unit,
+    onShowContributorsDialog: () -> Unit,
+    onShowSponsorsDialog: () -> Unit
+) {
+    item {
+        val uriHandler = LocalUriHandler.current
 
-    if (showContributorsDialog) {
-        ContributorsDialog(onDismiss = { showContributorsDialog = false })
-    }
+        val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
 
-    if (showSponsorsDialog) {
-        SponsorsDialog(onDismiss = { showSponsorsDialog = false })
-    }
-
-    if (showLicenseDialog) {
-        AlertDialog(
-            onDismissRequest = { showLicenseDialog = false },
-            title = { Text(stringResource(Res.string.licensesTitle)) },
-            text = { OpenSourceLibrariesList() },
-            confirmButton = {
-                TextButton(onClick = { showLicenseDialog = false }) {
-                    Text(stringResource(Res.string.close))
-                }
-            }
-        )
-    }
-
-    // 收集所有设置项
-    val items = mutableListOf<@Composable (isFirst: Boolean, isLast: Boolean) -> Unit>()
-
-    // 开发者
-    items.add { isFirst, isLast ->
-        ExpressiveListItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            onClick = null,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
+        // 开发者
+        items.add { isFirst, isLast ->
+            ExpressiveListItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                onClick = null,
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
             ) {
-                Icon(Icons.Rounded.Person, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.developerLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
-                    Text("LanRhyme、ChinsaaWei、ChouChiu", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-    }
-
-    // GitHub 仓库
-    items.add { isFirst, isLast ->
-        ExpressiveListItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            onClick = { uriHandler.openUri("https://github.com/LanRhyme/MicYou") },
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Rounded.Language, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.githubRepoLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "https://github.com/LanRhyme/MicYou",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        textDecoration = TextDecoration.Underline
-                    )
-                }
-            }
-        }
-    }
-
-    // 贡献者
-    items.add { isFirst, isLast ->
-        ExpressiveListItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            onClick = { showContributorsDialog = true },
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Rounded.People, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.contributorsLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
-                    Text(stringResource(Res.string.contributorsDesc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-    }
-
-    // 赞助者
-    items.add { isFirst, isLast ->
-        ExpressiveListItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            onClick = { showSponsorsDialog = true },
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Rounded.Favorite, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.sponsorsLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
-                    Text(stringResource(Res.string.sponsorsDesc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-    }
-
-    // 版本
-    items.add { isFirst, isLast ->
-        ExpressiveListItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            onClick = { viewModel.checkUpdateManual() },
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Rounded.Info, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.Person, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(16.dp))
-                    Column {
-                        Text(stringResource(Res.string.versionLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(Res.string.developerLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                         Spacer(Modifier.height(4.dp))
-                        Text(getAppVersion(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("LanRhyme、ChinsaaWei、ChouChiu", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                TextButton(onClick = { viewModel.checkUpdateManual() }) {
-                    Text(stringResource(Res.string.checkUpdate))
-                }
             }
         }
-    }
 
-    // 开源许可证
-    items.add { isFirst, isLast ->
-        ExpressiveListItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            onClick = { showLicenseDialog = true },
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
+        // GitHub 仓库
+        items.add { isFirst, isLast ->
+            ExpressiveListItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                onClick = { uriHandler.openUri("https://github.com/LanRhyme/MicYou") },
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
             ) {
-                Icon(Icons.Rounded.Description, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.openSourceLicense), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
-                    Text(stringResource(Res.string.viewLibraries), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-    }
-
-    // 导出日志
-    items.add { isFirst, isLast ->
-        ExpressiveListItem(
-            isFirst = isFirst,
-            isLast = isLast,
-            onClick = {
-                viewModel.exportLog { path ->
-                    if (path != null) {
-                        val message = "Log exported to: $path"
-                        viewModel.showSnackbar(message)
-                    } else {
-                        val message = "Log export failed"
-                        viewModel.showSnackbar(message)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.Language, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(Res.string.githubRepoLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "https://github.com/LanRhyme/MicYou",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            textDecoration = TextDecoration.Underline
+                        )
                     }
                 }
-            },
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalAlignment = Alignment.CenterVertically
+            }
+        }
+
+        // 贡献者
+        items.add { isFirst, isLast ->
+            ExpressiveListItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                onClick = { onShowContributorsDialog() },
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
             ) {
-                Icon(Icons.AutoMirrored.Rounded.TextSnippet, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(stringResource(Res.string.exportLog), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(4.dp))
-                    Text(stringResource(Res.string.exportLogDesc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.People, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(Res.string.contributorsLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(stringResource(Res.string.contributorsDesc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
-    }
 
-    // 渲染设置项
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        items.forEachIndexed { index, item ->
-            val isFirst = index == 0
-            val isLast = index == items.size - 1
-            item(isFirst, isLast)
+        // 赞助者
+        items.add { isFirst, isLast ->
+            ExpressiveListItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                onClick = { onShowSponsorsDialog() },
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.Favorite, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(Res.string.sponsorsLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(stringResource(Res.string.sponsorsDesc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        // 版本
+        items.add { isFirst, isLast ->
+            ExpressiveListItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                onClick = { viewModel.checkUpdateManual() },
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Rounded.Info, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text(stringResource(Res.string.versionLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.height(4.dp))
+                            Text(getAppVersion(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    TextButton(onClick = { viewModel.checkUpdateManual() }) {
+                        Text(stringResource(Res.string.checkUpdate))
+                    }
+                }
+            }
+        }
+
+        // 开源许可证
+        items.add { isFirst, isLast ->
+            ExpressiveListItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                onClick = { onShowLicenseDialog() },
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Rounded.Description, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(Res.string.openSourceLicense), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(stringResource(Res.string.viewLibraries), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        // 导出日志
+        items.add { isFirst, isLast ->
+            ExpressiveListItem(
+                isFirst = isFirst,
+                isLast = isLast,
+                onClick = {
+                    viewModel.exportLog { path ->
+                        if (path != null) {
+                            val message = "Log exported to: $path"
+                            viewModel.showSnackbar(message)
+                        } else {
+                            val message = "Log export failed"
+                            viewModel.showSnackbar(message)
+                        }
+                    }
+                },
+                containerColor = containerColor,
+                hazeState = hazeState,
+                enableHaze = enableHaze
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.AutoMirrored.Rounded.TextSnippet, null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(Res.string.exportLog), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(stringResource(Res.string.exportLogDesc), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            items.forEachIndexed { index, item ->
+                item(index == 0, index == items.size - 1)
+            }
         }
     }
 
     // 底部软件介绍卡片
-    Spacer(Modifier.height(12.dp))
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
-        ),
-        shape = MaterialTheme.shapes.large
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(stringResource(Res.string.softwareIntro), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                stringResource(Res.string.introText),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+    item {
+        Spacer(Modifier.height(12.dp))
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
+            ),
+            shape = MaterialTheme.shapes.large
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(stringResource(Res.string.softwareIntro), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    stringResource(Res.string.introText),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
         }
     }
 }

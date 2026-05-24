@@ -53,9 +53,13 @@ class NetworkServer(
     // 当前活动的连接处理器
     private var activeHandler: ConnectionHandler? = null
 
+    // 当前连接模式，用于决定是否启动 UDP 监控
+    private var currentMode: ConnectionMode = ConnectionMode.Wifi
+
     suspend fun start(
         port: Int,
-        protocol: TransportProtocol = TransportProtocol.Both
+        protocol: TransportProtocol = TransportProtocol.Both,
+        mode: ConnectionMode = ConnectionMode.Wifi
     ) {
         serverJob?.takeIf { it.isActive }?.let {
             Logger.w("NetworkServer", "服务器已在运行")
@@ -64,6 +68,7 @@ class NetworkServer(
 
         _state.value = StreamState.Connecting
         _lastError.value = null
+        currentMode = mode
 
         // 使用 CompletableDeferred 确保绑定成功后才返回，同时捕获异常
         val startupComplete = CompletableDeferred<Unit>()
@@ -290,8 +295,10 @@ class NetworkServer(
             }
         )
         activeHandler = handler
-
-        val udpMonitorJob = if (udpHandler != null) {
+        
+        // 启动 UDP 连接监控（仅在双协议模式下，且非 USB 模式）
+        // USB 模式下 Android 客户端通过 TCP 发送音频，不会发送 UDP 包，无需监控
+        val udpMonitorJob = if (udpHandler != null && currentMode != ConnectionMode.Usb) {
             serverScope.launch {
                 monitorUdpConnection()
             }
