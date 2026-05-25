@@ -57,13 +57,6 @@ class MdnsAdvertiser {
         advertiseInternal(port, bindAddress, force = true)
     }
 
-    companion object {
-        private val VIRTUAL_KEYWORDS = listOf(
-            "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
-            "tunnel", "teredo", "isatap", "vpn"
-        )
-    }
-
     private fun resolveAdvertiseAddress(bindAddress: String): InetAddress? {
         return if (bindAddress == "0.0.0.0") {
             findLanAddress()
@@ -73,32 +66,13 @@ class MdnsAdvertiser {
     }
 
     private fun findLanAddress(): InetAddress? {
-        try {
-            val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
-            val candidates = mutableListOf<Pair<java.net.NetworkInterface, java.net.Inet4Address>>()
-            while (interfaces.hasMoreElements()) {
-                val networkInterface = interfaces.nextElement()
-                if (networkInterface.isLoopback || !networkInterface.isUp || networkInterface.isVirtual) continue
-                val name = networkInterface.name.lowercase()
-                val displayName = networkInterface.displayName?.lowercase() ?: ""
-                if (VIRTUAL_KEYWORDS.any { name.contains(it) || displayName.contains(it) }) continue
-                val addresses = networkInterface.inetAddresses
-                while (addresses.hasMoreElements()) {
-                    val address = addresses.nextElement()
-                    if (address is java.net.Inet4Address && !address.isLoopbackAddress) {
-                        candidates.add(networkInterface to address)
-                    }
-                }
-            }
-            // Prefer interfaces with common LAN prefixes (192.168.x.x, 10.x.x.x)
-            val lanPreferred = candidates.firstOrNull { it.second.hostAddress?.startsWith("192.168.") == true }
-                ?: candidates.firstOrNull { it.second.hostAddress?.startsWith("10.") == true }
-                ?: candidates.firstOrNull()
-            return lanPreferred?.second
+        return try {
+            val preferredIp = LocalNetworkAddressProvider.getPreferredIpAddress()
+            if (preferredIp != "Unknown") InetAddress.getByName(preferredIp) else null
         } catch (e: Exception) {
             Logger.w("MdnsAdvertiser", "Failed to find LAN address: ${e.message}")
+            null
         }
-        return null
     }
 
     fun close() {

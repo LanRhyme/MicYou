@@ -86,6 +86,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -406,8 +407,11 @@ private fun NetworkConfigCard(
                     var showIpSwitchConfirm by remember { mutableStateOf(false) }
                     var pendingIp by remember { mutableStateOf("") }
                     var pendingAutoSelect by remember { mutableStateOf(false) }
-                    val ipDetails = remember(showIpList) {
-                        if (showIpList) platform.ipAddressDetails else emptyList()
+                    var ipDetails by remember { mutableStateOf(emptyList<IpAddressInfo>()) }
+                    LaunchedEffect(showIpList) {
+                        if (showIpList) {
+                            ipDetails = refreshLocalIpAddressDetails()
+                        }
                     }
                     val currentIp = state.ipAddress
                     val isAutoBind = state.isAutoBindAddress

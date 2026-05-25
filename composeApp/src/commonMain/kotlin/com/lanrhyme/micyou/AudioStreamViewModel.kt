@@ -2,6 +2,7 @@ package com.lanrhyme.micyou
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -102,9 +103,11 @@ class AudioStreamViewModel : ViewModel() {
     val metricsHistoryFlow: StateFlow<List<AudioMetrics>> = _metricsHistoryFlow.asStateFlow()
 
     private val settings = SettingsFactory.getSettings()
+    private var isStartStreamRequestPending = false
 
     init {
         loadSettings()
+        refreshDesktopIpState()
         setupAudioEngineObservers()
         // Auto-start discovery on Android when in WiFi mode
         if (getPlatform().type == PlatformType.Android && _uiState.value.mode == ConnectionMode.Wifi) {
@@ -152,7 +155,7 @@ class AudioStreamViewModel : ViewModel() {
             savedBindAddress.isNotBlank() && savedBindAddress != "0.0.0.0" -> savedBindAddress
             else -> ""
         }
-        val effectiveIp = if (isDesktop) manualDesktopIp.ifBlank { platform.ipAddress } else savedIp
+        val effectiveIp = if (isDesktop) manualDesktopIp.ifBlank { savedIp } else savedIp
         val effectiveBindAddress = if (isDesktop && manualDesktopIp.isNotBlank()) manualDesktopIp else "0.0.0.0"
         val savedIsAutoBind = isDesktop && manualDesktopIp.isBlank()
     val savedPort = settings.getString("port", Constants.DEFAULT_TCP_PORT.toString())
@@ -257,6 +260,28 @@ class AudioStreamViewModel : ViewModel() {
         
         _audioEngine.setMonitoring(savedMonitoring)
         updateAudioEngineConfig()
+    }
+
+    private fun refreshDesktopIpState() {
+        if (getPlatform().type != PlatformType.Desktop) return
+        viewModelScope.launch {
+            try {
+                val details = refreshLocalIpAddressDetails()
+                val preferredIp = details.firstOrNull()?.ip ?: return@launch
+                _uiState.update { current ->
+                    if (!current.isAutoBindAddress || current.ipAddress == preferredIp) {
+                        current
+                    } else {
+                        current.copy(ipAddress = preferredIp)
+                    }
+                }
+                if (_uiState.value.isAutoBindAddress) {
+                    settings.putString("ip_address", preferredIp)
+                }
+            } catch (e: Exception) {
+                Logger.w("AudioStreamViewModel", "Failed to refresh desktop IP state: ${e.message}")
+            }
+        }
     }
 
     private fun setupAudioEngineObservers() {
@@ -365,6 +390,25 @@ class AudioStreamViewModel : ViewModel() {
     }
 
     fun startStream() {
+        if (isStartStreamRequestPending ||
+            _uiState.value.streamState == StreamState.Streaming ||
+            _uiState.value.streamState == StreamState.Connecting
+        ) {
+            Logger.d("AudioStreamViewModel", "Start stream request ignored: already starting or running")
+            return
+        }
+
+        isStartStreamRequestPending = true
+        viewModelScope.launch {
+            try {
+                startStreamInternal()
+            } finally {
+                isStartStreamRequestPending = false
+            }
+        }
+    }
+
+    private suspend fun startStreamInternal() {
         Logger.i("AudioStreamViewModel", "Starting stream")
         val mode = _uiState.value.mode
         val isDesktop = getPlatform().type == PlatformType.Desktop
@@ -410,45 +454,40 @@ class AudioStreamViewModel : ViewModel() {
 
         _uiState.update { it.copy(streamState = StreamState.Connecting, errorMessage = null, showErrorDialog = false, errorDetails = null) }
 
-        // 启动音频引擎（不阻塞）
-        viewModelScope.launch {
-            updateAudioEngineConfig()
+        updateAudioEngineConfig()
 
-            try {
-                Logger.d("AudioStreamViewModel", "Calling _audioEngine.start()")
-                _audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat, _uiState.value.transportProtocol)
-                Logger.i("AudioStreamViewModel", "Stream started successfully")
-            } catch (e: Exception) {
-                Logger.e("AudioStreamViewModel", "Failed to start stream", e)
-                
-                // 分析错误并生成详细错误信息
-                val errorType = ConnectionErrorHelper.analyzeError(e, mode)
-                val savedLanguageName = settings.getString("language", AppLanguage.System.name)
-                val language = try {
-                    AppLanguage.valueOf(savedLanguageName)
-                } catch (ex: Exception) {
-                    AppLanguage.System
-                }
-                val errorDetails = ConnectionErrorHelper.generateErrorDetails(
-                    type = errorType,
-                    originalMessage = e.message ?: "Unknown error",
-                    mode = mode,
-                    port = port,
-                    ip = ip
-                )
-                
-                _uiState.update { 
-                    it.copy(
-                        streamState = StreamState.Error, 
-                        errorMessage = errorDetails.localizedMessage,
-                        showErrorDialog = true,
-                        errorDetails = errorDetails
-                    ) 
-                }
+        try {
+            Logger.d("AudioStreamViewModel", "Calling _audioEngine.start()")
+            _audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat, _uiState.value.transportProtocol)
+            Logger.i("AudioStreamViewModel", "Stream started successfully")
+        } catch (e: Exception) {
+            Logger.e("AudioStreamViewModel", "Failed to start stream", e)
+
+            val errorType = ConnectionErrorHelper.analyzeError(e, mode)
+            val savedLanguageName = settings.getString("language", AppLanguage.System.name)
+            val language = try {
+                AppLanguage.valueOf(savedLanguageName)
+            } catch (ex: Exception) {
+                AppLanguage.System
             }
-        }
+            val errorDetails = ConnectionErrorHelper.generateErrorDetails(
+                type = errorType,
+                originalMessage = e.message ?: "Unknown error",
+                mode = mode,
+                port = port,
+                ip = ip
+            )
 
-        // 异步检查防火墙（不阻塞启动）
+            _uiState.update {
+                it.copy(
+                    streamState = StreamState.Error,
+                    errorMessage = errorDetails.localizedMessage,
+                    showErrorDialog = true,
+                    errorDetails = errorDetails
+                )
+            }
+            return
+        }
         if (!isClient && mode == ConnectionMode.Wifi) {
             viewModelScope.launch {
                 val tcpAllowed = isPortAllowed(port, "TCP")
@@ -531,18 +570,16 @@ class AudioStreamViewModel : ViewModel() {
         val isDesktop = getPlatform().type == PlatformType.Desktop
 
         if (isDesktop && isAutoSelect) {
-            val autoIp = getPlatform().ipAddress
             _uiState.update {
                 it.copy(
-                    ipAddress = autoIp,
                     isAutoBindAddress = true,
                     bindAddress = "0.0.0.0"
                 )
             }
-            settings.putString("ip_address", autoIp)
             settings.putBoolean("is_auto_bind_address", true)
             settings.putString("bind_address", "0.0.0.0")
             settings.putString("selected_ip_address", "auto")
+            refreshDesktopIpState()
         } else {
             val selectedIp = ip.ifBlank { _uiState.value.ipAddress }
             _uiState.update {
@@ -562,10 +599,10 @@ class AudioStreamViewModel : ViewModel() {
 
         // 如果要求重启流（IP 切换时），先停止再启动
         if (restartStream && wasRunning) {
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 try {
                     _audioEngine.stopAndWait()
-                    startStream()
+                    startStreamInternal()
                 } catch (e: Exception) {
                     Logger.e("AudioStreamViewModel", "Failed to restart stream after IP change", e)
                 }
@@ -758,7 +795,7 @@ class AudioStreamViewModel : ViewModel() {
             }
             
             // 无论防火墙规则是否添加成功，都尝试启动音频流
-            startStream()
+            startStreamInternal()
         }
     }
 

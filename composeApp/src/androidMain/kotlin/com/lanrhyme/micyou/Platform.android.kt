@@ -23,6 +23,8 @@ class AndroidPlatform : Platform {
 }
 
 actual fun getPlatform(): Platform = AndroidPlatform()
+actual suspend fun getPreferredLocalIpAddress(): String = "Client"
+actual suspend fun refreshLocalIpAddressDetails(): List<IpAddressInfo> = emptyList()
 
 actual fun getAppVersion(): String = BuildConfig.VERSION_NAME
 
@@ -106,4 +108,3 @@ actual fun currentTimeSeconds(): Long = System.currentTimeMillis() / 1000
 actual fun QrCodeImage(content: String, modifier: Modifier, sizeDp: Int) {
     // Web mode not supported on Android
 }
-

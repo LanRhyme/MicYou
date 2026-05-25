@@ -12,9 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.net.Inet4Address
-import java.net.InetAddress
-import java.net.NetworkInterface
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -37,10 +34,6 @@ class NetworkAddressMonitor {
     private var isRunning = false
 
     companion object {
-        private val VIRTUAL_KEYWORDS = listOf(
-            "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
-            "tunnel", "teredo", "isatap", "vpn"
-        )
         private const val MONITOR_INTERVAL_MS = 10_000L
     }
 
@@ -48,13 +41,16 @@ class NetworkAddressMonitor {
         if (isRunning) return
         isRunning = true
 
-        val initialAddresses = getCurrentIpAddresses()
-        _currentIpAddresses.value = initialAddresses
-        _primaryIp.value = initialAddresses.firstOrNull()?.ip
+        val initialAddresses = LocalNetworkAddressProvider.getCachedOrRefreshNow()
+        if (initialAddresses.any { it.ip != "Unknown" }) {
+            _currentIpAddresses.value = initialAddresses
+            _primaryIp.value = initialAddresses.firstOrNull()?.ip
+        }
 
         Logger.i("NetworkAddressMonitor", "Started monitoring. Primary IP: ${_primaryIp.value}")
 
         monitorJob = scope.launch {
+            checkForChanges()
             while (isActive) {
                 delay(MONITOR_INTERVAL_MS)
                 checkForChanges()
@@ -110,44 +106,7 @@ class NetworkAddressMonitor {
 
     private fun getCurrentIpAddresses(): List<IpAddressInfo> {
         return try {
-            val interfaces = NetworkInterface.getNetworkInterfaces()
-            val candidates = mutableListOf<Pair<InetAddress, String>>()
-
-            while (interfaces.hasMoreElements()) {
-                val iface = interfaces.nextElement()
-                if (iface.isLoopback || !iface.isUp || iface.isVirtual) continue
-                val name = iface.name.lowercase()
-                val displayName = iface.displayName?.lowercase() ?: ""
-                if (VIRTUAL_KEYWORDS.any { name.contains(it) || displayName.contains(it) }) continue
-
-                val addresses = iface.inetAddresses
-                while (addresses.hasMoreElements()) {
-                    val addr = addresses.nextElement()
-                    if (addr is Inet4Address && !addr.isLoopbackAddress) {
-                        candidates.add(addr to (iface.displayName ?: iface.name))
-                    }
-                }
-            }
-
-            val sortedCandidates = candidates.sortedByDescending { (addr, _) ->
-                val ip = addr.hostAddress
-                when {
-                    ip.startsWith("192.168.") -> 100
-                    ip.startsWith("172.") && (ip.split(".")[1].toIntOrNull() in 16..31) -> 80
-                    ip.startsWith("10.") -> 50
-                    ip.startsWith("198.18.") -> -10
-                    ip.startsWith("169.254.") -> -20
-                    else -> 0
-                }
-            }
-
-            val result = sortedCandidates.map { (addr, ifaceName) ->
-                IpAddressInfo(addr.hostAddress, ifaceName)
-            }
-
-            if (result.isNotEmpty()) return result
-
-            listOf(IpAddressInfo(InetAddress.getLocalHost().hostAddress, "Default"))
+            LocalNetworkAddressProvider.refreshNow()
         } catch (e: Exception) {
             Logger.w("NetworkAddressMonitor", "Failed to get IP addresses: ${e.message}")
             emptyList()
