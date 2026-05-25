@@ -548,7 +548,7 @@ private fun NetworkConfigCard(
                                     }
                                     showIpSwitchConfirm = false
                                 }) {
-                                    Text(stringResource(Res.string.ipSwitchRestart))
+                                    Text(stringResource(Res.string.ipSwitchContinue))
                                 }
                             },
                             dismissButton = {

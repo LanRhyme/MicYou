@@ -613,7 +613,7 @@ private fun IpSelector(
                         }
                         showIpSwitchConfirm = false
                     }) {
-                        Text(stringResource(Res.string.ipSwitchRestart))
+                        Text(stringResource(Res.string.ipSwitchContinue))
                     }
                 },
                 dismissButton = {
