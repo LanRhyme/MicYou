@@ -114,7 +114,13 @@ class NetworkAddressMonitor {
     }
 
     private fun areAddressesEqual(old: List<IpAddressInfo>, new: List<IpAddressInfo>): Boolean {
-        return old.map { it.ip to it.interfaceName } == new.map { it.ip to it.interfaceName }
+        return normalizeAddresses(old) == normalizeAddresses(new)
+    }
+
+    private fun normalizeAddresses(addresses: List<IpAddressInfo>): List<Pair<String, String>> {
+        return addresses
+            .map { it.ip to it.interfaceName }
+            .sortedWith(compareBy<Pair<String, String>> { it.first }.thenBy { it.second })
     }
 }
 

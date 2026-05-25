@@ -85,7 +85,11 @@ internal object LocalNetworkAddressProvider {
         }
 
         val result = candidates
-            .sortedByDescending { (addr, _) -> scoreIpAddress(addr.hostAddress) }
+            .sortedWith(
+                compareByDescending<Pair<InetAddress, String>> { (addr, _) -> scoreIpAddress(addr.hostAddress) }
+                    .thenBy { (addr, _) -> addr.hostAddress }
+                    .thenBy { (_, ifaceName) -> ifaceName }
+            )
             .map { (addr, ifaceName) -> IpAddressInfo(addr.hostAddress, ifaceName) }
 
         return result.ifEmpty {

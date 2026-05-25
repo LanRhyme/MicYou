@@ -37,10 +37,14 @@ class JVMPlatform: Platform {
 
 actual fun getPlatform(): Platform = JVMPlatform()
 actual suspend fun getPreferredLocalIpAddress(): String = withContext(Dispatchers.IO) {
-    LocalNetworkAddressProvider.refreshNow().firstOrNull()?.ip ?: "Unknown"
+    runCatching { LocalNetworkAddressProvider.refreshNow().firstOrNull()?.ip ?: "Unknown" }
+        .onFailure { Logger.w("Platform", "Failed to refresh preferred IP address: ${it.message}") }
+        .getOrDefault("Unknown")
 }
 actual suspend fun refreshLocalIpAddressDetails(): List<IpAddressInfo> = withContext(Dispatchers.IO) {
-    LocalNetworkAddressProvider.refreshNow()
+    runCatching { LocalNetworkAddressProvider.refreshNow() }
+        .onFailure { Logger.w("Platform", "Failed to refresh IP address details: ${it.message}") }
+        .getOrDefault(emptyList())
 }
 
 actual fun getAppVersion(): String {

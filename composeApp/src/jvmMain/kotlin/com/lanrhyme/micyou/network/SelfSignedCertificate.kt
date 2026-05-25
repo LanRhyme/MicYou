@@ -12,10 +12,13 @@ object SelfSignedCertificate {
     private const val IPS_FILENAME = "micyou_web.jks.ips"
 
     private var cachedKeyStore: KeyStore? = null
+    private var cachedLanIps: Set<String>? = null
 
     internal fun getLanIpAddresses(): List<String> {
         return try {
-            LocalNetworkAddressProvider.getCachedIpAddressDetails().map { it.ip }
+            val details = LocalNetworkAddressProvider.getCachedIpAddressDetails()
+                .ifEmpty { LocalNetworkAddressProvider.getCachedOrRefreshNow() }
+            details.map { it.ip }.filter { it.isNotBlank() && it != "Unknown" }
         } catch (e: Exception) {
             Logger.w("SelfSignedCertificate", "Failed to get LAN IP addresses: ${e.message}")
             emptyList()
@@ -23,13 +26,16 @@ object SelfSignedCertificate {
     }
 
     fun generate(): KeyStore {
-        cachedKeyStore?.let { return it }
-
         val tmpDir = System.getProperty("java.io.tmpdir")
         val certFile = File(tmpDir, CERT_FILENAME)
         val ipsFile = File(tmpDir, IPS_FILENAME)
 
         val currentLanIps = getLanIpAddresses()
+        val currentIpSet = currentLanIps.toSet()
+        if (cachedLanIps == currentIpSet) {
+            cachedKeyStore?.let { return it }
+        }
+
         val domainList = mutableListOf("localhost", "127.0.0.1")
         domainList.addAll(currentLanIps)
 
@@ -39,12 +45,12 @@ object SelfSignedCertificate {
             } else {
                 emptySet()
             }
-            val currentIpSet = currentLanIps.toSet()
             if (savedIps == currentIpSet) {
                 try {
                     val ks = KeyStore.getInstance("JKS")
                     ks.load(certFile.inputStream(), KEYSTORE_PASSWORD.toCharArray())
                     cachedKeyStore = ks
+                    cachedLanIps = currentIpSet
                     Logger.i("SelfSignedCertificate", "Loaded cached SSL certificate from ${certFile.absolutePath}")
                     return ks
                 } catch (e: Exception) {
@@ -68,6 +74,7 @@ object SelfSignedCertificate {
             ipsFile.writeText(currentLanIps.joinToString("\n"))
 
             cachedKeyStore = keystore
+            cachedLanIps = currentIpSet
             Logger.i("SelfSignedCertificate", "Generated new SSL certificate with domains: $domainList saved to ${certFile.absolutePath}")
             return keystore
         } catch (e: Exception) {
