@@ -103,6 +103,13 @@ fi
 # 构建类路径
 CLASSPATH="$APP_HOME/lib/*"
 
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    ALSA_CONFIG="$APP_HOME/resources/alsa/micyou-pipewire.conf"
+    if [ -f "$ALSA_CONFIG" ]; then
+        export ALSA_CONFIG_PATH="$ALSA_CONFIG"
+    fi
+fi
+
 # 启动应用
 echo -e "${CYAN}启动 $APP_NAME $APP_VERSION...${NC}"
 exec "$JAVA_CMD" -cp "$CLASSPATH" "$MAIN_CLASS" "$@"

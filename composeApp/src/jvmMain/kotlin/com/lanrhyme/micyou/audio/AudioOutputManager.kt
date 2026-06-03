@@ -11,7 +11,6 @@ class AudioOutputManager {
     private var outputLine: SourceDataLine? = null
     private var monitorLoopbackProcess: Process? = null
     private var monitorLine: SourceDataLine? = null
-    private var pwCatProcess: Process? = null
     private var isUsingVirtualDevice = false
     private var isManuallySelectedDevice = false
     private var isMonitoring = false
@@ -104,59 +103,21 @@ class AudioOutputManager {
             }
         }
         
-        Logger.w("AudioOutputManager", "PipeWire virtual device mixer not found; using PulseAudio method instead.")
-        return initPulseAudio(audioFormat)
+        Logger.w("AudioOutputManager", "PipeWire virtual device mixer not found; using default ALSA/JVM output.")
+        return initLinuxDefaultOutput(audioFormat, lineInfo)
     }
     
-    private fun initPulseAudio(audioFormat: AudioFormat): Boolean {
-        val sinkName = PipeWireManager.virtualSinkName
-
-        try {
-            val process = ProcessBuilder(
-                "pw-cat",
-                "--playback",
-                "--target.object=$sinkName",
-                "--rate=${audioFormat.sampleRate.toInt()}",
-                "--channels=${audioFormat.channels}",
-                "--format=s16",
-                "-"
-            ).redirectErrorStream(false).start()
-
-            // 短暂等待以检测"立即退出"的失败场景
-            // 若进程在短窗口后仍存活，视为启动成功并立即继续
-            Thread.sleep(100)
-    val isProcessAlive = process.isAlive
-
-            // 判断成功条件：
-            // 1. 进程仍在运行 → 视为成功启动
-            // 2. 进程已终止且 exitValue == 0 → 正常退出（虽然不太常见）
-            val success = if (isProcessAlive) {
-                true  // 进程运行中，成功
-            } else {
-                // 进程已终止，检查退出值
-                try {
-                    process.exitValue() == 0
-                } catch (e: IllegalThreadStateException) {
-                    false // 无法获取退出值，视为失败
-                }
-            }
-
-            if (success) {
-                pwCatProcess = process
-                isUsingVirtualDevice = true
-                val statusInfo = if (isProcessAlive) "running" else "exited(0)"
-                Logger.i("AudioOutputManager", "Using pw-cat to write to virtual sink: $sinkName (status=$statusInfo)")
-                return true
-            } else {
-                val exitInfo = try { "exit(${process.exitValue()})" } catch (e: Exception) { "exit(?)" }
-    val output = process.errorStream.bufferedReader().readText()
-                Logger.e("AudioOutputManager", "pw-cat failed to start ($exitInfo): $output")
-            }
+    private fun initLinuxDefaultOutput(audioFormat: AudioFormat, lineInfo: DataLine.Info): Boolean {
+        return try {
+            outputLine = AudioSystem.getLine(lineInfo) as SourceDataLine
+            isUsingVirtualDevice = true
+            Logger.i("AudioOutputManager", "Using default ALSA/JVM output targeting ${PipeWireManager.virtualSinkName}")
+            openAndStartLine(audioFormat)
         } catch (e: Exception) {
-            Logger.w("AudioOutputManager", "pw-cat method failed: ${e.message}")
+            Logger.e("AudioOutputManager", "Failed to initialize default ALSA/JVM output", e)
+            outputLine = null
+            false
         }
-
-        return false
     }
     
     private fun initMacOS(audioFormat: AudioFormat, lineInfo: DataLine.Info): Boolean {
@@ -350,12 +311,7 @@ class AudioOutputManager {
         }
         
         try {
-            pwCatProcess?.let { process ->
-                if (process.isAlive) {
-                    process.outputStream.write(buffer, offset, length)
-                    process.outputStream.flush()
-                }
-            } ?: outputLine?.write(buffer, offset, length)
+            outputLine?.write(buffer, offset, length)
         } catch (e: Exception) {
             Logger.e("AudioOutputManager", "Failed to write audio data", e)
         }
@@ -368,9 +324,6 @@ class AudioOutputManager {
     }
     
     fun getQueuedDurationMs(): Long {
-        if (pwCatProcess != null) {
-            return 0L
-        }
     val line = outputLine ?: return 0L
         val bytesPerSecond = (line.format.sampleRate.toInt() * line.format.channels * 2).coerceAtLeast(1)
     val queuedBytes = (line.bufferSize - line.available()).coerceAtLeast(0)
@@ -378,7 +331,6 @@ class AudioOutputManager {
     }
     
     fun flush() {
-        pwCatProcess?.outputStream?.flush()
         outputLine?.flush()
         monitorLine?.flush()
     }
@@ -497,19 +449,6 @@ class AudioOutputManager {
         
         stopMonitorLoopback()
         
-        pwCatProcess?.let { process ->
-            try {
-                if (process.isAlive) {
-                    process.outputStream.close()
-                    process.destroy()
-                    Logger.d("AudioOutputManager", "pw-cat process terminated")
-                }
-            } catch (e: Exception) {
-                Logger.e("AudioOutputManager", "Error terminating pw-cat process", e)
-            }
-        }
-        pwCatProcess = null
-        
         try {
             outputLine?.drain()
             outputLine?.close()
@@ -530,4 +469,3 @@ class AudioOutputManager {
         return PlatformInfo.isLinux || PlatformInfo.isMacOS
     }
 }
-

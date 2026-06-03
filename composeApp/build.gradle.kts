@@ -361,6 +361,12 @@ tasks.matching { it.name == "jvmRun" }.configureEach {
             tmpDir.mkdirs()
         }
         jvmArgs("-Djava.io.tmpdir=${tmpDir.absolutePath}")
+        if (System.getProperty("os.name").lowercase().contains("linux")) {
+            environment(
+                "ALSA_CONFIG_PATH",
+                layout.projectDirectory.file("src/jvmMain/resources/alsa/micyou-pipewire.conf").asFile.absolutePath
+            )
+        }
     }
 }
 
@@ -581,6 +587,10 @@ tasks.register<Copy>("copyNoJreAppFiles") {
     from(tasks.named<Jar>("jvmJar").get().archiveFile) {
         into("lib")
         rename { "${appName}.jar" }
+    }
+
+    from(layout.projectDirectory.file("src/jvmMain/resources/alsa/micyou-pipewire.conf")) {
+        into("resources/alsa")
     }
 
     into(outputDir)
