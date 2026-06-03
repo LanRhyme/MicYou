@@ -88,9 +88,9 @@ class AudioOutputManager {
                 return false
             }
         }
-    val sinkName = PipeWireManager.virtualSinkName
-        Logger.i("AudioOutputManager", "Attempt to connect to the virtual sink: \$sinkName")
-    val mixers = AudioSystem.getMixerInfo()
+        val sinkName = PipeWireManager.virtualSinkName
+        Logger.i("AudioOutputManager", "Attempt to connect to the virtual sink: $sinkName")
+        val mixers = AudioSystem.getMixerInfo()
         for (mixerInfo in mixers) {
             val mixerName = mixerInfo.name.lowercase()
             if (mixerName.contains("micyou") || mixerName.contains("virtual")) {
@@ -99,11 +99,11 @@ class AudioOutputManager {
                     if (mixer.isLineSupported(lineInfo)) {
                         outputLine = mixer.getLine(lineInfo) as SourceDataLine
                         isUsingVirtualDevice = true
-                        Logger.i("AudioOutputManager", "Using virtual device: \${mixerInfo.name}")
+                        Logger.i("AudioOutputManager", "Using virtual device: ${mixerInfo.name}")
                         return openAndStartLine(audioFormat)
                     }
                 } catch (e: Exception) {
-                    Logger.d("AudioOutputManager", "The mixer \${mixerInfo.name} does not support this format.")
+                    Logger.d("AudioOutputManager", "The mixer ${mixerInfo.name} does not support this format.")
                 }
             }
         }
@@ -143,7 +143,7 @@ class AudioOutputManager {
             try {
                 outputLine = blackHoleMixer.getLine(lineInfo) as SourceDataLine
                 isUsingVirtualDevice = true
-                Logger.i("AudioOutputManager", "Using the BlackHole virtual device: \${blackHoleMixer.mixerInfo.name}")
+                Logger.i("AudioOutputManager", "Using the BlackHole virtual device: ${blackHoleMixer.mixerInfo.name}")
                 return openAndStartLine(audioFormat)
             } catch (e: Exception) {
                 Logger.e("AudioOutputManager", "Failed to initialize BlackHole", e)
@@ -163,11 +163,11 @@ class AudioOutputManager {
                 try {
                     val mixer = AudioSystem.getMixer(mixerInfo)
                     if (mixer.isLineSupported(lineInfo)) {
-                        Logger.d("AudioOutputManager", "Found BlackHole mixer: \${mixerInfo.name}")
+                        Logger.d("AudioOutputManager", "Found BlackHole mixer: ${mixerInfo.name}")
                         return mixer
                     }
                 } catch (e: Exception) {
-                    Logger.d("AudioOutputManager", "BlackHole mixer Check Failed: \${e.message}")
+                    Logger.d("AudioOutputManager", "BlackHole mixer Check Failed: ${e.message}")
                 }
             }
         }
@@ -305,7 +305,7 @@ class AudioOutputManager {
             outputLine?.open(audioFormat, bufferSizeBytes)
             outputLine?.start()
             
-            Logger.d("AudioOutputManager", "Audio output line has been activated (Buffer: \${bufferSizeBytes} bytes)")
+            Logger.d("AudioOutputManager", "Audio output line has been activated (Buffer: ${bufferSizeBytes} bytes)")
             true
         } catch (e: Exception) {
             Logger.e("AudioOutputManager", "Failed to open audio output line", e)

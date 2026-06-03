@@ -31,6 +31,7 @@ import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import java.awt.Font
 import java.awt.Toolkit
+import java.io.File
 import javax.swing.UIManager
 import kotlin.system.exitProcess
 import micyou.composeapp.generated.resources.*
@@ -41,6 +42,7 @@ import org.jetbrains.compose.resources.stringResource
 fun main() {
     JvmLogger.init()
     Logger.init(JvmLogger)
+    relaunchLinuxWithPipeWireAlsaConfigIfNeeded()
     System.setProperty("file.encoding", "UTF-8")
     System.setProperty("sun.jnu.encoding", "UTF-8")
     
@@ -69,8 +71,8 @@ fun main() {
         if (PlatformInfo.isMacOS) {
             fontName = "SF Pro Display"
         }
-    val font = Font(fontName, Font.PLAIN, 12)
-    val keys = arrayOf(
+        val font = Font(fontName, Font.PLAIN, 12)
+        val keys = arrayOf(
             "MenuItem.font", "Menu.font", "PopupMenu.font", 
             "CheckBoxMenuItem.font", "RadioButtonMenuItem.font",
             "Label.font", "Button.font", "ToolTip.font"
@@ -88,8 +90,8 @@ fun main() {
     Logger.i("Main", "App started")
     application {
         val viewModel = remember { MainViewModel() }
-    var isVisible by remember { mutableStateOf(true) }
-    var showSettingsWindow by remember { mutableStateOf(false) }
+        var isVisible by remember { mutableStateOf(true) }
+        var showSettingsWindow by remember { mutableStateOf(false) }
 
         // Helper function for app exit with timeout protection
         val exitApp: () -> Unit = {
@@ -235,6 +237,63 @@ fun main() {
             FloatingMicWindowContainer(viewModel = viewModel)
         }
     }
+}
+
+private fun relaunchLinuxWithPipeWireAlsaConfigIfNeeded() {
+    if (!PlatformInfo.isLinux) return
+    if (!System.getenv("ALSA_CONFIG_PATH").isNullOrBlank()) return
+    if (System.getenv("MICYOU_ALSA_REEXEC") == "1") return
+
+    val alsaConfig = findBundledAlsaConfig() ?: return
+    val launcher = findBundledLauncher(alsaConfig) ?: return
+
+    try {
+        ProcessBuilder(launcher.absolutePath).apply {
+            directory(launcher.parentFile)
+            environment().remove("_JPACKAGE_LAUNCHER")
+            environment()["ALSA_CONFIG_PATH"] = alsaConfig.absolutePath
+            environment()["PIPEWIRE_ALSA"] = "{ node.dont-reconnect=true }"
+            environment()["MICYOU_ALSA_REEXEC"] = "1"
+            inheritIO()
+        }.start()
+        Logger.i("Main", "Relaunched ${launcher.absolutePath} with ALSA_CONFIG_PATH=${alsaConfig.absolutePath}")
+        exitProcess(0)
+    } catch (e: Exception) {
+        Logger.w("Main", "Failed to relaunch with bundled ALSA config: ${e.message}")
+    }
+}
+
+private fun findBundledAlsaConfig(): File? {
+    val relativePath = "alsa/micyou-pipewire.conf"
+    val candidates = buildList {
+        System.getProperty("compose.application.resources.dir")
+            ?.takeIf { it.isNotBlank() }
+            ?.let { add(File(it, relativePath)) }
+
+        add(File(System.getProperty("user.dir"), "resources/$relativePath"))
+
+        ProcessHandle.current().info().command().orElse(null)?.let { command ->
+            val commandDir = File(command).parentFile
+            if (commandDir != null) {
+                add(File(commandDir, "../lib/app/resources/$relativePath").canonicalFile)
+                add(File(commandDir, "resources/$relativePath"))
+            }
+        }
+    }
+
+    return candidates.firstOrNull { it.isFile }
+}
+
+private fun findBundledLauncher(alsaConfig: File): File? {
+    var current: File? = alsaConfig.parentFile
+    while (current != null) {
+        val launcher = File(current, "bin/MicYou")
+        if (launcher.isFile && launcher.canExecute()) {
+            return launcher
+        }
+        current = current.parentFile
+    }
+    return null
 }
 
 @Composable
