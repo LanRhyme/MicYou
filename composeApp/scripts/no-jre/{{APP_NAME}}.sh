@@ -103,10 +103,11 @@ fi
 # 构建类路径
 CLASSPATH="$APP_HOME/lib/*"
 
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+if [[ "$OSTYPE" == "linux"* ]]; then
     ALSA_CONFIG="$APP_HOME/resources/alsa/micyou-pipewire.conf"
     if [ -f "$ALSA_CONFIG" ]; then
         export ALSA_CONFIG_PATH="$ALSA_CONFIG"
+        export PIPEWIRE_ALSA='{ node.dont-reconnect=true }'
     fi
 fi
 

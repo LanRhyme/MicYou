@@ -364,7 +364,7 @@ tasks.matching { it.name == "jvmRun" }.configureEach {
         if (System.getProperty("os.name").lowercase().contains("linux")) {
             environment(
                 "ALSA_CONFIG_PATH",
-                layout.projectDirectory.file("src/jvmMain/resources/alsa/micyou-pipewire.conf").asFile.absolutePath
+                layout.projectDirectory.file("resources/alsa/micyou-pipewire.conf").asFile.absolutePath
             )
             environment("PIPEWIRE_ALSA", "{ node.dont-reconnect=true }")
         }
@@ -590,7 +590,7 @@ tasks.register<Copy>("copyNoJreAppFiles") {
         rename { "${appName}.jar" }
     }
 
-    from(layout.projectDirectory.file("src/jvmMain/resources/alsa/micyou-pipewire.conf")) {
+    from(layout.projectDirectory.file("resources/alsa/micyou-pipewire.conf")) {
         into("resources/alsa")
     }
 

@@ -5,6 +5,7 @@ import com.lanrhyme.micyou.platform.BlackHoleManager
 import com.lanrhyme.micyou.platform.PipeWireManager
 import com.lanrhyme.micyou.platform.PlatformInfo
 import com.lanrhyme.micyou.platform.VBCableManager
+import java.io.File
 import javax.sound.sampled.*
 
 class AudioOutputManager {
@@ -58,6 +59,10 @@ class AudioOutputManager {
         if (PlatformInfo.isLinux) {
             val success = initLinux(audioFormat, lineInfo)
             if (success) return true
+            if (targetMixerName == null) {
+                Logger.w("AudioOutputManager", "Linux virtual output initialization failed; not falling back to the system default output.")
+                return false
+            }
         }
         
         if (PlatformInfo.isMacOS) {
@@ -108,6 +113,12 @@ class AudioOutputManager {
     }
     
     private fun initLinuxDefaultOutput(audioFormat: AudioFormat, lineInfo: DataLine.Info): Boolean {
+        val alsaConfigPath = System.getenv("ALSA_CONFIG_PATH")
+        if (alsaConfigPath.isNullOrBlank() || !File(alsaConfigPath).isFile) {
+            Logger.e("AudioOutputManager", "ALSA_CONFIG_PATH is not set or invalid; refusing to open default ALSA/JVM output")
+            return false
+        }
+
         return try {
             outputLine = AudioSystem.getLine(lineInfo) as SourceDataLine
             isUsingVirtualDevice = true
