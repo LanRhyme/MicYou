@@ -366,6 +366,7 @@ tasks.matching { it.name == "jvmRun" }.configureEach {
                 "ALSA_CONFIG_PATH",
                 layout.projectDirectory.file("src/jvmMain/resources/alsa/micyou-pipewire.conf").asFile.absolutePath
             )
+            environment("PIPEWIRE_ALSA", "{ node.dont-reconnect=true }")
         }
     }
 }
