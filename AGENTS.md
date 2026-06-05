@@ -47,7 +47,7 @@ Built with Compose Multiplatform, Material 3, Ktor, and kotlinx-serialization.
 - Adding a new language: create `values-xx/strings.xml`, register in `Localization.kt` (`AppLanguage` enum)
 - Validation: `./gradlew checkLocalization` (blocks commits via pre-commit hook)
 - Install hooks: `./gradlew installGitHooks`
-- Crowdin is used for community translations; PRs should update both base languages first
+- PRs should be submitted directly to update translation files, updating both base languages first
 
 ## Environment requirements
 
