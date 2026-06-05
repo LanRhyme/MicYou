@@ -1,6 +1,8 @@
 # 为 MicYou 做出贡献
 
-首先，感谢您有兴趣为 MicYou 做出贡献！我们欢迎所有类型的贡献，包括错误报告、功能请求、代码贡献以及翻译。
+感谢您有兴趣为 MicYou 做出贡献！本指南涵盖如何从源代码构建应用、添加翻译和提交更改。
+
+我们欢迎所有类型的贡献，包括错误报告、功能请求、代码贡献以及翻译。
 
 ## 从源代码构建
 
@@ -42,19 +44,7 @@
 
 MicYou 使用 Compose Multiplatform Resources 进行本地化。所有用户可见的字符串存储在 `strings.xml` 文件中。我们欢迎贡献者将 MicYou 翻译成您的母语！
 
-### 通过 Crowdin 翻译（推荐）
-
-贡献翻译最简单的方式是通过 [Crowdin](https://crowdin.com/project/micyou)，无需本地开发环境：
-
-1. 访问 [MicYou on Crowdin](https://crowdin.com/project/micyou)
-2. 使用您的 GitHub 账户注册或登录
-3. 从列表中选择您的语言
-4. 直接在网页界面中翻译字符串
-5. 提交翻译以供审核
-
-翻译被合并后，将通过 GitHub Actions 自动同步到代码仓库。
-
-### 手动添加新语言
+### 添加新语言
 
 若要手动添加新语言，请按以下步骤操作：
 
@@ -114,7 +104,7 @@ Text(stringResource(Res.string.myFormattedKey, arg1))
 
 2. 转至 **设置 → 外观 → 语言** 并选择您的新语言
 
-3. 验证所有字符串都已正确翻译，布局看起来正确
+3. 检查所有字符串显示正确，布局没有裁剪或溢出
 
 4. 对于 Android 应用，构建 APK：
 ```bash
@@ -165,6 +155,12 @@ composeApp/src/commonMain/composeResources/values-zh/strings.xml   (简体中文
 
 ### 贡献翻译
 
-1. **通过 Crowdin**（推荐）：加入我们的 Crowdin 项目进行协作翻译。
-2. **通过 GitHub**：提交包含您的新的或更新的翻译文件的拉取请求。
-3. 请在 PR 标题中包含英文及母语的语言名称，例如：Add xx(code) localization。
+提交包含新增或更新翻译文件的拉取请求。
+
+## 提交更改
+
+所有 PR 标题使用 [Conventional Commits](https://www.conventionalcommits.org/) 格式：
+
+- `feat(i18n): add fr (French) localization`
+- `fix: resolve audio crash on Android 14`
+- `docs: update build instructions`

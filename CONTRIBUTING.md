@@ -1,6 +1,8 @@
 # Contributing to MicYou
 
-First of all, thank you for your interest in contributing to MicYou! We welcome all kinds of contributions, whether it's bug reports, feature requests, code contributions, or translations.
+Thank you for your interest in contributing to MicYou! This guide covers how to build the app from source, add translations, and submit changes.
+
+We welcome bug reports, feature requests, code contributions, and translations.
 
 ## Building from Source
 
@@ -42,19 +44,7 @@ This project is built using Kotlin Multiplatform.
 
 MicYou uses Compose Multiplatform Resources for localization. All user-facing strings are stored in `strings.xml` files. We welcome contributions to translate MicYou into your language!
 
-### Translation via Crowdin (Recommended)
-
-The easiest way to contribute translations is through [Crowdin](https://crowdin.com/project/micyou). No local development setup needed:
-
-1. Visit [MicYou on Crowdin](https://crowdin.com/project/micyou)
-2. Sign up or log in with your GitHub account
-3. Select your language from the list
-4. Translate strings directly in the web interface
-5. Submit translations for review
-
-When translations are merged, they are automatically synchronized to the repository via GitHub Actions.
-
-### Adding a New Language (Manual)
+### Adding a New Language
 
 To add a new language manually:
 
@@ -114,7 +104,7 @@ To test your translation locally:
 
 2. Go to **Settings → Appearance → Language** and select your new language
 
-3. Verify all strings are properly translated and layouts look correct
+3. Check that all strings display correct text and that layouts don't clip or overflow
 
 4. For Android app, build APK:
 ```bash
@@ -165,6 +155,12 @@ Some languages have special variants:
 
 ### Contributing Translations
 
-1. **Via Crowdin** (Recommended): Join our Crowdin project for collaborative translation
-2. **Via GitHub**: Submit a pull request with your new/updated translation files
-3. Include the language name in English and native language in your PR title eg: Add xx(code) localization
+Submit a pull request with your new or updated translation files.
+
+## Submitting Changes
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) format for all PR titles:
+
+- `feat(i18n): add fr (French) localization`
+- `fix: resolve audio crash on Android 14`
+- `docs: update build instructions`
