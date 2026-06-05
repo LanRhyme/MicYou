@@ -25,14 +25,14 @@
   <a href="https://afdian.com/a/LanRhyme" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/爱发电-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="爱发电"></a>
 
-  MicYou 是一款强大的工具，能够将您的 Android 设备转变为 PC 的高质量麦克风。它采用 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建。
+  MicYou 可将您的 Android 设备变为 PC 麦克风。采用 Kotlin Multiplatform 和 Jetpack Compose/Material 3 构建。
 
 </div>
 
 ## 主要功能
 
-- **多种连接模式**：支持 Wi-Fi 和 USB (ADB/AOA) 连接
-- **音频处理**：内置噪声抑制、自动增益控制 (AGC) 和去混响功能
+- **多种连接模式**：通过 Wi-Fi 或 USB (ADB/AOA) 连接
+- **音频处理**：内置噪声抑制、自动增益控制 (AGC) 和去混响（回声消除）功能
 - **跨平台支持**：
   - **Android 客户端**：采用现代 Material 3 设计，支持深色与浅色主题
   - **桌面端服务端**：可在 Windows、Linux 和 macOS 上接收音频
@@ -50,7 +50,8 @@
 <img src="img/desktop_screenshot_zh-cn.png" width="600" />
 
 ## 使用指南
-快速开始指南及各平台安装说明已移至常见问题文档：
+
+从 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载最新版本，然后参阅常见问题文档了解各平台安装说明：
 
 - [快速开始](./docs/FAQ_ZH.md#快速开始)
 - [常见问题](./docs/FAQ_ZH.md#常见问题)
@@ -59,7 +60,7 @@
 
 我们欢迎各种形式的贡献！无论是报告 Bug、提出功能建议、协助翻译还是贡献代码，都请参阅我们的 [贡献指南](./CONTRIBUTING_zh-cn.md) 以开始参与。
 
-## Contributors
+## 贡献者
 <a href="https://github.com/LanRhyme/MicYou/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=LanRhyme/MicYou" />
 </a>

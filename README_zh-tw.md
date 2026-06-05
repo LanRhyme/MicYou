@@ -25,14 +25,14 @@
   <a href="https://afdian.com/a/LanRhyme" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/愛發電-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="愛發電"></a>
 
-  MicYou 是一款強大的工具，能夠將您的 Android 裝置轉變為 PC 的高品質麥克風。它採用 Kotlin Multiplatform 與 Jetpack Compose/Material 3 構建。
+  MicYou 可將您的 Android 裝置變為 PC 麥克風。採用 Kotlin Multiplatform 與 Jetpack Compose/Material 3 構建。
 
 </div>
 
 ## 主要功能
 
-- **多種連線模式**：支援 Wi-Fi 和 USB (ADB/AOA) 連線
-- **音訊處理**：內建噪聲抑制、自動增益控制 (AGC) 與去混響功能
+- **多種連線模式**：透過 Wi-Fi 或 USB (ADB/AOA) 連線
+- **音訊處理**：內建噪聲抑制、自動增益控制 (AGC) 與去混響（回聲消除）功能
 - **跨平台支援**：
   - **Android 客戶端**：採用現代 Material 3 設計，支援深色與淺色主題
   - **桌面端服務端**：可在 Windows、Linux 與 macOS 上接收音訊
@@ -50,7 +50,8 @@
 <img src="img/desktop_screenshot_zh-tw.png" width="600" />
 
 ## 使用說明
-快速開始指南及各平台安裝說明已移至常見問題文件：
+
+從 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下載最新版本，然後參閱常見問題文件了解各平台安裝說明：
 
 - [快速開始](./docs/FAQ_TW.md#快速開始)
 - [常見問題 (FAQ)](./docs/FAQ_TW.md#常見問題)
@@ -59,7 +60,7 @@
 
 我們歡迎各種形式的貢獻！無論是回報 Bug、提出功能建議、協助翻譯還是貢獻程式碼，都請參閱我們的 [貢獻指南](./CONTRIBUTING_zh-tw.md) 以開始參與。
 
-## Contributors
+## 貢獻者
 <a href="https://github.com/LanRhyme/MicYou/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=LanRhyme/MicYou" />
 </a>

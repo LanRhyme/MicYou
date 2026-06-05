@@ -18,7 +18,7 @@
   <a href="https://aur.archlinux.org/packages/micyou-bin">
     <img alt="AUR Version" src="https://img.shields.io/aur/version/micyou-bin?logo=archlinux&label=micyou-bin"></a>
   <a href="https://qm.qq.com/q/V16hPpWPKO">
-    <img alt="QQ" src="https://img.shields.io/badge/QQ-995452107-12B7F5?style=flat&logo=qq&logoColor=white"><a>
+    <img alt="QQ" src="https://img.shields.io/badge/QQ-995452107-12B7F5?style=flat&logo=qq&logoColor=white"></a>
   <a href="https://t.me/MicYouChannel">
     <img alt="TG" src="https://img.shields.io/badge/Telegram-@MicYouChannel-2CA5E0?style=flat&logo=telegram&logoColor=white"></a>
 
@@ -27,19 +27,19 @@
   <a href="https://afdian.com/a/LanRhyme" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/afdian-@LanRhyme-946ce6?style=for-the-badge&logo=afdian&logoColor=white" alt="afdian"></a>
 
-  MicYou is a powerful tool that turns your Android device into a high-quality microphone for your PC. Built with Kotlin Multiplatform and Jetpack Compose/Material 3.
+  MicYou turns your Android device into a microphone for your PC. Built with Kotlin Multiplatform and Jetpack Compose/Material 3.
 
 </div>
 
 ## Features
 
-- **Multiple Connection Modes**: Support for Wi-Fi and USB (ADB/AOA).
-- **Audio Processing**: Built-in Noise Suppression, Auto Gain Control (AGC), and Dereverberation.
+- **Multiple Connection Modes**: Connect via Wi-Fi or USB (ADB/AOA).
+- **Audio Processing**: Built-in noise suppression, automatic gain control (AGC), and dereverberation (echo removal).
 - **Cross-Platform**:
-  - **Android Client**: Modern Material 3 interface, dark/light theme support.
-  - **Desktop Server**: Receive audio on Windows/Linux/macOS.
-- **Virtual Microphone**: Works seamlessly with VB-Cable/BlackHole to act as a system microphone input.
-- **Customizable**: Adjust sample rate, channel count, and audio format.
+  - **Android Client**: Modern Material 3 interface with dark/light theme support.
+  - **Desktop Server**: Receive audio on Windows, Linux, and macOS.
+- **Virtual Microphone**: Works with VB-Cable and BlackHole to act as a system microphone input.
+- **Customizable**: Adjust sample rate, channel count, and audio format to match your needs.
 
 ## Screenshots
 
@@ -52,10 +52,11 @@
 <img src="img/desktop_screenshot.png" width="600" />
 
 ## Getting Started
-Quick start and platform-specific setup instructions are now in the FAQ:
+
+Download the latest release from [GitHub Releases](https://github.com/LanRhyme/MicYou/releases), then see the FAQ for platform-specific setup:
 
 - [Quick Start](./docs/FAQ.md#quick-start)
-- [Common issues](./docs/FAQ.md#faq)
+- [Common Issues](./docs/FAQ.md#faq)
 
 ## Contributing
 
@@ -82,6 +83,6 @@ Made with [contrib.rocks](https://contrib.rocks).
 
 Special thanks to [CQU Open Source Software Mirror](https://mirrors.cqu.edu.cn/) for providing a mirror download service for this project.
 
-Special thanks to [MirrorChyan](https://mirrorchyan.com/en/get-start) for providing a high-speed mirror download service for ths project.
+Special thanks to [MirrorChyan](https://mirrorchyan.com/en/get-start) for providing a high-speed mirror download service for this project.
 
 Special thanks to all the [contributors](https://github.com/LanRhyme/MicYou/graphs/contributors) for helping to make the project even better.
