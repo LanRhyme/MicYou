@@ -221,7 +221,11 @@
                 </template>
               </div>
             </div>
+          </div>
 
+          <!-- EQUALIZER SECTION -->
+          <div v-if="currentSection === 'equalizer'" class="space-y-6 h-[600px]">
+            <EqualizerPanel :config="settings.equalizer" />
           </div>
           
           <!-- PLUGINS (TODO placeholder) -->
@@ -341,12 +345,14 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  SlidersHorizontal
 } from 'lucide-vue-next';
 import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
 import LicensesDialog from './LicensesDialog.vue';
 import AudioChainDialog from './AudioChainDialog.vue';
+import EqualizerPanel from './EqualizerPanel.vue';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const props = defineProps<{
@@ -360,6 +366,7 @@ const { t, locale } = useI18n();
 const sections = computed(() => [
   { id: 'general', name: t('settings.categories.general'), icon: SettingsIcon },
   { id: 'audio', name: t('settings.categories.audio'), icon: Mic },
+  { id: 'equalizer', name: t('settings.equalizer.title'), icon: SlidersHorizontal },
   { id: 'plugins', name: t('settings.categories.plugins'), icon: Puzzle },
   { id: 'about', name: t('settings.categories.about'), icon: Info },
 ]);
@@ -396,7 +403,12 @@ const settings = reactive({
   agcDecay: 50,
   vadEnabled: false,
   vadThreshold: -40,
-  processingChain: ['NoiseReduction', 'Dereverb', 'Equalizer', 'Amplifier', 'AGC', 'VAD']
+  processingChain: ['NoiseReduction', 'Dereverb', 'Equalizer', 'Amplifier', 'AGC', 'VAD'],
+  equalizer: {
+    enabled: false,
+    preAmp: 0,
+    gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  }
 });
 
 const audioDevices = ref<string[]>([]);

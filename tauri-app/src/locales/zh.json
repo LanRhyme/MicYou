@@ -78,6 +78,18 @@
       "VAD": "语音检测 (VAD)",
       "Equalizer": "均衡器 (EQ)"
     },
+    "equalizer": {
+      "title": "均衡器",
+      "enable": "启用均衡器",
+      "preAmp": "前级增益",
+      "presets": "预设",
+      "presetNormal": "默认",
+      "presetBrightVocal": "清亮人声",
+      "presetDeepVoice": "深沉男声",
+      "presetPodcast": "播客电台",
+      "presetVocalClarity": "人声清晰",
+      "presetWarmVocal": "温暖人声"
+    },
     "plugins": {
       "underConstruction": "正在建设中",
       "portedDesc": "此部分正在从 KMP 版本移植。"

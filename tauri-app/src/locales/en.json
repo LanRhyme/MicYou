@@ -78,6 +78,18 @@
       "VAD": "Voice Activity Detection",
       "Equalizer": "Equalizer (EQ)"
     },
+    "equalizer": {
+      "title": "Equalizer",
+      "enable": "Enable Equalizer",
+      "preAmp": "Pre-amp Gain",
+      "presets": "Presets",
+      "presetNormal": "Normal",
+      "presetBrightVocal": "Bright Vocal",
+      "presetDeepVoice": "Deep Voice",
+      "presetPodcast": "Podcast",
+      "presetVocalClarity": "Vocal Clarity",
+      "presetWarmVocal": "Warm Vocal"
+    },
     "plugins": {
       "underConstruction": "Under Construction",
       "portedDesc": "This section is being ported from the KMP version."
