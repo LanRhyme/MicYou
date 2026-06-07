@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 98%;
+    --foreground: 220 10% 10%;
+    
+    --primary: 215 100% 50%;
+    --on-primary: 0 0% 100%;
+    --primary-container: 215 100% 90%;
+    --on-primary-container: 215 100% 10%;
+    
+    --secondary: 210 20% 50%;
+    --on-secondary: 0 0% 100%;
+    --secondary-container: 210 20% 90%;
+    --on-secondary-container: 210 20% 10%;
+    
+    --tertiary: 280 50% 50%;
+    --on-tertiary: 0 0% 100%;
+    
+    --surface: 220 20% 98%;
+    --on-surface: 220 10% 10%;
+    --surface-variant: 220 10% 90%;
+    --on-surface-variant: 220 10% 30%;
+    
+    --outline: 220 10% 80%;
+    --border: 220 10% 90%;
+    
+    --radius: 1rem;
+  }
+  
+  .dark {
+    --background: 220 20% 5%;
+    --foreground: 220 10% 95%;
+    
+    --primary: 215 80% 60%;
+    --on-primary: 215 100% 10%;
+    --primary-container: 215 80% 20%;
+    --on-primary-container: 215 100% 90%;
+    
+    --secondary: 210 20% 60%;
+    --on-secondary: 210 20% 10%;
+    --secondary-container: 210 20% 20%;
+    --on-secondary-container: 210 20% 90%;
+    
+    --tertiary: 280 50% 60%;
+    --on-tertiary: 280 50% 10%;
+    
+    --surface: 220 20% 10%;
+    --on-surface: 220 10% 95%;
+    --surface-variant: 220 10% 20%;
+    --on-surface-variant: 220 10% 80%;
+    
+    --outline: 220 10% 30%;
+    --border: 220 10% 20%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

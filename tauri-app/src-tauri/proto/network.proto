@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package micyou;
+
+message MessageWrapper {
+    AudioPacketMessageOrdered audioPacket = 1; // Used in TCP-only mode
+    ConnectMessage connect = 2;               // Connection setup
+    MuteMessage mute = 3;                     // Mute toggle
+    PluginSyncMessage pluginSync = 4;         // Plugin sync state
+    PingMessage ping = 5;                     // Ping for latency
+    PongMessage pong = 6;                     // Pong for latency
+}
+
+message ConnectMessage {
+    // Usually empty but reserved for handshake
+}
+
+message MuteMessage {
+    bool isMuted = 1;
+}
+
+message PluginInfoMessage {
+    string id = 1;
+    string name = 2;
+    string version = 3;
+}
+
+message PluginSyncMessage {
+    repeated PluginInfoMessage plugins = 1;
+    string platform = 2;
+}
+
+message PingMessage {
+    int64 timestamp = 1;
+}
+
+message PongMessage {
+    int64 timestamp = 1;
+}
+
+message AudioPacketMessageOrdered {
+    int32 sequenceNumber = 1;
+    AudioPacketMessage audioPacket = 2;
+    int64 timestamp = 3;
+    bytes fecBuffer = 4;
+    int32 fecSequenceNumber = 5;
+}
+
+message AudioPacketMessage {
+    bytes buffer = 1;
+    int32 sampleRate = 2;
+    int32 channelCount = 3;
+    int32 audioFormat = 4;
+}
