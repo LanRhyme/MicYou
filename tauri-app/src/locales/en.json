@@ -64,6 +64,14 @@
       "rose": "Rose",
       "purple": "Purple"
     },
+    "customCss": {
+      "title": "Custom CSS",
+      "desc": "Enter custom CSS code to style the application globally.",
+      "placeholder": "/* Example: \nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
+      "editBtn": "Edit Custom CSS",
+      "loadFromFile": "Load from File",
+      "clear": "Clear CSS"
+    },
     "customColor": {
       "title": "Custom Color",
       "preview": "Preview",

@@ -9,9 +9,9 @@
       "streaming": "正在接收音频",
       "connecting": "等待设备连接...",
       "ready": "准备就绪",
-      "streamingDesc": "已成功连接至 Android 设备。",
+      "streamingDesc": "已成功连接至 Android 设备",
       "connectingDesc": "正在监听端口 {port}",
-      "readyDesc": "点击开始以等待连接。",
+      "readyDesc": "点击开始以等待连接",
       "stateStreaming": "传输中",
       "stateConnecting": "连接中...",
       "stateIdle": "空闲",
@@ -64,6 +64,14 @@
       "rose": "玫瑰红",
       "purple": "电竞紫"
     },
+    "customCss": {
+      "title": "自定义 CSS",
+      "desc": "在这里输入自定义的 CSS 代码，将实时应用到整个应用中",
+      "placeholder": "/* 例如: \nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
+      "editBtn": "编辑自定义 CSS",
+      "loadFromFile": "从文件导入",
+      "clear": "清空代码"
+    },
     "customColor": {
       "title": "自定义颜色",
       "preview": "预览",
@@ -71,7 +79,7 @@
       "advanced": "高级设置",
       "saturation": "饱和度",
       "lightness": "明度",
-      "autoManaged": "系统已接管饱和度和明度，为您锁定最佳的极简莫兰迪色感。"
+      "autoManaged": "系统已接管饱和度和明度，为您锁定最佳的极简莫兰迪色感"
     },
     "uiStyle": {
       "title": "界面风格",
@@ -83,14 +91,14 @@
       "title": "VB-Cable 音频转发",
       "installed": "已安装",
       "notDetected": "未检测到",
-      "desc": "若要将麦克风声音路由到其他应用程序（如 OBS 或 Discord），你需要安装 VB-Audio Virtual Cable。",
+      "desc": "若要将麦克风声音路由到其他应用程序（如 OBS 或 Discord），你需要安装 VB-Audio Virtual Cable",
       "download": "下载 VB-Cable"
     },
     "audioOutput": {
       "title": "输出设备",
       "desc": "麦克风的声音应该在哪里播放？",
       "systemDefault": "系统默认设备",
-      "routingActive": "VB-CABLE 转发已激活。音频将被转发到 \"CABLE Output\"。"
+      "routingActive": "VB-CABLE 转发已激活，音频将被转发到 \"CABLE Output\""
     },
     "spectrum": {
       "title": "实时频谱",
@@ -136,7 +144,7 @@
     },
     "plugins": {
       "underConstruction": "正在建设中",
-      "portedDesc": "此部分正在从 KMP 版本移植。"
+      "portedDesc": "此部分正在从 KMP 版本移植"
     },
     "about": {
       "version": "应用程序版本",
@@ -169,7 +177,7 @@
       "loading": "正在加载赞助者...",
       "count": "{count} 位赞助者",
       "empty": "暂无赞助者",
-      "disclaimer": "仅显示在爱发电上对项目创建者 LanRhyme 的个人赞助。",
+      "disclaimer": "仅显示在爱发电上对项目创建者 LanRhyme 的个人赞助",
       "sponsorBtn": "去赞助"
     },
     "licenses": {
@@ -179,16 +187,16 @@
     "update": {
       "checking": "正在检查更新...",
       "available": "发现新版本：{version}\n你想要打开发布页面吗？",
-      "latest": "你使用的已经是最新版本。",
+      "latest": "你使用的已经是最新版本",
       "failed": "检查更新失败：{error}"
     },
     "logs": {
-      "success": "日志导出成功。",
+      "success": "日志导出成功",
       "failed": "导出日志失败：{error}"
     },
     "udpWarning": {
       "title": "防火墙阻止了 UDP 音频连接",
-      "desc": "手机端已成功连接，但电脑端未能收到任何 UDP 音频数据。这通常是因为 Windows 防火墙拦截了 UDP 端口 ({port})。\n\n请在防火墙中允许 MicYou 程序的网络访问，或者尝试以管理员身份重新运行程序。"
+      "desc": "手机端已成功连接，但电脑端未能收到任何 UDP 音频数据，这通常是因为 Windows 防火墙拦截了 UDP 端口 ({port})\n\n请在防火墙中允许 MicYou 程序的网络访问，或者尝试以管理员身份重新运行程序"
     }
   }
 }

@@ -1,6 +1,7 @@
 <template>
+  <Transition name="dialog">
   <div v-if="isOpen" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" @click.self="$emit('close')">
-    <div class="bg-surface-bright w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-surface-variant/20 animate-in fade-in zoom-in-95 duration-200">
+    <div class="bg-surface-bright w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-surface-variant/20">
       
       <div class="flex items-center justify-between mb-6">
         <h3 class="text-xl font-bold text-on-surface">{{ $t('settings.customColor.title') }}</h3>
@@ -87,6 +88,7 @@
 
     </div>
   </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">

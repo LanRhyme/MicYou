@@ -1,6 +1,7 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/60">
-    <div class="bg-surface-bright w-full max-w-5xl h-full max-h-[80vh] rounded-3xl flex overflow-hidden shadow-2xl relative border border-white/10">
+  <Transition name="dialog">
+  <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm" @click.self="$emit('close')">
+    <div class="bg-surface-bright/85 backdrop-blur-2xl w-full max-w-5xl h-full max-h-[80vh] rounded-3xl flex overflow-hidden shadow-2xl relative border border-white/10">
       
       <!-- Close Button -->
       <button @click="$emit('close')" class="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors">
@@ -8,7 +9,7 @@
       </button>
 
       <!-- Left Sidebar -->
-      <div class="w-64 bg-surface-container-low border-r border-surface-variant/30 flex flex-col p-4 space-y-2 overflow-y-auto">
+      <div class="w-64 bg-surface-container-low/50 border-r border-surface-variant/30 flex flex-col p-4 space-y-2 overflow-y-auto">
         <div class="px-4 py-4 mb-4 flex items-center gap-3">
           <SettingsIcon class="w-6 h-6 text-primary" />
           <h2 class="text-xl font-bold text-primary">{{ $t('settings.title') }}</h2>
@@ -17,20 +18,22 @@
         <button v-for="section in sections" :key="section.id" 
                 @click="currentSection = section.id"
                 class="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 w-full text-left"
-                :class="currentSection === section.id ? 'bg-secondary-container text-on-secondary-container shadow-sm scale-[1.02]' : 'hover:bg-surface-variant/30 text-on-surface-variant'">
+                :class="currentSection === section.id ? 'bg-secondary-container/80 text-on-secondary-container shadow-sm scale-[1.02]' : 'hover:bg-surface-variant/30 text-on-surface-variant'">
           <component :is="section.icon" class="w-5 h-5" :class="currentSection === section.id ? 'text-primary' : ''" />
           <span class="font-medium text-sm">{{ section.name }}</span>
         </button>
       </div>
 
       <!-- Right Content -->
-      <div class="flex-1 bg-surface-container-lowest p-8 overflow-y-auto">
+      <div class="flex-1 bg-surface-container-lowest/50 p-8 overflow-y-auto">
         <div class="max-w-2xl mx-auto space-y-8">
           <h3 class="text-3xl font-bold text-primary mb-6">{{ currentSectionName }}</h3>
 
-          <!-- GENERAL SECTION -->
-          <div v-if="currentSection === 'general'" class="space-y-6">
-            <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <!-- SECTIONS -->
+          <Transition name="fade-slide" mode="out-in">
+            <!-- GENERAL SECTION -->
+            <div v-if="currentSection === 'general'" class="space-y-6" key="general">
+            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
               <div>
                 <h4 class="font-bold text-on-surface">{{ $t('settings.language.title') }}</h4>
                 <p class="text-xs text-on-surface-variant">{{ $t('settings.language.desc') }}</p>
@@ -91,7 +94,7 @@
           </div>
 
           <!-- APPEARANCE SECTION -->
-          <div v-if="currentSection === 'appearance'" class="space-y-6">
+          <div v-else-if="currentSection === 'appearance'" class="space-y-6" key="appearance">
             <!-- Theme Mode Settings -->
             <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
               <div>
@@ -147,10 +150,21 @@
                 </SelectContent>
               </Select>
             </div>
+
+            <!-- Custom CSS -->
+            <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div class="flex-1 mr-4">
+                <h4 class="font-bold text-on-surface">{{ $t('settings.customCss.title') }}</h4>
+                <p class="text-xs text-on-surface-variant">{{ $t('settings.customCss.desc') }}</p>
+              </div>
+              <button @click="showCustomCssDialog = true" class="px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary font-medium text-sm transition-colors flex-shrink-0">
+                {{ $t('settings.customCss.editBtn') }}
+              </button>
+            </div>
           </div>
 
           <!-- AUDIO SECTION -->
-          <div v-if="currentSection === 'audio'" class="space-y-6">
+          <div v-else-if="currentSection === 'audio'" class="space-y-6" key="audio">
             
 
             <!-- Spectrum Analyzer / Real-time Monitoring -->
@@ -283,19 +297,19 @@
           </div>
 
           <!-- EQUALIZER SECTION -->
-          <div v-if="currentSection === 'equalizer'" class="space-y-6 h-[600px]">
+          <div v-else-if="currentSection === 'equalizer'" class="space-y-6 h-[600px]" key="equalizer">
             <EqualizerPanel :config="settings.equalizer" />
           </div>
           
           <!-- PLUGINS (TODO placeholder) -->
-          <div v-if="currentSection === 'plugins'" class="flex flex-col items-center justify-center py-12 text-center opacity-50">
+          <div v-else-if="currentSection === 'plugins'" class="flex flex-col items-center justify-center py-12 text-center opacity-50" key="plugins">
             <Construction class="w-16 h-16 mb-4 text-on-surface-variant" />
             <h4 class="text-lg font-bold">{{ $t('settings.plugins.underConstruction') }}</h4>
             <p class="text-sm">{{ $t('settings.plugins.portedDesc') }}</p>
           </div>
 
           <!-- ABOUT -->
-          <div v-if="currentSection === 'about'" class="space-y-4 pb-12">
+          <div v-else-if="currentSection === 'about'" class="space-y-4 pb-12" key="about">
             <div class="bg-surface-bright rounded-2xl overflow-hidden shadow-sm flex flex-col border border-border">
               <div class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-default">
                 <User class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
@@ -372,16 +386,19 @@
               </p>
             </div>
           </div>
+          </Transition>
 
         </div>
       </div>
     </div>
   </div>
+  </Transition>
   
   <ContributorsDialog :isOpen="showContributors" @close="showContributors = false" />
   <SponsorsDialog :isOpen="showSponsors" @close="showSponsors = false" />
   <LicensesDialog :isOpen="showLicenses" @close="showLicenses = false" />
   <AudioChainDialog :isOpen="showAudioChain" :chain="settings.processingChain" @update:chain="updateProcessingChain" @close="showAudioChain = false" />
+  <CustomCssDialog :isOpen="showCustomCssDialog" @close="showCustomCssDialog = false" />
   <CustomColorPicker 
     :is-open="showColorPicker" 
     :initial-h="customH"
@@ -420,6 +437,7 @@ import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
 import LicensesDialog from './LicensesDialog.vue';
 import AudioChainDialog from './AudioChainDialog.vue';
+import CustomCssDialog from './CustomCssDialog.vue';
 import EqualizerPanel from './EqualizerPanel.vue';
 import ThemeSelector from './ThemeSelector.vue';
 import CustomColorPicker from './CustomColorPicker.vue';
@@ -586,6 +604,7 @@ const showContributors = ref(false);
 const showSponsors = ref(false);
 const showLicenses = ref(false);
 const showAudioChain = ref(false);
+const showCustomCssDialog = ref(false);
 const appVersion = ref('0.1.0');
 
 const updateProcessingChain = (newChain: string[]) => {

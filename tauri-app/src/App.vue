@@ -2,10 +2,11 @@
 import { ref, onMounted, onUnmounted, computed, watchEffect } from 'vue';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useStorage } from '@vueuse/core';
 
 // Icons
-import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, Puzzle, Link, Unlink, RefreshCw, Scan, ActivitySquare as MonitoringIcon } from 'lucide-vue-next';
+import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, Link, Unlink, RefreshCw, Scan, ActivitySquare as MonitoringIcon, X, Minus } from 'lucide-vue-next';
 import CustomBackground from './components/CustomBackground.vue';
 import SettingsDialog from './components/SettingsDialog.vue';
 import AudioRing from './components/AudioRing.vue';
@@ -25,6 +26,11 @@ const showUdpWarning = ref(false);
 const audioMetrics = ref<any>(null);
 const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') || '');
 
+// Window Management
+const appWindow = getCurrentWindow();
+const minimizeWindow = () => appWindow.minimize();
+const closeWindow = () => appWindow.close();
+
 // Global Theme and UI Style Management
 const themeColor = useStorage('micyou_theme_color', 'theme-blue');
 const uiStyle = useStorage('micyou_ui_style', 'style-glass');
@@ -33,13 +39,32 @@ const customH = useStorage('micyou_custom_h', 215);
 const customS = useStorage('micyou_custom_s', 35);
 const customL = useStorage('micyou_custom_l', 55);
 
+// User Custom CSS
+const customCss = useStorage('micyou_custom_css', '');
+
+watchEffect(() => {
+  if (typeof document !== 'undefined') {
+    let userStyle = document.getElementById('micyou-user-custom-css');
+    if (!userStyle) {
+      userStyle = document.createElement('style');
+      userStyle.id = 'micyou-user-custom-css';
+      document.head.appendChild(userStyle);
+    }
+    userStyle.innerHTML = customCss.value || '';
+  }
+});
+
 watchEffect(() => {
   if (typeof document !== 'undefined') {
     const themes = ['theme-blue', 'theme-green', 'theme-rose', 'theme-purple', 'theme-orange', 'theme-amber', 'theme-teal', 'theme-cyan', 'theme-custom'];
     document.documentElement.classList.remove(...themes, 'style-default', 'style-glass');
     
     if (themeColor.value) document.documentElement.classList.add(themeColor.value);
-    if (uiStyle.value) document.documentElement.classList.add(uiStyle.value);
+    if (uiStyle.value) {
+      document.documentElement.classList.add(uiStyle.value);
+      
+      // UI style applied via CSS class
+    }
     
     let dynamicStyle = document.getElementById('micyou-custom-theme');
     if (!dynamicStyle) {
@@ -200,14 +225,14 @@ const micScale = computed(() => {
 </script>
 
 <template>
-  <div class="relative w-full h-screen overflow-hidden text-foreground">
+  <div class="relative w-full h-screen overflow-hidden text-foreground bg-transparent">
     <CustomBackground />
     
     <div class="absolute inset-0 flex flex-col p-3 gap-3">
       <!-- Header Section -->
-      <div class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-lg bg-primary-container flex items-center justify-center shadow-sm border border-primary/20">
+      <div data-tauri-drag-region class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0 cursor-grab active:cursor-grabbing">
+        <div data-tauri-drag-region class="flex items-center gap-3">
+          <div data-tauri-drag-region class="w-9 h-9 rounded-lg bg-primary-container flex items-center justify-center shadow-sm border border-primary/20 pointer-events-none">
             <RadioTower class="w-5 h-5 text-primary" />
           </div>
           <div class="flex flex-col">
@@ -216,10 +241,23 @@ const micScale = computed(() => {
           </div>
         </div>
 
-        <div class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-colors px-3 py-1.5 rounded-lg cursor-pointer border border-white/5">
-          <Globe class="w-3.5 h-3.5 text-primary mr-2" />
-          <span class="text-xs font-medium mr-1 select-none">{{ selectedIp === '0.0.0.0' ? 'All Interfaces' : selectedIp }}</span>
-          <ChevronDown class="w-4 h-4 text-on-surface-variant/60" />
+        <div class="flex items-center gap-4">
+          <!-- Network Selector -->
+          <div class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-colors px-3 py-1.5 rounded-lg cursor-pointer border border-white/5">
+            <Globe class="w-3.5 h-3.5 text-primary mr-2 pointer-events-none" />
+            <span class="text-xs font-medium mr-1 select-none pointer-events-none">{{ selectedIp === '0.0.0.0' ? 'All Interfaces' : selectedIp }}</span>
+            <ChevronDown class="w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
+          </div>
+
+          <!-- Window Controls -->
+          <div class="flex items-center gap-1 ml-1">
+            <button @click="minimizeWindow" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+              <Minus class="w-4 h-4 text-on-surface" />
+            </button>
+            <button @click="closeWindow" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-error/20 hover:text-error transition-colors">
+              <X class="w-4 h-4 text-on-surface" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -349,9 +387,7 @@ const micScale = computed(() => {
           <button @click="showMonitoringPanel = !showMonitoringPanel" class="w-10 h-10 rounded-full flex items-center justify-center transition-colors" :class="showMonitoringPanel ? 'bg-primary/20 text-primary' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'">
             <MonitoringIcon class="w-4 h-4" />
           </button>
-          <button class="w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors">
-            <Puzzle class="w-4 h-4 text-on-surface-variant" />
-          </button>
+
           <button @click="isSettingsOpen = true" class="w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors">
             <Settings class="w-4 h-4 text-on-surface-variant" />
           </button>

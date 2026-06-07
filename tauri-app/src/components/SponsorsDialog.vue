@@ -1,4 +1,5 @@
 <template>
+  <Transition name="dialog">
   <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" @click.self="close">
     <div class="bg-surface rounded-3xl w-full max-w-lg shadow-xl overflow-hidden flex flex-col max-h-[80vh]">
       <!-- Header -->
@@ -60,6 +61,7 @@
       </a>
     </div>
   </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
