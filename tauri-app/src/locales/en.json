@@ -51,6 +51,15 @@
       "rose": "Rose",
       "purple": "Purple"
     },
+    "customColor": {
+      "title": "Custom Color",
+      "preview": "Preview",
+      "hue": "Hue",
+      "advanced": "Advanced Settings",
+      "saturation": "Saturation",
+      "lightness": "Lightness",
+      "autoManaged": "Saturation and Lightness are automatically managed to maintain a premium tonal aesthetic."
+    },
     "uiStyle": {
       "title": "UI Style",
       "desc": "Choose application aesthetic",
@@ -134,6 +143,8 @@
   },
   "dialogs": {
     "close": "Close",
+    "cancel": "Cancel",
+    "apply": "Apply",
     "contributors": {
       "title": "Contributors",
       "loading": "Loading contributors...",

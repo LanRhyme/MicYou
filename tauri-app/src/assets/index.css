@@ -237,6 +237,239 @@
     --on-error: 0 40% 20%;
   }
 
+  /* --- Theme: Orange --- */
+  .theme-orange {
+    --background: 25 15% 96%;
+    --foreground: 25 15% 25%;
+    --surface: 25 15% 98%;
+    --on-surface: 25 15% 25%;
+    --surface-bright: 25 15% 98%;
+    --surface-container: 25 15% 92%;
+    --surface-container-low: 25 15% 94%;
+    --surface-variant: 25 15% 88%;
+    --on-surface-variant: 25 15% 45%;
+    --outline: 25 15% 80%;
+    --border: 25 15% 80%;
+    
+    --primary: 25 35% 55%;
+    --on-primary: 25 35% 92%;
+    --primary-container: 25 35% 85%;
+    --on-primary-container: 25 35% 25%;
+    
+    --secondary: 25 20% 90%;
+    --on-secondary: 25 20% 25%;
+    --secondary-container: 25 20% 90%;
+    --on-secondary-container: 25 20% 25%;
+    --tertiary: 25 20% 90%;
+    --on-tertiary: 25 20% 25%;
+    --error: 0 40% 55%;
+    --on-error: 0 40% 92%;
+  }
+
+  .dark.theme-orange {
+    --background: 25 15% 8%;
+    --foreground: 25 15% 85%;
+    --surface: 25 15% 10%;
+    --on-surface: 25 15% 85%;
+    --surface-bright: 25 15% 14%;
+    --surface-container: 25 15% 16%;
+    --surface-container-low: 25 15% 12%;
+    --surface-variant: 25 15% 22%;
+    --on-surface-variant: 25 15% 60%;
+    --outline: 25 15% 20%;
+    --border: 25 15% 20%;
+    
+    --primary: 25 35% 65%;
+    --on-primary: 25 35% 20%;
+    --primary-container: 25 35% 25%;
+    --on-primary-container: 25 35% 85%;
+    
+    --secondary: 25 20% 16%;
+    --on-secondary: 25 20% 85%;
+    --secondary-container: 25 20% 16%;
+    --on-secondary-container: 25 20% 85%;
+    --tertiary: 25 20% 16%;
+    --on-tertiary: 25 20% 85%;
+    --error: 0 40% 65%;
+    --on-error: 0 40% 20%;
+  }
+
+  /* --- Theme: Amber --- */
+  .theme-amber {
+    --background: 45 15% 96%;
+    --foreground: 45 15% 25%;
+    --surface: 45 15% 98%;
+    --on-surface: 45 15% 25%;
+    --surface-bright: 45 15% 98%;
+    --surface-container: 45 15% 92%;
+    --surface-container-low: 45 15% 94%;
+    --surface-variant: 45 15% 88%;
+    --on-surface-variant: 45 15% 45%;
+    --outline: 45 15% 80%;
+    --border: 45 15% 80%;
+    
+    --primary: 45 35% 55%;
+    --on-primary: 45 35% 92%;
+    --primary-container: 45 35% 85%;
+    --on-primary-container: 45 35% 25%;
+    
+    --secondary: 45 20% 90%;
+    --on-secondary: 45 20% 25%;
+    --secondary-container: 45 20% 90%;
+    --on-secondary-container: 45 20% 25%;
+    --tertiary: 45 20% 90%;
+    --on-tertiary: 45 20% 25%;
+    --error: 0 40% 55%;
+    --on-error: 0 40% 92%;
+  }
+
+  .dark.theme-amber {
+    --background: 45 15% 8%;
+    --foreground: 45 15% 85%;
+    --surface: 45 15% 10%;
+    --on-surface: 45 15% 85%;
+    --surface-bright: 45 15% 14%;
+    --surface-container: 45 15% 16%;
+    --surface-container-low: 45 15% 12%;
+    --surface-variant: 45 15% 22%;
+    --on-surface-variant: 45 15% 60%;
+    --outline: 45 15% 20%;
+    --border: 45 15% 20%;
+    
+    --primary: 45 35% 65%;
+    --on-primary: 45 35% 20%;
+    --primary-container: 45 35% 25%;
+    --on-primary-container: 45 35% 85%;
+    
+    --secondary: 45 20% 16%;
+    --on-secondary: 45 20% 85%;
+    --secondary-container: 45 20% 16%;
+    --on-secondary-container: 45 20% 85%;
+    --tertiary: 45 20% 16%;
+    --on-tertiary: 45 20% 85%;
+    --error: 0 40% 65%;
+    --on-error: 0 40% 20%;
+  }
+
+  /* --- Theme: Teal --- */
+  .theme-teal {
+    --background: 180 15% 96%;
+    --foreground: 180 15% 25%;
+    --surface: 180 15% 98%;
+    --on-surface: 180 15% 25%;
+    --surface-bright: 180 15% 98%;
+    --surface-container: 180 15% 92%;
+    --surface-container-low: 180 15% 94%;
+    --surface-variant: 180 15% 88%;
+    --on-surface-variant: 180 15% 45%;
+    --outline: 180 15% 80%;
+    --border: 180 15% 80%;
+    
+    --primary: 180 35% 45%;
+    --on-primary: 180 35% 92%;
+    --primary-container: 180 35% 85%;
+    --on-primary-container: 180 35% 25%;
+    
+    --secondary: 180 20% 90%;
+    --on-secondary: 180 20% 25%;
+    --secondary-container: 180 20% 90%;
+    --on-secondary-container: 180 20% 25%;
+    --tertiary: 180 20% 90%;
+    --on-tertiary: 180 20% 25%;
+    --error: 0 40% 55%;
+    --on-error: 0 40% 92%;
+  }
+
+  .dark.theme-teal {
+    --background: 180 15% 8%;
+    --foreground: 180 15% 85%;
+    --surface: 180 15% 10%;
+    --on-surface: 180 15% 85%;
+    --surface-bright: 180 15% 14%;
+    --surface-container: 180 15% 16%;
+    --surface-container-low: 180 15% 12%;
+    --surface-variant: 180 15% 22%;
+    --on-surface-variant: 180 15% 60%;
+    --outline: 180 15% 20%;
+    --border: 180 15% 20%;
+    
+    --primary: 180 35% 60%;
+    --on-primary: 180 35% 20%;
+    --primary-container: 180 35% 25%;
+    --on-primary-container: 180 35% 85%;
+    
+    --secondary: 180 20% 16%;
+    --on-secondary: 180 20% 85%;
+    --secondary-container: 180 20% 16%;
+    --on-secondary-container: 180 20% 85%;
+    --tertiary: 180 20% 16%;
+    --on-tertiary: 180 20% 85%;
+    --error: 0 40% 65%;
+    --on-error: 0 40% 20%;
+  }
+
+  /* --- Theme: Cyan --- */
+  .theme-cyan {
+    --background: 195 15% 96%;
+    --foreground: 195 15% 25%;
+    --surface: 195 15% 98%;
+    --on-surface: 195 15% 25%;
+    --surface-bright: 195 15% 98%;
+    --surface-container: 195 15% 92%;
+    --surface-container-low: 195 15% 94%;
+    --surface-variant: 195 15% 88%;
+    --on-surface-variant: 195 15% 45%;
+    --outline: 195 15% 80%;
+    --border: 195 15% 80%;
+    
+    --primary: 195 35% 50%;
+    --on-primary: 195 35% 92%;
+    --primary-container: 195 35% 85%;
+    --on-primary-container: 195 35% 25%;
+    
+    --secondary: 195 20% 90%;
+    --on-secondary: 195 20% 25%;
+    --secondary-container: 195 20% 90%;
+    --on-secondary-container: 195 20% 25%;
+    --tertiary: 195 20% 90%;
+    --on-tertiary: 195 20% 25%;
+    --error: 0 40% 55%;
+    --on-error: 0 40% 92%;
+  }
+
+  .dark.theme-cyan {
+    --background: 195 15% 8%;
+    --foreground: 195 15% 85%;
+    --surface: 195 15% 10%;
+    --on-surface: 195 15% 85%;
+    --surface-bright: 195 15% 14%;
+    --surface-container: 195 15% 16%;
+    --surface-container-low: 195 15% 12%;
+    --surface-variant: 195 15% 22%;
+    --on-surface-variant: 195 15% 60%;
+    --outline: 195 15% 20%;
+    --border: 195 15% 20%;
+    
+    --primary: 195 35% 60%;
+    --on-primary: 195 35% 20%;
+    --primary-container: 195 35% 25%;
+    --on-primary-container: 195 35% 85%;
+    
+    --secondary: 195 20% 16%;
+    --on-secondary: 195 20% 85%;
+    --secondary-container: 195 20% 16%;
+    --on-secondary-container: 195 20% 85%;
+    --tertiary: 195 20% 16%;
+    --on-tertiary: 195 20% 85%;
+    --error: 0 40% 65%;
+    --on-error: 0 40% 20%;
+  }
+
+  /* --- Theme: Custom (Dynamic) --- */
+  .theme-custom {
+    /* Variables are injected via JS on the :root element */
+  }
+
   /* --- UI Styles (UI 风格) --- */
   .style-glass {
     --haze-bg: hsl(var(--surface-bright) / 0.65);

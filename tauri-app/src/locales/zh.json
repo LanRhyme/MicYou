@@ -51,6 +51,15 @@
       "rose": "玫瑰红",
       "purple": "电竞紫"
     },
+    "customColor": {
+      "title": "自定义颜色",
+      "preview": "预览",
+      "hue": "色相",
+      "advanced": "高级设置",
+      "saturation": "饱和度",
+      "lightness": "明度",
+      "autoManaged": "系统已接管饱和度和明度，为您锁定最佳的极简莫兰迪色感。"
+    },
     "uiStyle": {
       "title": "界面风格",
       "desc": "选择界面的视觉质感",
@@ -134,6 +143,8 @@
   },
   "dialogs": {
     "close": "关闭",
+    "cancel": "取消",
+    "apply": "应用",
     "contributors": {
       "title": "贡献者",
       "loading": "正在加载贡献者...",

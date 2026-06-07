@@ -5,7 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useStorage } from '@vueuse/core';
 
 // Icons
-import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Play, Square, Settings, Puzzle } from 'lucide-vue-next';
+import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Play, Square, Settings, Puzzle, Link, Unlink, RefreshCw, Scan } from 'lucide-vue-next';
 import CustomBackground from './components/CustomBackground.vue';
 import SettingsDialog from './components/SettingsDialog.vue';
 import AudioRing from './components/AudioRing.vue';
@@ -24,13 +24,91 @@ const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') ||
 const themeColor = useStorage('micyou_theme_color', 'theme-blue');
 const uiStyle = useStorage('micyou_ui_style', 'style-glass');
 
+const customH = useStorage('micyou_custom_h', 215);
+const customS = useStorage('micyou_custom_s', 35);
+const customL = useStorage('micyou_custom_l', 55);
+
 watchEffect(() => {
   if (typeof document !== 'undefined') {
-    document.documentElement.classList.remove('theme-blue', 'theme-green', 'theme-rose', 'theme-purple');
-    document.documentElement.classList.remove('style-default', 'style-glass');
+    const themes = ['theme-blue', 'theme-green', 'theme-rose', 'theme-purple', 'theme-orange', 'theme-amber', 'theme-teal', 'theme-cyan', 'theme-custom'];
+    document.documentElement.classList.remove(...themes, 'style-default', 'style-glass');
     
     if (themeColor.value) document.documentElement.classList.add(themeColor.value);
     if (uiStyle.value) document.documentElement.classList.add(uiStyle.value);
+    
+    let dynamicStyle = document.getElementById('micyou-custom-theme');
+    if (!dynamicStyle) {
+      dynamicStyle = document.createElement('style');
+      dynamicStyle.id = 'micyou-custom-theme';
+      document.head.appendChild(dynamicStyle);
+    }
+
+    if (themeColor.value === 'theme-custom') {
+      const h = customH.value;
+      const s = customS.value;
+      const l = customL.value;
+      const lDark = Math.min(l + 10, 80); // Lighter for dark mode
+      
+      dynamicStyle.innerHTML = `
+        :root, .theme-custom {
+          --background: ${h} 15% 96%;
+          --foreground: ${h} 15% 25%;
+          --surface: ${h} 15% 98%;
+          --on-surface: ${h} 15% 25%;
+          --surface-bright: ${h} 15% 98%;
+          --surface-container: ${h} 15% 92%;
+          --surface-container-low: ${h} 15% 94%;
+          --surface-variant: ${h} 15% 88%;
+          --on-surface-variant: ${h} 15% 45%;
+          --outline: ${h} 15% 80%;
+          --border: ${h} 15% 80%;
+          
+          --primary: ${h} ${s}% ${l}%;
+          --on-primary: ${h} ${s}% 92%;
+          --primary-container: ${h} ${s}% 85%;
+          --on-primary-container: ${h} ${s}% 25%;
+          
+          --secondary: ${h} 20% 90%;
+          --on-secondary: ${h} 20% 25%;
+          --secondary-container: ${h} 20% 90%;
+          --on-secondary-container: ${h} 20% 25%;
+          --tertiary: ${h} 20% 90%;
+          --on-tertiary: ${h} 20% 25%;
+          --error: 0 40% 55%;
+          --on-error: 0 40% 92%;
+        }
+
+        .dark.theme-custom, .theme-custom .dark {
+          --background: ${h} 15% 8%;
+          --foreground: ${h} 15% 85%;
+          --surface: ${h} 15% 10%;
+          --on-surface: ${h} 15% 85%;
+          --surface-bright: ${h} 15% 14%;
+          --surface-container: ${h} 15% 16%;
+          --surface-container-low: ${h} 15% 12%;
+          --surface-variant: ${h} 15% 22%;
+          --on-surface-variant: ${h} 15% 60%;
+          --outline: ${h} 15% 20%;
+          --border: ${h} 15% 20%;
+          
+          --primary: ${h} ${s}% ${lDark}%;
+          --on-primary: ${h} ${s}% 20%;
+          --primary-container: ${h} ${s}% 25%;
+          --on-primary-container: ${h} ${s}% 85%;
+          
+          --secondary: ${h} 20% 16%;
+          --on-secondary: ${h} 20% 85%;
+          --secondary-container: ${h} 20% 16%;
+          --on-secondary-container: ${h} 20% 85%;
+          --tertiary: ${h} 20% 16%;
+          --on-tertiary: ${h} 20% 85%;
+          --error: 0 40% 65%;
+          --on-error: 0 40% 20%;
+        }
+      `;
+    } else {
+      dynamicStyle.innerHTML = '';
+    }
   }
 });
 
@@ -152,11 +230,19 @@ const micScale = computed(() => {
                 <Mic class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">USB</span>
               </button>
+              <button 
+                @click="connectionMode = 'web'"
+                class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
+                :class="connectionMode === 'web' ? 'bg-primary text-on-primary' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+              >
+                <Globe class="w-4 h-4 mb-1" />
+                <span class="text-[10px] font-medium">Web</span>
+              </button>
             </div>
           </div>
 
           <!-- Port Card -->
-          <div class="haze-surface rounded-2xl p-3 flex flex-col gap-2">
+          <div v-if="connectionMode !== 'web'" class="haze-surface rounded-2xl p-3 flex flex-col gap-2">
             <span class="text-xs text-on-surface-variant font-medium">{{ $t('app.port') }}</span>
             <input 
               v-model="serverPort"
@@ -165,16 +251,25 @@ const micScale = computed(() => {
             />
           </div>
 
+          <!-- Web QR Card -->
+          <div v-else class="haze-surface rounded-2xl p-3 flex flex-col items-center justify-center gap-2">
+            <span class="text-xs text-on-surface-variant font-medium self-start">Web Connection</span>
+            <div class="w-24 h-24 bg-white rounded-xl flex items-center justify-center border border-surface-variant/50 shadow-inner">
+              <Scan class="w-10 h-10 text-surface-variant" />
+            </div>
+            <span class="text-[10px] text-on-surface-variant text-center leading-tight">Scan to connect<br/>(Coming Soon)</span>
+          </div>
+
           <!-- Status Card -->
           <div class="haze-surface rounded-2xl p-4 flex-1 flex flex-col items-center justify-center text-center gap-3">
             <div class="w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-500" 
-                 :class="serverState === 'streaming' ? 'bg-primary/20 text-primary' : (serverState === 'connecting' ? 'bg-secondary/20 text-secondary' : 'bg-surface-variant/50 text-on-surface-variant')">
+                 :class="serverState === 'streaming' ? 'bg-primary/20 text-primary' : (serverState === 'connecting' ? 'bg-tertiary/20 text-tertiary' : 'bg-surface-variant/50 text-on-surface-variant')">
               <CheckCircle2 v-if="serverState === 'streaming'" class="w-6 h-6 animate-pulse" />
-              <RadioTower v-else class="w-6 h-6" :class="{ 'animate-ping': serverState === 'connecting' }" />
+              <RadioTower v-else class="w-6 h-6" :class="{ 'animate-spin-slow': serverState === 'connecting' }" />
             </div>
             <div>
               <h3 class="text-sm font-bold">{{ serverState === 'streaming' ? $t('app.status.streaming') : (serverState === 'connecting' ? $t('app.status.connecting') : $t('app.status.ready')) }}</h3>
-              <p class="text-xs text-on-surface-variant mt-1 max-w-[200px]">
+              <p class="text-xs text-on-surface-variant mt-1 max-w-[200px] mx-auto">
                 {{ serverState === 'streaming' ? $t('app.status.streamingDesc') : (serverState === 'connecting' ? $t('app.status.connectingDesc', { port: serverPort }) : $t('app.status.readyDesc')) }}
               </p>
             </div>
@@ -182,17 +277,41 @@ const micScale = computed(() => {
         </div>
 
         <!-- Center Panel (62%) -->
-        <div class="w-[62%] haze-surface rounded-2xl flex items-center justify-center relative overflow-hidden">
-          <!-- Central Mic with AudioRing -->
-          <div class="relative w-64 h-64 flex items-center justify-center transition-transform duration-200"
+        <div class="w-[62%] haze-surface rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group">
+          <!-- Central Visualizer & Action Button -->
+          <div class="relative w-64 h-64 flex items-center justify-center transition-transform duration-200 absolute-center"
                :style="{ transform: `scale(${serverState === 'streaming' ? micScale : 1})` }">
-            <AudioRing :level="audioLevel">
-              <Mic class="w-10 h-10 text-on-primary" />
+            <AudioRing v-if="serverState === 'streaming'" :level="audioLevel">
+              <!-- Central Button When Streaming -->
+              <div class="relative flex items-center justify-center">
+                <!-- Breathing Glow Background -->
+                <div class="absolute inset-0 bg-error/30 rounded-full blur-md animate-pulse scale-125"></div>
+                <!-- Button -->
+                <button @click="toggleStreaming" class="relative z-10 w-[72px] h-[72px] rounded-full bg-error flex items-center justify-center shadow-lg hover:scale-95 transition-all duration-300 group-hover:bg-error/90 border border-white/10">
+                  <Unlink class="w-7 h-7 text-on-error" stroke-width="2.5" />
+                </button>
+              </div>
             </AudioRing>
+            
+            <div v-else class="relative w-full h-full flex items-center justify-center">
+              <!-- Central Button When Not Streaming -->
+              <button @click="toggleStreaming" class="relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-95 border border-white/5"
+                      :class="serverState === 'connecting' ? 'bg-tertiary shadow-tertiary/20 text-on-tertiary' : 'bg-primary shadow-primary/20 text-on-primary'">
+                <RefreshCw v-if="serverState === 'connecting'" class="w-7 h-7 animate-spin-slow" stroke-width="2.5" />
+                <Link v-else class="w-7 h-7" stroke-width="2.5" />
+              </button>
+            </div>
           </div>
           
-          <div class="absolute bottom-6 font-mono text-sm text-primary/80 bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
-            {{ $t('app.level') }} {{ audioLevel }}
+          <!-- Status Text (Positioned Absolutely to avoid pushing button off-center) -->
+          <div class="absolute top-[calc(50%+4rem)] flex items-center gap-2">
+            <span class="text-sm font-bold tracking-wider" 
+                  :class="serverState === 'streaming' ? 'text-error' : (serverState === 'connecting' ? 'text-tertiary' : 'text-primary')">
+              {{ serverState === 'streaming' ? $t('app.status.stateStreaming') : (serverState === 'connecting' ? $t('app.status.stateConnecting') : 'CLICK TO START') }}
+            </span>
+            <div v-if="serverState === 'streaming'" class="bg-error px-1.5 py-0.5 rounded text-[10px] font-black text-on-error uppercase tracking-widest shadow-sm">
+              LIVE
+            </div>
           </div>
         </div>
       </div>
@@ -200,7 +319,7 @@ const micScale = computed(() => {
       <!-- Bottom Bar -->
       <div class="haze-surface rounded-2xl p-2 flex justify-between items-center flex-shrink-0">
         <div class="flex items-center px-3">
-          <div class="w-2 h-2 rounded-full mr-2" :class="serverState === 'streaming' ? 'bg-green-500 animate-pulse shadow-[0_0_8px_#22c55e]' : (serverState === 'connecting' ? 'bg-yellow-500 animate-pulse shadow-[0_0_8px_#eab308]' : 'bg-on-surface-variant')"></div>
+          <div class="w-2 h-2 rounded-full mr-2" :class="serverState === 'streaming' ? 'bg-primary animate-pulse shadow-[0_0_8px_hsl(var(--primary))]' : (serverState === 'connecting' ? 'bg-tertiary animate-pulse shadow-[0_0_8px_hsl(var(--tertiary))]' : 'bg-on-surface-variant')"></div>
           <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">{{ serverState === 'streaming' ? $t('app.status.stateStreaming') : (serverState === 'connecting' ? $t('app.status.stateConnecting') : $t('app.status.stateIdle')) }}</span>
         </div>
         
@@ -210,16 +329,6 @@ const micScale = computed(() => {
           </button>
           <button @click="isSettingsOpen = true" class="w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors">
             <Settings class="w-4 h-4 text-on-surface-variant" />
-          </button>
-          
-          <button 
-            @click="toggleStreaming"
-            class="ml-2 px-6 h-10 rounded-full font-bold text-sm shadow-md transition-all duration-300 flex items-center gap-2"
-            :class="serverState !== 'idle' ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20' : 'bg-primary hover:bg-primary/90 text-on-primary shadow-primary/20'"
-          >
-            <Square v-if="serverState !== 'idle'" class="w-4 h-4" />
-            <Play v-else class="w-4 h-4" />
-            {{ serverState !== 'idle' ? $t('app.stop') : $t('app.start') }}
           </button>
         </div>
       </div>

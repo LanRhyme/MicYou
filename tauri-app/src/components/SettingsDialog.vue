@@ -114,23 +114,19 @@
 
             <!-- Theme Color Settings -->
             <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
-              <div>
+              <div class="flex-shrink-0 mr-4">
                 <h4 class="font-bold text-on-surface">{{ $t('settings.themeColor.title') }}</h4>
                 <p class="text-xs text-on-surface-variant">{{ $t('settings.themeColor.desc') }}</p>
               </div>
-              <Select v-model="themeColor">
-                <SelectTrigger class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
-                  <SelectValue :placeholder="$t('settings.themeColor.blue')" />
-                </SelectTrigger>
-                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
-                  <SelectGroup>
-                    <SelectItem value="theme-blue">{{ $t('settings.themeColor.blue') }}</SelectItem>
-                    <SelectItem value="theme-green">{{ $t('settings.themeColor.green') }}</SelectItem>
-                    <SelectItem value="theme-rose">{{ $t('settings.themeColor.rose') }}</SelectItem>
-                    <SelectItem value="theme-purple">{{ $t('settings.themeColor.purple') }}</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              <div class="flex justify-end">
+                <ThemeSelector 
+                  v-model="themeColor" 
+                  :custom-h="customH"
+                  :custom-s="customS"
+                  :custom-l="customL"
+                  @open-custom="showColorPicker = true"
+                />
+              </div>
             </div>
 
             <!-- UI Style Settings -->
@@ -386,6 +382,14 @@
   <SponsorsDialog :isOpen="showSponsors" @close="showSponsors = false" />
   <LicensesDialog :isOpen="showLicenses" @close="showLicenses = false" />
   <AudioChainDialog :isOpen="showAudioChain" :chain="settings.processingChain" @update:chain="updateProcessingChain" @close="showAudioChain = false" />
+  <CustomColorPicker 
+    :is-open="showColorPicker" 
+    :initial-h="customH"
+    :initial-s="customS"
+    :initial-l="customL"
+    @close="showColorPicker = false"
+    @apply="applyCustomColor"
+  />
 </template>
 
 <script setup lang="ts">
@@ -417,6 +421,8 @@ import SponsorsDialog from './SponsorsDialog.vue';
 import LicensesDialog from './LicensesDialog.vue';
 import AudioChainDialog from './AudioChainDialog.vue';
 import EqualizerPanel from './EqualizerPanel.vue';
+import ThemeSelector from './ThemeSelector.vue';
+import CustomColorPicker from './CustomColorPicker.vue';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 const props = defineProps<{
@@ -438,6 +444,18 @@ const colorMode = useColorMode({
 
 const themeColor = useStorage('micyou_theme_color', 'theme-blue');
 const uiStyle = useStorage('micyou_ui_style', 'style-glass');
+
+const customH = useStorage('micyou_custom_h', 215);
+const customS = useStorage('micyou_custom_s', 35);
+const customL = useStorage('micyou_custom_l', 55);
+const showColorPicker = ref(false);
+
+const applyCustomColor = (color: { h: number, s: number, l: number }) => {
+  customH.value = color.h;
+  customS.value = color.s;
+  customL.value = color.l;
+  themeColor.value = 'theme-custom';
+};
 
 const sections = computed(() => [
   { id: 'general', name: t('settings.categories.general'), icon: SettingsIcon },

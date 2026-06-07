@@ -43,8 +43,8 @@ const dotY = computed(() => 50 + 35 * Math.sin(normalizedLevel.value * Math.PI *
       </g>
     </svg>
     
-    <!-- Slot for the Mic icon in the center -->
-    <div class="relative z-10 w-24 h-24 rounded-full bg-primary flex items-center justify-center shadow-md">
+    <!-- Slot for the central element -->
+    <div class="relative z-10 flex items-center justify-center">
       <slot></slot>
     </div>
   </div>
