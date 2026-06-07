@@ -17,7 +17,7 @@ pub struct DeviceInfo {
     pub latency: u32,
 }
 
-pub async fn start_tcp_server(app_handle: AppHandle, port: u16, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn start_tcp_server(app_handle: AppHandle, port: u16, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String) -> Result<(), Box<dyn Error + Send + Sync>> {
     let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
     println!("TCP Control Server listening on {}", port);
 
@@ -33,8 +33,10 @@ pub async fn start_tcp_server(app_handle: AppHandle, port: u16, cancel_token: Ca
                         println!("New client connected: {}", addr);
                         let app_handle_clone = app_handle.clone();
                         let audio_tx_clone = audio_tx.clone();
+                        let stats_clone = stats.clone();
+                        let mode_clone = mode.clone();
                         tokio::spawn(async move {
-                            if let Err(e) = handle_client(socket, addr, app_handle_clone.clone(), audio_tx_clone).await {
+                            if let Err(e) = handle_client(socket, addr, app_handle_clone.clone(), audio_tx_clone, stats_clone, mode_clone).await {
                                 eprintln!("Client {} error: {}", addr, e);
                             }
                             println!("Client {} disconnected", addr);
@@ -51,7 +53,7 @@ pub async fn start_tcp_server(app_handle: AppHandle, port: u16, cancel_token: Ca
     Ok(())
 }
 
-async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppHandle, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppHandle, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String) -> Result<(), Box<dyn Error + Send + Sync>> {
     // 1. Handshake
     let mut handshake_buf = vec![0u8; HANDSHAKE_CLIENT_STR.len()];
     socket.read_exact(&mut handshake_buf).await?;
@@ -68,6 +70,9 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
         ip: addr.ip().to_string(),
         latency: 12,
     });
+
+    let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+    stats.mark_tcp_connected(current_time);
 
     let mut buffer = BytesMut::with_capacity(8192);
 
@@ -99,7 +104,7 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
     // 4. Ping loop
     let tx_ping = tx.clone();
     let ping_task = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+        let mut interval = tokio::time::interval(std::time::Duration::from_millis(500));
         loop {
             interval.tick().await;
             let ping_msg = MessageWrapper {
@@ -114,6 +119,44 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
             };
             if tx_ping.send(ping_msg).await.is_err() {
                 break;
+            }
+        }
+    });
+
+    // Stats emission and UDP warning loop
+    let stats_emit = stats.clone();
+    let app_handle_emit = app_handle.clone();
+    let monitor_task = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_millis(1000));
+        let mut warning_fired = false;
+        loop {
+            interval.tick().await;
+            
+            // Emulate realistic buffer duration: TCP/USB doesn't need a jitter buffer, so it's ~0-10ms. WiFi might use 30-50ms.
+            let buffer_duration = if mode == "usb" { 5 } else { 30 };
+            let metrics = stats_emit.to_metrics(buffer_duration); 
+            let _ = app_handle_emit.emit("audio-metrics", metrics);
+
+            // Check UDP timeout only for Wi-Fi mode
+            if mode == "wifi" {
+                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+                let tcp_time = stats_emit.get_tcp_connected_time();
+                let last_udp = stats_emit.get_last_udp_time();
+                
+                if tcp_time > 0 && (now.saturating_sub(tcp_time)) > 5000 {
+                    let time_since_udp = if last_udp == 0 {
+                        now.saturating_sub(tcp_time)
+                    } else {
+                        now.saturating_sub(last_udp)
+                    };
+
+                    if time_since_udp > 10000 && !warning_fired {
+                        let _ = app_handle_emit.emit("udp_audio_warning", ());
+                        warning_fired = true;
+                    } else if time_since_udp < 5000 && warning_fired {
+                        warning_fired = false;
+                    }
+                }
             }
         }
     });
@@ -144,17 +187,18 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
             let payload = buffer.split_to(payload_len);
             
             let message = MessageWrapper::decode(payload.freeze())?;
-            handle_message(message, &tx, &audio_tx).await?;
+            handle_message(message, &tx, &audio_tx, &stats).await?;
         }
     }
 
     writer_task.abort();
     ping_task.abort();
+    monitor_task.abort();
 
     Ok(())
 }
 
-async fn handle_message(msg: MessageWrapper, tx: &tokio::sync::mpsc::Sender<MessageWrapper>, audio_tx: &tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn handle_message(msg: MessageWrapper, tx: &tokio::sync::mpsc::Sender<MessageWrapper>, audio_tx: &tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: &std::sync::Arc<crate::stats::NetworkStats>) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(audio) = msg.audio_packet {
         let _ = audio_tx.send(audio).await;
         // Don't return here, message might contain ping/mute too, although unlikely
@@ -173,6 +217,14 @@ async fn handle_message(msg: MessageWrapper, tx: &tokio::sync::mpsc::Sender<Mess
         };
         
         let _ = tx.send(pong_msg).await;
+    }
+
+    if let Some(pong) = msg.pong {
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
+        let rtt = now - pong.timestamp;
+        if rtt >= 0 {
+            stats.set_rtt(rtt);
+        }
     }
     
     if let Some(mute) = msg.mute {

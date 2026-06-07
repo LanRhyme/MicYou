@@ -5,10 +5,12 @@ import { invoke } from '@tauri-apps/api/core';
 import { useStorage } from '@vueuse/core';
 
 // Icons
-import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Play, Square, Settings, Puzzle, Link, Unlink, RefreshCw, Scan } from 'lucide-vue-next';
+import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, Puzzle, Link, Unlink, RefreshCw, Scan, ActivitySquare as MonitoringIcon } from 'lucide-vue-next';
 import CustomBackground from './components/CustomBackground.vue';
 import SettingsDialog from './components/SettingsDialog.vue';
 import AudioRing from './components/AudioRing.vue';
+import MonitoringPanel from './components/MonitoringPanel.vue';
+import UdpWarningDialog from './components/UdpWarningDialog.vue';
 
 const serverState = ref<'idle' | 'connecting' | 'streaming'>('idle');
 const connectionMode = ref<'wifi' | 'usb' | 'web'>('wifi');
@@ -18,6 +20,9 @@ const networkInfo = ref<{ ips: string[], port: number } | null>(null);
 const selectedIp = ref<string>('0.0.0.0');
 
 const isSettingsOpen = ref(false);
+const showMonitoringPanel = ref(false);
+const showUdpWarning = ref(false);
+const audioMetrics = ref<any>(null);
 const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') || '');
 
 // Global Theme and UI Style Management
@@ -117,6 +122,8 @@ watchEffect(() => {
 let unlistenAudioLevel: UnlistenFn | null = null;
 let unlistenDeviceConnected: UnlistenFn | null = null;
 let unlistenDeviceDisconnected: UnlistenFn | null = null;
+let unlistenAudioMetrics: UnlistenFn | null = null;
+let unlistenUdpWarning: UnlistenFn | null = null;
 
 onMounted(async () => {
 
@@ -143,12 +150,22 @@ onMounted(async () => {
       audioLevel.value = 0;
     }
   });
+
+  unlistenAudioMetrics = await listen<any>('audio-metrics', (event) => {
+    audioMetrics.value = event.payload;
+  });
+
+  unlistenUdpWarning = await listen('udp_audio_warning', () => {
+    showUdpWarning.value = true;
+  });
 });
 
 onUnmounted(() => {
   if (unlistenAudioLevel) unlistenAudioLevel();
   if (unlistenDeviceConnected) unlistenDeviceConnected();
   if (unlistenDeviceDisconnected) unlistenDeviceDisconnected();
+  if (unlistenAudioMetrics) unlistenAudioMetrics();
+  if (unlistenUdpWarning) unlistenUdpWarning();
 });
 
 const toggleStreaming = async () => {
@@ -208,8 +225,8 @@ const micScale = computed(() => {
 
       <!-- Main Content -->
       <div class="flex flex-1 gap-3 min-h-0">
-        <!-- Left Panel (38%) -->
-        <div class="w-[38%] flex flex-col gap-3">
+        <!-- Left Panel -->
+        <div class="flex flex-col gap-3 transition-all duration-300" :class="showMonitoringPanel ? 'w-[28%]' : 'w-[38%]'">
           <!-- Mode Card -->
           <div class="haze-surface rounded-2xl p-3 flex flex-col gap-2">
             <span class="text-xs text-on-surface-variant font-medium">{{ $t('app.connectionMode') }}</span>
@@ -276,8 +293,8 @@ const micScale = computed(() => {
           </div>
         </div>
 
-        <!-- Center Panel (62%) -->
-        <div class="w-[62%] haze-surface rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group">
+        <!-- Center Panel -->
+        <div class="haze-surface rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group transition-all duration-300" :class="showMonitoringPanel ? 'w-[44%]' : 'w-[62%]'">
           <!-- Central Visualizer & Action Button -->
           <div class="relative w-64 h-64 flex items-center justify-center transition-transform duration-200 absolute-center"
                :style="{ transform: `scale(${serverState === 'streaming' ? micScale : 1})` }">
@@ -314,6 +331,11 @@ const micScale = computed(() => {
             </div>
           </div>
         </div>
+
+        <!-- Right Panel (Monitoring) -->
+        <div v-if="showMonitoringPanel" class="w-[28%] transition-all duration-300 min-w-0">
+          <MonitoringPanel :serverState="serverState" :audioLevel="audioLevel" :metrics="audioMetrics" />
+        </div>
       </div>
 
       <!-- Bottom Bar -->
@@ -324,6 +346,9 @@ const micScale = computed(() => {
         </div>
         
         <div class="flex items-center gap-2 pr-1">
+          <button @click="showMonitoringPanel = !showMonitoringPanel" class="w-10 h-10 rounded-full flex items-center justify-center transition-colors" :class="showMonitoringPanel ? 'bg-primary/20 text-primary' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'">
+            <MonitoringIcon class="w-4 h-4" />
+          </button>
           <button class="w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors">
             <Puzzle class="w-4 h-4 text-on-surface-variant" />
           </button>
@@ -338,6 +363,12 @@ const micScale = computed(() => {
       :isOpen="isSettingsOpen" 
       @close="isSettingsOpen = false" 
       @updateDevice="dev => outputDevice = dev" 
+    />
+
+    <UdpWarningDialog 
+      :show="showUdpWarning" 
+      :port="Number(serverPort) + 1"
+      @close="showUdpWarning = false" 
     />
   </div>
 </template>

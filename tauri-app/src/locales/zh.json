@@ -20,6 +20,19 @@
       "disconnected": "未连接",
       "waiting": "等待连接中...",
       "running": "MicYou 服务运行中"
+    },
+    "monitoring": {
+      "title": "音频质量监测",
+      "rtt": "网络延迟",
+      "jitter": "抖动",
+      "loss": "丢包率",
+      "trend": "延迟趋势",
+      "waveform": "实时波形",
+      "specs": "音频参数",
+      "sampleRate": "采样率",
+      "bitrate": "比特率",
+      "totalLatency": "总延迟",
+      "buffer": "缓冲延迟"
     }
   },
   "settings": {
@@ -172,6 +185,10 @@
     "logs": {
       "success": "日志导出成功。",
       "failed": "导出日志失败：{error}"
+    },
+    "udpWarning": {
+      "title": "防火墙阻止了 UDP 音频连接",
+      "desc": "手机端已成功连接，但电脑端未能收到任何 UDP 音频数据。这通常是因为 Windows 防火墙拦截了 UDP 端口 ({port})。\n\n请在防火墙中允许 MicYou 程序的网络访问，或者尝试以管理员身份重新运行程序。"
     }
   }
 }

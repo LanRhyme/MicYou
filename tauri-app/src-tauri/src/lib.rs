@@ -7,6 +7,7 @@ pub mod jitter_buffer;
 pub mod dsp;
 pub mod commands;
 pub mod adb_manager;
+pub mod stats;
 
 use tauri::{Emitter, AppHandle, State};
 use std::sync::Arc;
@@ -15,11 +16,13 @@ use std::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use dsp::{AudioDspSettings, DspProcessor};
+use stats::NetworkStats;
 
-struct ServerState {
-    cancel_token: Arc<Mutex<Option<CancellationToken>>>,
-    mdns_manager: Arc<Mutex<Option<network::NetworkManager>>>,
-    dsp_settings: Arc<RwLock<AudioDspSettings>>,
+pub struct ServerState {
+    pub cancel_token: Arc<Mutex<Option<CancellationToken>>>,
+    pub mdns_manager: Arc<Mutex<Option<network::NetworkManager>>>,
+    pub dsp_settings: Arc<RwLock<AudioDspSettings>>,
+    pub network_stats: Arc<NetworkStats>,
 }
 
 #[tauri::command]
@@ -212,16 +215,19 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
     let token_tcp = cancel_token.clone();
     let port_tcp = port;
     let audio_tx_tcp = audio_tx.clone();
+    let stats_tcp = state.network_stats.clone();
+    let mode_tcp = _mode.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = tcp_server::start_tcp_server(app_handle_tcp, port_tcp, token_tcp, audio_tx_tcp).await {
+        if let Err(e) = tcp_server::start_tcp_server(app_handle_tcp, port_tcp, token_tcp, audio_tx_tcp, stats_tcp, mode_tcp).await {
             eprintln!("TCP Server error: {}", e);
         }
     });
 
     let token_udp = cancel_token.clone();
     let port_udp = port + 1;
+    let stats_udp = state.network_stats.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = udp_server::start_udp_server(audio_tx, port_udp, token_udp).await {
+        if let Err(e) = udp_server::start_udp_server(audio_tx, port_udp, token_udp, stats_udp).await {
             eprintln!("UDP Server error: {}", e);
         }
     });
@@ -252,6 +258,7 @@ pub fn run() {
             cancel_token: Arc::new(Mutex::new(None)),
             mdns_manager: Arc::new(Mutex::new(None)),
             dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
+            network_stats: Arc::new(NetworkStats::default()),
         })
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())

@@ -19,7 +19,20 @@
       "usb": "Connected via USB",
       "disconnected": "Not Connected",
       "waiting": "Waiting for connection...",
-      "running": "MicYou Server Running"
+      "running": "MicYou Service Running"
+    },
+    "monitoring": {
+      "title": "Audio Quality",
+      "rtt": "Network Latency",
+      "jitter": "Jitter",
+      "loss": "Packet Loss",
+      "trend": "Latency Trend",
+      "waveform": "Real-time Waveform",
+      "specs": "Audio Specs",
+      "sampleRate": "Sample Rate",
+      "bitrate": "Bitrate",
+      "totalLatency": "Total Latency",
+      "buffer": "Buffer"
     }
   },
   "settings": {
@@ -170,8 +183,12 @@
       "failed": "Failed to check for updates: {error}"
     },
     "logs": {
-      "success": "Log exported successfully.",
-      "failed": "Failed to export log: {error}"
+      "success": "Logs exported successfully.",
+      "failed": "Failed to export logs: {error}"
+    },
+    "udpWarning": {
+      "title": "Firewall Blocked UDP Connection",
+      "desc": "The mobile app connected successfully, but the PC didn't receive any UDP audio data. This is usually because Windows Firewall is blocking the UDP port ({port}).\n\nPlease allow network access for MicYou in your firewall, or try running the app as Administrator."
     }
   }
 }
