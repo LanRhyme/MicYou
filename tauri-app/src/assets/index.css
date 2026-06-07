@@ -4,57 +4,63 @@
 
 @layer base {
   :root {
-    --background: 220 20% 98%;
-    --foreground: 220 10% 10%;
+    --background: 90 10% 98%;
+    --foreground: 90 10% 10%;
     
-    --primary: 215 100% 50%;
+    --primary: 90 39% 35%;
     --on-primary: 0 0% 100%;
-    --primary-container: 215 100% 90%;
-    --on-primary-container: 215 100% 10%;
+    --primary-container: 90 40% 90%;
+    --on-primary-container: 90 50% 10%;
     
-    --secondary: 210 20% 50%;
+    --secondary: 90 20% 40%;
     --on-secondary: 0 0% 100%;
-    --secondary-container: 210 20% 90%;
-    --on-secondary-container: 210 20% 10%;
+    --secondary-container: 90 30% 90%;
+    --on-secondary-container: 90 30% 10%;
     
-    --tertiary: 280 50% 50%;
+    --tertiary: 140 30% 40%;
     --on-tertiary: 0 0% 100%;
     
-    --surface: 220 20% 98%;
-    --on-surface: 220 10% 10%;
-    --surface-variant: 220 10% 90%;
-    --on-surface-variant: 220 10% 30%;
+    --surface: 90 10% 98%;
+    --on-surface: 90 10% 10%;
+    --surface-variant: 90 10% 90%;
+    --on-surface-variant: 90 10% 30%;
     
-    --outline: 220 10% 80%;
-    --border: 220 10% 90%;
+    --surface-container: 90 10% 94%;
+    --surface-bright: 90 10% 98%;
+    
+    --outline: 90 10% 60%;
+    --border: 90 10% 85%;
     
     --radius: 1rem;
   }
   
   .dark {
-    --background: 220 20% 5%;
-    --foreground: 220 10% 95%;
+    --background: 90 10% 6%;
+    --foreground: 90 10% 90%;
     
-    --primary: 215 80% 60%;
-    --on-primary: 215 100% 10%;
-    --primary-container: 215 80% 20%;
-    --on-primary-container: 215 100% 90%;
+    --primary: 90 39% 70%;
+    --on-primary: 90 50% 20%;
+    --primary-container: 90 40% 25%;
+    --on-primary-container: 90 40% 90%;
     
-    --secondary: 210 20% 60%;
-    --on-secondary: 210 20% 10%;
-    --secondary-container: 210 20% 20%;
-    --on-secondary-container: 210 20% 90%;
+    --secondary: 90 20% 70%;
+    --on-secondary: 90 30% 20%;
+    --secondary-container: 90 20% 30%;
+    --on-secondary-container: 90 30% 90%;
     
-    --tertiary: 280 50% 60%;
-    --on-tertiary: 280 50% 10%;
+    --tertiary: 140 30% 70%;
+    --on-tertiary: 140 30% 20%;
     
-    --surface: 220 20% 10%;
-    --on-surface: 220 10% 95%;
-    --surface-variant: 220 10% 20%;
-    --on-surface-variant: 220 10% 80%;
+    --surface: 90 10% 6%;
+    --on-surface: 90 10% 90%;
+    --surface-variant: 90 10% 20%;
+    --on-surface-variant: 90 10% 80%;
     
-    --outline: 220 10% 30%;
-    --border: 220 10% 20%;
+    --surface-container: 90 10% 12%;
+    --surface-bright: 90 10% 24%;
+    
+    --outline: 90 10% 40%;
+    --border: 90 10% 20%;
   }
 }
 
@@ -63,6 +69,12 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-surface-container text-foreground;
+  }
+}
+
+@layer utilities {
+  .haze-surface {
+    @apply bg-surface-bright rounded-2xl shadow-sm border border-transparent;
   }
 }

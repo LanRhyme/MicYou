@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 overflow-hidden bg-background -z-10">
+  <div class="fixed inset-0 overflow-hidden bg-surface-container -z-10">
     <div class="absolute inset-0 opacity-40">
       <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary/30 blur-[100px] animate-blob"></div>
       <div class="absolute top-[20%] right-[-10%] w-[40%] h-[60%] rounded-full bg-tertiary/20 blur-[120px] animate-blob animation-delay-2000"></div>
