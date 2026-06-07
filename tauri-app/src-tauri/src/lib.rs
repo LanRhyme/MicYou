@@ -155,7 +155,7 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
             });
             DspProcessor::new(dsp_settings, resources_dir)
         };
-        let mut jb = jitter_buffer::JitterBuffer::new(50);
+        let mut jb = jitter_buffer::JitterBuffer::new(12);
         let mut frame_counter = 0;
 
         while let Some(packet) = audio_rx.blocking_recv() {
@@ -196,10 +196,9 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
                             0.0
                         };
 
-                        // Run DSP pipeline
                         let (_raw_rms, processed_rms) = dsp_processor.process(&mut pcm_f32, channels.max(1), queued_ms);
 
-                        audio_manager.push_audio_data(&pcm_f32);
+                        audio_manager.push_audio_data(&pcm_f32, channels.max(1));
                         
                         frame_counter += 1;
                         if frame_counter % 3 == 0 {
@@ -268,7 +267,11 @@ pub fn run() {
             dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
             network_stats: Arc::new(NetworkStats::default()),
         })
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .build()
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|_app| {

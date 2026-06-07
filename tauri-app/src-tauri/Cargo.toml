@@ -43,4 +43,5 @@ md-5 = "0.11.0"
 tauri-plugin-log = "2.8.0"
 tauri-plugin-dialog = "2.7.1"
 socket2 = "0.6.4"
+log = "0.4.32"
 
