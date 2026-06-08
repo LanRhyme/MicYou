@@ -16,6 +16,7 @@
         "width": 800,
         "height": 600,
         "decorations": false,
+        "resizable": false,
         "transparent": true,
         "windowEffects": {
           "effects": ["acrylic", "blur"]

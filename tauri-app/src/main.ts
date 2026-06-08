@@ -1,7 +1,9 @@
 import { createApp } from "vue";
-import { createI18n } from "vue-i18n";
 import "./assets/index.css";
 import App from "./App.vue";
+import PopupWindow from "./components/PopupWindow.vue";
+import IpPopup from "./components/IpPopup.vue";
+import { createI18n } from "vue-i18n";
 
 import en from "./locales/en.json";
 import zh from "./locales/zh.json";
@@ -25,12 +27,18 @@ const i18n = createI18n({
   legacy: false,
   locale: initialLocale,
   fallbackLocale: "en",
-  messages: {
-    en,
-    zh
-  }
+  messages: { en, zh }
 });
 
-const app = createApp(App);
+const hash = window.location.hash;
+let RootComponent = App;
+
+if (hash === '#/popup/ip') {
+  RootComponent = IpPopup;
+} else if (hash.startsWith('#/popup')) {
+  RootComponent = PopupWindow;
+}
+
+const app = createApp(RootComponent);
 app.use(i18n);
 app.mount("#app");

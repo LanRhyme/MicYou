@@ -52,6 +52,24 @@
               </Select>
             </div>
 
+            <!-- Pocket Mode -->
+            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
+              <div>
+                <h4 class="font-bold text-on-surface">{{ $t('settings.pocketMode.title') }}</h4>
+                <p class="text-xs text-on-surface-variant">{{ $t('settings.pocketMode.desc') }}</p>
+              </div>
+              <button
+                @click="pocketMode = !pocketMode"
+                class="relative w-11 h-6 rounded-full transition-colors duration-200"
+                :class="pocketMode ? 'bg-primary' : 'bg-surface-variant'"
+              >
+                <span
+                  class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+                  :class="pocketMode ? 'translate-x-5' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+
             <!-- Output Device -->
             <div class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
               <div>
@@ -467,6 +485,7 @@ const customH = useStorage('micyou_custom_h', 215);
 const customS = useStorage('micyou_custom_s', 35);
 const customL = useStorage('micyou_custom_l', 55);
 const showColorPicker = ref(false);
+const pocketMode = useStorage('micyou_pocket_mode', false);
 
 const applyCustomColor = (color: { h: number, s: number, l: number }) => {
   customH.value = color.h;

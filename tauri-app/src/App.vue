@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, computed, watchEffect } from 'vue';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
 import { useStorage } from '@vueuse/core';
 
 // Icons
@@ -13,6 +13,7 @@ import SettingsDialog from './components/SettingsDialog.vue';
 import AudioRing from './components/AudioRing.vue';
 import MonitoringPanel from './components/MonitoringPanel.vue';
 import UdpWarningDialog from './components/UdpWarningDialog.vue';
+import PocketLayout from './components/PocketLayout.vue';
 
 const serverState = ref<'idle' | 'connecting' | 'streaming'>('idle');
 const connectionMode = ref<'wifi' | 'usb' | 'web'>('wifi');
@@ -40,13 +41,44 @@ const showMonitoringPanel = ref(false);
 const showUdpWarning = ref(false);
 const audioMetrics = ref<any>(null);
 const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') || '');
+const isMuted = ref(false);
 
+const pocketMode = useStorage('micyou_pocket_mode', false);
+const pocketPopupOpen = ref(false);
+const pocketLayoutRef = ref<InstanceType<typeof PocketLayout> | null>(null);
 const { t } = useI18n();
 
 // Window Management
 const appWindow = getCurrentWindow();
 const minimizeWindow = () => appWindow.minimize();
 const closeWindow = () => appWindow.close();
+
+// Resize window when pocket mode changes
+watchEffect(async () => {
+  const isPocket = pocketMode.value;
+  // Skip resize if settings dialog is open in pocket mode
+  if (isPocket && isSettingsOpen.value) return;
+  try {
+    if (isPocket) {
+      await appWindow.setSize(new LogicalSize(420, 52));
+    } else {
+      await appWindow.setSize(new LogicalSize(800, 600));
+    }
+  } catch (e) {
+    console.error('Failed to resize window:', e);
+  }
+});
+
+// Resize for settings dialog in pocket mode
+watchEffect(async () => {
+  if (pocketMode.value && isSettingsOpen.value) {
+    try {
+      await appWindow.setSize(new LogicalSize(800, 600));
+    } catch (e) {
+      console.error('Failed to resize window for settings:', e);
+    }
+  }
+});
 
 // Global Theme and UI Style Management
 const themeColor = useStorage('micyou_theme_color', 'theme-blue');
@@ -301,6 +333,14 @@ const confirmIpSwitch = async () => {
   }
 };
 
+const toggleMute = () => {
+  isMuted.value = !isMuted.value;
+};
+
+const toggleMonitoring = () => {
+  showMonitoringPanel.value = !showMonitoringPanel.value;
+};
+
 const micScale = computed(() => {
   return 1 + (audioLevel.value / 100) * 0.5;
 });
@@ -309,8 +349,45 @@ const micScale = computed(() => {
 <template>
   <div class="relative w-full h-screen overflow-hidden text-foreground bg-transparent">
     <CustomBackground />
-    
-    <div class="absolute inset-0 flex flex-col p-3 gap-3">
+
+    <!-- Pocket Mode -->
+    <div v-if="pocketMode" class="absolute inset-0 flex items-center p-1.5" data-tauri-drag-region>
+      <!-- Backdrop when popup is open -->
+      <div
+        v-if="pocketPopupOpen"
+        class="absolute inset-0 z-10"
+        @click="pocketLayoutRef?.closePopup()"
+      />
+
+      <PocketLayout
+        ref="pocketLayoutRef"
+        class="flex-1 relative z-20"
+        :serverState="serverState"
+        :connectionMode="connectionMode"
+        :serverPort="serverPort"
+        :displayIp="displayIp"
+        :isAutoBind="isAutoBind"
+        :selectedIp="selectedIp"
+        :networkInterfaces="networkInterfaces"
+        :isMuted="isMuted"
+        :showMonitoringPanel="showMonitoringPanel"
+        :audioLevel="audioLevel"
+        :outputDevice="outputDevice"
+        :audioMetrics="audioMetrics"
+        :popupOpen="pocketPopupOpen"
+        @toggleStream="toggleStreaming"
+        @selectIp="(ip, auto) => selectIp(ip, auto)"
+        @updateMode="m => connectionMode = m"
+        @updatePort="p => serverPort = p"
+        @toggleMute="toggleMute"
+        @toggleMonitoring="toggleMonitoring"
+        @openSettings="isSettingsOpen = true"
+        @update:popupOpen="v => pocketPopupOpen = v"
+      />
+    </div>
+
+    <!-- Full Mode -->
+    <div v-else class="absolute inset-0 flex flex-col p-3 gap-3">
       <!-- Header Section -->
       <div data-tauri-drag-region class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0 cursor-grab active:cursor-grabbing">
         <div data-tauri-drag-region class="flex items-center gap-3">

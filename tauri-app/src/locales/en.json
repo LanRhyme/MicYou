@@ -15,6 +15,8 @@
       "stateStreaming": "STREAMING",
       "stateConnecting": "CONNECTING...",
       "stateIdle": "IDLE",
+      "mute": "Mute",
+      "unmute": "Unmute",
       "wifi": "Connected via Wi-Fi",
       "usb": "Connected via USB",
       "disconnected": "Not Connected",
@@ -88,6 +90,10 @@
       "saturation": "Saturation",
       "lightness": "Lightness",
       "autoManaged": "Saturation and Lightness are automatically managed to maintain a premium tonal aesthetic."
+    },
+    "pocketMode": {
+      "title": "Pocket Mode",
+      "desc": "Compact horizontal bar layout, other controls moved to popup menu"
     },
     "uiStyle": {
       "title": "UI Style",

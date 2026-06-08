@@ -15,6 +15,8 @@
       "stateStreaming": "传输中",
       "stateConnecting": "连接中...",
       "stateIdle": "空闲",
+      "mute": "静音",
+      "unmute": "取消静音",
       "wifi": "已通过 Wi-Fi 连接",
       "usb": "已通过 USB 连接",
       "disconnected": "未连接",
@@ -88,6 +90,10 @@
       "saturation": "饱和度",
       "lightness": "明度",
       "autoManaged": "系统已接管饱和度和明度，为您锁定最佳的极简莫兰迪色感"
+    },
+    "pocketMode": {
+      "title": "袖珍模式",
+      "desc": "紧凑的横向胶囊条布局，其他控件收纳到弹出菜单中"
     },
     "uiStyle": {
       "title": "界面风格",
