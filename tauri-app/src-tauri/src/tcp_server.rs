@@ -17,9 +17,9 @@ pub struct DeviceInfo {
     pub latency: u32,
 }
 
-pub async fn start_tcp_server(app_handle: AppHandle, port: u16, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
-    println!("TCP Control Server listening on {}", port);
+pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: String, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let listener = TcpListener::bind(format!("{}:{}", bind_address, port)).await?;
+    println!("TCP Control Server listening on {}:{}", bind_address, port);
 
     loop {
         tokio::select! {

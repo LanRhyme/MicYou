@@ -21,6 +21,14 @@
       "waiting": "等待连接中...",
       "running": "MicYou 服务运行中"
     },
+    "ipSelector": {
+      "allInterfaces": "所有网卡",
+      "allInterfacesDesc": "监听所有网络接口",
+      "switchConfirmTitle": "切换网卡",
+      "switchConfirmMessage": "切换网络接口将重启连接，是否继续？",
+      "continue": "继续",
+      "cancel": "取消"
+    },
     "monitoring": {
       "title": "音频质量监测",
       "rtt": "网络延迟",

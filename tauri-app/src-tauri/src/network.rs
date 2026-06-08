@@ -8,13 +8,17 @@ pub struct NetworkManager {
 }
 
 impl NetworkManager {
-    pub fn start_mdns(port: u16) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn start_mdns(port: u16, bind_address: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let mdns = ServiceDaemon::new()?;
-        
+
         let host_name = hostname::get()?.into_string().unwrap_or_else(|_| "UnknownHost".to_string());
         let instance_name = format!("MicYou ({})", host_name);
-        
-        let local_ip = Self::get_best_ip().unwrap_or_else(|| "127.0.0.1".to_string());
+
+        let local_ip = if bind_address == "0.0.0.0" {
+            Self::get_best_ip().unwrap_or_else(|| "127.0.0.1".to_string())
+        } else {
+            bind_address.to_string()
+        };
         
         let service_fullname = format!("{}.{}", instance_name, MDNS_SERVICE_TYPE);
         

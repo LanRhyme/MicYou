@@ -7,6 +7,7 @@ import { useStorage } from '@vueuse/core';
 
 // Icons
 import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, Link, Unlink, RefreshCw, Scan, ActivitySquare as MonitoringIcon, X, Minus } from 'lucide-vue-next';
+import { useI18n } from 'vue-i18n';
 import CustomBackground from './components/CustomBackground.vue';
 import SettingsDialog from './components/SettingsDialog.vue';
 import AudioRing from './components/AudioRing.vue';
@@ -19,12 +20,28 @@ const serverPort = ref(6000);
 const audioLevel = ref(0);
 const networkInfo = ref<{ ips: string[], port: number } | null>(null);
 const selectedIp = ref<string>('0.0.0.0');
+const networkInterfaces = ref<{ ip: string, interface_name: string }[]>([]);
+const showIpMenu = ref(false);
+const showIpSwitchConfirm = ref(false);
+const pendingIp = ref('');
+const pendingAutoSelect = ref(false);
+const isAutoBind = ref(true);
+
+// The IP shown in the topbar: when auto-bind, show the preferred (first) IP; otherwise show the selected one
+const displayIp = computed(() => {
+  if (isAutoBind.value) {
+    return networkInterfaces.value.length > 0 ? networkInterfaces.value[0].ip : '...';
+  }
+  return selectedIp.value;
+});
 
 const isSettingsOpen = ref(false);
 const showMonitoringPanel = ref(false);
 const showUdpWarning = ref(false);
 const audioMetrics = ref<any>(null);
 const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') || '');
+
+const { t } = useI18n();
 
 // Window Management
 const appWindow = getCurrentWindow();
@@ -161,6 +178,12 @@ onMounted(async () => {
     console.error("Failed to get network info:", e);
   }
 
+  try {
+    networkInterfaces.value = await invoke<{ ip: string, interface_name: string }[]>('get_network_interfaces');
+  } catch (e) {
+    console.error("Failed to get network interfaces:", e);
+  }
+
   unlistenAudioLevel = await listen<number>('audio-level', (event) => {
     audioLevel.value = event.payload;
   });
@@ -204,9 +227,68 @@ const toggleStreaming = async () => {
     }
   } else {
     try {
-      await invoke('start_server', { 
-        port: Number(serverPort.value), 
+      const bindAddress = isAutoBind.value ? null : selectedIp.value;
+      await invoke('start_server', {
+        port: Number(serverPort.value),
         mode: connectionMode.value,
+        bindAddress: bindAddress,
+        outputDevice: outputDevice.value || null
+      });
+      serverState.value = 'connecting';
+      if (connectionMode.value === 'usb') {
+        await invoke('enable_usb_mode', { port: Number(serverPort.value) });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+};
+
+const selectIp = (ip: string, autoSelect: boolean) => {
+  // Already selected?
+  if (autoSelect && isAutoBind.value) {
+    showIpMenu.value = false;
+    return;
+  }
+  if (!autoSelect && !isAutoBind.value && selectedIp.value === ip) {
+    showIpMenu.value = false;
+    return;
+  }
+  if (serverState.value === 'streaming' || serverState.value === 'connecting') {
+    pendingIp.value = ip;
+    pendingAutoSelect.value = autoSelect;
+    showIpSwitchConfirm.value = true;
+    showIpMenu.value = false;
+  } else {
+    applyIpSelection(ip, autoSelect);
+    showIpMenu.value = false;
+  }
+};
+
+const applyIpSelection = (ip: string, autoSelect: boolean) => {
+  if (autoSelect) {
+    isAutoBind.value = true;
+    selectedIp.value = '0.0.0.0';
+  } else {
+    isAutoBind.value = false;
+    selectedIp.value = ip;
+  }
+};
+
+const confirmIpSwitch = async () => {
+  applyIpSelection(pendingIp.value, pendingAutoSelect.value);
+  showIpSwitchConfirm.value = false;
+  // Restart server if streaming
+  if (serverState.value === 'streaming' || serverState.value === 'connecting') {
+    try {
+      await invoke('stop_server');
+      serverState.value = 'idle';
+      audioLevel.value = 0;
+      const bindAddress = isAutoBind.value ? null : selectedIp.value;
+      await invoke('start_server', {
+        port: Number(serverPort.value),
+        mode: connectionMode.value,
+        bindAddress: bindAddress,
         outputDevice: outputDevice.value || null
       });
       serverState.value = 'connecting';
@@ -243,10 +325,61 @@ const micScale = computed(() => {
 
         <div class="flex items-center gap-4">
           <!-- Network Selector -->
-          <div class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-colors px-3 py-1.5 rounded-lg cursor-pointer border border-white/5">
-            <Globe class="w-3.5 h-3.5 text-primary mr-2 pointer-events-none" />
-            <span class="text-xs font-medium mr-1 select-none pointer-events-none">{{ selectedIp === '0.0.0.0' ? 'All Interfaces' : selectedIp }}</span>
-            <ChevronDown class="w-4 h-4 text-on-surface-variant/60 pointer-events-none" />
+          <div class="relative">
+            <div
+              class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-colors px-3 py-1.5 rounded-lg cursor-pointer border border-white/5"
+              @click="showIpMenu = !showIpMenu"
+            >
+              <Globe class="w-3.5 h-3.5 text-primary mr-2 pointer-events-none" />
+              <span class="text-xs font-medium mr-1 select-none pointer-events-none">{{ displayIp }}</span>
+              <ChevronDown class="w-4 h-4 text-on-surface-variant/60 pointer-events-none transition-transform" :class="{ 'rotate-180': showIpMenu }" />
+            </div>
+
+            <!-- Invisible backdrop to close dropdown -->
+            <div v-if="showIpMenu" class="fixed inset-0 z-40" @click="showIpMenu = false" />
+
+            <!-- IP Dropdown Menu -->
+            <Transition
+              enter-active-class="transition ease-out duration-150"
+              enter-from-class="opacity-0 scale-95 -translate-y-1"
+              enter-to-class="opacity-100 scale-100 translate-y-0"
+              leave-active-class="transition ease-in duration-100"
+              leave-from-class="opacity-100 scale-100 translate-y-0"
+              leave-to-class="opacity-0 scale-95 -translate-y-1"
+            >
+              <div
+                v-if="showIpMenu"
+                class="absolute right-0 top-full mt-1 w-64 bg-surface border border-outline/20 rounded-xl shadow-xl z-50 overflow-hidden"
+              >
+                <div class="max-h-64 overflow-y-auto py-1">
+                  <!-- All Interfaces option -->
+                  <button
+                    class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-variant/50 transition-colors text-left"
+                    @click="selectIp('', true)"
+                  >
+                    <div class="flex-1 min-w-0">
+                      <div class="text-xs font-medium text-foreground">{{ t('app.ipSelector.allInterfaces') }}</div>
+                      <div class="text-[10px] text-on-surface-variant mt-0.5">{{ t('app.ipSelector.allInterfacesDesc') }}</div>
+                    </div>
+                    <CheckCircle2 v-if="isAutoBind" class="w-4 h-4 text-primary flex-shrink-0" />
+                  </button>
+
+                  <!-- Individual interfaces -->
+                  <button
+                    v-for="iface in networkInterfaces"
+                    :key="iface.ip"
+                    class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-variant/50 transition-colors text-left"
+                    @click="selectIp(iface.ip, false)"
+                  >
+                    <div class="flex-1 min-w-0">
+                      <div class="text-xs font-medium text-foreground">{{ iface.ip }}</div>
+                      <div class="text-[10px] text-on-surface-variant mt-0.5 truncate">{{ iface.interface_name }}</div>
+                    </div>
+                    <CheckCircle2 v-if="!isAutoBind && selectedIp === iface.ip" class="w-4 h-4 text-primary flex-shrink-0" />
+                  </button>
+                </div>
+              </div>
+            </Transition>
           </div>
 
           <!-- Window Controls -->
@@ -401,10 +534,41 @@ const micScale = computed(() => {
       @updateDevice="dev => outputDevice = dev" 
     />
 
-    <UdpWarningDialog 
-      :show="showUdpWarning" 
+    <UdpWarningDialog
+      :show="showUdpWarning"
       :port="Number(serverPort) + 1"
-      @close="showUdpWarning = false" 
+      @close="showUdpWarning = false"
     />
+
+    <!-- IP Switch Confirmation Dialog -->
+    <Transition
+      enter-active-class="transition ease-out duration-200"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="showIpSwitchConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div class="bg-surface rounded-2xl shadow-2xl border border-outline/10 p-6 w-80">
+          <h3 class="text-sm font-bold text-foreground mb-2">{{ t('app.ipSelector.switchConfirmTitle') }}</h3>
+          <p class="text-xs text-on-surface-variant mb-5">{{ t('app.ipSelector.switchConfirmMessage') }}</p>
+          <div class="flex justify-end gap-2">
+            <button
+              class="px-4 py-2 text-xs font-medium text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-colors"
+              @click="showIpSwitchConfirm = false"
+            >
+              {{ t('app.ipSelector.cancel') }}
+            </button>
+            <button
+              class="px-4 py-2 text-xs font-medium text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+              @click="confirmIpSwitch"
+            >
+              {{ t('app.ipSelector.continue') }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>

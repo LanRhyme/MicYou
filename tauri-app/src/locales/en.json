@@ -21,6 +21,14 @@
       "waiting": "Waiting for connection...",
       "running": "MicYou Service Running"
     },
+    "ipSelector": {
+      "allInterfaces": "All Interfaces",
+      "allInterfacesDesc": "Listen on all network interfaces",
+      "switchConfirmTitle": "Switch Network Interface",
+      "switchConfirmMessage": "Switching the network interface will restart the connection. Continue?",
+      "continue": "Continue",
+      "cancel": "Cancel"
+    },
     "monitoring": {
       "title": "Audio Quality",
       "rtt": "Network Latency",

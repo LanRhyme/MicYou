@@ -44,23 +44,94 @@ struct NetworkInfo {
     port: u16,
 }
 
-#[tauri::command]
-fn get_network_info() -> NetworkInfo {
-    let mut ips = Vec::new();
-    if let Ok(network_interfaces) = local_ip_address::list_afinet_netifas() {
-        for (_, ip) in network_interfaces.into_iter() {
-            if ip.is_ipv4() && !ip.is_loopback() {
-                ips.push(ip.to_string());
+#[derive(serde::Serialize, Clone)]
+struct NetworkInterfaceInfo {
+    ip: String,
+    interface_name: String,
+}
+
+const VIRTUAL_KEYWORDS: &[&str] = &[
+    "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
+    "tunnel", "teredo", "isatap", "vpn", "tailscale", "clash", "flclash",
+];
+
+fn score_ip(ip: &str) -> i32 {
+    if ip.starts_with("192.168.") {
+        100
+    } else if ip.starts_with("172.") {
+        if let Some(second) = ip.split('.').nth(1) {
+            if let Ok(n) = second.parse::<u32>() {
+                if (16..=31).contains(&n) {
+                    return 80;
+                }
             }
         }
+        0
+    } else if ip.starts_with("10.") {
+        50
+    } else if ip.starts_with("198.18.") {
+        -10
+    } else if ip.starts_with("169.254.") {
+        -20
+    } else {
+        0
     }
-    if ips.is_empty() {
-        ips.push("127.0.0.1".to_string());
+}
+
+fn query_network_interfaces() -> Vec<NetworkInterfaceInfo> {
+    let mut candidates: Vec<(std::net::IpAddr, String)> = Vec::new();
+    if let Ok(interfaces) = local_ip_address::list_afinet_netifas() {
+        for (name, ip) in interfaces {
+            if ip.is_loopback() || !ip.is_ipv4() {
+                continue;
+            }
+            let name_lower = name.to_lowercase();
+            if VIRTUAL_KEYWORDS.iter().any(|kw| name_lower.contains(kw)) {
+                continue;
+            }
+            candidates.push((ip, name));
+        }
     }
+
+    candidates.sort_by(|a, b| {
+        let score_a = score_ip(&a.0.to_string());
+        let score_b = score_ip(&b.0.to_string());
+        score_b.cmp(&score_a)
+            .then_with(|| a.0.to_string().cmp(&b.0.to_string()))
+            .then_with(|| a.1.cmp(&b.1))
+    });
+
+    let result: Vec<NetworkInterfaceInfo> = candidates
+        .into_iter()
+        .map(|(ip, name)| NetworkInterfaceInfo {
+            ip: ip.to_string(),
+            interface_name: name,
+        })
+        .collect();
+
+    if result.is_empty() {
+        vec![NetworkInterfaceInfo {
+            ip: "127.0.0.1".to_string(),
+            interface_name: "Local".to_string(),
+        }]
+    } else {
+        result
+    }
+}
+
+#[tauri::command]
+fn get_network_info() -> NetworkInfo {
+    let interfaces = query_network_interfaces();
+    let ips: Vec<String> = interfaces.iter().map(|i| i.ip.clone()).collect();
     NetworkInfo {
         ips,
         port: protocol::PORT,
     }
+}
+
+#[tauri::command]
+fn get_network_interfaces() -> Vec<NetworkInterfaceInfo> {
+    query_network_interfaces()
 }
 
 use cpal::traits::{DeviceTrait, HostTrait};
@@ -100,7 +171,8 @@ struct SpectrumPayload {
 }
 
 #[tauri::command]
-async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port: u16, _mode: String, output_device: Option<String>) -> Result<String, String> {
+async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port: u16, _mode: String, bind_address: Option<String>, output_device: Option<String>) -> Result<String, String> {
+    let bind_addr = bind_address.unwrap_or_else(|| "0.0.0.0".to_string());
     let mut token_lock = state.cancel_token.lock().await;
     if token_lock.is_some() {
         return Err("Server is already running".to_string());
@@ -111,7 +183,7 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
 
     // Start mDNS
     let mut mdns_lock = state.mdns_manager.lock().await;
-    match network::NetworkManager::start_mdns(port) {
+    match network::NetworkManager::start_mdns(port, &bind_addr) {
         Ok(manager) => {
             *mdns_lock = Some(manager);
         }
@@ -254,8 +326,9 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
     let audio_tx_tcp = audio_tx.clone();
     let stats_tcp = state.network_stats.clone();
     let mode_tcp = _mode.clone();
+    let bind_addr_tcp = bind_addr.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = tcp_server::start_tcp_server(app_handle_tcp, port_tcp, token_tcp, audio_tx_tcp, stats_tcp, mode_tcp).await {
+        if let Err(e) = tcp_server::start_tcp_server(app_handle_tcp, port_tcp, bind_addr_tcp, token_tcp, audio_tx_tcp, stats_tcp, mode_tcp).await {
             eprintln!("TCP Server error: {}", e);
         }
     });
@@ -263,8 +336,9 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
     let token_udp = cancel_token.clone();
     let port_udp = port + 1;
     let stats_udp = state.network_stats.clone();
+    let bind_addr_udp = bind_addr.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = udp_server::start_udp_server(audio_tx, port_udp, token_udp, stats_udp).await {
+        if let Err(e) = udp_server::start_udp_server(audio_tx, port_udp, bind_addr_udp, token_udp, stats_udp).await {
             eprintln!("UDP Server error: {}", e);
         }
     });
@@ -308,12 +382,13 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet, 
-            enable_usb_mode, 
-            get_network_info, 
-            get_audio_devices, 
-            update_audio_settings, 
-            start_server, 
+            greet,
+            enable_usb_mode,
+            get_network_info,
+            get_network_interfaces,
+            get_audio_devices,
+            update_audio_settings,
+            start_server,
             stop_server,
             commands::about::get_sponsors,
             commands::about::export_log,
