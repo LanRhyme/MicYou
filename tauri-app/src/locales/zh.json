@@ -253,5 +253,9 @@
   "notifications": {
     "title": "系统通知",
     "desc": "设备连接或断开时显示系统通知"
+  },
+  "autoStream": {
+    "title": "自动串流",
+    "desc": "启动应用时自动开始连接"
   }
 }

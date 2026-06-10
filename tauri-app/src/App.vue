@@ -357,6 +357,11 @@ onMounted(async () => {
     audioLevel.value = 0;
     isMuted.value = false;
   });
+
+  // Auto-stream: start connecting on app launch if enabled
+  if (localStorage.getItem('micyou_auto_stream') === 'true') {
+    toggleStreaming();
+  }
 });
 
 onUnmounted(() => {

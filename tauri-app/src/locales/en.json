@@ -253,5 +253,9 @@
   "notifications": {
     "title": "Notifications",
     "desc": "Show system notifications when device connects or disconnects."
+  },
+  "autoStream": {
+    "title": "Auto Stream",
+    "desc": "Automatically start streaming when the app launches."
   }
 }

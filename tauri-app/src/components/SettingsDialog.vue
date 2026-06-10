@@ -126,6 +126,24 @@
               </button>
             </div>
 
+            <!-- Auto Stream -->
+            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
+              <div>
+                <h4 class="font-bold text-on-surface">{{ $t('autoStream.title') }}</h4>
+                <p class="text-xs text-on-surface-variant">{{ $t('autoStream.desc') }}</p>
+              </div>
+              <button
+                @click="autoStream = !autoStream"
+                class="relative w-11 h-6 rounded-full transition-colors duration-200"
+                :class="autoStream ? 'bg-primary' : 'bg-surface-variant'"
+              >
+                <span
+                  class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+                  :class="autoStream ? 'translate-x-5' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+
             <!-- Pocket Mode -->
             <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
               <div>
@@ -564,6 +582,7 @@ const pocketMode = useStorage('micyou_pocket_mode', false);
 const closeBehavior = useStorage<'ask' | 'hide' | 'exit' | null>('micyou_remember_close_action', null);
 const startMinimized = useStorage<boolean>('micyou_start_minimized', false);
 const notificationsEnabled = useStorage<boolean>('micyou_notifications', true);
+const autoStream = useStorage<boolean>('micyou_auto_stream', false);
 const autostartEnabled = ref(false);
 
 const applyCustomColor = (color: { h: number, s: number, l: number }) => {
