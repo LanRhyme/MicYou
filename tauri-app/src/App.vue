@@ -405,6 +405,8 @@ const toggleStreaming = async () => {
       }
     } catch (e: any) {
       console.error(e);
+      // Clean up server state on failure (token may already be set in Rust)
+      try { await invoke('stop_server'); } catch {}
       const msg = typeof e === 'string' ? e : e?.message ?? String(e);
       const type = analyzeError(msg);
       errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
