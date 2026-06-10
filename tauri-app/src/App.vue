@@ -14,6 +14,8 @@ import AudioRing from './components/AudioRing.vue';
 import MonitoringPanel from './components/MonitoringPanel.vue';
 import UdpWarningDialog from './components/UdpWarningDialog.vue';
 import PocketLayout from './components/PocketLayout.vue';
+import CloseConfirmDialog from './components/CloseConfirmDialog.vue';
+import { useTray } from './composables/useTray';
 
 const serverState = ref<'idle' | 'connecting' | 'streaming'>('idle');
 const connectionMode = ref<'wifi' | 'usb' | 'web'>('wifi');
@@ -51,7 +53,86 @@ const { t } = useI18n();
 // Window Management
 const appWindow = getCurrentWindow();
 const minimizeWindow = () => appWindow.minimize();
-const closeWindow = () => appWindow.close();
+
+const isHidden = ref(localStorage.getItem('micyou_start_minimized') === 'true');
+const showCloseConfirm = ref(false);
+
+function isStreaming(v: typeof serverState.value) {
+  return v === 'streaming' || v === 'connecting';
+}
+
+const streamingRef = computed(() => isStreaming(serverState.value));
+const visibilityRef = computed(() => !isHidden.value);
+
+async function showMainWindow() {
+  try {
+    await invoke('show_main_window');
+  } catch (e) {
+    console.error('show_main_window failed:', e);
+  }
+  isHidden.value = false;
+}
+
+async function hideMainWindow() {
+  try {
+    await invoke('hide_main_window');
+  } catch (e) {
+    console.error('hide_main_window failed:', e);
+  }
+  isHidden.value = true;
+}
+
+async function exitApp() {
+  try {
+    await invoke('exit_app');
+  } catch (e) {
+    console.error('exit_app failed:', e);
+  }
+}
+
+useTray(
+  {
+    onShow: async () => {
+      if (isHidden.value) {
+        await showMainWindow();
+      } else {
+        try { await invoke('show_main_window'); } catch (e) { console.error(e); }
+      }
+    },
+    onToggleStream: () => toggleStreaming(),
+    onExit: () => exitApp(),
+  },
+  visibilityRef,
+  streamingRef,
+);
+
+const REMEMBER_KEY = 'micyou_remember_close_action';
+
+function requestClose() {
+  const remembered = localStorage.getItem(REMEMBER_KEY);
+  if (remembered === 'hide') {
+    void hideMainWindow();
+    return;
+  }
+  if (remembered === 'exit') {
+    void exitApp();
+    return;
+  }
+  showCloseConfirm.value = true;
+}
+
+function handleCloseSelect(payload: { action: 'hide' | 'exit'; remember: boolean }) {
+  if (payload.remember) {
+    localStorage.setItem(REMEMBER_KEY, payload.action);
+  } else {
+    localStorage.removeItem(REMEMBER_KEY);
+  }
+  if (payload.action === 'hide') {
+    void hideMainWindow();
+  } else {
+    void exitApp();
+  }
+}
 
 // Resize window when pocket mode changes
 watchEffect(async () => {
@@ -464,7 +545,7 @@ const micScale = computed(() => {
             <button @click="minimizeWindow" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
               <Minus class="w-4 h-4 text-on-surface" />
             </button>
-            <button @click="closeWindow" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-error/20 hover:text-error transition-colors">
+            <button @click="requestClose" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-error/20 hover:text-error transition-colors">
               <X class="w-4 h-4 text-on-surface" />
             </button>
           </div>
@@ -616,6 +697,8 @@ const micScale = computed(() => {
       :port="Number(serverPort) + 1"
       @close="showUdpWarning = false"
     />
+
+    <CloseConfirmDialog v-model:show="showCloseConfirm" @select="handleCloseSelect" />
 
     <!-- IP Switch Confirmation Dialog -->
     <Transition

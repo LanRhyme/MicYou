@@ -8,8 +8,9 @@ pub mod dsp;
 pub mod commands;
 pub mod adb_manager;
 pub mod stats;
+pub mod tray;
 
-use tauri::{Emitter, AppHandle, State};
+use tauri::{Emitter, AppHandle, Manager, State};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use std::sync::RwLock;
@@ -17,6 +18,7 @@ use tokio_util::sync::CancellationToken;
 
 use dsp::{AudioDspSettings, DspProcessor};
 use stats::NetworkStats;
+use crate::tray::{TrayContext, TrayMenuStrings, TrayState};
 
 pub struct ServerState {
     pub cancel_token: Arc<Mutex<Option<CancellationToken>>>,
@@ -362,6 +364,57 @@ async fn stop_server(state: State<'_, ServerState>) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+fn set_tray_strings(app: AppHandle, strings: TrayMenuStrings) -> Result<(), String> {
+    {
+        let ctx = app.state::<TrayContext>();
+        *ctx.strings.lock().map_err(|e| e.to_string())? = strings;
+    }
+    crate::tray::rebuild_menu(&app).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_tray_state(app: AppHandle, state: TrayState) -> Result<(), String> {
+    {
+        let ctx = app.state::<TrayContext>();
+        *ctx.state.lock().map_err(|e| e.to_string())? = state;
+    }
+    crate::tray::rebuild_menu(&app).map_err(|e| e.to_string())
+}
+
+fn main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<tauri::WebviewWindow<R>, String> {
+    app.get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())
+}
+
+#[tauri::command]
+fn show_main_window(app: AppHandle) -> Result<(), String> {
+    let win = main_window(&app)?;
+    let _ = win.unminimize();
+    win.show().map_err(|e| e.to_string())?;
+    win.set_focus().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn hide_main_window(app: AppHandle) -> Result<(), String> {
+    let win = main_window(&app)?;
+    win.hide().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn exit_app(app: AppHandle, state: State<'_, ServerState>) -> Result<(), String> {
+    let rt = tauri::async_runtime::handle();
+    rt.block_on(async {
+        let _ = stop_server(state).await;
+    });
+    // TODO: restore default audio once VirtualAudioDeviceManager is ported.
+    log::info!(target: "tray", "exit_app: stopping application");
+    app.exit(0);
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -371,14 +424,20 @@ pub fn run() {
             dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
             network_stats: Arc::new(NetworkStats::default()),
         })
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Info)
-                .build()
-        )
+        .plugin(tauri_plugin_log::Builder::new()
+            .level(log::LevelFilter::Info)
+            .build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .setup(|_app| {
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--minimized"]),
+        ))
+        .setup(|app| {
+            app.manage(TrayContext::default());
+            if let Err(e) = crate::tray::build_tray(app.handle()) {
+                log::warn!(target: "tray", "failed to build tray: {e}");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -392,7 +451,12 @@ pub fn run() {
             stop_server,
             commands::about::get_sponsors,
             commands::about::export_log,
-            commands::about::get_app_version
+            commands::about::get_app_version,
+            set_tray_strings,
+            set_tray_state,
+            show_main_window,
+            hide_main_window,
+            exit_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

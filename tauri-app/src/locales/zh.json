@@ -212,5 +212,35 @@
       "title": "防火墙阻止了 UDP 音频连接",
       "desc": "手机端已成功连接，但电脑端未能收到任何 UDP 音频数据，这通常是因为 Windows 防火墙拦截了 UDP 端口 ({port})\n\n请在防火墙中允许 MicYou 程序的网络访问，或者尝试以管理员身份重新运行程序"
     }
+  },
+  "tray": {
+    "tooltip": "MicYou 桌面端",
+    "show": "显示应用",
+    "hide": "隐藏应用",
+    "start": "开始推流",
+    "stop": "停止推流",
+    "exit": "退出"
+  },
+  "closeConfirm": {
+    "title": "关闭 MicYou",
+    "message": "你想要做什么？",
+    "hide": "隐藏到托盘",
+    "exit": "退出",
+    "remember": "记住我的选择"
+  },
+  "closeBehavior": {
+    "title": "关闭窗口时",
+    "desc": "点击主窗口关闭按钮时的行为",
+    "ask": "每次询问",
+    "hide": "隐藏到托盘",
+    "exit": "退出"
+  },
+  "startMinimized": {
+    "title": "启动时最小化",
+    "desc": "启动时将应用隐藏在系统托盘，而不是打开主窗口"
+  },
+  "autostart": {
+    "title": "开机自启",
+    "desc": "登录电脑时自动启动 MicYou"
   }
 }

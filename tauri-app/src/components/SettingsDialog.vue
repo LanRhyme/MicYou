@@ -52,6 +52,62 @@
               </Select>
             </div>
 
+            <!-- Close Behavior -->
+            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
+              <div>
+                <h4 class="font-bold text-on-surface">{{ $t('closeBehavior.title') }}</h4>
+                <p class="text-xs text-on-surface-variant">{{ $t('closeBehavior.desc') }}</p>
+              </div>
+              <Select v-model="closeBehavior">
+                <SelectTrigger class="w-[160px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
+                  <SelectValue :placeholder="$t('closeBehavior.ask')" />
+                </SelectTrigger>
+                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
+                  <SelectGroup>
+                    <SelectItem value="ask">{{ $t('closeBehavior.ask') }}</SelectItem>
+                    <SelectItem value="hide">{{ $t('closeBehavior.hide') }}</SelectItem>
+                    <SelectItem value="exit">{{ $t('closeBehavior.exit') }}</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <!-- Start Minimized -->
+            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
+              <div>
+                <h4 class="font-bold text-on-surface">{{ $t('startMinimized.title') }}</h4>
+                <p class="text-xs text-on-surface-variant">{{ $t('startMinimized.desc') }}</p>
+              </div>
+              <button
+                @click="startMinimized = !startMinimized"
+                class="relative w-11 h-6 rounded-full transition-colors duration-200"
+                :class="startMinimized ? 'bg-primary' : 'bg-surface-variant'"
+              >
+                <span
+                  class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+                  :class="startMinimized ? 'translate-x-5' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+
+            <!-- Run at Startup -->
+            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
+              <div>
+                <h4 class="font-bold text-on-surface">{{ $t('autostart.title') }}</h4>
+                <p class="text-xs text-on-surface-variant">{{ $t('autostart.desc') }}</p>
+              </div>
+              <button
+                @click="toggleAutostart"
+                class="relative w-11 h-6 rounded-full transition-colors duration-200"
+                :class="autostartEnabled ? 'bg-primary' : 'bg-surface-variant'"
+              >
+                <span
+                  class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+                  :class="autostartEnabled ? 'translate-x-5' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+
             <!-- Pocket Mode -->
             <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
               <div>
@@ -433,6 +489,7 @@ import { useI18n } from 'vue-i18n';
 import { useColorMode, useStorage } from '@vueuse/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { isEnabled as isAutostartEnabled, enable as enableAutostart, disable as disableAutostart } from '@tauri-apps/plugin-autostart';
 import {
   Settings as SettingsIcon, 
   X, 
@@ -486,6 +543,9 @@ const customS = useStorage('micyou_custom_s', 35);
 const customL = useStorage('micyou_custom_l', 55);
 const showColorPicker = ref(false);
 const pocketMode = useStorage('micyou_pocket_mode', false);
+const closeBehavior = useStorage<'ask' | 'hide' | 'exit' | null>('micyou_remember_close_action', null);
+const startMinimized = useStorage<boolean>('micyou_start_minimized', false);
+const autostartEnabled = ref(false);
 
 const applyCustomColor = (color: { h: number, s: number, l: number }) => {
   customH.value = color.h;
@@ -673,7 +733,26 @@ onMounted(async () => {
     console.error("Failed to get version", e);
   }
   animationFrameId = requestAnimationFrame(drawSpectrum);
+  try {
+    autostartEnabled.value = await isAutostartEnabled();
+  } catch (e) {
+    console.error("Failed to read autostart state:", e);
+  }
 });
+
+async function toggleAutostart() {
+  try {
+    if (autostartEnabled.value) {
+      await disableAutostart();
+      autostartEnabled.value = false;
+    } else {
+      await enableAutostart();
+      autostartEnabled.value = true;
+    }
+  } catch (e) {
+    console.error('Failed to toggle autostart:', e);
+  }
+}
 
 onUnmounted(() => {
   cancelAnimationFrame(animationFrameId);

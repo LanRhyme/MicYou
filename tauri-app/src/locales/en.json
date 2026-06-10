@@ -212,5 +212,35 @@
       "title": "Firewall Blocked UDP Connection",
       "desc": "The mobile app connected successfully, but the PC didn't receive any UDP audio data. This is usually because Windows Firewall is blocking the UDP port ({port}).\n\nPlease allow network access for MicYou in your firewall, or try running the app as Administrator."
     }
+  },
+  "tray": {
+    "tooltip": "MicYou Desktop",
+    "show": "Show App",
+    "hide": "Hide App",
+    "start": "Start Streaming",
+    "stop": "Stop Streaming",
+    "exit": "Exit"
+  },
+  "closeConfirm": {
+    "title": "Close MicYou",
+    "message": "What would you like to do?",
+    "hide": "Hide to Tray",
+    "exit": "Exit",
+    "remember": "Remember my choice"
+  },
+  "closeBehavior": {
+    "title": "On Window Close",
+    "desc": "What should happen when you close the main window?",
+    "ask": "Ask Every Time",
+    "hide": "Hide to Tray",
+    "exit": "Exit"
+  },
+  "startMinimized": {
+    "title": "Start Minimized",
+    "desc": "Launch the app hidden in the system tray instead of opening the window."
+  },
+  "autostart": {
+    "title": "Run at Startup",
+    "desc": "Automatically start MicYou when you log in to your computer."
   }
 }

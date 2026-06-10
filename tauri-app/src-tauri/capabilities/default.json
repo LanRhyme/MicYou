@@ -21,9 +21,11 @@
     "core:webview:allow-webview-show",
     "core:webview:allow-webview-hide",
     "core:window:allow-set-position",
+    "core:window:allow-unminimize",
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:event:default",
-    "opener:default"
+    "opener:default",
+    "autostart:default"
   ]
 }
