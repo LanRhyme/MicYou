@@ -383,12 +383,12 @@
     "next": "下一步",
     "skip": "跳过",
     "complete": "设置完成",
-    "completeDesc": "一切就绪！您现在可以开始使用 MicYou 了。",
+    "completeDesc": "一切就绪！您现在可以开始使用 MicYou 了！",
     "startUsing": "开始使用"
   },
   "vbcableDetect": {
     "title": "需要 VB-Cable 驱动",
-    "message": "VB-Cable 驱动是 MicYou 在 Windows 上作为虚拟麦克风工作所必需的。您想自动安装吗？",
+    "message": "VB-Cable 驱动是 MicYou 在 Windows 上作为虚拟麦克风工作所必需的，您想自动安装吗？",
     "autoInstall": "自动安装",
     "manualDownload": "手动下载",
     "skipForNow": "暂时跳过",
@@ -401,8 +401,8 @@
     "waitingDevice": "等待设备初始化...",
     "complete": "安装完成",
     "failed": "安装失败",
-    "adminRequired": "需要管理员权限，请批准 UAC 提示。",
-    "timeout": "安装超时，请重试。",
+    "adminRequired": "需要管理员权限，请批准 UAC 提示",
+    "timeout": "安装超时，请重试",
     "retry": "重试"
   }
 }
