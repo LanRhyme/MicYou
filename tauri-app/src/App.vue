@@ -6,7 +6,7 @@ import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
 import { useStorage } from '@vueuse/core';
 
 // Icons
-import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, Link, Unlink, RefreshCw, Scan, ActivitySquare as MonitoringIcon, X, Minus } from 'lucide-vue-next';
+import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, Link, Unlink, RefreshCw, Scan, ActivitySquare as MonitoringIcon, X, Minus, VolumeX, Volume2 } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import CustomBackground from './components/CustomBackground.vue';
 import SettingsDialog from './components/SettingsDialog.vue';
@@ -17,6 +17,7 @@ import PocketLayout from './components/PocketLayout.vue';
 import CloseConfirmDialog from './components/CloseConfirmDialog.vue';
 import { useTray } from './composables/useTray';
 import appIconSvg from './assets/app_icon.svg?raw';
+import anime from 'animejs';
 
 const serverState = ref<'idle' | 'connecting' | 'streaming'>('idle');
 const connectionMode = ref<'wifi' | 'usb' | 'web'>('wifi');
@@ -45,6 +46,16 @@ const showUdpWarning = ref(false);
 const audioMetrics = ref<any>(null);
 const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') || '');
 const isMuted = ref(false);
+
+// Animation refs
+const centralBtnRef = ref<HTMLButtonElement | null>(null);
+const glowRef = ref<HTMLDivElement | null>(null);
+const statusTextEl = ref<HTMLSpanElement | null>(null);
+const liveBadgeRef = ref<HTMLDivElement | null>(null);
+const statusDotRef = ref<HTMLDivElement | null>(null);
+
+let breatheAnim: ReturnType<typeof anime> | null = null;
+let dotPulseAnim: ReturnType<typeof anime> | null = null;
 
 const pocketMode = useStorage('micyou_pocket_mode', false);
 const pocketPopupOpen = ref(false);
@@ -280,6 +291,7 @@ let unlistenDeviceConnected: UnlistenFn | null = null;
 let unlistenDeviceDisconnected: UnlistenFn | null = null;
 let unlistenAudioMetrics: UnlistenFn | null = null;
 let unlistenUdpWarning: UnlistenFn | null = null;
+let unlistenMuteState: UnlistenFn | null = null;
 
 onMounted(async () => {
 
@@ -320,14 +332,21 @@ onMounted(async () => {
   unlistenUdpWarning = await listen('udp_audio_warning', () => {
     showUdpWarning.value = true;
   });
+
+  unlistenMuteState = await listen<boolean>('mute-state-changed', (event) => {
+    isMuted.value = event.payload;
+  });
 });
 
 onUnmounted(() => {
+  if (breatheAnim) breatheAnim.pause();
+  if (dotPulseAnim) dotPulseAnim.pause();
   if (unlistenAudioLevel) unlistenAudioLevel();
   if (unlistenDeviceConnected) unlistenDeviceConnected();
   if (unlistenDeviceDisconnected) unlistenDeviceDisconnected();
   if (unlistenAudioMetrics) unlistenAudioMetrics();
   if (unlistenUdpWarning) unlistenUdpWarning();
+  if (unlistenMuteState) unlistenMuteState();
 });
 
 const toggleStreaming = async () => {
@@ -355,6 +374,15 @@ const toggleStreaming = async () => {
     } catch (e) {
       console.error(e);
     }
+  }
+  // Bounce animation on click
+  if (centralBtnRef.value) {
+    anime({
+      targets: centralBtnRef.value,
+      scale: [1, 0.92, 1.05, 1],
+      duration: 400,
+      easing: 'easeOutElastic(1, .5)',
+    });
   }
 };
 
@@ -415,16 +443,119 @@ const confirmIpSwitch = async () => {
   }
 };
 
-const toggleMute = () => {
-  isMuted.value = !isMuted.value;
+const toggleMute = async () => {
+  try {
+    await invoke('set_mute_state', { isMuted: !isMuted.value });
+  } catch (e) {
+    console.error('set_mute_state failed:', e);
+  }
 };
 
 const toggleMonitoring = () => {
   showMonitoringPanel.value = !showMonitoringPanel.value;
 };
 
+const onCentralBtnHover = () => {
+  if (centralBtnRef.value) {
+    anime({
+      targets: centralBtnRef.value,
+      scale: 1.05,
+      duration: 300,
+      easing: 'easeOutElastic(1, .6)',
+    });
+  }
+};
+
+const onCentralBtnLeave = () => {
+  if (centralBtnRef.value) {
+    anime({
+      targets: centralBtnRef.value,
+      scale: 1,
+      duration: 200,
+      easing: 'easeOutQuad',
+    });
+  }
+};
+
 const micScale = computed(() => {
   return 1 + (audioLevel.value / 100) * 0.5;
+});
+
+// Streaming breathing glow animation
+watchEffect(() => {
+  if (serverState.value === 'streaming' && glowRef.value) {
+    if (!breatheAnim) {
+      breatheAnim = anime({
+        targets: glowRef.value,
+        opacity: [0.3, 0.7],
+        scale: [1.2, 1.35],
+        duration: 2000,
+        direction: 'alternate',
+        loop: true,
+        easing: 'easeInOutSine',
+      });
+    }
+  } else {
+    if (breatheAnim) {
+      breatheAnim.pause();
+      breatheAnim = null;
+    }
+    if (glowRef.value) {
+      anime.set(glowRef.value, { opacity: 0.3, scale: 1.25 });
+    }
+  }
+});
+
+// Status text transition animation
+const prevServerState = ref(serverState.value);
+
+watchEffect(() => {
+  if (prevServerState.value !== serverState.value && statusTextEl.value) {
+    anime({
+      targets: statusTextEl.value,
+      translateY: [10, 0],
+      opacity: [0, 1],
+      duration: 400,
+      easing: 'easeOutQuad',
+    });
+    prevServerState.value = serverState.value;
+  }
+});
+
+// LIVE badge spring animation
+watchEffect(() => {
+  if (serverState.value === 'streaming' && liveBadgeRef.value) {
+    anime({
+      targets: liveBadgeRef.value,
+      scale: [0, 1],
+      opacity: [0, 1],
+      duration: 500,
+      easing: 'easeOutElastic(1, .5)',
+    });
+  }
+});
+
+// Status dot pulse animation
+watchEffect(() => {
+  if (serverState.value === 'streaming' && statusDotRef.value) {
+    if (!dotPulseAnim) {
+      dotPulseAnim = anime({
+        targets: statusDotRef.value,
+        scale: [1, 1.4, 1],
+        duration: 1500,
+        loop: true,
+        easing: 'easeInOutQuad',
+      });
+    }
+  } else {
+    if (dotPulseAnim) {
+      dotPulseAnim.pause();
+      dotPulseAnim = null;
+    }
+    if (statusDotRef.value) {
+      anime.set(statusDotRef.value, { scale: 1 });
+    }
+  }
 });
 </script>
 
@@ -562,7 +693,7 @@ const micScale = computed(() => {
               <button 
                 @click="connectionMode = 'wifi'"
                 class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
-                :class="connectionMode === 'wifi' ? 'bg-primary text-on-primary' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+                :class="connectionMode === 'wifi' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
               >
                 <Wifi class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">Wi-Fi</span>
@@ -570,7 +701,7 @@ const micScale = computed(() => {
               <button 
                 @click="connectionMode = 'usb'"
                 class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
-                :class="connectionMode === 'usb' ? 'bg-primary text-on-primary' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+                :class="connectionMode === 'usb' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
               >
                 <Mic class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">USB</span>
@@ -578,7 +709,7 @@ const micScale = computed(() => {
               <button 
                 @click="connectionMode = 'web'"
                 class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
-                :class="connectionMode === 'web' ? 'bg-primary text-on-primary' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+                :class="connectionMode === 'web' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
               >
                 <Globe class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">Web</span>
@@ -630,9 +761,9 @@ const micScale = computed(() => {
               <!-- Central Button When Streaming -->
               <div class="relative flex items-center justify-center">
                 <!-- Breathing Glow Background -->
-                <div class="absolute inset-0 bg-error/30 rounded-full blur-md animate-pulse scale-125"></div>
+                <div ref="glowRef" class="absolute inset-0 bg-error/30 rounded-full blur-md scale-125"></div>
                 <!-- Button -->
-                <button @click="toggleStreaming" class="relative z-10 w-[72px] h-[72px] rounded-full bg-error flex items-center justify-center shadow-lg hover:scale-95 transition-all duration-300 group-hover:bg-error/90 border border-white/10">
+                <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-[72px] h-[72px] rounded-full bg-error flex items-center justify-center shadow-lg hover:scale-95 transition-all duration-300 group-hover:bg-error/90 border border-white/10 hover:shadow-lg hover:shadow-error/30">
                   <Unlink class="w-7 h-7 text-on-error" stroke-width="2.5" />
                 </button>
               </div>
@@ -640,7 +771,7 @@ const micScale = computed(() => {
             
             <div v-else class="relative w-full h-full flex items-center justify-center">
               <!-- Central Button When Not Streaming -->
-              <button @click="toggleStreaming" class="relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-95 border border-white/5"
+              <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-95 border border-white/5 hover:shadow-lg hover:shadow-primary/30"
                       :class="serverState === 'connecting' ? 'bg-tertiary shadow-tertiary/20 text-on-tertiary' : 'bg-primary shadow-primary/20 text-on-primary'">
                 <RefreshCw v-if="serverState === 'connecting'" class="w-7 h-7 animate-spin-slow" stroke-width="2.5" />
                 <Link v-else class="w-7 h-7" stroke-width="2.5" />
@@ -650,11 +781,11 @@ const micScale = computed(() => {
           
           <!-- Status Text (Positioned Absolutely to avoid pushing button off-center) -->
           <div class="absolute top-[calc(50%+4rem)] flex items-center gap-2">
-            <span class="text-sm font-bold tracking-wider" 
+            <span ref="statusTextEl" class="text-sm font-bold tracking-wider" 
                   :class="serverState === 'streaming' ? 'text-error' : (serverState === 'connecting' ? 'text-tertiary' : 'text-primary')">
               {{ serverState === 'streaming' ? $t('app.status.stateStreaming') : (serverState === 'connecting' ? $t('app.status.stateConnecting') : 'CLICK TO START') }}
             </span>
-            <div v-if="serverState === 'streaming'" class="bg-error px-1.5 py-0.5 rounded text-[10px] font-black text-on-error uppercase tracking-widest shadow-sm">
+            <div ref="liveBadgeRef" v-if="serverState === 'streaming'" class="bg-error px-1.5 py-0.5 rounded text-[10px] font-black text-on-error uppercase tracking-widest shadow-sm">
               LIVE
             </div>
           </div>
@@ -669,11 +800,22 @@ const micScale = computed(() => {
       <!-- Bottom Bar -->
       <div class="haze-surface rounded-2xl p-2 flex justify-between items-center flex-shrink-0">
         <div class="flex items-center px-3">
-          <div class="w-2 h-2 rounded-full mr-2" :class="serverState === 'streaming' ? 'bg-primary animate-pulse shadow-[0_0_8px_hsl(var(--primary))]' : (serverState === 'connecting' ? 'bg-tertiary animate-pulse shadow-[0_0_8px_hsl(var(--tertiary))]' : 'bg-on-surface-variant')"></div>
-          <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">{{ serverState === 'streaming' ? $t('app.status.stateStreaming') : (serverState === 'connecting' ? $t('app.status.stateConnecting') : $t('app.status.stateIdle')) }}</span>
+          <div ref="statusDotRef" class="w-2 h-2 rounded-full mr-2" :class="serverState === 'streaming' ? 'bg-primary shadow-[0_0_8px_hsl(var(--primary))]' : (serverState === 'connecting' ? 'bg-tertiary animate-pulse shadow-[0_0_8px_hsl(var(--tertiary))]' : 'bg-on-surface-variant')"></div>
+          <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant transition-colors duration-300">{{ serverState === 'streaming' ? $t('app.status.stateStreaming') : (serverState === 'connecting' ? $t('app.status.stateConnecting') : $t('app.status.stateIdle')) }}</span>
         </div>
         
         <div class="flex items-center gap-2 pr-1">
+          <!-- Mute Button -->
+          <button
+            @click="toggleMute"
+            class="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+            :class="isMuted ? 'bg-error/20 text-error' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'"
+            :title="isMuted ? $t('app.status.unmute') : $t('app.status.mute')"
+          >
+            <VolumeX v-if="!isMuted" class="w-4 h-4" />
+            <Volume2 v-else class="w-4 h-4" />
+          </button>
+
           <button @click="showMonitoringPanel = !showMonitoringPanel" class="w-10 h-10 rounded-full flex items-center justify-center transition-colors" :class="showMonitoringPanel ? 'bg-primary/20 text-primary' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'">
             <MonitoringIcon class="w-4 h-4" />
           </button>

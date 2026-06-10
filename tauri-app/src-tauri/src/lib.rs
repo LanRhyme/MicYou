@@ -25,6 +25,7 @@ pub struct ServerState {
     pub mdns_manager: Arc<Mutex<Option<network::NetworkManager>>>,
     pub dsp_settings: Arc<RwLock<AudioDspSettings>>,
     pub network_stats: Arc<NetworkStats>,
+    pub connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<crate::protocol::micyou::MessageWrapper>>>>,
 }
 
 #[tauri::command]
@@ -329,8 +330,9 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
     let stats_tcp = state.network_stats.clone();
     let mode_tcp = _mode.clone();
     let bind_addr_tcp = bind_addr.clone();
+    let connection_tx_tcp = state.connection_tx.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = tcp_server::start_tcp_server(app_handle_tcp, port_tcp, bind_addr_tcp, token_tcp, audio_tx_tcp, stats_tcp, mode_tcp).await {
+        if let Err(e) = tcp_server::start_tcp_server(app_handle_tcp, port_tcp, bind_addr_tcp, token_tcp, audio_tx_tcp, stats_tcp, mode_tcp, connection_tx_tcp).await {
             eprintln!("TCP Server error: {}", e);
         }
     });
@@ -358,6 +360,8 @@ async fn stop_server(state: State<'_, ServerState>) -> Result<String, String> {
     let mut token_lock = state.cancel_token.lock().await;
     if let Some(token) = token_lock.take() {
         token.cancel();
+        let mut conn_tx_lock = state.connection_tx.lock().await;
+        *conn_tx_lock = None;
         Ok("Server stopped".to_string())
     } else {
         Err("Server is not running".to_string())
@@ -415,6 +419,27 @@ fn exit_app(app: AppHandle, state: State<'_, ServerState>) -> Result<(), String>
     Ok(())
 }
 
+#[tauri::command]
+async fn set_mute_state(app: AppHandle, state: State<'_, ServerState>, is_muted: bool) -> Result<(), String> {
+    let mute_msg = crate::protocol::micyou::MessageWrapper {
+        audio_packet: None,
+        connect: None,
+        mute: Some(crate::protocol::micyou::MuteMessage { is_muted }),
+        plugin_sync: None,
+        ping: None,
+        pong: None,
+    };
+
+    let lock = state.connection_tx.lock().await;
+    if let Some(tx) = lock.as_ref() {
+        tx.send(mute_msg).await.map_err(|e| e.to_string())?;
+        let _ = app.emit("mute-state-changed", is_muted);
+        Ok(())
+    } else {
+        Err("No active connection".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -423,6 +448,7 @@ pub fn run() {
             mdns_manager: Arc::new(Mutex::new(None)),
             dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
             network_stats: Arc::new(NetworkStats::default()),
+            connection_tx: Arc::new(Mutex::new(None)),
         })
         .plugin(tauri_plugin_log::Builder::new()
             .level(log::LevelFilter::Info)
@@ -456,7 +482,8 @@ pub fn run() {
             set_tray_state,
             show_main_window,
             hide_main_window,
-            exit_app
+            exit_app,
+            set_mute_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

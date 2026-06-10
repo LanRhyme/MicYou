@@ -4,6 +4,8 @@ use bytes::{BytesMut, Buf};
 use prost::Message;
 use std::error::Error;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 use serde::Serialize;
 use crate::protocol::{PACKET_MAGIC, HANDSHAKE_CLIENT_STR, HANDSHAKE_SERVER_STR};
@@ -17,7 +19,7 @@ pub struct DeviceInfo {
     pub latency: u32,
 }
 
-pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: String, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: String, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let listener = TcpListener::bind(format!("{}:{}", bind_address, port)).await?;
     println!("TCP Control Server listening on {}:{}", bind_address, port);
 
@@ -35,8 +37,9 @@ pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: St
                         let audio_tx_clone = audio_tx.clone();
                         let stats_clone = stats.clone();
                         let mode_clone = mode.clone();
+                        let connection_tx_clone = connection_tx.clone();
                         tokio::spawn(async move {
-                            if let Err(e) = handle_client(socket, addr, app_handle_clone.clone(), audio_tx_clone, stats_clone, mode_clone).await {
+                            if let Err(e) = handle_client(socket, addr, app_handle_clone.clone(), audio_tx_clone, stats_clone, mode_clone, connection_tx_clone).await {
                                 eprintln!("Client {} error: {}", addr, e);
                             }
                             println!("Client {} disconnected", addr);
@@ -53,7 +56,7 @@ pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: St
     Ok(())
 }
 
-async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppHandle, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppHandle, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
     // 1. Handshake
     let mut handshake_buf = vec![0u8; HANDSHAKE_CLIENT_STR.len()];
     socket.read_exact(&mut handshake_buf).await?;
@@ -79,6 +82,10 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
 
     // 2. Channel for writing
     let (tx, mut rx) = tokio::sync::mpsc::channel::<MessageWrapper>(100);
+    {
+        let mut lock = connection_tx.lock().await;
+        *lock = Some(tx.clone());
+    }
     let (mut read_half, mut write_half) = socket.into_split();
 
     // 3. Writer loop
@@ -189,7 +196,7 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
             let payload = buffer.split_to(payload_len);
             
             let message = MessageWrapper::decode(payload.freeze())?;
-            handle_message(message, &tx, &audio_tx, &stats).await?;
+            handle_message(message, &tx, &audio_tx, &stats, &app_handle).await?;
         }
     }
 
@@ -197,10 +204,15 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
     ping_task.abort();
     monitor_task.abort();
 
+    {
+        let mut lock = connection_tx.lock().await;
+        *lock = None;
+    }
+
     Ok(())
 }
 
-async fn handle_message(msg: MessageWrapper, tx: &tokio::sync::mpsc::Sender<MessageWrapper>, audio_tx: &tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: &std::sync::Arc<crate::stats::NetworkStats>) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn handle_message(msg: MessageWrapper, tx: &tokio::sync::mpsc::Sender<MessageWrapper>, audio_tx: &tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: &std::sync::Arc<crate::stats::NetworkStats>, app_handle: &AppHandle) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(audio) = msg.audio_packet {
         let _ = audio_tx.send(audio).await;
         // Don't return here, message might contain ping/mute too, although unlikely
@@ -231,6 +243,7 @@ async fn handle_message(msg: MessageWrapper, tx: &tokio::sync::mpsc::Sender<Mess
     
     if let Some(mute) = msg.mute {
         println!("Received mute state: {}", mute.is_muted);
+        let _ = app_handle.emit("mute-state-changed", mute.is_muted);
     }
     
     Ok(())

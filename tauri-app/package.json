@@ -20,6 +20,7 @@
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-updater": "^2.10.1",
     "@vueuse/core": "^14.3.0",
+    "animejs": "^3.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@material/material-color-utilities": "^0.4.0",
     "@tauri-apps/cli": "^2",
+    "@types/animejs": "^3.1.13",
     "@types/node": "^25.9.2",
     "@vitejs/plugin-vue": "^5.2.1",
     "autoprefixer": "^10.5.0",
