@@ -118,7 +118,7 @@
     "audioOutput": {
       "title": "输出设备",
       "desc": "麦克风的声音应该在哪里播放？",
-      "systemDefault": "系统默认设备",
+      "auto": "自动",
       "routingActive": "VB-CABLE 转发已激活，音频将被转发到 \"CABLE Output\""
     },
     "spectrum": {
@@ -363,5 +363,46 @@
       "updateApp": "更新到最新版本",
       "checkLogs": "查看应用日志获取详细错误信息"
     }
+  },
+  "onboarding": {
+    "title": "欢迎使用 MicYou",
+    "desc": "本应用可以将您的 Android 设备通过 Wi-Fi 或 USB 变成电脑的高质量麦克风",
+    "quickStart": "快速入门指南",
+    "step1Title": "1. 安装桌面应用",
+    "step1Desc": "在电脑上下载并安装 MicYou 桌面应用",
+    "step2Title": "2. 连接设备",
+    "step2WifiDesc": "Wi-Fi: 在应用中输入电脑 IP 地址",
+    "step2UsbDesc": "USB: 通过 USB 线连接并执行 ADB 命令",
+    "step3Title": "3. 开始传输",
+    "step3Desc": "点击开始按钮启动音频传输",
+    "step4Title": "4. 配置音频",
+    "step4Desc": "在录音软件中选择 VB-Cable 作为输入设备",
+    "videoGuide": "视频教程",
+    "textGuide": "文字教程",
+    "gotIt": "我很清楚怎么使用",
+    "next": "下一步",
+    "skip": "跳过",
+    "complete": "设置完成",
+    "completeDesc": "一切就绪！您现在可以开始使用 MicYou 了。",
+    "startUsing": "开始使用"
+  },
+  "vbcableDetect": {
+    "title": "需要 VB-Cable 驱动",
+    "message": "VB-Cable 驱动是 MicYou 在 Windows 上作为虚拟麦克风工作所必需的。您想自动安装吗？",
+    "autoInstall": "自动安装",
+    "manualDownload": "手动下载",
+    "skipForNow": "暂时跳过",
+    "installed": "VB-Cable 已安装"
+  },
+  "vbcableInstall": {
+    "installing": "正在安装...",
+    "downloading": "正在下载安装程序...",
+    "configuring": "正在配置设备...",
+    "waitingDevice": "等待设备初始化...",
+    "complete": "安装完成",
+    "failed": "安装失败",
+    "adminRequired": "需要管理员权限，请批准 UAC 提示。",
+    "timeout": "安装超时，请重试。",
+    "retry": "重试"
   }
 }

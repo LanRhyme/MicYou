@@ -171,17 +171,17 @@
               <div class="relative">
                 <Select v-model="settings.audioDevice">
                   <SelectTrigger class="w-full bg-surface-container border-none shadow-none rounded-xl h-12 px-4 font-medium text-sm">
-                    <SelectValue :placeholder="$t('settings.audioOutput.systemDefault')" />
+                    <SelectValue :placeholder="$t('settings.audioOutput.auto')" />
                   </SelectTrigger>
                   <SelectContent class="border-surface-variant/20 rounded-xl bg-surface shadow-lg max-h-[40vh]">
                     <SelectGroup>
-                      <SelectItem value="default">{{ $t('settings.audioOutput.systemDefault') }}</SelectItem>
+                      <SelectItem value="auto">{{ $t('settings.audioOutput.auto') }}</SelectItem>
                       <SelectItem v-for="dev in audioDevices" :key="dev" :value="dev">{{ dev }}</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
-              <p v-if="settings.audioDevice.includes('CABLE Input')" class="text-xs text-green-400 font-medium">
+              <p v-if="settings.audioDevice === 'auto' || settings.audioDevice.includes('CABLE Input')" class="text-xs text-green-400 font-medium">
                 {{ $t('settings.audioOutput.routingActive') }}
               </p>
             </div>
@@ -197,9 +197,23 @@
               <p class="text-xs text-on-surface-variant">
                 {{ $t('settings.vbcable.desc') }}
               </p>
-              <button v-if="!hasVBCable" class="w-full py-2 bg-surface-variant hover:bg-surface-variant/80 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
-                <Download class="w-4 h-4" /> {{ $t('settings.vbcable.download') }}
-              </button>
+              <div v-if="!hasVBCable" class="space-y-2">
+                <button
+                  @click="installVBCableFromSettings"
+                  :disabled="vbcableInstalling"
+                  class="w-full py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-xl text-sm font-bold text-on-primary flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Loader2 v-if="vbcableInstalling" class="w-4 h-4 animate-spin" />
+                  <Download v-else class="w-4 h-4" />
+                  {{ vbcableInstalling ? vbcableInstallProgress || $t('vbcableInstall.installing') : $t('vbcableDetect.autoInstall') }}
+                </button>
+                <button
+                  @click="openVBCableDownload"
+                  class="w-full py-2 bg-surface-variant hover:bg-surface-variant/80 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Download class="w-4 h-4" /> {{ $t('settings.vbcable.download') }}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -533,6 +547,7 @@ import {
   Puzzle, 
   Info,
   Download,
+  Loader2,
   Construction,
   User,
   Globe,
@@ -620,7 +635,7 @@ watch(currentLanguage, (newLang) => {
 
 // Reactive Settings State
 const settings = reactive({
-  audioDevice: 'default',
+  audioDevice: 'auto',
   gain: 0,
   nsEnabled: false,
   nsType: 'RNNoise',
@@ -643,6 +658,9 @@ const settings = reactive({
 
 const audioDevices = ref<string[]>([]);
 const hasVBCable = computed(() => audioDevices.value.some(d => d.toLowerCase().includes('cable')));
+const vbcableInstalling = ref(false);
+const vbcableInstallProgress = ref('');
+let unlistenVbcableProgress: UnlistenFn | null = null;
 const audioLevel = ref(0);
 let unlistenLevel: UnlistenFn | null = null;
 let unlistenSpectrum: UnlistenFn | null = null;
@@ -763,6 +781,26 @@ const exportLog = async () => {
   }
 };
 
+async function installVBCableFromSettings() {
+  vbcableInstalling.value = true;
+  vbcableInstallProgress.value = '';
+  try {
+    const result = await invoke<{ success: boolean; error_type?: string; message?: string }>('install_vbcable');
+    if (result.success) {
+      audioDevices.value = await invoke<string[]>('get_audio_devices');
+    }
+  } catch (e) {
+    console.error('VB-CABLE install failed:', e);
+  } finally {
+    vbcableInstalling.value = false;
+    vbcableInstallProgress.value = '';
+  }
+}
+
+function openVBCableDownload() {
+  window.open('https://vb-audio.com/Cable/', '_blank');
+}
+
 // Lifecycle
 onMounted(async () => {
   try {
@@ -776,6 +814,9 @@ onMounted(async () => {
   } catch (e) {
     console.error("Failed to read autostart state:", e);
   }
+  unlistenVbcableProgress = await listen<string>('vbcable-install-progress', (event) => {
+    vbcableInstallProgress.value = event.payload;
+  });
 });
 
 async function toggleAutostart() {
@@ -794,6 +835,7 @@ async function toggleAutostart() {
 
 onUnmounted(() => {
   cancelAnimationFrame(animationFrameId);
+  if (unlistenVbcableProgress) unlistenVbcableProgress();
 });
 
 const fetchDevices = async () => {
@@ -817,7 +859,7 @@ const loadSettings = () => {
   // Legacy support
   const savedDevice = localStorage.getItem('micyou_output_device');
   if (savedDevice && !settings.audioDevice) {
-    settings.audioDevice = savedDevice;
+    settings.audioDevice = savedDevice === 'default' ? 'auto' : savedDevice;
   }
   
   if (settings.audioDevice) {

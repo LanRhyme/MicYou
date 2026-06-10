@@ -9,6 +9,7 @@ pub mod commands;
 pub mod adb_manager;
 pub mod stats;
 pub mod tray;
+pub mod vbcable;
 
 use tauri::{Emitter, AppHandle, Manager, State};
 use std::sync::Arc;
@@ -432,7 +433,6 @@ fn exit_app(app: AppHandle, state: State<'_, ServerState>) -> Result<(), String>
     rt.block_on(async {
         let _ = stop_server(app.clone(), state).await;
     });
-    // TODO: restore default audio once VirtualAudioDeviceManager is ported.
     log::info!(target: "tray", "exit_app: stopping application");
     app.exit(0);
     Ok(())
@@ -504,6 +504,8 @@ pub fn run() {
             hide_main_window,
             exit_app,
             set_mute_state,
+            vbcable::check_vbcable,
+            vbcable::install_vbcable,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

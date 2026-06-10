@@ -17,6 +17,7 @@ import UdpWarningDialog from './components/UdpWarningDialog.vue';
 import PocketLayout from './components/PocketLayout.vue';
 import CloseConfirmDialog from './components/CloseConfirmDialog.vue';
 import ConnectionErrorDialog from './components/ConnectionErrorDialog.vue';
+import OnboardingWizard from './components/OnboardingWizard.vue';
 import { analyzeError, generateErrorDetails, type ConnectionErrorDetails } from './utils/connectionError';
 import { useTray } from './composables/useTray';
 import appIconSvg from './assets/app_icon.svg?raw';
@@ -70,6 +71,7 @@ const { t } = useI18n();
 const appWindow = getCurrentWindow();
 const minimizeWindow = () => appWindow.minimize();
 
+const showOnboarding = ref(localStorage.getItem('micyou_onboarding_completed') !== 'true');
 const isHidden = ref(localStorage.getItem('micyou_start_minimized') === 'true');
 const showCloseConfirm = ref(false);
 
@@ -397,7 +399,7 @@ const toggleStreaming = async () => {
         port: Number(serverPort.value),
         mode: connectionMode.value,
         bindAddress: bindAddress,
-        outputDevice: outputDevice.value || null
+        outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
       });
       serverState.value = 'connecting';
       if (connectionMode.value === 'usb') {
@@ -470,7 +472,7 @@ const confirmIpSwitch = async () => {
         port: Number(serverPort.value),
         mode: connectionMode.value,
         bindAddress: bindAddress,
-        outputDevice: outputDevice.value || null
+        outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
       });
       serverState.value = 'connecting';
       if (connectionMode.value === 'usb') {
@@ -573,6 +575,7 @@ watchEffect(() => {
 </script>
 
 <template>
+  <OnboardingWizard :visible="showOnboarding" @complete="showOnboarding = false" />
   <div class="relative w-full h-screen overflow-hidden text-foreground bg-transparent">
     <CustomBackground />
 
