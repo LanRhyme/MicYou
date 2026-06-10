@@ -2992,6 +2992,7 @@ dependencies = [
  "bytes",
  "cpal",
  "hostname",
+ "libc",
  "local-ip-address",
  "log",
  "md-5",
@@ -3017,6 +3018,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tokio",
  "tokio-util",
+ "winapi",
 ]
 
 [[package]]

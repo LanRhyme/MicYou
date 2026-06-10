@@ -12,6 +12,11 @@ use crate::protocol::{PACKET_MAGIC, HANDSHAKE_CLIENT_STR, HANDSHAKE_SERVER_STR};
 use crate::protocol::micyou::{MessageWrapper, AudioPacketMessageOrdered};
 use tokio_util::sync::CancellationToken;
 
+#[cfg(windows)]
+type RawSocketHandle = std::os::windows::io::RawSocket;
+#[cfg(unix)]
+type RawSocketHandle = std::os::unix::io::RawFd;
+
 #[derive(Serialize, Clone)]
 pub struct DeviceInfo {
     pub name: String,
@@ -19,7 +24,7 @@ pub struct DeviceInfo {
     pub latency: u32,
 }
 
-pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: String, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: String, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>, active_socket_handle: Arc<Mutex<Option<RawSocketHandle>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let listener = TcpListener::bind(format!("{}:{}", bind_address, port)).await?;
     println!("TCP Control Server listening on {}:{}", bind_address, port);
 
@@ -38,10 +43,14 @@ pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: St
                         let stats_clone = stats.clone();
                         let mode_clone = mode.clone();
                         let connection_tx_clone = connection_tx.clone();
+                        let active_handle_clone = active_socket_handle.clone();
+                        let active_handle_cleanup = active_socket_handle.clone();
                         tokio::spawn(async move {
-                            if let Err(e) = handle_client(socket, addr, app_handle_clone.clone(), audio_tx_clone, stats_clone, mode_clone, connection_tx_clone).await {
+                            if let Err(e) = handle_client(socket, addr, app_handle_clone.clone(), audio_tx_clone, stats_clone, mode_clone, connection_tx_clone, active_handle_clone).await {
                                 eprintln!("Client {} error: {}", addr, e);
                             }
+                            // Clear handle on disconnect
+                            active_handle_cleanup.lock().await.take();
                             println!("Client {} disconnected", addr);
                             let _ = app_handle_clone.emit("device-disconnected", ());
                         });
@@ -56,7 +65,23 @@ pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: St
     Ok(())
 }
 
-async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppHandle, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
+/// Force-close the active TCP socket from another task.
+/// This calls OS-level shutdown so any pending read/write in handle_client
+/// will immediately fail, causing the task to exit and clean up.
+pub fn force_close_socket(raw: RawSocketHandle) {
+    unsafe {
+        #[cfg(windows)]
+        {
+            winapi::um::winsock2::shutdown(raw as winapi::um::winsock2::SOCKET, 2);
+        }
+        #[cfg(unix)]
+        {
+            libc::shutdown(raw, libc::SHUT_RDWR);
+        }
+    }
+}
+
+async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppHandle, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>, active_socket_handle: Arc<Mutex<Option<RawSocketHandle>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
     // 1. Handshake
     let mut handshake_buf = vec![0u8; HANDSHAKE_CLIENT_STR.len()];
     socket.read_exact(&mut handshake_buf).await?;
@@ -86,7 +111,35 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
         let mut lock = connection_tx.lock().await;
         *lock = Some(tx.clone());
     }
+
+    // Extract raw socket handle BEFORE into_split() consumes the stream.
+    // The OS socket stays alive via the split halves; stop_server can call
+    // force_close_socket() on the raw handle to force-close the connection.
+    #[cfg(windows)]
+    let raw: RawSocketHandle = std::os::windows::io::AsRawSocket::as_raw_socket(&socket);
+    #[cfg(unix)]
+    let raw: RawSocketHandle = std::os::unix::io::AsRawFd::as_raw_fd(&socket);
+    active_socket_handle.lock().await.replace(raw);
+
     let (mut read_half, mut write_half) = socket.into_split();
+
+    let _ = app_handle.emit("device-connected", DeviceInfo {
+        name: "MicYou Mobile".to_string(),
+        ip: addr.ip().to_string(),
+        latency: 12,
+    });
+
+    let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+    stats.mark_tcp_connected(current_time);
+
+    let mut buffer = BytesMut::with_capacity(8192);
+
+    // 2. Channel for writing
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<MessageWrapper>(100);
+    {
+        let mut lock = connection_tx.lock().await;
+        *lock = Some(tx.clone());
+    }
 
     // 3. Writer loop
     let writer_task = tokio::spawn(async move {

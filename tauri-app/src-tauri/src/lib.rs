@@ -26,6 +26,10 @@ pub struct ServerState {
     pub dsp_settings: Arc<RwLock<AudioDspSettings>>,
     pub network_stats: Arc<NetworkStats>,
     pub connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<crate::protocol::micyou::MessageWrapper>>>>,
+    #[cfg(windows)]
+    pub active_socket_handle: Arc<Mutex<Option<std::os::windows::io::RawSocket>>>,
+    #[cfg(unix)]
+    pub active_socket_handle: Arc<Mutex<Option<std::os::unix::io::RawFd>>>,
 }
 
 #[tauri::command]
@@ -331,8 +335,9 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
     let mode_tcp = _mode.clone();
     let bind_addr_tcp = bind_addr.clone();
     let connection_tx_tcp = state.connection_tx.clone();
+    let active_socket_handle_tcp = state.active_socket_handle.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = tcp_server::start_tcp_server(app_handle_tcp, port_tcp, bind_addr_tcp, token_tcp, audio_tx_tcp, stats_tcp, mode_tcp, connection_tx_tcp).await {
+        if let Err(e) = tcp_server::start_tcp_server(app_handle_tcp, port_tcp, bind_addr_tcp, token_tcp, audio_tx_tcp, stats_tcp, mode_tcp, connection_tx_tcp, active_socket_handle_tcp).await {
             eprintln!("TCP Server error: {}", e);
         }
     });
@@ -352,7 +357,16 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
 
 #[tauri::command]
 async fn stop_server(app: AppHandle, state: State<'_, ServerState>) -> Result<String, String> {
-    // Notify mobile client by dropping the sender before canceling
+    // Force-close the active TCP socket so the read loop in handle_client
+    // immediately fails and the mobile client detects the disconnect.
+    {
+        let mut handle_lock = state.active_socket_handle.lock().await;
+        if let Some(raw) = handle_lock.take() {
+            tcp_server::force_close_socket(raw);
+        }
+    }
+
+    // Drop the sender channel
     {
         let mut conn_tx_lock = state.connection_tx.lock().await;
         *conn_tx_lock = None;
@@ -453,6 +467,7 @@ pub fn run() {
             dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
             network_stats: Arc::new(NetworkStats::default()),
             connection_tx: Arc::new(Mutex::new(None)),
+            active_socket_handle: Arc::new(Mutex::new(None)),
         })
         .plugin(tauri_plugin_log::Builder::new()
             .level(log::LevelFilter::Info)
