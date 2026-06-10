@@ -41,14 +41,14 @@ This project is built using Kotlin Multiplatform.
 ```
 
 **macOS DMG package:**
-~~~bash
-./gradlew :composeApp:packageDmg 
-~~~
+```bash
+./gradlew :composeApp:packageDmg
+```
 
 **No-JRE package:**
-~~~bash
+```bash
 ./gradlew :composeApp:packageNoJreAll
-~~~
+```
 
 ## Internationalization (i18n)
 

@@ -41,14 +41,14 @@
 ```
 
 **macOS DMG 套件:**
-~~~bash
-./gradlew :composeApp:packageDmg 
-~~~
+```bash
+./gradlew :composeApp:packageDmg
+```
 
 **不含 JRE 套件:**
-~~~bash
+```bash
 ./gradlew :composeApp:packageNoJreAll
-~~~
+```
 
 ## 國際化（i18n）
 

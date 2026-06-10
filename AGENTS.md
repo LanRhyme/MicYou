@@ -51,7 +51,7 @@ Built with Compose Multiplatform, Material 3, Ktor, and kotlinx-serialization.
 
 ## Environment requirements
 
-- JDK 21 (Liberica distribution used in CI; other OpenJDK distributions is accepted)
+- JDK 21 (Liberica distribution used in CI; other OpenJDK distributions are accepted)
 - Android SDK: compileSdk 36, minSdk 24, targetSdk 36
 - Version is set in `gradle.properties` (`project.version` and `project.version.code`)
 - Optional: `local.properties` for `AIFADIAN_API_TOKEN` / `AIFADIAN_USER_ID` (sponsorship features)
