@@ -16,6 +16,8 @@ import MonitoringPanel from './components/MonitoringPanel.vue';
 import UdpWarningDialog from './components/UdpWarningDialog.vue';
 import PocketLayout from './components/PocketLayout.vue';
 import CloseConfirmDialog from './components/CloseConfirmDialog.vue';
+import ConnectionErrorDialog from './components/ConnectionErrorDialog.vue';
+import { analyzeError, generateErrorDetails, type ConnectionErrorDetails } from './utils/connectionError';
 import { useTray } from './composables/useTray';
 import appIconSvg from './assets/app_icon.svg?raw';
 import anime from 'animejs';
@@ -45,6 +47,8 @@ const displayIp = computed(() => {
 const isSettingsOpen = ref(false);
 const showMonitoringPanel = ref(false);
 const showUdpWarning = ref(false);
+const showErrorDialog = ref(false);
+const errorDetails = ref<ConnectionErrorDetails | null>(null);
 const audioMetrics = ref<any>(null);
 const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') || '');
 const isMuted = ref(false);
@@ -399,8 +403,12 @@ const toggleStreaming = async () => {
       if (connectionMode.value === 'usb') {
         await invoke('enable_usb_mode', { port: Number(serverPort.value) });
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      const msg = typeof e === 'string' ? e : e?.message ?? String(e);
+      const type = analyzeError(msg);
+      errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
+      showErrorDialog.value = true;
       serverState.value = 'idle';
     }
   }
@@ -832,6 +840,13 @@ watchEffect(() => {
     />
 
     <CloseConfirmDialog v-model:show="showCloseConfirm" @select="handleCloseSelect" />
+
+    <ConnectionErrorDialog
+      :show="showErrorDialog"
+      :details="errorDetails"
+      @dismiss="showErrorDialog = false"
+      @retry="showErrorDialog = false; toggleStreaming()"
+    />
 
     <!-- IP Switch Confirmation Dialog -->
     <Transition

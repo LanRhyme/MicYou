@@ -257,5 +257,111 @@
   "autoStream": {
     "title": "Auto Stream",
     "desc": "Automatically start streaming when the app launches."
+  },
+  "error": {
+    "suggestionsTitle": "Suggestions:",
+    "technicalDetails": "Technical details:",
+    "dialog": {
+      "retry": "Retry",
+      "dismiss": "Dismiss",
+      "help": "View Help"
+    },
+    "networkTimeout": {
+      "title": "Connection Timeout",
+      "message": "Connection timed out. Please check your network connection and target device status."
+    },
+    "portInUse": {
+      "title": "Port Already in Use",
+      "message": "Port {port} is already in use by another application. Please choose a different port or close the conflicting application."
+    },
+    "connectionRefused": {
+      "title": "Connection Refused",
+      "message": "Connection was refused. The target device may not be running MicYou or is not listening on the specified port.",
+      "wifiMessage": "Connection to {ip} was refused. Please ensure the desktop server is running and configured with the same port."
+    },
+    "networkUnreachable": {
+      "title": "Network Unreachable",
+      "message": "Cannot reach IP address: {ip}. Please verify the IP address and ensure both devices are on the same network."
+    },
+    "firewallBlocked": {
+      "title": "Firewall Blocked",
+      "message": "Port {port} is blocked by Windows Firewall. Please add a firewall rule or run the application as administrator."
+    },
+    "permissionDenied": {
+      "title": "Permission Denied",
+      "message": "Insufficient permissions to perform this operation. Please run the application as administrator."
+    },
+    "deviceNotFound": {
+      "title": "Device Not Found",
+      "message": "The specified device was not found. Please check your network connection."
+    },
+    "usbConnectionFailed": {
+      "title": "USB Connection Failed",
+      "message": "USB connection failed. Please check your USB cable and ensure USB debugging is enabled on your Android device."
+    },
+    "adbCommandFailed": {
+      "title": "ADB Command Failed",
+      "message": "ADB command execution failed. Please ensure ADB is installed and USB debugging is enabled."
+    },
+    "handshakeFailed": {
+      "title": "Handshake Failed",
+      "message": "Handshake failed with the target device. This may indicate a version mismatch or protocol error."
+    },
+    "protocolError": {
+      "title": "Protocol Error",
+      "message": "A protocol error occurred during communication. Please restart both applications."
+    },
+    "audioDevice": {
+      "title": "Audio Device Error",
+      "message": "Audio device error. Please check your audio device settings and restart the application."
+    },
+    "audioFormat": {
+      "title": "Audio Format Error",
+      "message": "Unsupported audio format. Please try different audio settings or use auto-configuration."
+    },
+    "versionMismatch": {
+      "title": "Version Mismatch",
+      "message": "Version mismatch detected. Please ensure both devices are running the same version of MicYou."
+    },
+    "adminPrivilege": {
+      "title": "Administrator Privilege Required",
+      "message": "This operation requires administrator privileges. Please restart the application as administrator."
+    },
+    "udpPortBlocked": {
+      "title": "UDP Port Blocked",
+      "message": "UDP audio port {port} is blocked by firewall. Audio transmission requires both TCP and UDP ports to be accessible. Please add a firewall rule for the UDP port or run the application as administrator."
+    },
+    "unknown": {
+      "title": "Unknown Error",
+      "message": "An unknown error occurred: {error}"
+    },
+    "suggestion": {
+      "checkNetwork": "Check your Wi-Fi or network connection",
+      "checkTargetRunning": "Ensure the target device is running MicYou server",
+      "tryDifferentPort": "Try using a different port number",
+      "changePort": "Change the port number in settings",
+      "checkOtherApps": "Check if other applications are using this port",
+      "checkServerRunning": "Verify the desktop server is running and ready",
+      "checkServerConfig": "Check server configuration (port, firewall settings)",
+      "checkNetworkConnection": "Verify network connection between devices",
+      "verifyIpAddress": "Double-check the IP address",
+      "checkWifiConnected": "Ensure both devices are connected to the same Wi-Fi network",
+      "addFirewallRule": "Allow MicYou through Windows Firewall",
+      "runAsAdmin": "Run the application as administrator",
+      "checkAntivirus": "Check antivirus or security software settings",
+      "checkUsbCable": "Check USB cable connection",
+      "enableUsbDebugging": "Enable USB debugging in Android developer options",
+      "runAdbCommand": "Run this command on PC: {cmd}",
+      "checkAdbInstalled": "Ensure ADB is installed on your computer",
+      "runAdbManually": "Manually run: {cmd}",
+      "versionMatch": "Ensure both devices use the same MicYou version",
+      "restartApp": "Restart the application",
+      "checkVersion": "Check for updates on GitHub",
+      "checkAudioDevice": "Check audio device permissions and availability",
+      "changeAudioConfig": "Try different audio configuration settings",
+      "useDefaultConfig": "Use default or auto configuration",
+      "updateApp": "Update to the latest version",
+      "checkLogs": "Check application logs for detailed error information"
+    }
   }
 }
