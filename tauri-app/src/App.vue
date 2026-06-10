@@ -50,8 +50,6 @@ const isMuted = ref(false);
 // Animation refs
 const centralBtnRef = ref<HTMLButtonElement | null>(null);
 const glowRef = ref<HTMLDivElement | null>(null);
-const statusTextEl = ref<HTMLSpanElement | null>(null);
-const liveBadgeRef = ref<HTMLDivElement | null>(null);
 const statusDotRef = ref<HTMLDivElement | null>(null);
 
 let breatheAnim: ReturnType<typeof anime> | null = null;
@@ -444,10 +442,13 @@ const confirmIpSwitch = async () => {
 };
 
 const toggleMute = async () => {
+  const newVal = !isMuted.value;
+  isMuted.value = newVal;
   try {
-    await invoke('set_mute_state', { isMuted: !isMuted.value });
+    await invoke('set_mute_state', { isMuted: newVal });
   } catch (e) {
     console.error('set_mute_state failed:', e);
+    isMuted.value = !newVal;
   }
 };
 
@@ -503,35 +504,6 @@ watchEffect(() => {
     if (glowRef.value) {
       anime.set(glowRef.value, { opacity: 0.3, scale: 1.25 });
     }
-  }
-});
-
-// Status text transition animation
-const prevServerState = ref(serverState.value);
-
-watchEffect(() => {
-  if (prevServerState.value !== serverState.value && statusTextEl.value) {
-    anime({
-      targets: statusTextEl.value,
-      translateY: [10, 0],
-      opacity: [0, 1],
-      duration: 400,
-      easing: 'easeOutQuad',
-    });
-    prevServerState.value = serverState.value;
-  }
-});
-
-// LIVE badge spring animation
-watchEffect(() => {
-  if (serverState.value === 'streaming' && liveBadgeRef.value) {
-    anime({
-      targets: liveBadgeRef.value,
-      scale: [0, 1],
-      opacity: [0, 1],
-      duration: 500,
-      easing: 'easeOutElastic(1, .5)',
-    });
   }
 });
 
@@ -776,17 +748,6 @@ watchEffect(() => {
                 <RefreshCw v-if="serverState === 'connecting'" class="w-7 h-7 animate-spin-slow" stroke-width="2.5" />
                 <Link v-else class="w-7 h-7" stroke-width="2.5" />
               </button>
-            </div>
-          </div>
-          
-          <!-- Status Text (Positioned Absolutely to avoid pushing button off-center) -->
-          <div class="absolute top-[calc(50%+4rem)] flex items-center gap-2">
-            <span ref="statusTextEl" class="text-sm font-bold tracking-wider" 
-                  :class="serverState === 'streaming' ? 'text-error' : (serverState === 'connecting' ? 'text-tertiary' : 'text-primary')">
-              {{ serverState === 'streaming' ? $t('app.status.stateStreaming') : (serverState === 'connecting' ? $t('app.status.stateConnecting') : 'CLICK TO START') }}
-            </span>
-            <div ref="liveBadgeRef" v-if="serverState === 'streaming'" class="bg-error px-1.5 py-0.5 rounded text-[10px] font-black text-on-error uppercase tracking-widest shadow-sm">
-              LIVE
             </div>
           </div>
         </div>

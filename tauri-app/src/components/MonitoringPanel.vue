@@ -31,7 +31,7 @@
         <span class="text-xs font-medium text-on-surface-variant">{{ $t('app.monitoring.trend') }}</span>
       </div>
       <div class="h-20 bg-surface-container-highest/40 rounded-lg overflow-hidden relative">
-        <svg class="w-full h-full" preserveAspectRatio="none">
+        <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
           <polyline :points="trendPoints" fill="none" class="stroke-primary" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
@@ -49,11 +49,11 @@
           <g v-for="(val, index) in waveform" :key="index">
             <rect 
               :x="index * (100 / waveformSize)" 
-              :y="50 - (val * 40)" 
-              :width="(100 / waveformSize) - 0.5" 
-              :height="Math.max(val * 80, 2)" 
+              :y="50 - (val * 0.4)" 
+              :width="2" 
+              :height="Math.max(val * 0.8, 1)" 
               class="fill-primary" 
-              rx="1"
+              rx="50"
             />
           </g>
         </svg>
@@ -134,16 +134,17 @@ const trendPoints = computed(() => {
   if (trendHistory.value.length === 0) return ''
   const maxVal = Math.max(...trendHistory.value, 100)
   const minVal = 0
+  const range = maxVal - minVal || 1
   
   return trendHistory.value.map((val, i) => {
-    const x = (i / (maxTrendPoints - 1)) * 100 + '%'
-    const y = 100 - ((val - minVal) / (maxVal - minVal) * 100) + '%'
+    const x = (i / (maxTrendPoints - 1)) * 100
+    const y = 100 - ((val - minVal) / range * 100)
     return `${x},${y}`
   }).join(' ')
 })
 
 // Waveform
-const waveformSize = 60
+const waveformSize = 33
 const waveform = ref<number[]>(Array(waveformSize).fill(0))
 
 let animationFrameId: number

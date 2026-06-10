@@ -433,7 +433,6 @@ async fn set_mute_state(app: AppHandle, state: State<'_, ServerState>, is_muted:
     let lock = state.connection_tx.lock().await;
     if let Some(tx) = lock.as_ref() {
         tx.send(mute_msg).await.map_err(|e| e.to_string())?;
-        let _ = app.emit("mute-state-changed", is_muted);
         Ok(())
     } else {
         Err("No active connection".to_string())
