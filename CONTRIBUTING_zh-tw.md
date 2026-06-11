@@ -40,6 +40,16 @@
 ./gradlew :composeApp:packageRpm
 ```
 
+**macOS DMG 套件:**
+```bash
+./gradlew :composeApp:packageDmg
+```
+
+**不含 JRE 套件:**
+```bash
+./gradlew :composeApp:packageNoJreAll
+```
+
 ## 國際化（i18n）
 
 MicYou 使用 Compose Multiplatform Resources 進行本地化。所有使用者可見的字串儲存在 `strings.xml` 檔案中。我們歡迎貢獻者將 MicYou 翻譯成您的母語！
@@ -59,7 +69,7 @@ cd MicYou
 mkdir -p composeApp/src/commonMain/composeResources/values-xx
 cp composeApp/src/commonMain/composeResources/values/strings.xml composeApp/src/commonMain/composeResources/values-xx/strings.xml
 ```
-將 `xx` 替換為您的語言代碼（例如，法語為 `fr`，西班牙語為 `es`）。
+將 `xx` 替換為您的語言代碼（例如，法語為 `fr`，西班牙語為 `es`，基於 ISO 639-1 或其他相關標準，如 IETF BCP 47）。
 
 3. 編輯新的 `strings.xml` 檔案，翻譯所有字串值，同時保持鍵不變：
 ```xml
