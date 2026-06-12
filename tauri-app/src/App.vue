@@ -26,7 +26,10 @@ import anime from 'animejs';
 import QRCode from 'qrcode';
 
 // Detect macOS platform for native vibrancy (NSVisualEffectView)
-const isMacOS = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const isMacOS = typeof navigator !== 'undefined' &&
+  /Mac/.test(navigator.platform || navigator.userAgent) &&
+  !/iPhone|iPad|iPod/.test(navigator.userAgent) &&
+  !(navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
 if (isMacOS && typeof document !== 'undefined') {
   document.documentElement.classList.add('platform-macos');
 }

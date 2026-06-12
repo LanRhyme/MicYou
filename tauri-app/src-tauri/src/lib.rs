@@ -560,10 +560,11 @@ fn apply_macos_vibrancy(win: &tauri::WebviewWindow) {
     if let Ok(ptr) = win.ns_window() {
         unsafe {
             let ns_window = ptr as *mut Object;
-            let clear: *mut Object =
-                msg_send![Class::get("NSColor").unwrap(), clearColor];
-            let _: () = msg_send![ns_window, setOpaque: NO];
-            let _: () = msg_send![ns_window, setBackgroundColor: clear];
+            if let Some(ns_color) = Class::get("NSColor") {
+                let clear: *mut Object = msg_send![ns_color, clearColor];
+                let _: () = msg_send![ns_window, setOpaque: NO];
+                let _: () = msg_send![ns_window, setBackgroundColor: clear];
+            }
         }
     }
 }

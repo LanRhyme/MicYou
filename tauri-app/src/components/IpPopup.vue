@@ -29,7 +29,10 @@ const syncTheme = () => {
   const uiStyle = localStorage.getItem('micyou_ui_style') || 'style-glass';
 
   // Detect macOS for native vibrancy
-  if (/Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) {
+  const isMacOS = /Mac/.test(navigator.platform || navigator.userAgent) &&
+    !/iPhone|iPad|iPod/.test(navigator.userAgent) &&
+    !(navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+  if (isMacOS) {
     html.classList.add('platform-macos');
   }
 
