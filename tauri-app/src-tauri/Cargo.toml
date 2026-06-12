@@ -1,7 +1,7 @@
 [package]
 name = "micyou"
-version = "0.1.0"
-description = "A Tauri App"
+version = "2.0.0"
+description = "MicYou is a powerful tool that turns your Android device into a high-quality microphone for your PC. "
 authors = ["LanRhyme"]
 edition = "2021"
 

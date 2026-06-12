@@ -3187,7 +3187,7 @@ dependencies = [
 
 [[package]]
 name = "micyou"
-version = "0.1.0"
+version = "1.3.4-hotfix"
 dependencies = [
  "audiopus",
  "axum",
