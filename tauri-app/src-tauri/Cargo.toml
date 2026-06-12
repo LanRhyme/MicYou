@@ -38,7 +38,8 @@ audiopus = "0.2.0"
 ringbuf = "0.3.3"
 tokio-util = "0.7.18"
 nnnoiseless = "0.5.2"
-ort = { version = "2.0.0-rc.12", features = ["download-binaries"] }
+ort = { version = "=2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "api-17", "alternative-backend"] }
+ort-tract = "0.3.0+0.22"
 reqwest = { version = "0.13.4", features = ["json"] }
 md-5 = "0.11.0"
 tauri-plugin-log = "2.8.0"
