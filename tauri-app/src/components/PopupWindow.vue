@@ -24,6 +24,11 @@ const syncTheme = () => {
   const themeColor = localStorage.getItem('micyou_theme_color') || 'theme-blue';
   const uiStyle = localStorage.getItem('micyou_ui_style') || 'style-glass';
 
+  // Detect macOS for native vibrancy
+  if (/Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) {
+    html.classList.add('platform-macos');
+  }
+
   const themes = ['theme-blue', 'theme-green', 'theme-rose', 'theme-purple', 'theme-orange', 'theme-amber', 'theme-teal', 'theme-cyan', 'theme-custom'];
   html.classList.remove(...themes, 'style-default', 'style-glass');
   html.classList.add(themeColor);

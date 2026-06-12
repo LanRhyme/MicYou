@@ -541,6 +541,36 @@ async fn set_mute_state(app: AppHandle, state: State<'_, ServerState>, is_muted:
     }
 }
 
+#[cfg(target_os = "macos")]
+fn apply_macos_vibrancy(win: &tauri::WebviewWindow) {
+    use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
+
+    // Apply native NSVisualEffectView frosted glass effect (Sidebar material)
+    let _ = apply_vibrancy(
+        win,
+        NSVisualEffectMaterial::Sidebar,
+        Some(NSVisualEffectState::Active),
+        None,
+    );
+
+    // Make NSWindow fully transparent so the vibrancy shows through
+    use objc::runtime::{Class, Object, NO};
+    use objc::{msg_send, sel, sel_impl};
+
+    if let Ok(ptr) = win.ns_window() {
+        unsafe {
+            let ns_window = ptr as *mut Object;
+            let clear: *mut Object =
+                msg_send![Class::get("NSColor").unwrap(), clearColor];
+            let _: () = msg_send![ns_window, setOpaque: NO];
+            let _: () = msg_send![ns_window, setBackgroundColor: clear];
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn apply_macos_vibrancy(_: &tauri::WebviewWindow) {}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -569,6 +599,12 @@ pub fn run() {
             if let Err(e) = crate::tray::build_tray(app.handle()) {
                 log::warn!(target: "tray", "failed to build tray: {e}");
             }
+
+            // Apply native macOS frosted glass vibrancy
+            if let Some(win) = app.get_webview_window("main") {
+                apply_macos_vibrancy(&win);
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

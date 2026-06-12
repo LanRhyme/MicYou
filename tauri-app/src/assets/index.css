@@ -486,6 +486,27 @@
   .style-glass .bg-surface-container {
     background-color: hsl(var(--surface-container) / 0.3) !important;
   }
+
+  /* macOS: Native NSVisualEffectView handles frosted glass — disable CSS backdrop-filter
+     to avoid WebKit rendering white on transparent windows */
+  .platform-macos.style-glass {
+    --haze-backdrop: none;
+    --haze-bg: hsl(var(--surface-bright) / 0.5);
+    --haze-border: hsl(var(--border) / 0.5);
+  }
+  .dark.platform-macos.style-glass {
+    --haze-bg: hsl(var(--surface-bright) / 0.35);
+    --haze-border: hsl(var(--border) / 0.4);
+  }
+  .platform-macos.style-glass .haze-surface {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid var(--haze-border) !important;
+  }
+  /* macOS: Semi-transparent main background so native vibrancy shows through */
+  .platform-macos.style-glass .bg-surface-container {
+    background-color: hsl(var(--surface-container) / 0.3) !important;
+  }
 }
 
 @layer base {
