@@ -1,12 +1,12 @@
 import { createApp } from "vue";
-import "./assets/index.css";
+import "./shared/assets/index.css";
 import App from "./App.vue";
-import PopupWindow from "./components/PopupWindow.vue";
-import IpPopup from "./components/IpPopup.vue";
+import PopupWindow from "./shared/components/PopupWindow.vue";
+import IpPopup from "./features/connection/components/IpPopup.vue";
 import { createI18n } from "vue-i18n";
 
-import en from "./locales/en.json";
-import zh from "./locales/zh.json";
+import en from "./shared/locales/en.json";
+import zh from "./shared/locales/zh.json";
 
 const savedLocale = localStorage.getItem("micyou_language") || "system";
 

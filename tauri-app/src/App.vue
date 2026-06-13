@@ -1,29 +1,33 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watchEffect } from 'vue';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
+import { ref, onUnmounted, computed, watchEffect } from 'vue';
 import { useStorage } from '@vueuse/core';
-import { sendNotification, isPermissionGranted, requestPermission } from '@tauri-apps/plugin-notification';
+import { LogicalSize } from '@tauri-apps/api/window';
+import { useI18n } from 'vue-i18n';
 
 // Icons
 import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, Link, Unlink, RefreshCw, ActivitySquare as MonitoringIcon, X, Minus, VolumeX, Volume2, QrCode as QrCodeIcon } from 'lucide-vue-next';
-import { useI18n } from 'vue-i18n';
-import CustomBackground from './components/CustomBackground.vue';
-import SettingsDialog from './components/SettingsDialog.vue';
-import AudioRing from './components/AudioRing.vue';
-import MonitoringPanel from './components/MonitoringPanel.vue';
-import UdpWarningDialog from './components/UdpWarningDialog.vue';
-import PocketLayout from './components/PocketLayout.vue';
-import CloseConfirmDialog from './components/CloseConfirmDialog.vue';
-import ConnectionErrorDialog from './components/ConnectionErrorDialog.vue';
-import QrCodeDialog from './components/QrCodeDialog.vue';
-import OnboardingWizard from './components/OnboardingWizard.vue';
-import { analyzeError, generateErrorDetails, type ConnectionErrorDetails } from './utils/connectionError';
-import { useTray } from './composables/useTray';
-import appIconSvg from './assets/app_icon.svg?raw';
+
+// Feature composables
+import { useServer } from './features/connection/composables/useServer';
+import { useAudio } from './features/audio/composables/useAudio';
+import { useTheme } from './features/theme/composables/useTheme';
+import { useWindow } from './shared/composables/useWindow';
+import { useTray } from './shared/composables/useTray';
+
+// Feature components
+import ConnectionErrorDialog from './features/connection/components/ConnectionErrorDialog.vue';
+import QrCodeDialog from './features/connection/components/QrCodeDialog.vue';
+import AudioRing from './features/audio/components/AudioRing.vue';
+import MonitoringPanel from './features/audio/components/MonitoringPanel.vue';
+import SettingsDialog from './features/settings/components/SettingsDialog.vue';
+import OnboardingWizard from './features/onboarding/components/OnboardingWizard.vue';
+import PocketLayout from './features/pocket/components/PocketLayout.vue';
+import CustomBackground from './shared/components/CustomBackground.vue';
+import CloseConfirmDialog from './shared/components/CloseConfirmDialog.vue';
+import UdpWarningDialog from './shared/components/UdpWarningDialog.vue';
+
+import appIconSvg from './shared/assets/app_icon.svg?raw';
 import anime from 'animejs';
-import QRCode from 'qrcode';
 
 // Detect macOS platform for native vibrancy (NSVisualEffectView)
 const isMacOS = typeof navigator !== 'undefined' &&
@@ -34,44 +38,13 @@ if (isMacOS && typeof document !== 'undefined') {
   document.documentElement.classList.add('platform-macos');
 }
 
-const serverState = ref<'idle' | 'starting' | 'connecting' | 'streaming'>('idle');
-const connectionMode = useStorage<'wifi' | 'usb' | 'web'>('micyou_connectionMode', 'wifi');
-const serverPort = useStorage('micyou_serverPort', 8554);
-const webPort = useStorage('micyou_webPort', 8443);
-const webClientCount = ref(0);
-const webUrl = ref('');
-const qrDataUrl = ref('');
-const notificationsEnabled = useStorage<boolean>('micyou_notifications', true);
-const audioLevel = ref(0);
-const networkInfo = ref<{ ips: string[], port: number } | null>(null);
-const selectedIp = ref<string>('0.0.0.0');
-const networkInterfaces = ref<{ ip: string, interface_name: string }[]>([]);
-const showIpMenu = ref(false);
-const showIpSwitchConfirm = ref(false);
-const pendingIp = ref('');
-const pendingAutoSelect = ref(false);
-const isAutoBind = ref(true);
+const { t } = useI18n();
 
-// The IP shown in the topbar: when auto-bind, show the preferred (first) IP; otherwise show the selected one
-const displayIp = computed(() => {
-  if (isAutoBind.value) {
-    return networkInterfaces.value.length > 0 ? networkInterfaces.value[0].ip : '...';
-  }
-  return selectedIp.value;
-});
-
-const isSettingsOpen = ref(false);
-const showMonitoringPanel = ref(false);
-const showUdpWarning = ref(false);
-const showErrorDialog = ref(false);
-const showQrDialog = ref(false);
-const showDeviceSelector = ref(false);
-const adbDevices = ref<{ serial: string; state: string; description: string }[]>([]);
-const pendingUsbPort = ref<number>(0);
-const errorDetails = ref<ConnectionErrorDetails | null>(null);
-const audioMetrics = ref<any>(null);
-const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') || '');
-const isMuted = ref(false);
+// Feature composables
+const audio = useAudio();
+const server = useServer({ audioLevel: audio.audioLevel, isMuted: audio.isMuted });
+useTheme();
+const win = useWindow();
 
 // Animation refs
 const centralBtnRef = ref<HTMLButtonElement | null>(null);
@@ -81,429 +54,15 @@ const statusDotRef = ref<HTMLDivElement | null>(null);
 let breatheAnim: ReturnType<typeof anime> | null = null;
 let dotPulseAnim: ReturnType<typeof anime> | null = null;
 
+const showOnboarding = ref(localStorage.getItem('micyou_onboarding_completed') !== 'true');
+const isSettingsOpen = ref(false);
 const pocketMode = useStorage('micyou_pocket_mode', false);
 const pocketPopupOpen = ref(false);
 const pocketLayoutRef = ref<InstanceType<typeof PocketLayout> | null>(null);
-const { t } = useI18n();
 
-async function generateQrCode(url: string) {
-    try {
-        qrDataUrl.value = await QRCode.toDataURL(url, {
-            width: 200,
-            margin: 1,
-            color: { dark: '#000000', light: '#ffffff' }
-        });
-    } catch (e) {
-        console.error('QR generation failed:', e);
-        qrDataUrl.value = '';
-    }
-}
-
-const statusDescription = computed(() => {
-    if (serverState.value === 'streaming') {
-        if (connectionMode.value === 'web') {
-            return t('app.web.clientsConnected', { count: webClientCount.value });
-        }
-        return t('app.status.streamingDesc');
-    }
-    if (serverState.value === 'connecting') {
-        if (connectionMode.value === 'web') {
-            return t('app.status.connectingDesc', { port: webPort.value });
-        }
-        return t('app.status.connectingDesc', { port: serverPort.value });
-    }
-    if (serverState.value === 'starting') return t('app.status.startingDesc');
-    return t('app.status.readyDesc');
-});
-
-// Window Management
-const appWindow = getCurrentWindow();
-const minimizeWindow = () => appWindow.minimize();
-
-const showOnboarding = ref(localStorage.getItem('micyou_onboarding_completed') !== 'true');
-const isHidden = ref(localStorage.getItem('micyou_start_minimized') === 'true');
-const showCloseConfirm = ref(false);
-
-function isStreaming(v: typeof serverState.value) {
-  return v === 'streaming' || v === 'connecting' || v === 'starting';
-}
-
-async function notify(body: string) {
-  const granted = await isPermissionGranted();
-  if (!granted) {
-    await requestPermission();
-  }
-  sendNotification({ title: 'MicYou', body });
-}
-
-const streamingRef = computed(() => isStreaming(serverState.value));
-const visibilityRef = computed(() => !isHidden.value);
-
-async function showMainWindow() {
-  try {
-    await invoke('show_main_window');
-  } catch (e) {
-    console.error('show_main_window failed:', e);
-  }
-  isHidden.value = false;
-}
-
-async function hideMainWindow() {
-  try {
-    await invoke('hide_main_window');
-  } catch (e) {
-    console.error('hide_main_window failed:', e);
-  }
-  isHidden.value = true;
-}
-
-async function exitApp() {
-  try {
-    await invoke('exit_app');
-  } catch (e) {
-    console.error('exit_app failed:', e);
-  }
-}
-
-useTray(
-  {
-    onShow: async () => {
-      if (isHidden.value) {
-        await showMainWindow();
-      } else {
-        try { await invoke('show_main_window'); } catch (e) { console.error(e); }
-      }
-    },
-    onToggleStream: () => toggleStreaming(),
-    onExit: () => exitApp(),
-  },
-  visibilityRef,
-  streamingRef,
-);
-
-const REMEMBER_KEY = 'micyou_remember_close_action';
-
-function requestClose() {
-  const remembered = localStorage.getItem(REMEMBER_KEY);
-  if (remembered === 'hide') {
-    void hideMainWindow();
-    return;
-  }
-  if (remembered === 'exit') {
-    void exitApp();
-    return;
-  }
-  showCloseConfirm.value = true;
-}
-
-function handleCloseSelect(payload: { action: 'hide' | 'exit'; remember: boolean }) {
-  if (payload.remember) {
-    localStorage.setItem(REMEMBER_KEY, payload.action);
-  } else {
-    localStorage.removeItem(REMEMBER_KEY);
-  }
-  if (payload.action === 'hide') {
-    void hideMainWindow();
-  } else {
-    void exitApp();
-  }
-}
-
-// Resize window when pocket mode changes
-watchEffect(async () => {
-  const isPocket = pocketMode.value;
-  // Skip resize if settings dialog is open in pocket mode
-  if (isPocket && isSettingsOpen.value) return;
-  try {
-    if (isPocket) {
-      await appWindow.setSize(new LogicalSize(420, 52));
-    } else {
-      await appWindow.setSize(new LogicalSize(800, 600));
-    }
-  } catch (e) {
-    console.error('Failed to resize window:', e);
-  }
-});
-
-// Resize for settings dialog in pocket mode
-watchEffect(async () => {
-  if (pocketMode.value && isSettingsOpen.value) {
-    try {
-      await appWindow.setSize(new LogicalSize(800, 600));
-    } catch (e) {
-      console.error('Failed to resize window for settings:', e);
-    }
-  }
-});
-
-// Global Theme and UI Style Management
-const themeColor = useStorage('micyou_theme_color', 'theme-blue');
-const uiStyle = useStorage('micyou_ui_style', 'style-glass');
-
-const customH = useStorage('micyou_custom_h', 215);
-const customS = useStorage('micyou_custom_s', 35);
-const customL = useStorage('micyou_custom_l', 55);
-
-// User Custom CSS
-const customCss = useStorage('micyou_custom_css', '');
-
-watchEffect(() => {
-  if (typeof document !== 'undefined') {
-    let userStyle = document.getElementById('micyou-user-custom-css');
-    if (!userStyle) {
-      userStyle = document.createElement('style');
-      userStyle.id = 'micyou-user-custom-css';
-      document.head.appendChild(userStyle);
-    }
-    userStyle.innerHTML = customCss.value || '';
-  }
-});
-
-watchEffect(() => {
-  if (typeof document !== 'undefined') {
-    const themes = ['theme-blue', 'theme-green', 'theme-rose', 'theme-purple', 'theme-orange', 'theme-amber', 'theme-teal', 'theme-cyan', 'theme-custom'];
-    document.documentElement.classList.remove(...themes, 'style-default', 'style-glass');
-    
-    if (themeColor.value) document.documentElement.classList.add(themeColor.value);
-    if (uiStyle.value) {
-      document.documentElement.classList.add(uiStyle.value);
-      
-      // UI style applied via CSS class
-    }
-    
-    let dynamicStyle = document.getElementById('micyou-custom-theme');
-    if (!dynamicStyle) {
-      dynamicStyle = document.createElement('style');
-      dynamicStyle.id = 'micyou-custom-theme';
-      document.head.appendChild(dynamicStyle);
-    }
-
-    if (themeColor.value === 'theme-custom') {
-      const h = customH.value;
-      const s = customS.value;
-      const l = customL.value;
-      const lDark = Math.min(l + 10, 80); // Lighter for dark mode
-      
-      dynamicStyle.innerHTML = `
-        :root, .theme-custom {
-          --background: ${h} 15% 96%;
-          --foreground: ${h} 15% 25%;
-          --surface: ${h} 15% 98%;
-          --on-surface: ${h} 15% 25%;
-          --surface-bright: ${h} 15% 98%;
-          --surface-container: ${h} 15% 92%;
-          --surface-container-low: ${h} 15% 94%;
-          --surface-variant: ${h} 15% 88%;
-          --on-surface-variant: ${h} 15% 45%;
-          --outline: ${h} 15% 80%;
-          --border: ${h} 15% 80%;
-          
-          --primary: ${h} ${s}% ${l}%;
-          --on-primary: ${h} ${s}% 92%;
-          --primary-container: ${h} ${s}% 85%;
-          --on-primary-container: ${h} ${s}% 25%;
-          
-          --secondary: ${h} 20% 90%;
-          --on-secondary: ${h} 20% 25%;
-          --secondary-container: ${h} 20% 90%;
-          --on-secondary-container: ${h} 20% 25%;
-          --tertiary: ${h} 20% 90%;
-          --on-tertiary: ${h} 20% 25%;
-          --error: 0 40% 55%;
-          --on-error: 0 40% 92%;
-        }
-
-        .dark.theme-custom, .theme-custom .dark {
-          --background: ${h} 15% 8%;
-          --foreground: ${h} 15% 85%;
-          --surface: ${h} 15% 10%;
-          --on-surface: ${h} 15% 85%;
-          --surface-bright: ${h} 15% 14%;
-          --surface-container: ${h} 15% 16%;
-          --surface-container-low: ${h} 15% 12%;
-          --surface-variant: ${h} 15% 22%;
-          --on-surface-variant: ${h} 15% 60%;
-          --outline: ${h} 15% 20%;
-          --border: ${h} 15% 20%;
-          
-          --primary: ${h} ${s}% ${lDark}%;
-          --on-primary: ${h} ${s}% 20%;
-          --primary-container: ${h} ${s}% 25%;
-          --on-primary-container: ${h} ${s}% 85%;
-          
-          --secondary: ${h} 20% 16%;
-          --on-secondary: ${h} 20% 85%;
-          --secondary-container: ${h} 20% 16%;
-          --on-secondary-container: ${h} 20% 85%;
-          --tertiary: ${h} 20% 16%;
-          --on-tertiary: ${h} 20% 85%;
-          --error: 0 40% 65%;
-          --on-error: 0 40% 20%;
-        }
-      `;
-    } else {
-      dynamicStyle.innerHTML = '';
-    }
-  }
-});
-
-
-
-let unlistenAudioLevel: UnlistenFn | null = null;
-let unlistenDeviceConnected: UnlistenFn | null = null;
-let unlistenDeviceDisconnected: UnlistenFn | null = null;
-let unlistenAudioMetrics: UnlistenFn | null = null;
-let unlistenUdpWarning: UnlistenFn | null = null;
-let unlistenMuteState: UnlistenFn | null = null;
-let unlistenServerStopped: UnlistenFn | null = null;
-let unlistenWebClients: UnlistenFn | null = null;
-
-onMounted(async () => {
-
-  try {
-    networkInfo.value = await invoke<{ ips: string[], port: number }>('get_network_info');
-    if (networkInfo.value && networkInfo.value.ips.length > 0) {
-      selectedIp.value = networkInfo.value.ips[0];
-    }
-  } catch (e) {
-    console.error("Failed to get network info:", e);
-  }
-
-  try {
-    networkInterfaces.value = await invoke<{ ip: string, interface_name: string }[]>('get_network_interfaces');
-  } catch (e) {
-    console.error("Failed to get network interfaces:", e);
-  }
-
-  unlistenAudioLevel = await listen<number>('audio-level', (event) => {
-    audioLevel.value = event.payload;
-  });
-
-  unlistenDeviceConnected = await listen('device-connected', () => {
-    serverState.value = 'streaming';
-    if (notificationsEnabled.value) {
-      notify(t('app.notify.connected'));
-    }
-  });
-
-  unlistenDeviceDisconnected = await listen('device-disconnected', async () => {
-    if (serverState.value === 'streaming') {
-      if (connectionMode.value === 'usb') {
-        try { await invoke('stop_server'); } catch {}
-        serverState.value = 'idle';
-        audioLevel.value = 0;
-        isMuted.value = false;
-        if (notificationsEnabled.value) {
-          notify(t('app.notify.usbDisconnected'));
-        }
-      } else {
-        serverState.value = 'connecting'; // Go back to waiting for device
-        audioLevel.value = 0;
-        if (notificationsEnabled.value) {
-          notify(t('app.notify.disconnected'));
-        }
-      }
-    }
-  });
-
-  unlistenAudioMetrics = await listen<any>('audio-metrics', (event) => {
-    audioMetrics.value = event.payload;
-  });
-
-  unlistenUdpWarning = await listen('udp_audio_warning', () => {
-    showUdpWarning.value = true;
-  });
-
-  unlistenMuteState = await listen<boolean>('mute-state-changed', (event) => {
-    isMuted.value = event.payload;
-  });
-
-  unlistenServerStopped = await listen('server-stopped', () => {
-    serverState.value = 'idle';
-    audioLevel.value = 0;
-    isMuted.value = false;
-  });
-
-  unlistenWebClients = await listen<number>('web-client-count', (event) => {
-    webClientCount.value = event.payload;
-  });
-
-  // Auto-stream: start connecting on app launch if enabled
-  if (localStorage.getItem('micyou_auto_stream') === 'true') {
-    toggleStreaming();
-  }
-});
-
-onUnmounted(() => {
-  if (breatheAnim) breatheAnim.pause();
-  if (dotPulseAnim) dotPulseAnim.pause();
-  if (unlistenAudioLevel) unlistenAudioLevel();
-  if (unlistenDeviceConnected) unlistenDeviceConnected();
-  if (unlistenDeviceDisconnected) unlistenDeviceDisconnected();
-  if (unlistenAudioMetrics) unlistenAudioMetrics();
-  if (unlistenUdpWarning) unlistenUdpWarning();
-  if (unlistenMuteState) unlistenMuteState();
-  if (unlistenServerStopped) unlistenServerStopped();
-  if (unlistenWebClients) unlistenWebClients();
-});
-
+// Cross-feature: toggle streaming (server + animation)
 const toggleStreaming = async () => {
-  if (serverState.value !== 'idle') {
-    try {
-      await invoke('stop_server');
-      serverState.value = 'idle';
-      audioLevel.value = 0;
-    } catch (e) {
-      console.error(e);
-    }
-  } else {
-    try {
-      serverState.value = 'starting';
-      const bindAddress = isAutoBind.value ? null : selectedIp.value;
-      await invoke('start_server', {
-        port: connectionMode.value === 'web' ? Number(webPort.value) : Number(serverPort.value),
-        mode: connectionMode.value,
-        bindAddress: bindAddress,
-        outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
-      });
-      serverState.value = 'connecting';
-      if (connectionMode.value === 'usb') {
-        const result = await invoke<{ type: string; devices?: { serial: string; state: string; description: string }[] }>('enable_usb_mode', { port: Number(serverPort.value), deviceSerial: null });
-        if (result.type === 'MultipleDevices') {
-          try { await invoke('stop_server'); } catch {}
-          adbDevices.value = result.devices || [];
-          pendingUsbPort.value = Number(serverPort.value);
-          showDeviceSelector.value = true;
-          serverState.value = 'idle';
-          return;
-        } else if (result.type === 'NoDevices') {
-          try { await invoke('stop_server'); } catch {}
-          serverState.value = 'idle';
-          const msg = 'No USB devices found. Please connect a device and enable USB debugging.';
-          const type = analyzeError(msg);
-          errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
-          showErrorDialog.value = true;
-          return;
-        }
-      }
-      if (connectionMode.value === 'web') {
-        const info = networkInfo.value;
-        const ip = info && info.ips.length > 0 ? info.ips[0] : 'localhost';
-        const url = `https://${ip}:${webPort.value}`;
-        webUrl.value = url;
-        generateQrCode(url);
-      }
-    } catch (e: any) {
-      console.error(e);
-      try { await invoke('stop_server'); } catch {}
-      const msg = typeof e === 'string' ? e : e?.message ?? String(e);
-      const type = analyzeError(msg);
-      errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
-      showErrorDialog.value = true;
-      serverState.value = 'idle';
-    }
-  }
-  // Bounce animation on click
+  await server.toggleStreaming();
   if (centralBtnRef.value) {
     anime({
       targets: centralBtnRef.value,
@@ -514,120 +73,51 @@ const toggleStreaming = async () => {
   }
 };
 
-const selectIp = (ip: string, autoSelect: boolean) => {
-  // Already selected?
-  if (autoSelect && isAutoBind.value) {
-    showIpMenu.value = false;
-    return;
-  }
-  if (!autoSelect && !isAutoBind.value && selectedIp.value === ip) {
-    showIpMenu.value = false;
-    return;
-  }
-  if (serverState.value === 'streaming' || serverState.value === 'connecting') {
-    pendingIp.value = ip;
-    pendingAutoSelect.value = autoSelect;
-    showIpSwitchConfirm.value = true;
-    showIpMenu.value = false;
-  } else {
-    applyIpSelection(ip, autoSelect);
-    showIpMenu.value = false;
-  }
-};
+// Tray integration
+const streamingRef = computed(() => server.isStreaming(server.serverState.value));
+const visibilityRef = computed(() => !win.isHidden.value);
 
-const applyIpSelection = (ip: string, autoSelect: boolean) => {
-  if (autoSelect) {
-    isAutoBind.value = true;
-    selectedIp.value = '0.0.0.0';
-  } else {
-    isAutoBind.value = false;
-    selectedIp.value = ip;
-  }
-};
-
-const confirmIpSwitch = async () => {
-  applyIpSelection(pendingIp.value, pendingAutoSelect.value);
-  showIpSwitchConfirm.value = false;
-  // Restart server if streaming
-  if (serverState.value === 'streaming' || serverState.value === 'connecting') {
-    try {
-      await invoke('stop_server');
-      serverState.value = 'idle';
-      audioLevel.value = 0;
-      const bindAddress = isAutoBind.value ? null : selectedIp.value;
-      await invoke('start_server', {
-        port: Number(serverPort.value),
-        mode: connectionMode.value,
-        bindAddress: bindAddress,
-        outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
-      });
-      serverState.value = 'connecting';
-      if (connectionMode.value === 'usb') {
-        const result = await invoke<{ type: string; devices?: { serial: string; state: string; description: string }[] }>('enable_usb_mode', { port: Number(serverPort.value), deviceSerial: null });
-        if (result.type === 'MultipleDevices') {
-          try { await invoke('stop_server'); } catch {}
-          adbDevices.value = result.devices || [];
-          pendingUsbPort.value = Number(serverPort.value);
-          showDeviceSelector.value = true;
-          serverState.value = 'idle';
-          return;
-        } else if (result.type === 'NoDevices') {
-          try { await invoke('stop_server'); } catch {}
-          serverState.value = 'idle';
-          return;
-        }
+useTray(
+  {
+    onShow: async () => {
+      if (win.isHidden.value) {
+        await win.showMainWindow();
       }
+    },
+    onToggleStream: () => toggleStreaming(),
+    onExit: () => win.exitApp(),
+  },
+  visibilityRef,
+  streamingRef,
+);
+
+// Resize window when pocket mode changes
+watchEffect(async () => {
+  const isPocket = pocketMode.value;
+  if (isPocket && isSettingsOpen.value) return;
+  try {
+    if (isPocket) {
+      await win.appWindow.setSize(new LogicalSize(420, 52));
+    } else {
+      await win.appWindow.setSize(new LogicalSize(800, 600));
+    }
+  } catch (e) {
+    console.error('Failed to resize window:', e);
+  }
+});
+
+// Resize for settings dialog in pocket mode
+watchEffect(async () => {
+  if (pocketMode.value && isSettingsOpen.value) {
+    try {
+      await win.appWindow.setSize(new LogicalSize(800, 600));
     } catch (e) {
-      console.error(e);
+      console.error('Failed to resize window for settings:', e);
     }
   }
-};
+});
 
-const selectAdbDevice = async (serial: string) => {
-  showDeviceSelector.value = false;
-  try {
-    serverState.value = 'starting';
-    const bindAddress = isAutoBind.value ? null : selectedIp.value;
-    await invoke('start_server', {
-      port: pendingUsbPort.value,
-      mode: 'usb',
-      bindAddress: bindAddress,
-      outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
-    });
-    serverState.value = 'connecting';
-    await invoke('enable_usb_mode', { port: pendingUsbPort.value, deviceSerial: serial });
-  } catch (e: any) {
-    console.error(e);
-    try { await invoke('stop_server'); } catch {}
-    const msg = typeof e === 'string' ? e : e?.message ?? String(e);
-    const type = analyzeError(msg);
-    errorDetails.value = generateErrorDetails(type, msg, 'usb', pendingUsbPort.value, selectedIp.value, t);
-    showErrorDialog.value = true;
-    serverState.value = 'idle';
-  }
-};
-
-const cancelDeviceSelection = () => {
-  showDeviceSelector.value = false;
-  adbDevices.value = [];
-  pendingUsbPort.value = 0;
-};
-
-const toggleMute = async () => {
-  const newVal = !isMuted.value;
-  isMuted.value = newVal;
-  try {
-    await invoke('set_mute_state', { isMuted: newVal });
-  } catch (e) {
-    console.error('set_mute_state failed:', e);
-    isMuted.value = !newVal;
-  }
-};
-
-const toggleMonitoring = () => {
-  showMonitoringPanel.value = !showMonitoringPanel.value;
-};
-
+// Animation: button hover
 const onCentralBtnHover = () => {
   if (centralBtnRef.value) {
     anime({
@@ -651,12 +141,12 @@ const onCentralBtnLeave = () => {
 };
 
 const micScale = computed(() => {
-  return 1 + (audioLevel.value / 100) * 0.5;
+  return 1 + (audio.audioLevel.value / 100) * 0.5;
 });
 
 // Streaming breathing glow animation
 watchEffect(() => {
-  if (serverState.value === 'streaming' && glowRef.value) {
+  if (server.serverState.value === 'streaming' && glowRef.value) {
     if (!breatheAnim) {
       breatheAnim = anime({
         targets: glowRef.value,
@@ -681,7 +171,7 @@ watchEffect(() => {
 
 // Status dot pulse animation
 watchEffect(() => {
-  if (serverState.value === 'streaming' && statusDotRef.value) {
+  if (server.serverState.value === 'streaming' && statusDotRef.value) {
     if (!dotPulseAnim) {
       dotPulseAnim = anime({
         targets: statusDotRef.value,
@@ -701,6 +191,11 @@ watchEffect(() => {
     }
   }
 });
+
+onUnmounted(() => {
+  if (breatheAnim) breatheAnim.pause();
+  if (dotPulseAnim) dotPulseAnim.pause();
+});
 </script>
 
 <template>
@@ -710,7 +205,6 @@ watchEffect(() => {
 
     <!-- Pocket Mode -->
     <div v-if="pocketMode" class="absolute inset-0 flex items-center p-1.5" data-tauri-drag-region>
-      <!-- Backdrop when popup is open -->
       <div
         v-if="pocketPopupOpen"
         class="absolute inset-0 z-10"
@@ -720,25 +214,25 @@ watchEffect(() => {
       <PocketLayout
         ref="pocketLayoutRef"
         class="flex-1 relative z-20"
-        :serverState="serverState"
-        :connectionMode="connectionMode"
-        :serverPort="serverPort"
-        :displayIp="displayIp"
-        :isAutoBind="isAutoBind"
-        :selectedIp="selectedIp"
-        :networkInterfaces="networkInterfaces"
-        :isMuted="isMuted"
-        :showMonitoringPanel="showMonitoringPanel"
-        :audioLevel="audioLevel"
-        :outputDevice="outputDevice"
-        :audioMetrics="audioMetrics"
+        :serverState="server.serverState.value"
+        :connectionMode="server.connectionMode.value"
+        :serverPort="server.serverPort.value"
+        :displayIp="server.displayIp.value"
+        :isAutoBind="server.isAutoBind.value"
+        :selectedIp="server.selectedIp.value"
+        :networkInterfaces="server.networkInterfaces.value"
+        :isMuted="audio.isMuted.value"
+        :showMonitoringPanel="audio.showMonitoringPanel.value"
+        :audioLevel="audio.audioLevel.value"
+        :outputDevice="server.outputDevice.value"
+        :audioMetrics="audio.audioMetrics.value"
         :popupOpen="pocketPopupOpen"
         @toggleStream="toggleStreaming"
-        @selectIp="(ip, auto) => selectIp(ip, auto)"
-        @updateMode="m => connectionMode = m"
-        @updatePort="p => serverPort = p"
-        @toggleMute="toggleMute"
-        @toggleMonitoring="toggleMonitoring"
+        @selectIp="(ip, auto) => server.selectIp(ip, auto)"
+        @updateMode="m => server.connectionMode.value = m"
+        @updatePort="p => server.serverPort.value = p"
+        @toggleMute="audio.toggleMute"
+        @toggleMonitoring="audio.toggleMonitoring"
         @openSettings="isSettingsOpen = true"
         @update:popupOpen="v => pocketPopupOpen = v"
       />
@@ -761,17 +255,15 @@ watchEffect(() => {
           <div class="relative">
             <div
               class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-colors px-3 py-1.5 rounded-lg cursor-pointer border border-white/5"
-              @click="showIpMenu = !showIpMenu"
+              @click="server.showIpMenu.value = !server.showIpMenu.value"
             >
               <Globe class="w-3.5 h-3.5 text-primary mr-2 pointer-events-none" />
-              <span class="text-xs font-medium mr-1 select-none pointer-events-none">{{ displayIp }}</span>
-              <ChevronDown class="w-4 h-4 text-on-surface-variant/60 pointer-events-none transition-transform" :class="{ 'rotate-180': showIpMenu }" />
+              <span class="text-xs font-medium mr-1 select-none pointer-events-none">{{ server.displayIp.value }}</span>
+              <ChevronDown class="w-4 h-4 text-on-surface-variant/60 pointer-events-none transition-transform" :class="{ 'rotate-180': server.showIpMenu.value }" />
             </div>
 
-            <!-- Invisible backdrop to close dropdown -->
-            <div v-if="showIpMenu" class="fixed inset-0 z-40" @click="showIpMenu = false" />
+            <div v-if="server.showIpMenu.value" class="fixed inset-0 z-40" @click="server.showIpMenu.value = false" />
 
-            <!-- IP Dropdown Menu -->
             <Transition
               enter-active-class="transition ease-out duration-150"
               enter-from-class="opacity-0 scale-95 -translate-y-1"
@@ -781,34 +273,32 @@ watchEffect(() => {
               leave-to-class="opacity-0 scale-95 -translate-y-1"
             >
               <div
-                v-if="showIpMenu"
+                v-if="server.showIpMenu.value"
                 class="absolute right-0 top-full mt-1 w-64 bg-surface border border-outline/20 rounded-xl shadow-xl z-50 overflow-hidden"
               >
                 <div class="max-h-64 overflow-y-auto py-1">
-                  <!-- All Interfaces option -->
                   <button
                     class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-variant/50 transition-colors text-left"
-                    @click="selectIp('', true)"
+                    @click="server.selectIp('', true)"
                   >
                     <div class="flex-1 min-w-0">
                       <div class="text-xs font-medium text-foreground">{{ t('app.ipSelector.allInterfaces') }}</div>
                       <div class="text-[10px] text-on-surface-variant mt-0.5">{{ t('app.ipSelector.allInterfacesDesc') }}</div>
                     </div>
-                    <CheckCircle2 v-if="isAutoBind" class="w-4 h-4 text-primary flex-shrink-0" />
+                    <CheckCircle2 v-if="server.isAutoBind.value" class="w-4 h-4 text-primary flex-shrink-0" />
                   </button>
 
-                  <!-- Individual interfaces -->
                   <button
-                    v-for="iface in networkInterfaces"
+                    v-for="iface in server.networkInterfaces.value"
                     :key="iface.ip"
                     class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-variant/50 transition-colors text-left"
-                    @click="selectIp(iface.ip, false)"
+                    @click="server.selectIp(iface.ip, false)"
                   >
                     <div class="flex-1 min-w-0">
                       <div class="text-xs font-medium text-foreground">{{ iface.ip }}</div>
                       <div class="text-[10px] text-on-surface-variant mt-0.5 truncate">{{ iface.interface_name }}</div>
                     </div>
-                    <CheckCircle2 v-if="!isAutoBind && selectedIp === iface.ip" class="w-4 h-4 text-primary flex-shrink-0" />
+                    <CheckCircle2 v-if="!server.isAutoBind.value && server.selectedIp.value === iface.ip" class="w-4 h-4 text-primary flex-shrink-0" />
                   </button>
                 </div>
               </div>
@@ -817,10 +307,10 @@ watchEffect(() => {
 
           <!-- Window Controls -->
           <div class="flex items-center gap-1 ml-1">
-            <button @click="minimizeWindow" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+            <button @click="win.minimizeWindow()" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
               <Minus class="w-4 h-4 text-on-surface" />
             </button>
-            <button @click="requestClose" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-error/20 hover:text-error transition-colors">
+            <button @click="win.requestClose()" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-error/20 hover:text-error transition-colors">
               <X class="w-4 h-4 text-on-surface" />
             </button>
           </div>
@@ -830,31 +320,31 @@ watchEffect(() => {
       <!-- Main Content -->
       <div class="flex flex-1 gap-3 min-h-0">
         <!-- Left Panel -->
-        <div class="flex flex-col gap-3 transition-all duration-300" :class="showMonitoringPanel ? 'w-[28%]' : 'w-[38%]'">
+        <div class="flex flex-col gap-3 transition-all duration-300" :class="audio.showMonitoringPanel.value ? 'w-[28%]' : 'w-[38%]'">
           <!-- Mode Card -->
           <div class="haze-surface rounded-2xl p-3 flex flex-col gap-2">
             <span class="text-xs text-on-surface-variant font-medium">{{ $t('app.connectionMode') }}</span>
             <div class="flex gap-1.5">
-              <button 
-                @click="connectionMode = 'wifi'"
+              <button
+                @click="server.connectionMode.value = 'wifi'"
                 class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
-                :class="connectionMode === 'wifi' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+                :class="server.connectionMode.value === 'wifi' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
               >
                 <Wifi class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">Wi-Fi</span>
               </button>
-              <button 
-                @click="connectionMode = 'usb'"
+              <button
+                @click="server.connectionMode.value = 'usb'"
                 class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
-                :class="connectionMode === 'usb' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+                :class="server.connectionMode.value === 'usb' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
               >
                 <Mic class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">USB</span>
               </button>
-              <button 
-                @click="connectionMode = 'web'"
+              <button
+                @click="server.connectionMode.value = 'web'"
                 class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
-                :class="connectionMode === 'web' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+                :class="server.connectionMode.value === 'web' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
               >
                 <Globe class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">Web</span>
@@ -863,11 +353,11 @@ watchEffect(() => {
           </div>
 
           <!-- Port Card -->
-          <div v-if="connectionMode !== 'web'" class="haze-surface rounded-2xl p-3 flex flex-col gap-2">
+          <div v-if="server.connectionMode.value !== 'web'" class="haze-surface rounded-2xl p-3 flex flex-col gap-2">
             <span class="text-xs text-on-surface-variant font-medium">{{ $t('app.port') }}</span>
-            <input 
-              v-model="serverPort"
-              type="number" 
+            <input
+              v-model="server.serverPort.value"
+              type="number"
               class="w-full bg-surface-variant/40 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all"
             />
           </div>
@@ -875,58 +365,55 @@ watchEffect(() => {
           <!-- Web QR Card -->
           <div v-else class="haze-surface rounded-2xl p-3 flex flex-col items-center justify-center gap-2">
             <span class="text-xs text-on-surface-variant font-medium self-start">{{ $t('app.port') }}</span>
-            <div v-if="serverState === 'idle'" class="w-full">
-                <input v-model="webPort" type="number"
+            <div v-if="server.serverState.value === 'idle'" class="w-full">
+                <input v-model="server.webPort.value" type="number"
                     class="w-full bg-surface-variant/40 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all" />
             </div>
-            <button v-if="serverState !== 'idle'" @click="showQrDialog = true"
+            <button v-if="server.serverState.value !== 'idle'" @click="server.showQrDialog.value = true"
                 class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 active:scale-[0.98] transition-all">
               <QrCodeIcon class="w-4 h-4" />
-              <span>{{ qrDataUrl ? $t('app.web.scanToConnect') : $t('app.status.connectingDesc', { port: webPort }) }}</span>
+              <span>{{ server.qrDataUrl.value ? $t('app.web.scanToConnect') : $t('app.status.connectingDesc', { port: server.webPort.value }) }}</span>
             </button>
-            <span v-if="serverState !== 'idle' && webClientCount > 0" class="text-xs text-primary font-medium">
-              {{ $t('app.web.clientsConnected', { count: webClientCount }) }}
+            <span v-if="server.serverState.value !== 'idle' && server.webClientCount.value > 0" class="text-xs text-primary font-medium">
+              {{ $t('app.web.clientsConnected', { count: server.webClientCount.value }) }}
             </span>
           </div>
 
           <!-- Status Card -->
           <div class="haze-surface rounded-2xl p-4 flex-1 flex flex-col items-center justify-center text-center gap-3">
-            <div class="w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-500" 
-                 :class="serverState === 'streaming' ? 'bg-primary/20 text-primary' : (serverState === 'connecting' || serverState === 'starting' ? 'bg-tertiary/20 text-tertiary' : 'bg-surface-variant/50 text-on-surface-variant')">
-              <CheckCircle2 v-if="serverState === 'streaming'" class="w-6 h-6 animate-pulse" />
-              <RadioTower v-else class="w-6 h-6" :class="{ 'animate-spin-slow': serverState === 'connecting' || serverState === 'starting' }" />
+            <div class="w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-500"
+                 :class="server.serverState.value === 'streaming' ? 'bg-primary/20 text-primary' : (server.serverState.value === 'connecting' || server.serverState.value === 'starting' ? 'bg-tertiary/20 text-tertiary' : 'bg-surface-variant/50 text-on-surface-variant')">
+              <CheckCircle2 v-if="server.serverState.value === 'streaming'" class="w-6 h-6 animate-pulse" />
+              <RadioTower v-else class="w-6 h-6" :class="{ 'animate-spin-slow': server.serverState.value === 'connecting' || server.serverState.value === 'starting' }" />
             </div>
             <div>
-              <h3 class="text-sm font-bold">{{ serverState === 'streaming' ? $t('app.status.streaming') : (serverState === 'connecting' ? $t('app.status.connecting') : (serverState === 'starting' ? $t('app.status.starting') : $t('app.status.ready'))) }}</h3>
+              <h3 class="text-sm font-bold">{{ server.serverState.value === 'streaming' ? $t('app.status.streaming') : (server.serverState.value === 'connecting' ? $t('app.status.connecting') : (server.serverState.value === 'starting' ? $t('app.status.starting') : $t('app.status.ready'))) }}</h3>
               <p class="text-xs text-on-surface-variant mt-1 max-w-[200px] mx-auto">
-                {{ statusDescription }}
+                {{ server.statusDescription.value }}
               </p>
             </div>
           </div>
         </div>
 
         <!-- Center Panel -->
-        <div class="haze-surface rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group transition-all duration-300" :class="showMonitoringPanel ? 'w-[44%]' : 'w-[62%]'">
+        <div class="haze-surface rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group transition-all duration-300" :class="audio.showMonitoringPanel.value ? 'w-[44%]' : 'w-[62%]'">
           <!-- Central Visualizer & Action Button -->
           <div class="relative w-64 h-64 flex items-center justify-center transition-transform duration-200 absolute-center"
-               :style="{ transform: `scale(${serverState === 'streaming' ? micScale : 1})` }">
-            <AudioRing v-if="serverState === 'streaming'" :level="audioLevel">
+               :style="{ transform: `scale(${server.serverState.value === 'streaming' ? micScale : 1})` }">
+            <AudioRing v-if="server.serverState.value === 'streaming'" :level="audio.audioLevel.value">
               <!-- Central Button When Streaming -->
               <div class="relative flex items-center justify-center">
-                <!-- Breathing Glow Background -->
                 <div ref="glowRef" class="absolute inset-0 bg-error/30 rounded-full blur-md scale-125"></div>
-                <!-- Button -->
                 <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-[72px] h-[72px] rounded-full bg-error flex items-center justify-center shadow-lg hover:scale-95 transition-all duration-300 group-hover:bg-error/90 border border-white/10 hover:shadow-lg hover:shadow-error/30">
                   <Unlink class="w-7 h-7 text-on-error" stroke-width="2.5" />
                 </button>
               </div>
             </AudioRing>
-            
+
             <div v-else class="relative w-full h-full flex items-center justify-center">
-              <!-- Central Button When Not Streaming -->
               <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-95 border border-white/5 hover:shadow-lg hover:shadow-primary/30"
-                      :class="serverState === 'connecting' || serverState === 'starting' ? 'bg-tertiary shadow-tertiary/20 text-on-tertiary' : 'bg-primary shadow-primary/20 text-on-primary'">
-                <RefreshCw v-if="serverState === 'connecting' || serverState === 'starting'" class="w-7 h-7 animate-spin-slow" stroke-width="2.5" />
+                      :class="server.serverState.value === 'connecting' || server.serverState.value === 'starting' ? 'bg-tertiary shadow-tertiary/20 text-on-tertiary' : 'bg-primary shadow-primary/20 text-on-primary'">
+                <RefreshCw v-if="server.serverState.value === 'connecting' || server.serverState.value === 'starting'" class="w-7 h-7 animate-spin-slow" stroke-width="2.5" />
                 <Link v-else class="w-7 h-7" stroke-width="2.5" />
               </button>
             </div>
@@ -934,31 +421,30 @@ watchEffect(() => {
         </div>
 
         <!-- Right Panel (Monitoring) -->
-        <div v-if="showMonitoringPanel" class="w-[28%] transition-all duration-300 min-w-0">
-          <MonitoringPanel :serverState="serverState" :audioLevel="audioLevel" :metrics="audioMetrics" />
+        <div v-if="audio.showMonitoringPanel.value" class="w-[28%] transition-all duration-300 min-w-0">
+          <MonitoringPanel :serverState="server.serverState.value" :audioLevel="audio.audioLevel.value" :metrics="audio.audioMetrics.value" />
         </div>
       </div>
 
       <!-- Bottom Bar -->
       <div class="haze-surface rounded-2xl p-2 flex justify-between items-center flex-shrink-0">
         <div class="flex items-center px-3">
-          <div ref="statusDotRef" class="w-2 h-2 rounded-full mr-2" :class="serverState === 'streaming' ? 'bg-primary shadow-[0_0_8px_hsl(var(--primary))]' : (serverState === 'connecting' || serverState === 'starting' ? 'bg-tertiary animate-pulse shadow-[0_0_8px_hsl(var(--tertiary))]' : 'bg-on-surface-variant')"></div>
-          <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant transition-colors duration-300">{{ serverState === 'streaming' ? $t('app.status.stateStreaming') : (serverState === 'connecting' ? $t('app.status.stateConnecting') : (serverState === 'starting' ? $t('app.status.stateStarting') : $t('app.status.stateIdle'))) }}</span>
+          <div ref="statusDotRef" class="w-2 h-2 rounded-full mr-2" :class="server.serverState.value === 'streaming' ? 'bg-primary shadow-[0_0_8px_hsl(var(--primary))]' : (server.serverState.value === 'connecting' || server.serverState.value === 'starting' ? 'bg-tertiary animate-pulse shadow-[0_0_8px_hsl(var(--tertiary))]' : 'bg-on-surface-variant')"></div>
+          <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant transition-colors duration-300">{{ server.serverState.value === 'streaming' ? $t('app.status.stateStreaming') : (server.serverState.value === 'connecting' ? $t('app.status.stateConnecting') : (server.serverState.value === 'starting' ? $t('app.status.stateStarting') : $t('app.status.stateIdle'))) }}</span>
         </div>
-        
+
         <div class="flex items-center gap-2 pr-1">
-          <!-- Mute Button -->
           <button
-            @click="toggleMute"
+            @click="audio.toggleMute()"
             class="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-            :class="isMuted ? 'bg-error/20 text-error' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'"
-            :title="isMuted ? $t('app.status.unmute') : $t('app.status.mute')"
+            :class="audio.isMuted.value ? 'bg-error/20 text-error' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'"
+            :title="audio.isMuted.value ? $t('app.status.unmute') : $t('app.status.mute')"
           >
-            <VolumeX v-if="!isMuted" class="w-4 h-4" />
+            <VolumeX v-if="!audio.isMuted.value" class="w-4 h-4" />
             <Volume2 v-else class="w-4 h-4" />
           </button>
 
-          <button @click="showMonitoringPanel = !showMonitoringPanel" class="w-10 h-10 rounded-full flex items-center justify-center transition-colors" :class="showMonitoringPanel ? 'bg-primary/20 text-primary' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'">
+          <button @click="audio.showMonitoringPanel.value = !audio.showMonitoringPanel.value" class="w-10 h-10 rounded-full flex items-center justify-center transition-colors" :class="audio.showMonitoringPanel.value ? 'bg-primary/20 text-primary' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'">
             <MonitoringIcon class="w-4 h-4" />
           </button>
 
@@ -968,34 +454,34 @@ watchEffect(() => {
         </div>
       </div>
     </div>
-    
-    <SettingsDialog 
-      :isOpen="isSettingsOpen" 
-      @close="isSettingsOpen = false" 
-      @updateDevice="dev => outputDevice = dev" 
+
+    <SettingsDialog
+      :isOpen="isSettingsOpen"
+      @close="isSettingsOpen = false"
+      @updateDevice="dev => server.outputDevice.value = dev"
     />
 
     <UdpWarningDialog
-      :show="showUdpWarning"
-      :port="Number(serverPort) + 1"
-      @close="showUdpWarning = false"
+      :show="audio.showUdpWarning.value"
+      :port="Number(server.serverPort.value) + 1"
+      @close="audio.showUdpWarning.value = false"
     />
 
-    <CloseConfirmDialog v-model:show="showCloseConfirm" @select="handleCloseSelect" />
+    <CloseConfirmDialog v-model:show="win.showCloseConfirm.value" @select="win.handleCloseSelect" />
 
     <ConnectionErrorDialog
-      :show="showErrorDialog"
-      :details="errorDetails"
-      @dismiss="showErrorDialog = false"
-      @retry="showErrorDialog = false; toggleStreaming()"
+      :show="server.showErrorDialog.value"
+      :details="server.errorDetails.value"
+      @dismiss="server.showErrorDialog.value = false"
+      @retry="server.showErrorDialog.value = false; toggleStreaming()"
     />
 
     <QrCodeDialog
-      :show="showQrDialog"
-      :qr-data-url="qrDataUrl"
-      :web-url="webUrl"
-      :client-count="webClientCount"
-      @dismiss="showQrDialog = false"
+      :show="server.showQrDialog.value"
+      :qr-data-url="server.qrDataUrl.value"
+      :web-url="server.webUrl.value"
+      :client-count="server.webClientCount.value"
+      @dismiss="server.showQrDialog.value = false"
     />
 
     <!-- IP Switch Confirmation Dialog -->
@@ -1007,20 +493,20 @@ watchEffect(() => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="showIpSwitchConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div v-if="server.showIpSwitchConfirm.value" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
         <div class="bg-surface rounded-2xl shadow-2xl border border-outline/10 p-6 w-80">
           <h3 class="text-sm font-bold text-foreground mb-2">{{ t('app.ipSelector.switchConfirmTitle') }}</h3>
           <p class="text-xs text-on-surface-variant mb-5">{{ t('app.ipSelector.switchConfirmMessage') }}</p>
           <div class="flex justify-end gap-2">
             <button
               class="px-4 py-2 text-xs font-medium text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-colors"
-              @click="showIpSwitchConfirm = false"
+              @click="server.showIpSwitchConfirm.value = false"
             >
               {{ t('app.ipSelector.cancel') }}
             </button>
             <button
               class="px-4 py-2 text-xs font-medium text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
-              @click="confirmIpSwitch"
+              @click="server.confirmIpSwitch()"
             >
               {{ t('app.ipSelector.continue') }}
             </button>
@@ -1038,17 +524,17 @@ watchEffect(() => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="showDeviceSelector" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div v-if="server.showDeviceSelector.value" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
         <div class="bg-surface rounded-2xl shadow-2xl border border-outline/10 p-6 w-96 max-h-[80vh] flex flex-col">
           <h3 class="text-sm font-bold text-foreground mb-2">{{ t('app.deviceSelector.title') }}</h3>
           <p class="text-xs text-on-surface-variant mb-4">{{ t('app.deviceSelector.desc') }}</p>
-          
+
           <div class="flex-1 overflow-y-auto space-y-2 mb-4">
             <button
-              v-for="device in adbDevices"
+              v-for="device in server.adbDevices.value"
               :key="device.serial"
               class="w-full text-left px-4 py-3 rounded-xl bg-surface-variant/30 hover:bg-surface-variant/60 border border-outline/10 hover:border-primary/30 transition-all duration-200 group"
-              @click="selectAdbDevice(device.serial)"
+              @click="server.selectAdbDevice(device.serial)"
             >
               <div class="flex items-center justify-between">
                 <div class="flex-1 min-w-0">
@@ -1069,7 +555,7 @@ watchEffect(() => {
           <div class="flex justify-end">
             <button
               class="px-4 py-2 text-xs font-medium text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-colors"
-              @click="cancelDeviceSelection"
+              @click="server.cancelDeviceSelection()"
             >
               {{ t('app.deviceSelector.cancel') }}
             </button>
