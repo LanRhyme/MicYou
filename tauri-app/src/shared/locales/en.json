@@ -136,11 +136,19 @@
       "desc": "To route audio to other applications (like OBS or Discord), you need to install VB-Audio Virtual Cable.",
       "download": "Download VB-Cable"
     },
+    "blackhole": {
+      "installed": "Installed",
+      "notDetected": "Not Detected",
+      "desc": "BlackHole is a virtual audio device for macOS. It routes microphone audio to other applications (like OBS or Zoom) without speaker feedback.",
+      "download": "BlackHole GitHub",
+      "available": "available for auto input switching",
+      "switchAudioSourceMissing": "Install SwitchAudioSource (brew install switchaudio-osx) for auto input switching"
+    },
     "audioOutput": {
       "title": "Output Device",
       "desc": "Where should the microphone audio be played?",
       "auto": "Auto",
-      "routingActive": "VB-CABLE routing is active. Audio will be forwarded to \"CABLE Output\"."
+      "routingActive": "Virtual audio routing is active. Audio will be forwarded to the virtual device."
     },
     "spectrum": {
       "title": "Real-Time Spectrum",

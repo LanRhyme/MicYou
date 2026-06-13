@@ -181,13 +181,41 @@
                   </SelectContent>
                 </Select>
               </div>
-              <p v-if="settings.audioDevice === 'auto' || settings.audioDevice.includes('CABLE Input')" class="text-xs text-green-400 font-medium">
+              <p v-if="settings.audioDevice === 'auto' || settings.audioDevice.includes('CABLE Input') || settings.audioDevice.toLowerCase().includes('blackhole')" class="text-xs text-green-400 font-medium">
                 {{ $t('settings.audioOutput.routingActive') }}
               </p>
             </div>
 
-            <!-- VB-CABLE Management -->
-            <div class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+            <!-- Virtual Audio Device Management (macOS: BlackHole, Windows: VB-Cable) -->
+            <div v-if="isMacOS" class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-on-surface text-lg">BlackHole</h4>
+                <span class="text-xs font-medium px-2 py-1 rounded-md" :class="hasBlackHole ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'">
+                  {{ hasBlackHole ? $t('settings.blackhole.installed') : $t('settings.blackhole.notDetected') }}
+                </span>
+              </div>
+              <p class="text-xs text-on-surface-variant">
+                {{ $t('settings.blackhole.desc') }}
+              </p>
+              <div v-if="blackholeStatus.switch_audio_source" class="text-xs text-on-surface-variant flex items-center gap-1.5">
+                <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                SwitchAudioSource {{ $t('settings.blackhole.available') }}
+              </div>
+              <div v-else-if="hasBlackHole" class="text-xs text-orange-400 flex items-center gap-1.5">
+                <span class="inline-block w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+                {{ $t('settings.blackhole.switchAudioSourceMissing') }}
+              </div>
+              <div v-if="!hasBlackHole" class="space-y-2">
+                <p class="text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg p-3 select-all">brew install blackhole-2ch</p>
+                <button
+                  @click="openBlackHoleDownload"
+                  class="w-full py-2 bg-surface-variant hover:bg-surface-variant/80 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Download class="w-4 h-4" /> {{ $t('settings.blackhole.download') }}
+                </button>
+              </div>
+            </div>
+            <div v-else class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
               <div class="flex items-center justify-between">
                 <h4 class="font-bold text-on-surface text-lg">{{ $t('settings.vbcable.title') }}</h4>
                 <span class="text-xs font-medium px-2 py-1 rounded-md" :class="hasVBCable ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'">
@@ -681,9 +709,19 @@ const settings = reactive({
 
 const audioDevices = ref<string[]>([]);
 const hasVBCable = computed(() => audioDevices.value.some(d => d.toLowerCase().includes('cable')));
+const hasBlackHole = computed(() => audioDevices.value.some(d => d.toLowerCase().includes('blackhole')));
+const isMacOS = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform || navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
 const vbcableInstalling = ref(false);
 const vbcableInstallProgress = ref('');
 let unlistenVbcableProgress: UnlistenFn | null = null;
+
+interface BlackHoleStatus {
+  installed: boolean;
+  switch_audio_source: boolean;
+  device_name: string | null;
+}
+const blackholeStatus = ref<BlackHoleStatus>({ installed: false, switch_audio_source: false, device_name: null });
+const blackholeChecking = ref(false);
 const audioLevel = ref(0);
 let unlistenLevel: UnlistenFn | null = null;
 let unlistenSpectrum: UnlistenFn | null = null;
@@ -824,6 +862,22 @@ function openVBCableDownload() {
   window.open('https://vb-audio.com/Cable/', '_blank');
 }
 
+function openBlackHoleDownload() {
+  window.open('https://github.com/ExistentialAudio/BlackHole', '_blank');
+}
+
+async function checkBlackHoleStatus() {
+  if (!isMacOS) return;
+  blackholeChecking.value = true;
+  try {
+    blackholeStatus.value = await invoke<BlackHoleStatus>('check_blackhole');
+  } catch (e) {
+    console.error('Failed to check BlackHole status:', e);
+  } finally {
+    blackholeChecking.value = false;
+  }
+}
+
 // Lifecycle
 onMounted(async () => {
   try {
@@ -840,6 +894,7 @@ onMounted(async () => {
   unlistenVbcableProgress = await listen<string>('vbcable-install-progress', (event) => {
     vbcableInstallProgress.value = event.payload;
   });
+  checkBlackHoleStatus();
 });
 
 async function toggleAutostart() {
@@ -867,6 +922,7 @@ const fetchDevices = async () => {
   } catch (e) {
     console.error("Failed to fetch audio devices", e);
   }
+  checkBlackHoleStatus();
 };
 
 const loadSettings = () => {

@@ -8,6 +8,7 @@ pub mod adb_manager;
 pub mod stats;
 pub mod tray;
 pub mod vbcable;
+pub mod blackhole;
 pub mod jitter_buffer;
 
 use tauri::{Emitter, AppHandle, Manager, State};
@@ -650,6 +651,9 @@ pub fn run() {
             get_web_status,
             vbcable::check_vbcable,
             vbcable::install_vbcable,
+            blackhole::check_blackhole,
+            blackhole::set_blackhole_as_input,
+            blackhole::restore_input_device,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

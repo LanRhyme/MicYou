@@ -83,12 +83,18 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     }
   }
 
+  const isMacOS = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform || navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
+
   const toggleStreaming = async () => {
     if (serverState.value !== 'idle') {
       try {
         await invoke('stop_server');
         serverState.value = 'idle';
         if (options?.audioLevel) options.audioLevel.value = 0;
+        // Restore original input device on macOS when using BlackHole
+        if (isMacOS) {
+          try { await invoke('restore_input_device'); } catch {}
+        }
       } catch (e) {
         console.error(e);
       }
@@ -103,6 +109,10 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
           outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
         });
         serverState.value = 'connecting';
+        // Auto-switch to BlackHole input on macOS
+        if (isMacOS) {
+          try { await invoke('set_blackhole_as_input'); } catch {}
+        }
         if (connectionMode.value === 'usb') {
           const result = await invoke<{ type: string; devices?: { serial: string; state: string; description: string }[] }>('enable_usb_mode', { port: Number(serverPort.value), deviceSerial: null });
           if (result.type === 'MultipleDevices') {

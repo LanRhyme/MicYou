@@ -136,11 +136,19 @@
       "desc": "若要将麦克风声音路由到其他应用程序（如 OBS 或 Discord），你需要安装 VB-Audio Virtual Cable",
       "download": "下载 VB-Cable"
     },
+    "blackhole": {
+      "installed": "已安装",
+      "notDetected": "未检测到",
+      "desc": "BlackHole 是 macOS 的虚拟音频设备，可将麦克风音频路由到其他应用（如 OBS 或 Zoom），且不会产生扬声器啸叫。",
+      "download": "BlackHole GitHub",
+      "available": "可用于自动切换输入设备",
+      "switchAudioSourceMissing": "请安装 SwitchAudioSource（brew install switchaudio-osx）以启用自动切换输入设备"
+    },
     "audioOutput": {
       "title": "输出设备",
       "desc": "麦克风的声音应该在哪里播放？",
       "auto": "自动",
-      "routingActive": "VB-CABLE 转发已激活，音频将被转发到 \"CABLE Output\""
+      "routingActive": "虚拟音频路由已激活，音频将被转发到虚拟设备"
     },
     "spectrum": {
       "title": "实时频谱",

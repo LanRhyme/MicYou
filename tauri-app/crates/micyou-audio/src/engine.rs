@@ -131,7 +131,7 @@ impl AudioOutputManager {
             }
             matched_device.or_else(|| host.default_output_device())
         } else {
-            // Auto-detect VB-CABLE on Windows if default
+            // Auto-detect virtual audio devices by platform
             #[cfg(target_os = "windows")]
             {
                 let mut cable_device = None;
@@ -147,7 +147,22 @@ impl AudioOutputManager {
                 }
                 cable_device.or_else(|| host.default_output_device())
             }
-            #[cfg(not(target_os = "windows"))]
+            #[cfg(target_os = "macos")]
+            {
+                let mut blackhole_device = None;
+                if let Ok(devices) = host.output_devices() {
+                    for dev in devices {
+                        if let Ok(name) = dev.name() {
+                            if name.to_lowercase().contains("blackhole") {
+                                blackhole_device = Some(dev);
+                                break;
+                            }
+                        }
+                    }
+                }
+                blackhole_device.or_else(|| host.default_output_device())
+            }
+            #[cfg(not(any(target_os = "windows", target_os = "macos")))]
             {
                 host.default_output_device()
             }
