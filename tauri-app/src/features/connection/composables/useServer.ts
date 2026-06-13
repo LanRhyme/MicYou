@@ -199,11 +199,21 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
           } else if (result.type === 'NoDevices') {
             try { await invoke('stop_server'); } catch {}
             serverState.value = 'idle';
+            const msg = 'No USB devices found. Please connect a device and enable USB debugging.';
+            const type = analyzeError(msg);
+            errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
+            showErrorDialog.value = true;
             return;
           }
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(e);
+        try { await invoke('stop_server'); } catch {}
+        const msg = typeof e === 'string' ? e : e?.message ?? String(e);
+        const type = analyzeError(msg);
+        errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
+        showErrorDialog.value = true;
+        serverState.value = 'idle';
       }
     }
   };
