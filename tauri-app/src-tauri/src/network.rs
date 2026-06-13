@@ -1,7 +1,7 @@
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use std::collections::HashMap;
 use log;
-use crate::protocol::MDNS_SERVICE_TYPE;
+use micyou_protocol::MDNS_SERVICE_TYPE;
 
 pub struct NetworkManager {
     mdns: ServiceDaemon,
@@ -61,11 +61,11 @@ impl NetworkManager {
         } else {
             bind_address.to_string()
         };
-        let service_fullname = format!("{}.{}", instance_name, crate::protocol::MDNS_WEB_SERVICE_TYPE);
+        let service_fullname = format!("{}.{}", instance_name, micyou_protocol::MDNS_WEB_SERVICE_TYPE);
         let valid_host_name = format!("{}.local.", host_name.replace(" ", "-"));
         let properties: HashMap<String, String> = HashMap::new();
         let service_info = ServiceInfo::new(
-            crate::protocol::MDNS_WEB_SERVICE_TYPE,
+            micyou_protocol::MDNS_WEB_SERVICE_TYPE,
             &instance_name,
             &valid_host_name,
             &local_ip.to_string(),

@@ -222,7 +222,7 @@ async fn handle_ws_socket(mut socket: WebSocket, state: WebServerState) {
                 }
 
                 let pcm = float32_to_pcm16(&data);
-                let packet = crate::protocol::micyou::AudioPacketMessage {
+                let packet = micyou_protocol::micyou::AudioPacketMessage {
                     buffer: pcm,
                     sample_rate: 48000,
                     channel_count: 1,
@@ -261,7 +261,7 @@ async fn serve_alpine_js() -> impl IntoResponse {
 #[derive(Clone)]
 pub struct WebServerState {
     pub app_handle: AppHandle,
-    pub audio_tx: tokio::sync::mpsc::Sender<crate::protocol::micyou::AudioPacketMessage>,
+    pub audio_tx: tokio::sync::mpsc::Sender<micyou_protocol::micyou::AudioPacketMessage>,
     pub client_count: Arc<AtomicUsize>,
 }
 
@@ -320,7 +320,7 @@ impl WebServer {
         &self,
         port: u16,
         app_handle: AppHandle,
-        audio_tx: tokio::sync::mpsc::Sender<crate::protocol::micyou::AudioPacketMessage>,
+        audio_tx: tokio::sync::mpsc::Sender<micyou_protocol::micyou::AudioPacketMessage>,
     ) -> Result<(), String> {
         if self.running.load(Ordering::SeqCst) {
             return Err("Web server is already running".to_string());

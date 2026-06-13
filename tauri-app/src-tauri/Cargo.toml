@@ -1,58 +1,67 @@
 [package]
-name = "micyou"
+name = "micyou-app"
 version = "2.0.0"
-description = "MicYou is a powerful tool that turns your Android device into a high-quality microphone for your PC. "
-authors = ["LanRhyme"]
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "MicYou - Turn your Android device into a high-quality PC microphone"
+authors.workspace = true
+edition.workspace = true
 
 [lib]
-# The `_lib` suffix may seem redundant but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "tauri_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-[build-dependencies]
-prost-build = "0.14.3"
-protoc-bin-vendored = "3.2.0"
-tauri-build = { version = "2", features = [] }
+[features]
+default = ["vbcable", "adb", "web-server"]
+vbcable = ["dep:zip"]
+adb = []
+web-server = ["dep:axum", "dep:rcgen", "dep:rustls", "dep:tokio-rustls", "dep:rustls-pemfile"]
 
 [dependencies]
+# Workspace crates
+micyou-protocol = { path = "../crates/micyou-protocol" }
+micyou-audio = { path = "../crates/micyou-audio", features = ["dsp"] }
+
+# Tauri
 tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
 tauri-plugin-opener = "2"
 tauri-plugin-autostart = "2"
+tauri-plugin-log = "2.8.0"
+tauri-plugin-dialog = "2.7.1"
+tauri-plugin-notification = "2.3.3"
+
+# Core
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-prost = "0.14.3"
-bytes = "1.11.1"
 tokio = { version = "1.52.3", features = ["full"] }
+tokio-util = "0.7.18"
+log = "0.4.32"
+bytes = "1.11.1"
+prost = "0.14.3"
+
+# Audio device enumeration
+cpal = "0.15.3"
+
+# Networking
 mdns-sd = "0.20.0"
 hostname = "0.4.2"
 local-ip-address = "0.6.13"
-cpal = "0.15.3"
-rubato = "3.0.0"
-rustfft = "6.4.1"
-audiopus = "0.2.0"
-ringbuf = "0.3.3"
-tokio-util = "0.7.18"
-nnnoiseless = "0.5.2"
-ort = { version = "=2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "api-17", "alternative-backend"] }
-ort-tract = "0.3.0+0.22"
+socket2 = "0.6.4"
+
+# Sponsor/API
 reqwest = { version = "0.13.4", features = ["json"] }
 md-5 = "0.11.0"
-tauri-plugin-log = "2.8.0"
-tauri-plugin-dialog = "2.7.1"
-socket2 = "0.6.4"
-log = "0.4.32"
-tauri-plugin-notification = "2.3.3"
-zip = "2"
-axum = { version = "0.8", features = ["ws"] }
-rcgen = "0.13"
-rustls = "0.23"
-tokio-rustls = "0.26"
-rustls-pemfile = "2"
+
+# Platform: Windows VB-Cable (optional)
+zip = { version = "2", optional = true }
+
+# Web server (optional)
+axum = { version = "0.8", features = ["ws"], optional = true }
+rcgen = { version = "0.13", optional = true }
+rustls = { version = "0.23", optional = true }
+tokio-rustls = { version = "0.26", optional = true }
+rustls-pemfile = { version = "2", optional = true }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winsock2"] }
@@ -64,4 +73,3 @@ libc = "0.2"
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"
 window-vibrancy = "0.7"
-

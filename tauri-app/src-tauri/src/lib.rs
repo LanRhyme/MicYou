@@ -1,16 +1,14 @@
-pub mod protocol;
 pub mod network;
 pub mod tcp_server;
 pub mod udp_server;
-pub mod audio_engine;
-pub mod jitter_buffer;
-pub mod dsp;
+#[cfg(feature = "web-server")]
+pub mod web_server;
 pub mod commands;
 pub mod adb_manager;
 pub mod stats;
 pub mod tray;
 pub mod vbcable;
-pub mod web_server;
+pub mod jitter_buffer;
 
 use tauri::{Emitter, AppHandle, Manager, State};
 use std::sync::Arc;
@@ -18,7 +16,7 @@ use tokio::sync::Mutex;
 use std::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-use dsp::{AudioDspSettings, DspProcessor};
+use micyou_audio::dsp::{AudioDspSettings, DspProcessor};
 use stats::NetworkStats;
 use crate::tray::{TrayContext, TrayMenuStrings, TrayState};
 
@@ -27,12 +25,14 @@ pub struct ServerState {
     pub mdns_manager: Arc<Mutex<Option<network::NetworkManager>>>,
     pub dsp_settings: Arc<RwLock<AudioDspSettings>>,
     pub network_stats: Arc<NetworkStats>,
-    pub connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<crate::protocol::micyou::MessageWrapper>>>>,
+    pub connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<micyou_protocol::micyou::MessageWrapper>>>>,
     #[cfg(windows)]
     pub active_socket_handle: Arc<Mutex<Option<std::os::windows::io::RawSocket>>>,
     #[cfg(unix)]
     pub active_socket_handle: Arc<Mutex<Option<std::os::unix::io::RawFd>>>,
+    #[cfg(feature = "web-server")]
     pub web_server: Arc<Mutex<Option<web_server::WebServer>>>,
+    #[cfg(feature = "web-server")]
     pub web_mdns: Arc<Mutex<Option<network::NetworkManager>>>,
 }
 
@@ -138,7 +138,7 @@ fn get_network_info() -> NetworkInfo {
     let ips: Vec<String> = interfaces.iter().map(|i| i.ip.clone()).collect();
     NetworkInfo {
         ips,
-        port: protocol::PORT,
+        port: micyou_protocol::PORT,
     }
 }
 
@@ -213,7 +213,7 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
     let app_handle_audio = app_handle.clone();
     let is_web_mode = _mode == "web";
     std::thread::spawn(move || {
-        let mut audio_manager = audio_engine::AudioOutputManager::new();
+        let mut audio_manager = micyou_audio::AudioOutputManager::new();
         if let Err(e) = audio_manager.start(output_device) {
             eprintln!("Failed to start audio output: {}", e);
             return;
@@ -242,7 +242,7 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
         };
         let mut jb = jitter_buffer::JitterBuffer::new(12);
         let mut frame_counter = 0;
-        let mut input_resampler: Option<audio_engine::RubatoResampler> = None;
+        let mut input_resampler: Option<micyou_audio::RubatoResampler> = None;
         let mut current_input_sample_rate: u32 = 0;
 
         while let Some(packet) = audio_rx.blocking_recv() {
@@ -289,7 +289,7 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
 
                         if sample_rate > 0 && sample_rate != 48000 {
                             if current_input_sample_rate != sample_rate {
-                                input_resampler = Some(audio_engine::RubatoResampler::new(
+                                input_resampler = Some(micyou_audio::RubatoResampler::new(
                                     sample_rate, 48000, channels.max(1)
                                 ));
                                 current_input_sample_rate = sample_rate;
@@ -338,11 +338,12 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
     });
 
     // Web mode: start web server and return (skip TCP/UDP)
+    #[cfg(feature = "web-server")]
     if _mode == "web" {
         let web_port = port;
         let web_server_instance = web_server::WebServer::new();
 
-        let (web_audio_tx, mut web_audio_rx) = tokio::sync::mpsc::channel::<crate::protocol::micyou::AudioPacketMessage>(1024);
+        let (web_audio_tx, mut web_audio_rx) = tokio::sync::mpsc::channel::<micyou_protocol::micyou::AudioPacketMessage>(1024);
 
         web_server_instance.start(web_port, app_handle.clone(), web_audio_tx).await
             .map_err(|e| format!("Failed to start web server: {}", e))?;
@@ -359,7 +360,7 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
         tokio::spawn(async move {
             let mut seq: i32 = 0;
             while let Some(packet) = web_audio_rx.recv().await {
-                let ordered = crate::protocol::micyou::AudioPacketMessageOrdered {
+                let ordered = micyou_protocol::micyou::AudioPacketMessageOrdered {
                     sequence_number: seq,
                     audio_packet: Some(packet),
                     timestamp: 0,
@@ -374,6 +375,11 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
         });
 
         return Ok(format!("Web server started on port {}", web_port));
+    }
+
+    #[cfg(not(feature = "web-server"))]
+    if _mode == "web" {
+        return Err("Web server feature not enabled".to_string());
     }
 
     let app_handle_tcp = app_handle.clone();
@@ -421,12 +427,14 @@ async fn stop_server(app: AppHandle, state: State<'_, ServerState>) -> Result<St
         *conn_tx_lock = None;
     }
 
+    #[cfg(feature = "web-server")]
     {
         let mut web_lock = state.web_server.lock().await;
         if let Some(web) = web_lock.take() {
             web.stop();
         }
     }
+    #[cfg(feature = "web-server")]
     {
         let mut web_mdns_lock = state.web_mdns.lock().await;
         if let Some(web_mdns) = web_mdns_lock.take() {
@@ -478,6 +486,7 @@ struct WebStatus {
     client_count: u32,
 }
 
+#[cfg(feature = "web-server")]
 #[tauri::command]
 async fn get_web_status(state: State<'_, ServerState>) -> Result<WebStatus, String> {
     let lock = state.web_server.lock().await;
@@ -492,6 +501,15 @@ async fn get_web_status(state: State<'_, ServerState>) -> Result<WebStatus, Stri
             client_count: 0,
         })
     }
+}
+
+#[cfg(not(feature = "web-server"))]
+#[tauri::command]
+async fn get_web_status(_state: State<'_, ServerState>) -> Result<WebStatus, String> {
+    Ok(WebStatus {
+        running: false,
+        client_count: 0,
+    })
 }
 
 #[tauri::command]
@@ -523,10 +541,10 @@ fn exit_app(app: AppHandle, state: State<'_, ServerState>) -> Result<(), String>
 
 #[tauri::command]
 async fn set_mute_state(app: AppHandle, state: State<'_, ServerState>, is_muted: bool) -> Result<(), String> {
-    let mute_msg = crate::protocol::micyou::MessageWrapper {
+    let mute_msg = micyou_protocol::micyou::MessageWrapper {
         audio_packet: None,
         connect: None,
-        mute: Some(crate::protocol::micyou::MuteMessage { is_muted }),
+        mute: Some(micyou_protocol::micyou::MuteMessage { is_muted }),
         plugin_sync: None,
         ping: None,
         pong: None,
@@ -582,7 +600,9 @@ pub fn run() {
             network_stats: Arc::new(NetworkStats::default()),
             connection_tx: Arc::new(Mutex::new(None)),
             active_socket_handle: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "web-server")]
             web_server: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "web-server")]
             web_mdns: Arc::new(Mutex::new(None)),
         })
         .plugin(tauri_plugin_log::Builder::new()

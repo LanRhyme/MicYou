@@ -8,8 +8,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 use serde::Serialize;
-use crate::protocol::{PACKET_MAGIC, HANDSHAKE_CLIENT_STR, HANDSHAKE_SERVER_STR};
-use crate::protocol::micyou::{MessageWrapper, AudioPacketMessageOrdered};
+use micyou_protocol::{PACKET_MAGIC, HANDSHAKE_CLIENT_STR, HANDSHAKE_SERVER_STR};
+use micyou_protocol::micyou::{MessageWrapper, AudioPacketMessageOrdered};
 use tokio_util::sync::CancellationToken;
 
 #[cfg(windows)]
@@ -173,7 +173,7 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
                 connect: None,
                 mute: None,
                 plugin_sync: None,
-                ping: Some(crate::protocol::micyou::PingMessage {
+                ping: Some(micyou_protocol::micyou::PingMessage {
                     timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64,
                 }),
                 pong: None,
@@ -278,7 +278,7 @@ async fn handle_message(msg: MessageWrapper, tx: &tokio::sync::mpsc::Sender<Mess
             mute: None,
             plugin_sync: None,
             ping: None,
-            pong: Some(crate::protocol::micyou::PongMessage {
+            pong: Some(micyou_protocol::micyou::PongMessage {
                 timestamp: ping.timestamp,
             }),
         };

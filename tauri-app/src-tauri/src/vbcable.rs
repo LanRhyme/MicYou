@@ -1,5 +1,7 @@
 use serde::Serialize;
+#[cfg(feature = "vbcable")]
 use std::path::PathBuf;
+#[cfg(feature = "vbcable")]
 use std::sync::atomic::{AtomicBool, Ordering};
 
 const CABLE_OUTPUT_NAME: &str = "CABLE Output";
@@ -58,16 +60,22 @@ pub fn is_installed() -> bool {
     false
 }
 
+#[cfg(feature = "vbcable")]
 static IS_INSTALLING: AtomicBool = AtomicBool::new(false);
 
+#[cfg(feature = "vbcable")]
 const INSTALLER_URL: &str = "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip";
+#[cfg(feature = "vbcable")]
 const INSTALLER_NAME: &str = "VBCABLE_Setup_x64.exe";
+#[cfg(feature = "vbcable")]
 const INSTALLER_DIR: &str = "VBCABLE_Driver_Pack45";
 
+#[cfg(feature = "vbcable")]
 fn temp_dir() -> PathBuf {
     std::env::temp_dir().join("micyou_vbcable")
 }
 
+#[cfg(feature = "vbcable")]
 fn get_installer_path() -> Option<PathBuf> {
     let base = std::env::current_dir().ok()?;
     let paths = [
@@ -77,6 +85,7 @@ fn get_installer_path() -> Option<PathBuf> {
     paths.iter().find(|p| p.exists()).cloned()
 }
 
+#[cfg(feature = "vbcable")]
 async fn download_installer(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     use tauri::Emitter;
 
@@ -134,6 +143,7 @@ async fn download_installer(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     }
 }
 
+#[cfg(feature = "vbcable")]
 async fn run_installer(installer_path: &PathBuf) -> Result<(), String> {
     let path_str = installer_path.to_string_lossy().to_string();
     let cmd = format!(
@@ -158,6 +168,7 @@ async fn run_installer(installer_path: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(feature = "vbcable")]
 async fn wait_for_device(max_secs: u64) -> bool {
     let mut waited = 0u64;
     while waited < max_secs {
@@ -170,11 +181,13 @@ async fn wait_for_device(max_secs: u64) -> bool {
     false
 }
 
+#[cfg(feature = "vbcable")]
 fn cleanup_temp_files() {
     let dir = temp_dir();
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+#[cfg(feature = "vbcable")]
 async fn configure_devices(app: &tauri::AppHandle) -> Result<(), String> {
     use tauri::Emitter;
     app.emit("vbcable-install-progress", "Configuring devices...")
@@ -191,6 +204,7 @@ async fn configure_devices(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(feature = "vbcable")]
 pub async fn install(app: tauri::AppHandle) -> VBCableResult {
     use tauri::Emitter;
 
@@ -219,6 +233,7 @@ pub async fn install(app: tauri::AppHandle) -> VBCableResult {
     result
 }
 
+#[cfg(feature = "vbcable")]
 async fn install_inner(app: &tauri::AppHandle) -> VBCableResult {
     use tauri::Emitter;
 
@@ -290,7 +305,18 @@ pub async fn check_vbcable() -> Result<bool, String> {
     Ok(is_installed())
 }
 
+#[cfg(feature = "vbcable")]
 #[tauri::command]
 pub async fn install_vbcable(app: tauri::AppHandle) -> Result<VBCableResult, String> {
     Ok(install(app).await)
+}
+
+#[cfg(not(feature = "vbcable"))]
+#[tauri::command]
+pub fn install_vbcable() -> Result<VBCableResult, String> {
+    Ok(VBCableResult {
+        success: false,
+        error_type: Some("feature_disabled".to_string()),
+        message: Some("VB-Cable installation feature not enabled".to_string()),
+    })
 }
