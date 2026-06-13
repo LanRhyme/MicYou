@@ -70,15 +70,35 @@ fn find_blackhole_device_name() -> Option<String> {
     None
 }
 
+/// Get the path to SwitchAudioSource, checking Homebrew paths on macOS
+#[cfg(target_os = "macos")]
+fn get_switch_audio_source_cmd() -> std::path::PathBuf {
+    let paths = [
+        "/opt/homebrew/bin/SwitchAudioSource",
+        "/usr/local/bin/SwitchAudioSource",
+    ];
+    for path in &paths {
+        if std::path::Path::new(path).exists() {
+            return std::path::PathBuf::from(path);
+        }
+    }
+    std::path::PathBuf::from("SwitchAudioSource")
+}
+
 /// Check if SwitchAudioSource CLI tool is installed
 #[cfg(target_os = "macos")]
 pub async fn is_switch_audio_source_installed() -> bool {
-    tokio::process::Command::new("which")
-        .arg("SwitchAudioSource")
-        .output()
-        .await
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    let cmd = get_switch_audio_source_cmd();
+    if cmd.is_absolute() {
+        cmd.exists()
+    } else {
+        tokio::process::Command::new("which")
+            .arg("SwitchAudioSource")
+            .output()
+            .await
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -89,7 +109,8 @@ pub async fn is_switch_audio_source_installed() -> bool {
 /// Get the current default input device via SwitchAudioSource
 #[cfg(target_os = "macos")]
 async fn get_current_input_device() -> Option<AudioDevice> {
-    let output = tokio::process::Command::new("SwitchAudioSource")
+    let cmd = get_switch_audio_source_cmd();
+    let output = tokio::process::Command::new(&cmd)
         .args(["-c", "-t", "input", "-f", "json"])
         .output()
         .await
@@ -106,7 +127,8 @@ async fn get_current_input_device() -> Option<AudioDevice> {
 /// Set the default input device via SwitchAudioSource
 #[cfg(target_os = "macos")]
 async fn set_default_input_device(device_id: &str) -> bool {
-    tokio::process::Command::new("SwitchAudioSource")
+    let cmd = get_switch_audio_source_cmd();
+    tokio::process::Command::new(&cmd)
         .args(["-t", "input", "-i", device_id])
         .output()
         .await
@@ -117,7 +139,8 @@ async fn set_default_input_device(device_id: &str) -> bool {
 /// Find BlackHole device in the input device list
 #[cfg(target_os = "macos")]
 async fn find_blackhole_input_device() -> Option<AudioDevice> {
-    let output = tokio::process::Command::new("SwitchAudioSource")
+    let cmd = get_switch_audio_source_cmd();
+    let output = tokio::process::Command::new(&cmd)
         .args(["-a", "-t", "input", "-f", "json"])
         .output()
         .await
@@ -214,10 +237,17 @@ pub async fn set_blackhole_as_input() -> Result<BlackHoleResult, String> {
         });
     }
 
-    // Save current input device before switching
-    if let Some(current) = get_current_input_device().await {
-        if let Ok(mut orig) = ORIGINAL_INPUT_DEVICE.lock() {
-            *orig = Some(current);
+    // Save current input device before switching, only if we haven't saved one already
+    {
+        let already_saved = ORIGINAL_INPUT_DEVICE.lock().map(|g| g.is_some()).unwrap_or(false);
+        if !already_saved {
+            if let Some(current) = get_current_input_device().await {
+                if let Ok(mut orig) = ORIGINAL_INPUT_DEVICE.lock() {
+                    if orig.is_none() {
+                        *orig = Some(current);
+                    }
+                }
+            }
         }
     }
 
@@ -244,40 +274,53 @@ pub async fn set_blackhole_as_input() -> Result<BlackHoleResult, String> {
     })
 }
 
-/// Restore the original input device
-#[tauri::command]
-pub async fn restore_input_device() -> Result<BlackHoleResult, String> {
+/// Restore the original input device (internal logic, callable from stop_server)
+pub async fn do_restore_input_device() -> Result<(), String> {
     let original = {
         ORIGINAL_INPUT_DEVICE
             .lock()
             .ok()
-            .and_then(|mut guard| guard.take())
+            .and_then(|guard| (*guard).clone())
     };
 
     let device = match original {
         Some(d) => d,
-        None => {
-            return Ok(BlackHoleResult {
-                success: true,
-                message: Some("No saved input device to restore".to_string()),
-            });
-        }
+        None => return Ok(()),
     };
 
     if !is_switch_audio_source_installed().await {
-        return Ok(BlackHoleResult {
-            success: false,
-            message: Some("SwitchAudioSource is not installed".to_string()),
-        });
+        return Err("SwitchAudioSource is not installed".to_string());
     }
 
     let success = set_default_input_device(&device.id).await;
-    Ok(BlackHoleResult {
-        success,
-        message: if success {
-            Some(format!("Restored input to: {}", device.name))
-        } else {
-            Some("Failed to restore input device".to_string())
-        },
-    })
+    if success {
+        if let Ok(mut guard) = ORIGINAL_INPUT_DEVICE.lock() {
+            *guard = None;
+        }
+    }
+    // On failure, keep the device in ORIGINAL_INPUT_DEVICE for retry
+    Ok(())
+}
+
+/// Restore the original input device (Tauri command)
+#[tauri::command]
+pub async fn restore_input_device() -> Result<BlackHoleResult, String> {
+    let has_saved = ORIGINAL_INPUT_DEVICE.lock().map(|g| g.is_some()).unwrap_or(false);
+    if !has_saved {
+        return Ok(BlackHoleResult {
+            success: true,
+            message: Some("No saved input device to restore".to_string()),
+        });
+    }
+
+    match do_restore_input_device().await {
+        Ok(()) => Ok(BlackHoleResult {
+            success: true,
+            message: Some("Restored input device".to_string()),
+        }),
+        Err(e) => Ok(BlackHoleResult {
+            success: false,
+            message: Some(e),
+        }),
+    }
 }

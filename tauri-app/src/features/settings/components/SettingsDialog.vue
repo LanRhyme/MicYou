@@ -181,7 +181,7 @@
                   </SelectContent>
                 </Select>
               </div>
-              <p v-if="settings.audioDevice === 'auto' || settings.audioDevice.includes('CABLE Input') || settings.audioDevice.toLowerCase().includes('blackhole')" class="text-xs text-green-400 font-medium">
+              <p v-if="settings.audioDevice === 'auto' || (settings.audioDevice && (settings.audioDevice.includes('CABLE Input') || settings.audioDevice.toLowerCase().includes('blackhole')))" class="text-xs text-green-400 font-medium">
                 {{ $t('settings.audioOutput.routingActive') }}
               </p>
             </div>

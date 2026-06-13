@@ -657,9 +657,10 @@ impl DspProcessor {
         let frame_count = self.accum_buffer.len() / samples_per_frame;
 
         if frame_count == 0 {
-            // Not enough data for a full frame yet — pass through unprocessed
-            // to avoid silence gaps. The accum_buffer retains the samples for next call.
-            return (raw_rms, raw_rms);
+            // Not enough data for even one frame, output silence to avoid duplication
+            // since these samples are retained in accum_buffer for the next call.
+            data.iter_mut().for_each(|s| *s = 0.0);
+            return (raw_rms, 0.0);
         }
 
         let process_count = frame_count * samples_per_frame;

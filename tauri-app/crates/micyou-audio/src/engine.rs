@@ -43,8 +43,8 @@ impl RubatoResampler {
             return input.to_vec();
         }
 
-        // Zero out the input buffer to avoid stale data from previous calls
-        for frame in 0..self.chunk_size {
+        // Zero out only the unused part of the input buffer to avoid stale data
+        for frame in in_frames..self.chunk_size {
             for ch in 0..channels {
                 self.input_buffer.write_sample(ch, frame, &0.0);
             }

@@ -451,6 +451,11 @@ async fn stop_server(app: AppHandle, state: State<'_, ServerState>) -> Result<St
     let mut token_lock = state.cancel_token.lock().await;
     if let Some(token) = token_lock.take() {
         token.cancel();
+        // Restore the original input device on macOS (BlackHole cleanup)
+        #[cfg(target_os = "macos")]
+        {
+            let _ = blackhole::do_restore_input_device().await;
+        }
         let _ = app.emit("server-stopped", ());
         Ok("Server stopped".to_string())
     } else {
