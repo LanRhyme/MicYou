@@ -1,0 +1,24 @@
+[package]
+name = "micyou-audio"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[features]
+default = ["dsp"]
+dsp = ["dep:nnnoiseless", "dep:ort", "dep:ort-tract", "dep:rustfft"]
+noise-suppression = ["dsp", "dep:ort", "dep:ort-tract"]
+
+[dependencies]
+micyou-protocol = { path = "../micyou-protocol" }
+serde = { version = "1", features = ["derive"] }
+log = "0.4.32"
+cpal = "0.15.3"
+rubato = "3.0.0"
+ringbuf = "0.3.3"
+
+# DSP dependencies (optional)
+nnnoiseless = { version = "0.5.2", optional = true }
+ort = { version = "=2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "api-17", "alternative-backend"], optional = true }
+ort-tract = { version = "0.3.0+0.22", optional = true }
+rustfft = { version = "6.4.1", optional = true }
