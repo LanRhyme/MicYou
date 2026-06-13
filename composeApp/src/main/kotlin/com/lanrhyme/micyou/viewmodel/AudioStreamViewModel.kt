@@ -514,8 +514,12 @@ class AudioStreamViewModel : ViewModel() {
     fun setPort(port: String) {
         // 验证端口输入
         val portInt = port.toIntOrNull()
-    val validatedPort = when {
-            port.isBlank() -> Constants.DEFAULT_TCP_PORT.toString()
+        val validatedPort = when {
+            port.isBlank() -> {
+                // 空白输入时保持当前有效值，避免误重置为默认端口
+                Logger.d("AudioStreamViewModel", "Port input is blank, keeping current value: ${_uiState.value.port}")
+                _uiState.value.port
+            }
             portInt == null -> {
                 Logger.w("AudioStreamViewModel", "Invalid port format: $port, keeping current value")
                 _uiState.value.port // 保持当前值
