@@ -1,0 +1,325 @@
+package com.lanrhyme.micyou
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.activity.compose.LocalActivity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.res.stringResource
+
+/**
+ * 设置项容器组件 (与 DesktopSettings.kt 中保持一致)
+ */
+@Composable
+private fun SettingsItemContainer(
+    modifier: Modifier = Modifier,
+    cardOpacity: Float = 1f,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = cardOpacity * 0.5f))
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+    ) {
+        content()
+    }
+}
+
+/**
+ * 获取所有需要检查的权限列表 (Android implementation)
+ */
+fun getRequiredPermissions(activity: ComponentActivity): List<PermissionState> {
+    val permissions = mutableListOf<PermissionState>()
+
+    // 录音权限 - 必选，所有版本都需要
+    permissions.add(
+        PermissionState(
+            type = PermissionType.RECORD_AUDIO,
+            manifestPermission = Manifest.permission.RECORD_AUDIO,
+            isGranted = ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED,
+            minSdkVersion = 0
+        )
+    )
+
+    // 通知权限 - Android 13+ (API 33+)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        permissions.add(
+            PermissionState(
+                type = PermissionType.POST_NOTIFICATIONS,
+                manifestPermission = Manifest.permission.POST_NOTIFICATIONS,
+                isGranted = ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED,
+                minSdkVersion = Build.VERSION_CODES.TIRAMISU
+            )
+        )
+    }
+
+    return permissions
+}
+
+/**
+ * 检查是否所有必选权限都已授予 (Android implementation)
+ */
+fun hasAllRequiredPermissions(permissions: List<PermissionState>): Boolean {
+    return permissions.filter { it.type.isRequired }.all { it.isGranted }
+}
+
+/**
+ * Android 权限管理设置部分 (implementation)
+ */
+@Composable
+fun AndroidPermissionManagementSection(cardOpacity: Float) {
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    val activity = LocalActivity.current as ComponentActivity
+
+    // Use rememberLauncherForActivityResult to handle permission requests
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        // Permissions result handled - the dialog will refresh permissions on next render
+    }
+    var permissions by remember { mutableStateOf<List<PermissionState>>(emptyList()) }
+
+    // Refresh permissions whenever showPermissionDialog changes to true
+    LaunchedEffect(showPermissionDialog) {
+        if (showPermissionDialog) {
+            permissions = getRequiredPermissions(activity)
+        }
+    }
+
+    // Initial load
+    LaunchedEffect(Unit) {
+        permissions = getRequiredPermissions(activity)
+    }
+    val grantedCount = permissions.count { it.isGranted }
+    val totalCount = permissions.size
+    val hasAllRequired = hasAllRequiredPermissions(permissions)
+
+    // Use same style as other settings items - headline and supporting text only
+    SettingsItemContainer(
+        cardOpacity = cardOpacity,
+        onClick = { showPermissionDialog = true }
+    ) {
+        ListItem(
+            headlineContent = {
+                Text(stringResource(R.string.permissionManagementLabel))
+            },
+            supportingContent = {
+                Text(
+                    text = if (totalCount == 0) {
+                        stringResource(R.string.permissionChecking)
+                    } else if (hasAllRequired) {
+                        String.format(stringResource(R.string.permissionAllGrantedStatus), grantedCount, totalCount)
+                    } else {
+                        String.format(stringResource(R.string.permissionMissingWarning), grantedCount, totalCount)
+                    }
+                )
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+    }
+
+    if (showPermissionDialog) {
+        PermissionDialog(
+            permissions = permissions,
+            onDismiss = { showPermissionDialog = false },
+            onRequestPermissions = { perms ->
+                permissionLauncher.launch(perms.toTypedArray())
+            }
+        )
+    }
+}
+
+/**
+ * 权限对话框组件 (Android implementation)
+ */
+@Composable
+fun PermissionDialog(
+    permissions: List<PermissionState>,
+    onDismiss: () -> Unit,
+    onRequestPermissions: (List<String>) -> Unit
+) {
+    val activity = LocalActivity.current as ComponentActivity
+    var currentPermissions by remember { mutableStateOf(permissions) }
+
+    // Use rememberLauncherForActivityResult to handle permission requests within the dialog
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        // Refresh permissions after request completes
+        currentPermissions = getRequiredPermissions(activity)
+    }
+
+    // 更新权限状态
+    LaunchedEffect(Unit) {
+        currentPermissions = getRequiredPermissions(activity)
+    }
+    val hasRequiredPermissions = hasAllRequiredPermissions(currentPermissions)
+    val ungrantedPermissions = currentPermissions.filter { !it.isGranted }
+
+    AlertDialog(
+        onDismissRequest = {
+            // 只有当所有必选权限都已授予时才能关闭对话框
+            if (hasRequiredPermissions) {
+                onDismiss()
+            }
+        },
+        title = { Text(stringResource(R.string.permissionDialogTitle)) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 400.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.permissionDialogMessage),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 权限列表
+                currentPermissions.forEach { permission ->
+                    PermissionCard(
+                        permission = permission,
+                        onRequestPermission = { perm ->
+                            permissionLauncher.launch(arrayOf(perm))
+                        }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (hasRequiredPermissions) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.permissionAllGranted))
+                }
+            } else {
+                Button(onClick = {
+                    val toRequest = ungrantedPermissions.map { it.manifestPermission }
+                    if (toRequest.isNotEmpty()) {
+                        permissionLauncher.launch(toRequest.toTypedArray())
+                    }
+                }) {
+                    Text(stringResource(R.string.permissionRequestButton))
+                }
+            }
+        }
+    )
+}
+
+/**
+ * 权限卡片组件 - 类似新手引导的步骤卡片风格
+ */
+@Composable
+private fun PermissionCard(
+    permission: PermissionState,
+    onRequestPermission: (String) -> Unit
+) {
+    val icon: ImageVector = when (permission.type) {
+        PermissionType.RECORD_AUDIO -> Icons.Default.Mic
+        PermissionType.POST_NOTIFICATIONS -> Icons.Default.Notifications
+    }
+    val label = when (permission.type) {
+        PermissionType.RECORD_AUDIO -> stringResource(R.string.permissionRecordAudioLabel)
+        PermissionType.POST_NOTIFICATIONS -> stringResource(R.string.permissionPostNotificationsLabel)
+    }
+    val description = when (permission.type) {
+        PermissionType.RECORD_AUDIO -> stringResource(R.string.permissionRecordAudioDesc)
+        PermissionType.POST_NOTIFICATIONS -> stringResource(R.string.permissionPostNotificationsDesc)
+    }
+    val canRequest = !permission.isGranted
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (canRequest) {
+                    Modifier.clickable { onRequestPermission(permission.manifestPermission) }
+                } else {
+                    Modifier
+                }
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (permission.isGranted) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                // 必选/可选标记
+                Text(
+                    text = if (permission.type.isRequired) {
+                        stringResource(R.string.permissionRequired)
+                    } else {
+                        stringResource(R.string.permissionOptional)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (permission.type.isRequired) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+                // 已授权标记
+                if (permission.isGranted) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}

@@ -1,34 +1,17 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.gradle.api.tasks.bundling.Zip
-import org.gradle.api.DefaultTask
-import org.gradle.api.GradleException
-import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.Property
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputDirectory
-import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.Optional
-import org.gradle.api.tasks.OutputFile
-import org.gradle.api.tasks.TaskAction
-import org.gradle.process.ExecOperations
-import java.awt.RenderingHints
-import java.awt.image.BufferedImage
-import java.io.ByteArrayOutputStream
-import java.io.DataOutputStream
-import java.io.File
-import java.io.FileOutputStream
 import java.util.Properties
-import javax.imageio.ImageIO
-import javax.inject.Inject
+import java.io.File
 
 plugins {
-    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
 }
 
 val aifadianApiToken: String = run {
@@ -49,93 +32,6 @@ val aifadianUserId: String = run {
     localProps.getProperty("AIFADIAN_USER_ID", "")
 }
 
-val composeVersion = libs.versions.composeMultiplatform.get()
-val composeMaterial3Version = libs.versions.composeMaterial3.get()
-
-configurations.configureEach {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "org.jetbrains.compose" || requested.group.startsWith("org.jetbrains.compose.")) {
-            val name = requested.name
-            if (name == "material-icons-extended" || name == "material-icons-extended-desktop" || 
-                name == "material-icons-core" || name == "material-icons-core-desktop" ||
-                name == "material") {
-                useVersion("1.7.3")
-            } else if (name == "material3" || name == "material3-desktop") {
-                useVersion(composeMaterial3Version)
-            } else if (name == "material-symbols" || name == "material-symbols-core") {
-                useVersion(composeVersion)
-            } else {
-                useVersion(composeVersion)
-            }
-        }
-    }
-}
-
-kotlin {
-    androidTarget {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_11)
-        }
-    }
-    
-    jvm {
-        mainRun {
-            mainClass.set("com.lanrhyme.micyou.MainKt")
-        }
-    }
-    
-    sourceSets {
-        androidMain.dependencies {
-            implementation(libs.compose.uiToolingPreview)
-            implementation(libs.androidx.activity.compose)
-            implementation(libs.ktor.client.okhttp)
-        }
-        commonMain.dependencies {
-            implementation(libs.compose.runtime)
-            implementation(libs.compose.foundation)
-            implementation(libs.compose.material3)
-            implementation(libs.compose.ui)
-            implementation(libs.compose.components.resources)
-            implementation(libs.compose.uiToolingPreview)
-            implementation(libs.androidx.lifecycle.viewmodelCompose)
-            implementation(libs.androidx.lifecycle.runtimeCompose)
-            implementation(libs.ktor.network)
-            implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.content.negotiation)
-            implementation(libs.ktor.serialization.kotlinx.json)
-            implementation(libs.kotlinx.serialization.protobuf)
-            implementation(libs.kotlinx.datetime)
-            implementation("org.jetbrains.compose.material:material-icons-extended:1.7.3")
-            implementation("dev.chrisbanes.haze:haze:1.7.2")
-            implementation(libs.filekit.core)
-            implementation(libs.filekit.dialogs.compose)
-            implementation(libs.materialKolor)
-            implementation(project(":plugin-api"))
-        }
-        commonTest.dependencies {
-            implementation(libs.kotlin.test)
-        }
-        jvmMain.dependencies {
-            implementation(compose.desktop.currentOs)
-            implementation(libs.kotlinx.coroutinesSwing)
-            implementation(libs.kotlinx.serialization.protobuf)
-            implementation(libs.ktor.client.java)
-            implementation(libs.ktor.server.core)
-            implementation(libs.ktor.server.netty)
-            implementation(libs.ktor.server.websockets)
-            implementation(libs.ktor.server.cors)
-            implementation(libs.ktor.network.tls.certificates)
-            implementation(libs.zxing.core)
-            implementation("de.maxhenkel.rnnoise4j:rnnoise4j:2.1.2")
-            implementation("io.ultreia:bluecove:2.1.1")
-            implementation(libs.composenativetray)
-            implementation(libs.onnxruntime)
-            implementation(libs.jtransforms)
-            implementation(libs.jmdns)
-        }
-    }
-}
-
 android {
     namespace = "com.lanrhyme.micyou"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -152,13 +48,14 @@ android {
 
     buildFeatures {
         buildConfig = true
+        compose = true
     }
-    
+
     val keystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
     val keystorePassword = providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD").orNull
     val keyAlias = providers.environmentVariable("ANDROID_KEY_ALIAS").orNull
     val keyPassword = providers.environmentVariable("ANDROID_KEY_PASSWORD").orNull
-    
+
     val hasReleaseSigning =
         !keystorePath.isNullOrEmpty() &&
         !keystorePassword.isNullOrEmpty() &&
@@ -203,465 +100,28 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    debugImplementation(libs.compose.uiTooling)
-}
-
-compose.desktop {
-    application {
-        mainClass = "com.lanrhyme.micyou.MainKt"
-        jvmArgs("-Dfile.encoding=UTF-8", "-Dapp.version=${project.property("project.version")}", "-Daifadian.api.token=$aifadianApiToken", "-Daifadian.user.id=$aifadianUserId")
-
-        nativeDistributions {
-            appResourcesRootDir.set(project.layout.projectDirectory.dir("resources"))
-
-            targetFormats(TargetFormat.Dmg, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
-            packageName = project.property("project.name").toString()
-            packageVersion = project.property("project.version").toString().substringBefore("-").substringBefore("hotfix")
-            description = "MicYou Application"
-            vendor = "LanRhyme"
-            copyright = "Copyright (c) 2026 LanRhyme"
-            modules("java.net.http", "jdk.accessibility", "jdk.unsupported.desktop")
-            
-            windows {
-                val generatedIcon = layout.buildDirectory.file("generated/icons/icon256.ico").get().asFile
-                iconFile.set(generatedIcon)
-                perUserInstall = true
-                menu = true
-                menuGroup = "MicYou"
-                shortcut = true
-                dirChooser = false
-                upgradeUuid = "f76264ff-05a4-494a-a8fb-7ed3410cb17c"
-                console = false
-            }
-            linux {
-        		iconFile.set(project.file("src/commonMain/composeResources/drawable/app_icon.png"))
-    		}
-
-            macOS {
-                iconFile.set(project.file("src/commonMain/composeResources/drawable/mac_icon.icns"))
-                infoPlist {
-                    extraKeysRawXml = """    <key>CFBundleIconName</key>
-    <string>MicYou</string>"""
-                }
-            }
-        }
-    }
-}
-
-val windowsIconIcoFile = layout.buildDirectory.file("generated/icons/icon256.ico").get().asFile
-abstract class GenerateWindowsIconIcoTask : DefaultTask() {
-    @get:InputFile val sourcePng: RegularFileProperty = project.objects.fileProperty()
-    @get:OutputFile val outputIco: RegularFileProperty = project.objects.fileProperty()
-
-    @TaskAction
-    fun run() {
-        val sourceFile = sourcePng.get().asFile
-        val outFile = outputIco.get().asFile
-
-        if (!sourceFile.exists()) {
-            throw GradleException("Icon source not found: ${sourceFile.absolutePath}")
-        }
-
-        val src = ImageIO.read(sourceFile) ?: throw GradleException("Unable to read png: ${sourceFile.absolutePath}")
-        val target = BufferedImage(256, 256, BufferedImage.TYPE_INT_ARGB)
-        val g = target.createGraphics()
-        try {
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
-            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-            g.drawImage(src, 0, 0, 256, 256, null)
-        } finally {
-            g.dispose()
-        }
-
-        val pngBytes = ByteArrayOutputStream().use { baos ->
-            if (!ImageIO.write(target, "png", baos)) {
-                throw GradleException("Unable to encode png for ico")
-            }
-            baos.toByteArray()
-        }
-
-        outFile.parentFile.mkdirs()
-        FileOutputStream(outFile).use { fos ->
-            DataOutputStream(fos).use { out ->
-                fun writeShortLe(v: Int) {
-                    out.writeByte(v and 0xFF)
-                    out.writeByte((v ushr 8) and 0xFF)
-                }
-                fun writeIntLe(v: Int) {
-                    out.writeByte(v and 0xFF)
-                    out.writeByte((v ushr 8) and 0xFF)
-                    out.writeByte((v ushr 16) and 0xFF)
-                    out.writeByte((v ushr 24) and 0xFF)
-                }
-
-                writeShortLe(0)
-                writeShortLe(1)
-                writeShortLe(1)
-
-                out.writeByte(0)
-                out.writeByte(0)
-                out.writeByte(0)
-                out.writeByte(0)
-                writeShortLe(1)
-                writeShortLe(32)
-                writeIntLe(pngBytes.size)
-                writeIntLe(6 + 16)
-
-                out.write(pngBytes)
-            }
-        }
-    }
-}
-
-tasks.register<GenerateWindowsIconIcoTask>("generateWindowsIconIco") {
-    sourcePng.set(layout.projectDirectory.file("src/commonMain/composeResources/drawable/app_icon.png"))
-    outputIco.set(layout.buildDirectory.file("generated/icons/icon256.ico"))
-}
-
-tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable", "packageExe", "packageReleaseExe", "packageWindowsNsis") }
-    .configureEach { dependsOn("generateWindowsIconIco") }
-
-// Windows 打包后复制托盘图标 (32x32) 到应用目录
-// 256x256 的图标在 Windows 托盘中无法正常显示，需要使用小尺寸图标
-val copyTrayIcon by tasks.registering(Copy::class) {
-    from("src/commonMain/composeResources/drawable/icon32.ico")
-    into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}"))
-}
-
-// 复制 Assets.car 到 macOS app bundle（支持液态玻璃图标）
-val copyAssetsCar by tasks.registering(Copy::class) {
-    from("resources/macos/Assets.car")
-    into(layout.buildDirectory.dir("compose/binaries/main/app/${project.property("project.name")}.app/Contents/Resources"))
-}
-
-// Windows/macOS 打包时执行 copyTrayIcon
-tasks.matching { it.name in setOf("createDistributable", "createReleaseDistributable") }
-    .configureEach {
-        dependsOn(copyTrayIcon)
-    }
-
-// macOS DMG 打包 (debug 和 release 版本)
-tasks.matching { it.name.contains("Dmg") }
-    .configureEach {
-        dependsOn(copyTrayIcon)
-        dependsOn("createDistributable")
-        dependsOn(copyAssetsCar)
-    }
-
-tasks.matching { it.name == "copyAssetsCar" }
-    .configureEach {
-        mustRunAfter("createDistributable")
-    }
-
-tasks.matching { it.name == "jvmRun" || it.name == "run" }.configureEach {
-    if (this is org.gradle.process.JavaForkOptions) {
-        val tmpDir = layout.buildDirectory.dir("tmp/jvmRun").get().asFile
-        doFirst {
-            tmpDir.mkdirs()
-        }
-        jvmArgs("-Djava.io.tmpdir=${tmpDir.absolutePath}")
-        if (System.getProperty("os.name").lowercase().contains("linux")) {
-            environment(
-                "ALSA_CONFIG_PATH",
-                layout.projectDirectory.file("resources/common/alsa/micyou-pipewire.conf").asFile.absolutePath
-            )
-            environment("PIPEWIRE_ALSA", "{ node.dont-reconnect=true }")
-        }
-    }
-}
-
-tasks.register<Zip>("packageWindowsZip") {
-    dependsOn("createDistributable", copyTrayIcon)
-
-    val version = project.property("project.version").toString()
-    val distDir = layout.buildDirectory.dir("compose/binaries/main/app")
-
-    from(distDir)
-    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
-    archiveBaseName.set("${project.property("project.name")}-windows")
-    archiveVersion.set(version)
-}
-
-abstract class PackageWindowsNsisTask @Inject constructor(
-    private val execOperations: ExecOperations,
-) : DefaultTask() {
-    @get:Input val appName: Property<String> = project.objects.property(String::class.java)
-    @get:Input val appVersion: Property<String> = project.objects.property(String::class.java)
-    @get:Input val vendor: Property<String> = project.objects.property(String::class.java)
-
-    @get:InputDirectory val inputDir: DirectoryProperty = project.objects.directoryProperty()
-    @get:InputFile val scriptFile: RegularFileProperty = project.objects.fileProperty()
-    @get:OutputFile val outputFile: RegularFileProperty = project.objects.fileProperty()
-
-    @get:Input
-    @get:Optional
-    val makensisPath: Property<String> = project.objects.property(String::class.java)
-
-    @get:Input
-    @get:Optional
-    val iconPath: Property<String> = project.objects.property(String::class.java)
-
-    @TaskAction
-    fun run() {
-        val script = scriptFile.get().asFile
-        val input = inputDir.get().asFile
-        val out = outputFile.get().asFile
-
-        if (!script.exists()) {
-            throw GradleException("NSIS script not found: ${script.absolutePath}")
-        }
-        if (!input.exists()) {
-            throw GradleException("Distributable not found: ${input.absolutePath}")
-        }
-
-        out.parentFile.mkdirs()
-
-        val makensisExe = makensisPath.orNull?.takeIf { it.isNotBlank() } ?: run {
-            val candidates = listOf(
-                File("C:/Program Files (x86)/NSIS/makensis.exe"),
-                File("C:/Program Files/NSIS/makensis.exe"),
-            )
-            candidates.firstOrNull { it.exists() }?.absolutePath ?: "makensis"
-        }
-
-        val iconArg = iconPath.orNull?.takeIf { it.isNotBlank() }?.let { "/DICON_FILE=$it" } ?: "/DICON_FILE="
-
-        try {
-            execOperations.exec {
-                executable = makensisExe
-                args(
-                    "/DAPP_NAME=${appName.get()}",
-                    "/DAPP_VERSION=${appVersion.get()}",
-                    "/DVENDOR=${vendor.get()}",
-                    "/DINPUT_DIR=${input.absolutePath}",
-                    "/DOUTPUT_DIR=${out.parentFile.absolutePath}",
-                    iconArg,
-                    script.absolutePath,
-                )
-            }
-        } catch (e: Exception) {
-            throw GradleException(
-                "Failed to run makensis. Install NSIS and ensure makensis is available, or set -Pnsis.makensis=<path-to-makensis.exe>.",
-                e,
-            )
-        }
-
-        if (!out.exists()) {
-            throw GradleException("NSIS installer was not created: ${out.absolutePath}")
-        }
-    }
-}
-
-tasks.register<PackageWindowsNsisTask>("packageWindowsNsis") {
-    dependsOn("createDistributable", copyTrayIcon)
-
-    val appNameValue = project.property("project.name").toString()
-    val versionValue = project.property("project.version").toString()
-
-    appName.set(appNameValue)
-    appVersion.set(versionValue)
-    vendor.set("LanRhyme")
-
-    inputDir.set(layout.buildDirectory.dir("compose/binaries/main/app/$appNameValue"))
-    scriptFile.set(layout.projectDirectory.file("nsis/installer.nsi"))
-    outputFile.set(layout.buildDirectory.file("distributions/$appNameValue-$versionValue-setup-nsis.exe"))
-
-    makensisPath.set(
-        providers.gradleProperty("nsis.makensis")
-            .orElse(providers.environmentVariable("NSIS_MAKENSIS"))
-            .orElse("")
-    )
-
-    iconPath.set(windowsIconIcoFile.absolutePath)
-}
-
-// ==================== 无 JRE 打包任务 ====================
-// 这些任务创建不捆绑 JRE 的发行版，依赖用户系统上已安装的 Java
-
-// 获取运行时配置的 Provider
-val runtimeClasspathProvider = provider {
-    configurations.findByName("jvmRuntimeClasspath")
-        ?: configurations.findByName("runtimeClasspath")
-        ?: throw GradleException("Could not find runtime classpath configuration")
-}
-
-val appNameProvider = provider { project.property("project.name").toString() }
-val appVersionProvider = provider { project.property("project.version").toString() }
-val mainClassProvider = provider { "com.lanrhyme.micyou.MainKt" }
-
-// 复制启动脚本到输出目录 - Windows BAT
-tasks.register<Copy>("copyNoJreBatScript") {
-    group = "compose desktop"
-    description = "Copies Windows BAT launch script for no-JRE distribution"
-
-    val appName = appNameProvider.get()
-    val appVersion = appVersionProvider.get()
-    val mainClass = mainClassProvider.get()
-    val outputDir = layout.buildDirectory.dir("no-jre/binaries/main/app/$appName")
-
-    from(layout.projectDirectory.file("scripts/no-jre/{{APP_NAME}}.bat"))
-    into(outputDir)
-    rename { "${appName}.bat" }
-
-    filter { line ->
-        line.replace("{{APP_NAME}}", appName)
-            .replace("{{APP_VERSION}}", appVersion)
-            .replace("{{MAIN_CLASS}}", mainClass)
-    }
-}
-
-// 复制启动脚本到输出目录 - PowerShell
-tasks.register<Copy>("copyNoJrePs1Script") {
-    group = "compose desktop"
-    description = "Copies PowerShell launch script for no-JRE distribution"
-
-    val appName = appNameProvider.get()
-    val appVersion = appVersionProvider.get()
-    val mainClass = mainClassProvider.get()
-    val outputDir = layout.buildDirectory.dir("no-jre/binaries/main/app/$appName")
-
-    from(layout.projectDirectory.file("scripts/no-jre/{{APP_NAME}}.ps1"))
-    into(outputDir)
-    rename { "${appName}.ps1" }
-
-    filter { line ->
-        line.replace("{{APP_NAME}}", appName)
-            .replace("{{APP_VERSION}}", appVersion)
-            .replace("{{MAIN_CLASS}}", mainClass)
-    }
-}
-
-// 复制启动脚本到输出目录 - Shell
-tasks.register<Copy>("copyNoJreShScript") {
-    group = "compose desktop"
-    description = "Copies Shell launch script for no-JRE distribution"
-
-    val appName = appNameProvider.get()
-    val appVersion = appVersionProvider.get()
-    val mainClass = mainClassProvider.get()
-    val outputDir = layout.buildDirectory.dir("no-jre/binaries/main/app/$appName")
-
-    from(layout.projectDirectory.file("scripts/no-jre/{{APP_NAME}}.sh"))
-    into(outputDir)
-    rename { "${appName}.sh" }
-
-    // 设置文件权限为可执行 (755)
-    filePermissions {
-        user {
-            read = true
-            write = true
-            execute = true
-        }
-        group {
-            read = true
-            execute = true
-        }
-        other {
-            read = true
-            execute = true
-        }
-    }
-
-    filter { line ->
-        line.replace("{{APP_NAME}}", appName)
-            .replace("{{APP_VERSION}}", appVersion)
-            .replace("{{MAIN_CLASS}}", mainClass)
-    }
-}
-
-// 复制应用程序依赖和类文件（不包含 JRE）
-tasks.register<Copy>("copyNoJreAppFiles") {
-    group = "compose desktop"
-    description = "Copies application files for no-JRE distribution"
-
-    val appName = appNameProvider.get()
-    val outputDir = layout.buildDirectory.dir("no-jre/binaries/main/app/$appName")
-    val runtimeClasspath = runtimeClasspathProvider.get()
-
-    // 复制所有依赖 JAR
-    from(runtimeClasspath) {
-        into("lib")
-    }
-
-    // 复制应用程序自己的 JAR
-    from(tasks.named<Jar>("jvmJar").get().archiveFile) {
-        into("lib")
-        rename { "${appName}.jar" }
-    }
-
-    from(layout.projectDirectory.file("resources/common/alsa/micyou-pipewire.conf")) {
-        into("resources/alsa")
-    }
-
-    into(outputDir)
-}
-
-// Windows 无 JRE ZIP 包
-tasks.register<Zip>("packageWindowsNoJreZip") {
-    group = "compose desktop"
-    description = "Creates a Windows distribution without bundled JRE"
-
-    dependsOn("copyNoJreBatScript", "copyNoJrePs1Script", "copyNoJreShScript", "copyNoJreAppFiles", "generateWindowsIconIco")
-
-    val appName = appNameProvider.get()
-    val version = appVersionProvider.get()
-    val appDir = layout.buildDirectory.dir("no-jre/binaries/main/app/$appName")
-
-    from(appDir)
-    into(appName)
-
-    destinationDirectory.set(layout.buildDirectory.dir("distributions/no-jre"))
-    archiveBaseName.set("${appName}-windows-no-jre")
-    archiveVersion.set(version)
-}
-
-// Linux 无 JRE Tar.GZ 包
-tasks.register<Tar>("packageLinuxNoJreTarGz") {
-    group = "compose desktop"
-    description = "Creates a Linux distribution without bundled JRE"
-
-    dependsOn("copyNoJreBatScript", "copyNoJrePs1Script", "copyNoJreShScript", "copyNoJreAppFiles")
-
-    val appName = appNameProvider.get()
-    val version = appVersionProvider.get()
-    val appDir = layout.buildDirectory.dir("no-jre/binaries/main/app/$appName")
-
-    from(appDir)
-    into(appName)
-
-    destinationDirectory.set(layout.buildDirectory.dir("distributions/no-jre"))
-    archiveBaseName.set("${appName}-linux-no-jre")
-    archiveVersion.set(version)
-    archiveExtension.set("tar.gz")
-    compression = Compression.GZIP
-}
-
-// macOS 无 JRE Tar.GZ 包
-tasks.register<Tar>("packageMacosNoJreTarGz") {
-    group = "compose desktop"
-    description = "Creates a macOS distribution without bundled JRE"
-
-    dependsOn("copyNoJreBatScript", "copyNoJrePs1Script", "copyNoJreShScript", "copyNoJreAppFiles")
-
-    val appName = appNameProvider.get()
-    val version = appVersionProvider.get()
-    val appDir = layout.buildDirectory.dir("no-jre/binaries/main/app/$appName")
-
-    from(appDir)
-    into(appName)
-
-    destinationDirectory.set(layout.buildDirectory.dir("distributions/no-jre"))
-    archiveBaseName.set("${appName}-macos-no-jre")
-    archiveVersion.set(version)
-    archiveExtension.set("tar.gz")
-    compression = Compression.GZIP
-}
-
-// 打包所有无 JRE 版本
-tasks.register("packageNoJreAll") {
-    group = "compose desktop"
-    description = "Creates all platform distributions without bundled JRE"
-
-    dependsOn("packageWindowsNoJreZip", "packageLinuxNoJreTarGz", "packageMacosNoJreTarGz")
+    implementation(libs.androidx.lifecycle.viewmodelCompose)
+    implementation(libs.androidx.lifecycle.runtimeCompose)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.ktor.network)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.kotlinx.serialization.protobuf)
+    implementation(libs.kotlinx.datetime)
+    implementation("dev.chrisbanes.haze:haze:1.7.2")
+    implementation(libs.filekit.core)
+    implementation(libs.filekit.dialogs.compose)
+    implementation(libs.materialKolor)
+    implementation(project(":plugin-api"))
+
+    debugImplementation(libs.androidx.compose.ui.tooling)
 }
