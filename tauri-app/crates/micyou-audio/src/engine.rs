@@ -43,6 +43,13 @@ impl RubatoResampler {
             return input.to_vec();
         }
 
+        // Zero out the input buffer to avoid stale data from previous calls
+        for frame in 0..self.chunk_size {
+            for ch in 0..channels {
+                self.input_buffer.write_sample(ch, frame, &0.0);
+            }
+        }
+
         // Fill the pre-allocated input buffer
         for (i, &sample) in input.iter().enumerate() {
             let frame = i / channels;
@@ -180,9 +187,9 @@ impl AudioOutputManager {
             self.resampler = None;
         }
 
-        // Initialize a ring buffer for ~200ms of audio (reduced from 1s for lower latency)
-        let buffer_size = (self.device_sample_rate as usize * self.device_channels) / 5;
-        let ring_buffer = HeapRb::<f32>::new(buffer_size.max(4096));
+        // Initialize a ring buffer for ~400ms of audio
+        let buffer_size = (self.device_sample_rate as usize * self.device_channels * 2) / 5;
+        let ring_buffer = HeapRb::<f32>::new(buffer_size.max(8192));
         let (producer, mut consumer) = ring_buffer.split();
 
         self.producer = Some(producer);
