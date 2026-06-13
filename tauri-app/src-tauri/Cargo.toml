@@ -20,7 +20,7 @@ protoc-bin-vendored = "3.2.0"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
 tauri-plugin-opener = "2"
 tauri-plugin-autostart = "2"
 serde = { version = "1", features = ["derive"] }
@@ -38,7 +38,8 @@ audiopus = "0.2.0"
 ringbuf = "0.3.3"
 tokio-util = "0.7.18"
 nnnoiseless = "0.5.2"
-ort = { version = "2.0.0-rc.12", features = ["download-binaries"] }
+ort = { version = "=2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "api-17", "alternative-backend"] }
+ort-tract = "0.3.0+0.22"
 reqwest = { version = "0.13.4", features = ["json"] }
 md-5 = "0.11.0"
 tauri-plugin-log = "2.8.0"
@@ -59,4 +60,8 @@ winreg = "0.52"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2"
+window-vibrancy = "0.7"
 
