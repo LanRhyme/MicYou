@@ -40,6 +40,16 @@ This project is built using Kotlin Multiplatform.
 ./gradlew :composeApp:packageRpm
 ```
 
+**macOS DMG package:**
+```bash
+./gradlew :composeApp:packageDmg
+```
+
+**No-JRE package:**
+```bash
+./gradlew :composeApp:packageNoJreAll
+```
+
 ## Internationalization (i18n)
 
 MicYou uses Compose Multiplatform Resources for localization. All user-facing strings are stored in `strings.xml` files. We welcome contributions to translate MicYou into your language!
@@ -59,7 +69,7 @@ cd MicYou
 mkdir -p composeApp/src/commonMain/composeResources/values-xx
 cp composeApp/src/commonMain/composeResources/values/strings.xml composeApp/src/commonMain/composeResources/values-xx/strings.xml
 ```
-Replace `xx` with your language code (e.g., `fr` for French, `es` for Spanish).
+Replace `xx` with your language code (e.g., `fr` for French, `es` for Spanish, according to ISO 639-1 or other related standards like IETF BCP 47).
 
 3. Edit the new `strings.xml` file and translate all string values while keeping the keys unchanged:
 ```xml
