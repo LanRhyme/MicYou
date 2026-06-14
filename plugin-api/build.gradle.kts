@@ -1,14 +1,7 @@
 plugins {
-    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.androidLibrary)
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-    }
 }
 
 val pluginApiVersion: String by project
@@ -16,6 +9,7 @@ val pluginApiVersion: String by project
 android {
     namespace = "com.lanrhyme.micyou.plugin.api"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
+    buildToolsVersion = libs.versions.android.buildTools.get()
 
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()

@@ -1,17 +1,18 @@
 [versions]
-agp = "8.11.2"
+agp = "9.0.1"
 android-compileSdk = "36"
+android-buildTools = "36.1.0"
 android-minSdk = "24"
 android-targetSdk = "36"
 androidx-activity = "1.12.2"
 androidx-core = "1.17.0"
 androidx-lifecycle = "2.9.4"
 compose-bom = "2026.05.00"
-kotlin = "2.2.20"
-kotlinx-coroutines = "1.10.2"
-kotlinx-datetime = "0.7.1"
-ktor = "3.4.0"
-kotlinx-serialization = "1.8.1"
+kotlin = "2.4.0"
+kotlinx-coroutines = "1.11.0"
+kotlinx-datetime = "0.8.0"
+ktor = "3.5.0"
+kotlinx-serialization = "1.11.0"
 materialKolor = "5.0.0-alpha07"
 
 [libraries]
@@ -45,5 +46,4 @@ kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotl
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

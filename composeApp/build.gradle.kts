@@ -2,16 +2,9 @@ import java.util.Properties
 import java.io.File
 
 plugins {
-    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-    }
 }
 
 val aifadianApiToken: String = run {
@@ -35,6 +28,7 @@ val aifadianUserId: String = run {
 android {
     namespace = "com.lanrhyme.micyou"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
+    buildToolsVersion = libs.versions.android.buildTools.get()
 
     defaultConfig {
         applicationId = "com.lanrhyme.micyou"
