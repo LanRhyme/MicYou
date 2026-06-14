@@ -8,6 +8,7 @@ permissions:
   actions: write
 
 jobs:
+  # ----------------- Android Release 构建 -----------------
   build-android:
     runs-on: ubuntu-latest
     steps:
@@ -61,7 +62,8 @@ jobs:
         name: MicYou-Android-${{ steps.version.outputs.version }}
         path: ci-artifacts/MicYou-Android-${{ steps.version.outputs.version }}.apk
 
-  build-windows:
+  # ----------------- Tauri Windows 构建 -----------------
+  build-tauri-windows:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
@@ -72,69 +74,83 @@ jobs:
         $line = (Select-String -Path gradle.properties -Pattern '^project\.version=').Line
         $version = $line.Split('=')[1].Trim()
         "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-    - name: set up JDK 21
-      uses: actions/setup-java@v4
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
       with:
-        java-version: '21'
-        distribution: 'liberica'
-        cache: gradle
-    - name: Install NSIS
-      shell: pwsh
-      run: |
-        $retryCount = 0
-        $maxRetries = 3
-        while ($retryCount -lt $maxRetries) {
-          try {
-            choco install nsis -y --no-progress
-            if ($LASTEXITCODE -eq 0) { break }
-          } catch {}
-          $retryCount++
-          if ($retryCount -lt $maxRetries) {
-            Write-Host "Chocolatey install failed, retrying in 30 seconds... ($retryCount/$maxRetries)"
-            Start-Sleep -Seconds 30
-          } else {
-            Write-Host "Chocolatey failed after $maxRetries attempts. Trying winget..."
-            winget install NSIS.NSIS -e --accept-package-agreements --accept-source-agreements
-          }
-        }
-        $nsisPath = "C:\Program Files (x86)\NSIS"
-        if (Test-Path "$nsisPath\makensis.exe") {
-          Write-Host "Adding $nsisPath to PATH"
-          $env:Path += ";$nsisPath"
-          "PATH=$env:Path" | Out-File -FilePath $env:GITHUB_ENV -Append
-        }
-    - name: Build Windows Artifacts
-      shell: pwsh
-      env:
-        AIFADIAN_API_TOKEN: ${{ secrets.AIFADIAN_API_TOKEN }}
-        AIFADIAN_USER_ID: ${{ secrets.AIFADIAN_USER_ID }}
-      run: |
-        if ($env:AIFADIAN_API_TOKEN) {
-          "AIFADIAN_API_TOKEN=$env:AIFADIAN_API_TOKEN" | Out-File -FilePath local.properties -Append -Encoding utf8
-          "AIFADIAN_USER_ID=$env:AIFADIAN_USER_ID" | Out-File -FilePath local.properties -Append -Encoding utf8
-        }
-        ./gradlew :composeApp:packageWindowsZip :composeApp:packageWindowsNsis
-    - name: Prepare Windows Artifacts
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: tauri-app/package-lock.json
+    - name: Setup Rust (stable)
+      uses: dtolnay/rust-toolchain@stable
+    - name: Install Frontend Dependencies
+      run: npm ci
+      working-directory: tauri-app
+    - name: Build Tauri App (Windows)
+      run: npx tauri build --bundles nsis
+      working-directory: tauri-app
+    - name: Prepare Artifact
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path ci-artifacts | Out-Null
         $version = '${{ steps.version.outputs.version }}'
-        $zip = Get-ChildItem -Path composeApp/build/distributions -Filter *.zip | Select-Object -First 1
-        if (-not $zip) { throw "No zip found in composeApp/build/distributions" }
-        Copy-Item $zip.FullName ("ci-artifacts/MicYou-Win-$version.zip") -Force
-        $installer = Get-ChildItem -Path composeApp/build/distributions -Filter *setup-nsis.exe | Select-Object -First 1
-        if (-not $installer) { throw "No NSIS installer found in composeApp/build/distributions" }
-        Copy-Item $installer.FullName ("ci-artifacts/MicYou-Win-$version-installer.exe") -Force
-    - name: Upload Windows Artifacts
+        $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/nsis -Filter *.exe | Select-Object -First 1
+        if (-not $installer) { throw "No NSIS installer found" }
+        Copy-Item $installer.FullName "ci-artifacts/MicYou-Win-$version-installer.exe" -Force
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: MicYou-Win-${{ steps.version.outputs.version }}
-        path: |
-          ci-artifacts/MicYou-Win-${{ steps.version.outputs.version }}.zip
-          ci-artifacts/MicYou-Win-${{ steps.version.outputs.version }}-installer.exe
+        path: ci-artifacts/MicYou-Win-${{ steps.version.outputs.version }}-installer.exe
 
-  # ----------------- Linux DEB/RPM 包构建任务 -----------------
-  build-linux:
+  # ----------------- Tauri macOS 构建 (x64 + arm64) -----------------
+  build-tauri-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-13
+            target: x86_64-apple-darwin
+          - arch: arm64
+            runner: macos-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Read Version
+      id: version
+      run: |
+        VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: tauri-app/package-lock.json
+    - name: Setup Rust (stable)
+      uses: dtolnay/rust-toolchain@stable
+    - name: Setup Rust Target
+      run: rustup target add ${{ matrix.target }}
+    - name: Install Frontend Dependencies
+      run: npm ci
+      working-directory: tauri-app
+    - name: Build Tauri App (macOS)
+      run: npx tauri build --bundles dmg --target ${{ matrix.target }}
+      working-directory: tauri-app
+    - name: Prepare Artifact
+      run: |
+        mkdir -p ci-artifacts
+        DMG=$(ls tauri-app/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg | head -1)
+        cp "$DMG" "ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg"
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: MicYou-macOS-${{ matrix.arch }}-${{ steps.version.outputs.version }}
+        path: ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg
+
+  # ----------------- Tauri Linux 构建 -----------------
+  build-tauri-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -143,255 +159,46 @@ jobs:
       run: |
         VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-    - name: set up JDK 21
-      uses: actions/setup-java@v4
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
       with:
-        java-version: '21'
-        distribution: 'liberica'
-        cache: gradle
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Write Aifadian Config
-      env:
-        AIFADIAN_API_TOKEN: ${{ secrets.AIFADIAN_API_TOKEN }}
-        AIFADIAN_USER_ID: ${{ secrets.AIFADIAN_USER_ID }}
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: tauri-app/package-lock.json
+    - name: Setup Rust (stable)
+      uses: dtolnay/rust-toolchain@stable
+    - name: Install System Dependencies
       run: |
-        if [ -n "$AIFADIAN_API_TOKEN" ]; then
-          echo "AIFADIAN_API_TOKEN=$AIFADIAN_API_TOKEN" >> local.properties
-          echo "AIFADIAN_USER_ID=$AIFADIAN_USER_ID" >> local.properties
-        fi
-    - name: Build Linux DEB and RPM packages
-      run: ./gradlew :composeApp:packageDeb :composeApp:packageRpm
-    - name: Prepare Linux Artifacts
+        sudo apt-get update
+        sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+    - name: Install Frontend Dependencies
+      run: npm ci
+      working-directory: tauri-app
+    - name: Build Tauri App (Linux)
+      run: npx tauri build --bundles deb,rpm,appimage
+      working-directory: tauri-app
+    - name: Prepare Artifacts
       run: |
         mkdir -p ci-artifacts
-        # 查找DEB和RPM文件
-        DEB_FILE=$(ls composeApp/build/compose/binaries/main/deb/*.deb 2>/dev/null | head -n 1)
-        RPM_FILE=$(ls composeApp/build/compose/binaries/main/rpm/*.rpm 2>/dev/null | head -n 1)
-        
-        if [ -f "$DEB_FILE" ]; then
-          cp "$DEB_FILE" "ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.deb"
-        else
-          echo "DEB package not found, check build output."
-          exit 1
-        fi
-        
-        if [ -f "$RPM_FILE" ]; then
-          cp "$RPM_FILE" "ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.rpm"
-        else
-          echo "RPM package not found, check build output."
-          exit 1
-        fi
-    - name: Upload Linux Artifacts
+        VER="${{ steps.version.outputs.version }}"
+        DEB=$(ls tauri-app/src-tauri/target/release/bundle/deb/*.deb | head -1)
+        RPM=$(ls tauri-app/src-tauri/target/release/bundle/rpm/*.rpm | head -1)
+        APPIMAGE=$(ls tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage | head -1)
+        cp "$DEB" "ci-artifacts/MicYou-Linux-$VER.deb"
+        cp "$RPM" "ci-artifacts/MicYou-Linux-$VER.rpm"
+        cp "$APPIMAGE" "ci-artifacts/MicYou-Linux-$VER.AppImage"
+    - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: MicYou-Linux-${{ steps.version.outputs.version }}
         path: |
           ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.deb
           ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.rpm
+          ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.AppImage
 
-  # ----------------- macOS DMG 构建任务 (双架构) -----------------
-  build-macos:
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runner: macos-latest
-          - arch: arm64
-            runner: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Read Version
-      id: version
-      run: |
-        VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'liberica'
-        architecture: ${{ matrix.arch }}
-        cache: gradle
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Write Aifadian Config
-      env:
-        AIFADIAN_API_TOKEN: ${{ secrets.AIFADIAN_API_TOKEN }}
-        AIFADIAN_USER_ID: ${{ secrets.AIFADIAN_USER_ID }}
-      run: |
-        if [ -n "$AIFADIAN_API_TOKEN" ]; then
-          echo "AIFADIAN_API_TOKEN=$AIFADIAN_API_TOKEN" >> local.properties
-          echo "AIFADIAN_USER_ID=$AIFADIAN_USER_ID" >> local.properties
-        fi
-    - name: Build macOS DMG
-      run: ./gradlew :composeApp:packageDmg
-    - name: Prepare macOS Artifacts
-      run: |
-        mkdir -p ci-artifacts
-        DMG_FILE=$(ls composeApp/build/compose/binaries/main/dmg/*.dmg 2>/dev/null | head -n 1)
-        if [ -f "$DMG_FILE" ]; then
-          cp "$DMG_FILE" "ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg"
-        else
-          echo "DMG package not found, check build output."
-          exit 1
-        fi
-    - name: Upload macOS Artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: MicYou-macOS-${{ matrix.arch }}-${{ steps.version.outputs.version }}
-        path: ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg
-
-  # ----------------- Windows 无 JRE 打包任务 -----------------
-  build-windows-no-jre:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Read Version
-      id: version
-      shell: pwsh
-      run: |
-        $line = (Select-String -Path gradle.properties -Pattern '^project\.version=').Line
-        $version = $line.Split('=')[1].Trim()
-        "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-    - name: set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'liberica'
-        cache: gradle
-    - name: Build Windows No-JRE Package
-      shell: pwsh
-      env:
-        AIFADIAN_API_TOKEN: ${{ secrets.AIFADIAN_API_TOKEN }}
-        AIFADIAN_USER_ID: ${{ secrets.AIFADIAN_USER_ID }}
-      run: |
-        if ($env:AIFADIAN_API_TOKEN) {
-          "AIFADIAN_API_TOKEN=$env:AIFADIAN_API_TOKEN" | Out-File -FilePath local.properties -Append -Encoding utf8
-          "AIFADIAN_USER_ID=$env:AIFADIAN_USER_ID" | Out-File -FilePath local.properties -Append -Encoding utf8
-        }
-        ./gradlew :composeApp:packageWindowsNoJreZip
-    - name: Prepare Windows No-JRE Artifact
-      shell: pwsh
-      run: |
-        New-Item -ItemType Directory -Force -Path ci-artifacts | Out-Null
-        $version = '${{ steps.version.outputs.version }}'
-        $zip = Get-ChildItem -Path composeApp/build/distributions/no-jre -Filter *.zip | Select-Object -First 1
-        if (-not $zip) { throw "No zip found in composeApp/build/distributions/no-jre" }
-        Copy-Item $zip.FullName ("ci-artifacts/MicYou-Win-NoJRE-$version.zip") -Force
-    - name: Upload Windows No-JRE Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: MicYou-Win-NoJRE-${{ steps.version.outputs.version }}
-        path: ci-artifacts/MicYou-Win-NoJRE-${{ steps.version.outputs.version }}.zip
-
-  # ----------------- Linux 无 JRE 打包任务 -----------------
-  build-linux-no-jre:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Read Version
-      id: version
-      run: |
-        VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-    - name: set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'liberica'
-        cache: gradle
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Write Aifadian Config
-      env:
-        AIFADIAN_API_TOKEN: ${{ secrets.AIFADIAN_API_TOKEN }}
-        AIFADIAN_USER_ID: ${{ secrets.AIFADIAN_USER_ID }}
-      run: |
-        if [ -n "$AIFADIAN_API_TOKEN" ]; then
-          echo "AIFADIAN_API_TOKEN=$AIFADIAN_API_TOKEN" >> local.properties
-          echo "AIFADIAN_USER_ID=$AIFADIAN_USER_ID" >> local.properties
-        fi
-    - name: Build Linux No-JRE Package
-      run: ./gradlew :composeApp:packageLinuxNoJreTarGz
-    - name: Prepare Linux No-JRE Artifact
-      run: |
-        mkdir -p ci-artifacts
-        # 查找 tar.gz 或 tgz 文件
-        TAR_FILE=$(ls composeApp/build/distributions/no-jre/*.tar.gz composeApp/build/distributions/no-jre/*.tgz 2>/dev/null | head -n 1)
-        if [ -f "$TAR_FILE" ]; then
-          cp "$TAR_FILE" "ci-artifacts/MicYou-Linux-NoJRE-${{ steps.version.outputs.version }}.tar.gz"
-        else
-          echo "TAR.GZ package not found, check build output."
-          ls -la composeApp/build/distributions/no-jre/ 2>/dev/null || echo "Directory not found"
-          exit 1
-        fi
-    - name: Upload Linux No-JRE Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: MicYou-Linux-NoJRE-${{ steps.version.outputs.version }}
-        path: ci-artifacts/MicYou-Linux-NoJRE-${{ steps.version.outputs.version }}.tar.gz
-
-  # ----------------- macOS 无 JRE 打包任务 -----------------
-  build-macos-no-jre:
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runner: macos-latest
-          - arch: arm64
-            runner: macos-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Read Version
-      id: version
-      run: |
-        VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-    - name: set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'liberica'
-        architecture: ${{ matrix.arch }}
-        cache: gradle
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-    - name: Write Aifadian Config
-      env:
-        AIFADIAN_API_TOKEN: ${{ secrets.AIFADIAN_API_TOKEN }}
-        AIFADIAN_USER_ID: ${{ secrets.AIFADIAN_USER_ID }}
-      run: |
-        if [ -n "$AIFADIAN_API_TOKEN" ]; then
-          echo "AIFADIAN_API_TOKEN=$AIFADIAN_API_TOKEN" >> local.properties
-          echo "AIFADIAN_USER_ID=$AIFADIAN_USER_ID" >> local.properties
-        fi
-    - name: Build macOS No-JRE Package
-      run: ./gradlew :composeApp:packageMacosNoJreTarGz
-    - name: Prepare macOS No-JRE Artifact
-      run: |
-        mkdir -p ci-artifacts
-        # 查找 tar.gz 或 tgz 文件
-        TAR_FILE=$(ls composeApp/build/distributions/no-jre/*.tar.gz composeApp/build/distributions/no-jre/*.tgz 2>/dev/null | head -n 1)
-        if [ -f "$TAR_FILE" ]; then
-          cp "$TAR_FILE" "ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz"
-        else
-          echo "TAR.GZ package not found, check build output."
-          ls -la composeApp/build/distributions/no-jre/ 2>/dev/null || echo "Directory not found"
-          exit 1
-        fi
-    - name: Upload macOS No-JRE Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: MicYou-macOS-NoJRE-${{ matrix.arch }}-${{ steps.version.outputs.version }}
-        path: ci-artifacts/MicYou-macOS-NoJRE-${{ steps.version.outputs.version }}-${{ matrix.arch }}.tar.gz
-
+  # ----------------- 发布 Release -----------------
   release:
-    needs: [build-android, build-windows, build-linux, build-macos, build-windows-no-jre, build-linux-no-jre, build-macos-no-jre]
+    needs: [build-android, build-tauri-windows, build-tauri-linux, build-tauri-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -434,7 +241,6 @@ jobs:
 
       - name: Trigger MirrorChyanUploading
         if: ${{ github.repository_owner == 'LanRhyme' }}
-        shell: bash
         run: |
           gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_release.yml -f tag=${{ steps.tag.outputs.tag_name }}
           gh workflow run --repo $GITHUB_REPOSITORY mirrorchyan_release_note.yml -f tag=${{ steps.tag.outputs.tag_name }}

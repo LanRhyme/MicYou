@@ -1,5 +1,4 @@
 rootProject.name = "MicYou"
-enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {
@@ -25,9 +24,6 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
-        maven {
-            url = uri("https://maven.maxhenkel.de/repository/public")
-        }
         maven {
             url = uri("https://jitpack.io")
         }
