@@ -2,11 +2,15 @@ package com.lanrhyme.micyou
 import com.lanrhyme.micyou.R
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.content.pm.PackageManager
 import android.view.WindowManager
 import android.widget.Toast
+import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -78,6 +82,30 @@ class MainActivity : ComponentActivity() {
 
     fun shouldShowPermissionDialog(): Boolean {
         return !hasAllRequiredPermissions(getRequiredPermissions(this))
+    }
+
+    override fun attachBaseContext(newBase: Context) {
+        val savedLanguage = try {
+            val prefs = newBase.getSharedPreferences("android_mic_prefs", Context.MODE_PRIVATE)
+            val raw = prefs.getString("language", null)
+            if (raw != null) {
+                try {
+                    AppLanguage.valueOf(raw).code
+                } catch (_: Exception) {
+                    raw
+                }
+            } else {
+                "system"
+            }
+        } catch (e: Exception) {
+            "system"
+        }
+        val wrappedContext = if (savedLanguage != "system") {
+            wrapContextWithLocale(newBase, savedLanguage)
+        } else {
+            newBase
+        }
+        super.attachBaseContext(wrappedContext)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -218,6 +246,43 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val ACTION_QUICK_START = "com.lanrhyme.micyou.ACTION_QUICK_START"
+
+        fun wrapContextWithLocale(context: Context, languageCode: String): Context {
+            val locale = try {
+                val parts = if (languageCode.contains("-r")) {
+                    languageCode.split("-r", limit = 2)
+                } else if (languageCode.contains("-")) {
+                    languageCode.split("-", limit = 2)
+                } else {
+                    null
+                }
+                if (parts != null && parts.size == 2) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        Locale.Builder().setLanguage(parts[0]).setRegion(parts[1]).build()
+                    } else {
+                        @Suppress("DEPRECATION")
+                        Locale(parts[0], parts[1])
+                    }
+                } else {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        Locale.Builder().setLanguage(languageCode).build()
+                    } else {
+                        @Suppress("DEPRECATION")
+                        Locale(languageCode)
+                    }
+                }
+            } catch (e: Exception) {
+                Locale.getDefault()
+            }
+            val config = Configuration(context.resources.configuration)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+                config.setLocale(locale)
+            } else {
+                @Suppress("DEPRECATION")
+                config.locale = locale
+            }
+            return context.createConfigurationContext(config)
+        }
     }
 }
 

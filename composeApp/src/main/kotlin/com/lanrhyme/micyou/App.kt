@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
@@ -25,7 +24,6 @@ import com.lanrhyme.micyou.theme.ThemeMode
 import com.lanrhyme.micyou.ui.dialog.PermissionDialog
 import com.lanrhyme.micyou.ui.MobileHome
 import com.lanrhyme.micyou.update.UpdateInfo
-import com.lanrhyme.micyou.util.ContextHelper
 import com.lanrhyme.micyou.util.currentTimeSeconds
 import com.lanrhyme.micyou.util.formatBytes
 import com.lanrhyme.micyou.util.setAppLocale
@@ -51,12 +49,17 @@ fun App(
     val uiState by finalViewModel.uiState.collectAsState()
     val languageCode = uiState.language.code
 
-    key(languageCode) {
-        setAppLocale(languageCode)
-        val localeContext = remember(languageCode) { ContextHelper.getContext() }
+    // Track initial language to avoid unnecessary recreate on first composition
+    val initialLanguageCode = remember { languageCode }
+    LaunchedEffect(languageCode) {
+        if (languageCode != initialLanguageCode) {
+            setAppLocale(languageCode)
+            activity?.recreate()
+        }
+    }
 
-        CompositionLocalProvider(LocalContext provides (localeContext ?: LocalContext.current)) {
-            val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
+    key(languageCode) {
+        val seedColorObj = androidx.compose.ui.graphics.Color(uiState.seedColor.toInt())
         val updateInfo = uiState.updateInfo
         val showFirstLaunchDialog = uiState.showFirstLaunchDialog && isPermissionDialogDismissed
 
@@ -276,7 +279,6 @@ fun App(
                 )
             }
         }
-            }
     }
 }
 
