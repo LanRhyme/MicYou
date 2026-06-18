@@ -413,6 +413,10 @@ class AudioStreamViewModel : ViewModel() {
             Logger.d("AudioStreamViewModel", "Calling _audioEngine.start()")
             _audioEngine.start(ip, port, mode, true, sampleRate, channelCount, audioFormat, _uiState.value.transportProtocol)
             Logger.i("AudioStreamViewModel", "Stream started successfully")
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            Logger.i("AudioStreamViewModel", "Stream start cancelled by user")
+            _uiState.update { it.copy(streamState = StreamState.Idle) }
+            return
         } catch (e: Exception) {
             Logger.e("AudioStreamViewModel", "Failed to start stream", e)
 

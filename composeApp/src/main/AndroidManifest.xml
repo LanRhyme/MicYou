@@ -30,7 +30,7 @@
         </activity>
 
         <service
-            android:name=".AudioService"
+            android:name=".service.AudioService"
             android:foregroundServiceType="microphone"
             android:exported="false" />
 

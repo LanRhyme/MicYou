@@ -564,6 +564,7 @@ class AudioEngine constructor() {
                             }
                         }
 } catch (e: kotlinx.coroutines.CancellationException) {
+                        connectionComplete?.completeExceptionally(e)
                         throw e
                     } catch (e: Exception) {
                         if (isActive && !isNormalDisconnect(e)) {
@@ -590,12 +591,16 @@ class AudioEngine constructor() {
                     } finally {
                         Logger.d("AudioEngine", "Cleaning up resources")
                         try {
-                            noiseSuppressor?.release()
-                            automaticGainControl?.release()
+                            // Capture local refs to avoid interfering with a new start
+                            val localNs = noiseSuppressor
+                            val localAgc = automaticGainControl
                             noiseSuppressor = null
                             automaticGainControl = null
+                            localNs?.release()
+                            localAgc?.release()
                             
-                            sendChannel?.close()
+                            channel.close()
+                            sendChannel = null
                             recorder?.stop()
                             recorder?.release()
                             closeConnection()
