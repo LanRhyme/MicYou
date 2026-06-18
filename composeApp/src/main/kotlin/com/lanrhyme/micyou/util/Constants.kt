@@ -22,7 +22,7 @@ object Constants {
 
     // ==================== 端口配置 ====================
     /** 默认 TCP 端口 (Wi-Fi / USB 模式) */
-    const val DEFAULT_TCP_PORT = 6000
+    const val DEFAULT_TCP_PORT = 8554
 
     /** 默认 UDP 端口 (TCP 端口 + UDP_PORT_OFFSET，见 Protocol.kt) */
     const val DEFAULT_UDP_PORT = DEFAULT_TCP_PORT + UDP_PORT_OFFSET

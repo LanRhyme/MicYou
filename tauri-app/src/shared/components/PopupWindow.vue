@@ -22,7 +22,7 @@ const syncTheme = () => {
   mq.addEventListener('change', (e) => html.classList.toggle('dark', e.matches));
 
   const themeColor = localStorage.getItem('micyou_theme_color') || 'theme-blue';
-  const uiStyle = localStorage.getItem('micyou_ui_style') || 'style-glass';
+  const uiStyle = localStorage.getItem('micyou_ui_style') || 'style-default';
 
   // Detect macOS for native vibrancy
   const isMacOS = /Mac/.test(navigator.platform || navigator.userAgent) &&

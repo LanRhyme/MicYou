@@ -74,7 +74,7 @@ data class AudioStreamUiState(
         AudioEffectType.AGC,
         AudioEffectType.VAD
     ),
-    val androidAudioSourceName: String = "Unprocessed",
+    val androidAudioSourceName: String = "Mic",
     val audioConfigRevision: Int = 0,
 
     // Performance Settings
@@ -189,7 +189,7 @@ class AudioStreamViewModel : ViewModel() {
         }
     }
 
-    val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Unprocessed")
+    val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Mic")
     val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
     val savedPerformanceMode = settings.getString("performance_mode", "Default")
     val savedBufferSizeMultiplier = settings.getFloat("buffer_size_multiplier", 1.0f)

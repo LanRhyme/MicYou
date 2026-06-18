@@ -115,7 +115,7 @@ data class AppUiState(
         AudioEffectType.AGC,
         AudioEffectType.VAD
     ),
-    val androidAudioSourceName: String = "Unprocessed",
+    val androidAudioSourceName: String = "Mic",
     val audioConfigRevision: Int = 0,
     
     // Settings State

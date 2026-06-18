@@ -635,7 +635,7 @@ const colorMode = useColorMode({
 });
 
 const themeColor = useStorage('micyou_theme_color', 'theme-blue');
-const uiStyle = useStorage('micyou_ui_style', 'style-glass');
+const uiStyle = useStorage('micyou_ui_style', 'style-default');
 
 const customH = useStorage('micyou_custom_h', 215);
 const customS = useStorage('micyou_custom_s', 35);
@@ -690,7 +690,7 @@ const settings = reactive({
   gain: 0,
   nsEnabled: false,
   nsType: 'RNNoise',
-  nsIntensity: 50,
+  nsIntensity: 100,
   dereverbEnabled: false,
   dereverbLevel: 50,
   agcEnabled: false,
