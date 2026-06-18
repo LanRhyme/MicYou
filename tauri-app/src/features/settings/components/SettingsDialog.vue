@@ -25,7 +25,7 @@
       </div>
 
       <!-- Right Content -->
-      <div class="flex-1 bg-surface-container-lowest/50 p-8 overflow-y-auto">
+      <div ref="contentRef" class="flex-1 bg-surface-container-lowest/50 p-8 overflow-y-auto overscroll-contain">
         <div class="max-w-2xl mx-auto space-y-8">
           <h3 class="text-3xl font-bold text-primary mb-6">{{ currentSectionName }}</h3>
 
@@ -667,8 +667,13 @@ const sections = computed(() => [
   { id: 'about', name: t('settings.categories.about'), icon: Info },
 ]);
 
+const contentRef = ref<HTMLElement | null>(null);
 const currentSection = ref('general');
 const currentSectionName = computed(() => sections.value.find(s => s.id === currentSection.value)?.name);
+
+watch(currentSection, () => {
+  contentRef.value?.scrollTo({ top: 0 });
+});
 
 let stored = localStorage.getItem('micyou_language') || 'system';
 if (stored === 'English') stored = 'en';

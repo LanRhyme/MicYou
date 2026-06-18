@@ -200,7 +200,7 @@ onUnmounted(() => {
 
 <template>
   <OnboardingWizard :visible="showOnboarding" @complete="showOnboarding = false" />
-  <div class="relative w-full h-screen overflow-hidden text-foreground bg-transparent">
+  <div class="relative w-full h-screen overflow-hidden overscroll-none text-foreground bg-transparent">
     <CustomBackground />
 
     <!-- Pocket Mode -->
