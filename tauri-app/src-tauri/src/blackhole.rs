@@ -106,6 +106,11 @@ pub async fn is_switch_audio_source_installed() -> bool {
     false
 }
 
+#[cfg(not(target_os = "macos"))]
+async fn get_current_input_device() -> Option<AudioDevice> {
+    None
+}
+
 /// Get the current default input device via SwitchAudioSource
 #[cfg(target_os = "macos")]
 async fn get_current_input_device() -> Option<AudioDevice> {
@@ -124,6 +129,11 @@ async fn get_current_input_device() -> Option<AudioDevice> {
     parse_device_json(&json_str)
 }
 
+#[cfg(not(target_os = "macos"))]
+async fn set_default_input_device(_device_id: &str) -> bool {
+    false
+}
+
 /// Set the default input device via SwitchAudioSource
 #[cfg(target_os = "macos")]
 async fn set_default_input_device(device_id: &str) -> bool {
@@ -134,6 +144,11 @@ async fn set_default_input_device(device_id: &str) -> bool {
         .await
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+#[cfg(not(target_os = "macos"))]
+async fn find_blackhole_input_device() -> Option<AudioDevice> {
+    None
 }
 
 /// Find BlackHole device in the input device list
