@@ -72,21 +72,21 @@ jobs:
       run: npm ci
       working-directory: tauri-app
     - name: Build Tauri App (Windows)
-      run: npx tauri build --bundles nsis
+      run: npx tauri build --bundles msi
       working-directory: tauri-app
     - name: Prepare Artifact
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path ci-artifacts | Out-Null
         $version = '${{ steps.version.outputs.version }}'
-        $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/nsis -Filter *.exe | Select-Object -First 1
-        if (-not $installer) { throw "No NSIS installer found" }
-        Copy-Item $installer.FullName "ci-artifacts/MicYou-Win-$version-installer.exe" -Force
+        $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/msi -Filter *.msi | Select-Object -First 1
+        if (-not $installer) { throw "No MSI installer found" }
+        Copy-Item $installer.FullName "ci-artifacts/MicYou-Win-$version-installer.msi" -Force
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: MicYou-Win-${{ steps.version.outputs.version }}
-        path: ci-artifacts/MicYou-Win-${{ steps.version.outputs.version }}-installer.exe
+        path: ci-artifacts/MicYou-Win-${{ steps.version.outputs.version }}-installer.msi
 
   # ----------------- Tauri macOS 构建 (x64 + arm64) -----------------
   build-tauri-macos:
