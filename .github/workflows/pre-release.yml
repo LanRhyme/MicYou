@@ -100,7 +100,7 @@ jobs:
       run: |
         New-Item -ItemType Directory -Force -Path ci-artifacts | Out-Null
         $version = '${{ steps.version.outputs.version }}'
-        $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/msi -Filter *.msi | Select-Object -First 1
+        $installer = Get-ChildItem -Path tauri-app/target/release/bundle/msi -Filter *.msi | Select-Object -First 1
         if (-not $installer) { throw "No MSI installer found" }
         Copy-Item $installer.FullName "ci-artifacts/MicYou-Win-$version-installer.msi" -Force
     - name: Upload Artifact
@@ -148,7 +148,7 @@ jobs:
     - name: Prepare Artifact
       run: |
         mkdir -p ci-artifacts
-        DMG=$(ls tauri-app/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg | head -1)
+        DMG=$(ls tauri-app/target/${{ matrix.target }}/release/bundle/dmg/*.dmg | head -1)
         cp "$DMG" "ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg"
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -177,7 +177,7 @@ jobs:
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+        sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev
     - name: Install Frontend Dependencies
       run: npm ci
       working-directory: tauri-app
@@ -188,9 +188,9 @@ jobs:
       run: |
         mkdir -p ci-artifacts
         VER="${{ steps.version.outputs.version }}"
-        DEB=$(ls tauri-app/src-tauri/target/release/bundle/deb/*.deb | head -1)
-        RPM=$(ls tauri-app/src-tauri/target/release/bundle/rpm/*.rpm | head -1)
-        APPIMAGE=$(ls tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage | head -1)
+        DEB=$(ls tauri-app/target/release/bundle/deb/*.deb | head -1)
+        RPM=$(ls tauri-app/target/release/bundle/rpm/*.rpm | head -1)
+        APPIMAGE=$(ls tauri-app/target/release/bundle/appimage/*.AppImage | head -1)
         cp "$DEB" "ci-artifacts/MicYou-Linux-$VER.deb"
         cp "$RPM" "ci-artifacts/MicYou-Linux-$VER.rpm"
         cp "$APPIMAGE" "ci-artifacts/MicYou-Linux-$VER.AppImage"
