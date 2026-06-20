@@ -64,7 +64,7 @@ rustls-pemfile = { version = "2", optional = true }
 tauri-build = { version = "2", features = [] }
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winsock2"] }
+winapi = { version = "0.3", features = ["winsock2", "winuser"] }
 winreg = "0.52"
 
 [target.'cfg(unix)'.dependencies]

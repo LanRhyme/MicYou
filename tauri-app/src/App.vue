@@ -2,6 +2,7 @@
 import { ref, onUnmounted, computed, watchEffect } from 'vue';
 import { useStorage } from '@vueuse/core';
 import { LogicalSize } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 import { useI18n } from 'vue-i18n';
 
 // Icons
@@ -45,6 +46,24 @@ const audio = useAudio();
 const server = useServer({ audioLevel: audio.audioLevel, isMuted: audio.isMuted });
 useTheme();
 const win = useWindow();
+
+// Window drag handling: use Rust-side Win32 drag loop on Windows, fallback on other platforms
+const startDrag = async (e: MouseEvent) => {
+  if (e.button !== 0) return;
+  // Ignore clicks on interactive elements so buttons/inputs work normally
+  const target = e.target as HTMLElement;
+  if (target.closest('button, a, input, select, textarea, [role="button"]')) return;
+  try {
+    await invoke('start_window_drag');
+  } catch {
+    // Non-Windows fallback to Tauri's native startDragging
+    try {
+      await win.appWindow.startDragging();
+    } catch (err) {
+      console.error('Drag failed:', err);
+    }
+  }
+};
 
 // Animation refs
 const centralBtnRef = ref<HTMLButtonElement | null>(null);
@@ -204,7 +223,7 @@ onUnmounted(() => {
     <CustomBackground />
 
     <!-- Pocket Mode -->
-    <div v-if="pocketMode" class="absolute inset-0 flex items-center p-1.5" data-tauri-drag-region>
+    <div v-if="pocketMode" class="absolute inset-0 flex items-center p-1.5 cursor-grab active:cursor-grabbing" @mousedown="startDrag">
       <div
         v-if="pocketPopupOpen"
         class="absolute inset-0 z-10"
@@ -241,8 +260,8 @@ onUnmounted(() => {
     <!-- Full Mode -->
     <div v-else class="absolute inset-0 flex flex-col p-3 gap-3">
       <!-- Header Section -->
-      <div data-tauri-drag-region class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0 cursor-grab active:cursor-grabbing">
-        <div data-tauri-drag-region class="flex items-center gap-3">
+      <div class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0 cursor-grab active:cursor-grabbing" @mousedown="startDrag">
+        <div class="flex items-center gap-3">
           <!-- Window Controls (macOS: left) -->
           <div v-if="isMacOS" class="flex items-center gap-1 mr-1">
             <button @click="win.minimizeWindow()" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
@@ -253,7 +272,7 @@ onUnmounted(() => {
             </button>
           </div>
           <div class="w-8 h-8 text-primary pointer-events-none [&>svg]:w-full [&>svg]:h-full" v-html="appIconSvg"></div>
-          <div class="flex flex-col">
+          <div class="flex flex-col pointer-events-none select-none">
             <span class="text-sm font-extrabold text-primary">MicYou Desktop</span>
             <span class="text-[11px] text-on-surface-variant font-medium">Server</span>
           </div>
@@ -264,6 +283,7 @@ onUnmounted(() => {
           <div class="relative">
             <div
               class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-colors px-3 py-1.5 rounded-lg cursor-pointer border border-white/5"
+              role="button"
               @click="server.showIpMenu.value = !server.showIpMenu.value"
             >
               <Globe class="w-3.5 h-3.5 text-primary mr-2 pointer-events-none" />
@@ -451,7 +471,7 @@ onUnmounted(() => {
             :class="audio.isMuted.value ? 'bg-error/20 text-error' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'"
             :title="audio.isMuted.value ? $t('app.status.unmute') : $t('app.status.mute')"
           >
-            <VolumeX v-if="!audio.isMuted.value" class="w-4 h-4" />
+            <VolumeX v-if="audio.isMuted.value" class="w-4 h-4" />
             <Volume2 v-else class="w-4 h-4" />
           </button>
 

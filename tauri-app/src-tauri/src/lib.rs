@@ -14,6 +14,7 @@ pub mod blackhole;
 pub mod jitter_buffer;
 
 use tauri::{Emitter, AppHandle, Manager, State};
+use tauri::window::Effect;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use std::sync::RwLock;
@@ -488,6 +489,114 @@ fn main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<tauri::WebviewWi
         .ok_or_else(|| "main window not found".to_string())
 }
 
+#[tauri::command]
+fn set_window_effects(app: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri::window::EffectsBuilder;
+
+    let window = app.get_webview_window("main")
+        .ok_or_else(|| "Main window not found".to_string())?;
+
+    if enabled {
+        window.set_effects(
+            EffectsBuilder::new()
+                .effect(Effect::Acrylic)
+                .build()
+        ).map_err(|e| e.to_string())?;
+    } else {
+        window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+/// Windows-specific: custom window drag using raw Win32 API.
+/// Avoids DWM composition lag caused by transparent+acrylic windows.
+#[cfg(windows)]
+#[tauri::command]
+async fn start_window_drag(app: AppHandle) -> Result<(), String> {
+    use winapi::um::winuser::{
+        GetCursorPos, GetAsyncKeyState, SetWindowPos, FindWindowA,
+        VK_LBUTTON, SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE,
+    };
+    use std::ffi::CString;
+
+    // 1. Capture starting position
+    let mut cursor_pos: winapi::shared::windef::POINT = unsafe { std::mem::zeroed() };
+    if unsafe { GetCursorPos(&mut cursor_pos as *mut _) } == 0 {
+        return Err("GetCursorPos failed".to_string());
+    }
+    let start_cursor = (cursor_pos.x, cursor_pos.y);
+
+    // 2. Get window position
+    let window = app.get_webview_window("main")
+        .ok_or_else(|| "Main window not found".to_string())?;
+    let pos = window.outer_position().map_err(|e| e.to_string())?;
+    let start_win = (pos.x, pos.y);
+
+    // 3. Disable acrylic for smooth drag
+    let _ = window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>);
+    drop(window); // release the window handle
+
+    // 4. Find HWND by window title
+    let title = CString::new("MicYou").map_err(|e| e.to_string())?;
+    let hwnd = unsafe { FindWindowA(std::ptr::null(), title.as_ptr()) };
+    if hwnd.is_null() {
+        if let Some(win) = app.get_webview_window("main") {
+            let _ = restore_acrylic(&win);
+        }
+        return Err("FindWindowA failed".to_string());
+    }
+
+    // 5. Drag loop in background thread (no IPC per frame)
+    let app_clone = app.clone();
+    let flags = SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE;
+    let hwnd_raw = hwnd as isize; // pass as isize to satisfy Send
+
+    std::thread::spawn(move || {
+        loop {
+            unsafe {
+                if GetAsyncKeyState(VK_LBUTTON) as i16 >= 0 {
+                    break; // mouse button released
+                }
+
+                let mut cur: winapi::shared::windef::POINT = std::mem::zeroed();
+                if GetCursorPos(&mut cur as *mut _) == 0 {
+                    break;
+                }
+
+                let dx = cur.x - start_cursor.0;
+                let dy = cur.y - start_cursor.1;
+
+                SetWindowPos(
+                    hwnd_raw as *mut _,
+                    std::ptr::null_mut(),
+                    start_win.0 + dx as i32,
+                    start_win.1 + dy as i32,
+                    0, 0,
+                    flags,
+                );
+            }
+            std::thread::sleep(std::time::Duration::from_millis(8));
+        }
+
+        // Re-enable acrylic
+        if let Some(win) = app_clone.get_webview_window("main") {
+            let _ = restore_acrylic(&win);
+        }
+    });
+
+    Ok(())
+}
+
+fn restore_acrylic(window: &tauri::WebviewWindow) -> Result<(), String> {
+    use tauri::window::EffectsBuilder;
+    window.set_effects(
+        EffectsBuilder::new()
+            .effect(Effect::Acrylic)
+            .build()
+    ).map_err(|e| e.to_string())
+}
+
 #[derive(serde::Serialize)]
 struct WebStatus {
     running: bool,
@@ -639,6 +748,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            set_window_effects,
+            start_window_drag,
             greet,
             enable_usb_mode,
             list_adb_devices,

@@ -86,6 +86,10 @@ let unlisteners: (() => void)[] = [];
 
 onMounted(async () => {
   syncTheme();
+  // Remove default focus outline on the popup window
+  const style = document.createElement('style');
+  style.textContent = 'html, body, *:focus { outline: none !important; }';
+  document.head.appendChild(style);
   // Prepare handler: set guard + reset state BEFORE show() — must be registered first
   unlisteners.push(await popupWindow.listen('popup-prepare', () => {
     isShowing = true;
@@ -112,16 +116,17 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="w-full h-full">
+  <div class="w-full h-full" style="background: hsl(var(--surface)); outline: none">
     <div
-      class="haze-surface rounded-2xl shadow-xl border border-outline/10 overflow-hidden"
+      class="haze-surface rounded-2xl shadow-xl border border-outline/10 overflow-hidden h-full"
+      style="background: hsl(var(--surface)); backdrop-filter: none !important; -webkit-backdrop-filter: none !important"
       :class="[noTransition ? '' : 'transition-all duration-200 ease-out', {
         'opacity-0 -translate-y-1.5 scale-95': animState === 'hidden' || animState === 'entering',
         'opacity-100 translate-y-0 scale-100': animState === 'visible',
         'opacity-0 -translate-y-1 scale-95': animState === 'leaving',
       }]"
     >
-      <div ref="contentRef" class="max-h-60 overflow-y-auto py-1">
+      <div ref="contentRef" class="max-h-60 overflow-y-auto pt-1">
         <button
           class="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface-variant/50 transition-colors text-left"
           @click="selectIp('', true)"

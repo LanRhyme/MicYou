@@ -119,10 +119,10 @@ const syncAndShow = async (id: string, url: string, syncFn: () => void, opts?: {
       width: OVERLAY_W,
       height: opts?.height ?? 250,
       x, y,
+      parent: 'main',
       decorations: false,
       transparent: true,
       resizable: false,
-      alwaysOnTop: true,
       skipTaskbar: true,
       visible: false,
       focus: false,
@@ -163,6 +163,20 @@ const closePopup = async () => {
   moreMenuOpen.value = false;
 };
 
+// Immediately hide all overlays (no animation) — used when switching between popups
+const hideAllOverlays = async () => {
+  for (const id of Object.keys(overlays)) {
+    const h = overlays[id];
+    if (h.window) {
+      try {
+        await h.window.emit('popup-closing');
+        await h.window.hide();
+      } catch {}
+    }
+  }
+  moreMenuOpen.value = false;
+};
+
 const destroyAllOverlays = () => {
   for (const id of Object.keys(overlays)) {
     const h = overlays[id];
@@ -178,7 +192,8 @@ const destroyAllOverlays = () => {
 
 // ---- IP popup ----
 
-const showIpPopup = () => {
+const showIpPopup = async () => {
+  await hideAllOverlays();
   syncAndShow('ip', '#/popup/ip', () => {
     localStorage.setItem('popup_ip', props.isAutoBind ? '0.0.0.0' : props.selectedIp);
     localStorage.setItem('popup_isAutoBind', String(props.isAutoBind));
@@ -203,7 +218,8 @@ const showIpPopup = () => {
 
 // ---- More menu popup ----
 
-const showMoreMenu = () => {
+const showMoreMenu = async () => {
+  await hideAllOverlays();
   moreMenuOpen.value = true;
   syncAndShow('more', '#/popup/more-menu', () => {
     localStorage.setItem('popup_connectionMode', props.connectionMode);
@@ -229,7 +245,7 @@ defineExpose({ closePopup });
 </script>
 
 <template>
-  <div class="w-full h-full flex items-center haze-surface rounded-2xl px-3 gap-2" data-tauri-drag-region>
+  <div class="w-full h-full flex items-center haze-surface rounded-2xl px-3 gap-2">
     <!-- Window Controls (macOS: left) -->
     <template v-if="isMacOS">
       <button @click="appWindow.minimize()" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors flex-shrink-0">
@@ -274,8 +290,8 @@ defineExpose({ closePopup });
       @click="emit('toggleMute')"
       class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-variant/40 transition-colors flex-shrink-0"
     >
-      <VolumeX v-if="!isMuted" class="w-4 h-4 text-on-surface-variant" />
-      <Volume2 v-else class="w-4 h-4 text-error" />
+      <VolumeX v-if="isMuted" class="w-4 h-4" />
+      <Volume2 v-else class="w-4 h-4 text-on-surface-variant" />
     </button>
 
     <!-- Separator -->
