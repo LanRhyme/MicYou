@@ -10,7 +10,6 @@ use crate::audio::process::dereverb::DereverbEffect;
 
 #[cfg(feature = "dsp")]
 use crate::audio::process::noise::rnnoise::RnnoiseDenoiser;
-#[cfg(feature = "noise-suppression")]
 use crate::audio::process::noise::ulunas::UlunasProcessor;
 #[cfg(feature = "dsp")]
 use crate::audio::process::noise::speex::SpeexDenoiser;
@@ -23,15 +22,10 @@ pub struct DspProcessor {
     settings: Arc<RwLock<AudioDspSettings>>,
     #[cfg(feature = "dsp")]
     rnnoise: RnnoiseDenoiser,
-    #[cfg(feature = "noise-suppression")]
     ulunas_left: Option<UlunasProcessor>,
-    #[cfg(feature = "noise-suppression")]
     ulunas_right: Option<UlunasProcessor>,
-    #[cfg(feature = "noise-suppression")]
     ulunas_buffer_left: Vec<f32>,
-    #[cfg(feature = "noise-suppression")]
     ulunas_buffer_right: Vec<f32>,
-    #[cfg(feature = "noise-suppression")]
     ulunas_model_path: Option<PathBuf>,
     #[cfg(feature = "dsp")]
     speex: SpeexDenoiser,
@@ -52,17 +46,12 @@ impl DspProcessor {
     pub fn new(settings: Arc<RwLock<AudioDspSettings>>, _model_dir: Option<PathBuf>) -> Self {
         Self {
             settings: settings.clone(),
-            #[cfg(feature = "noise-suppression")]
             ulunas_model_path: _model_dir.map(|d| d.join("ulunas.onnx")),
             #[cfg(feature = "dsp")]
             rnnoise: RnnoiseDenoiser::new(),
-            #[cfg(feature = "noise-suppression")]
             ulunas_left: None,
-            #[cfg(feature = "noise-suppression")]
             ulunas_right: None,
-            #[cfg(feature = "noise-suppression")]
             ulunas_buffer_left: Vec::with_capacity(RNNOISE_FRAME_SIZE * 2),
-            #[cfg(feature = "noise-suppression")]
             ulunas_buffer_right: Vec::with_capacity(RNNOISE_FRAME_SIZE * 2),
             #[cfg(feature = "dsp")]
             speex: SpeexDenoiser::new(),
@@ -171,7 +160,6 @@ impl DspProcessor {
         match settings.ns_type.as_str() {
             #[cfg(feature = "dsp")]
             "RNNoise" => self.rnnoise.process(data, channels, settings.ns_intensity),
-            #[cfg(feature = "noise-suppression")]
             "Ulunas" => {
                 let intensity = settings.ns_intensity;
                 // Lazy init
@@ -224,7 +212,6 @@ impl DspProcessor {
         }
     }
 
-    #[cfg(feature = "noise-suppression")]
     fn process_ulunas_single(
         data: &mut Vec<f32>,
         buffer: &mut Vec<f32>,

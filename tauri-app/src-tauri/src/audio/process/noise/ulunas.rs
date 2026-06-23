@@ -1,6 +1,5 @@
 /// Port of UlunasProcessor.kt - ONNX Runtime AI denoiser.
 /// Uses a 960-sample STFT frame with 480-sample hop, running ONNX inference per frame.
-#[cfg(feature = "noise-suppression")]
 pub struct UlunasProcessor {
     session: ort::session::Session,
     frame_size: usize,   // 960
@@ -13,7 +12,6 @@ pub struct UlunasProcessor {
     state_shapes: Vec<Vec<usize>>,
 }
 
-#[cfg(feature = "noise-suppression")]
 impl UlunasProcessor {
     pub fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let frame_size = 960;

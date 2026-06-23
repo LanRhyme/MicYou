@@ -8,6 +8,5 @@ pub use process::dsp::{DspProcessor, compute_rms};
 pub use process::settings::{AudioDspSettings, EqualizerConfig};
 
 pub fn init_onnx_runtime() {
-    #[cfg(feature = "noise-suppression")]
     ort::set_api(ort_tract::api());
 }

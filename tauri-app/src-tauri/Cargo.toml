@@ -15,7 +15,7 @@ vbcable = ["dep:zip"]
 adb = []
 web-server = ["dep:axum", "dep:rcgen", "dep:rustls", "dep:tokio-rustls", "dep:rustls-pemfile"]
 dsp = ["dep:nnnoiseless", "dep:ort", "dep:ort-tract", "dep:rustfft", "dep:ndarray", "dep:num-complex"]
-noise-suppression = ["dsp", "dep:ort", "dep:ort-tract"]
+noise-suppression = ["dsp"]
 
 [dependencies]
 # Tauri
