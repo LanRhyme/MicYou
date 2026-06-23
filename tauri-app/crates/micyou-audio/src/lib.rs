@@ -1,6 +1,8 @@
 pub mod engine;
 #[cfg(feature = "dsp")]
 pub mod dsp;
+#[cfg(feature = "dsp")]
+pub mod aec;
 
 pub use engine::{AudioOutputManager, RubatoResampler};
 #[cfg(feature = "dsp")]

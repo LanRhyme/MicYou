@@ -6,7 +6,7 @@ edition.workspace = true
 
 [features]
 default = ["dsp"]
-dsp = ["dep:nnnoiseless", "dep:ort", "dep:ort-tract", "dep:rustfft"]
+dsp = ["dep:nnnoiseless", "dep:ort", "dep:ort-tract", "dep:rustfft", "dep:ndarray", "dep:num-complex"]
 noise-suppression = ["dsp", "dep:ort", "dep:ort-tract"]
 
 [dependencies]
@@ -22,3 +22,5 @@ nnnoiseless = { version = "0.5.2", optional = true }
 ort = { version = "=2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "api-17", "alternative-backend"], optional = true }
 ort-tract = { version = "0.3.0", optional = true }
 rustfft = { version = "6.4.1", optional = true }
+ndarray = { version = "0.16", optional = true }
+num-complex = { version = "0.4", optional = true }
