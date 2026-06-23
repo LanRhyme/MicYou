@@ -1,12 +1,11 @@
 pub mod engine;
-#[cfg(feature = "dsp")]
-pub mod dsp;
-#[cfg(feature = "dsp")]
-pub mod aec;
+pub mod process;
+pub mod jitter_buffer;
+pub mod pipeline;
 
 pub use engine::{AudioOutputManager, RubatoResampler};
-#[cfg(feature = "dsp")]
-pub use dsp::{AudioDspSettings, DspProcessor, EqualizerConfig};
+pub use process::dsp::{DspProcessor, compute_rms};
+pub use process::settings::{AudioDspSettings, EqualizerConfig};
 
 pub fn init_onnx_runtime() {
     #[cfg(feature = "noise-suppression")]

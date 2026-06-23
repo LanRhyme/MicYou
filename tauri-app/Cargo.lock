@@ -3347,12 +3347,20 @@ dependencies = [
  "log",
  "md-5",
  "mdns-sd",
- "micyou-audio",
- "micyou-protocol",
+ "ndarray 0.16.1",
+ "nnnoiseless",
+ "num-complex",
  "objc",
+ "ort",
+ "ort-tract",
  "prost 0.14.4",
+ "prost-build",
+ "protoc-bin-vendored",
  "rcgen",
  "reqwest",
+ "ringbuf",
+ "rubato",
+ "rustfft",
  "rustls",
  "rustls-pemfile",
  "serde",
@@ -3372,35 +3380,6 @@ dependencies = [
  "window-vibrancy 0.7.1",
  "winreg 0.52.0",
  "zip",
-]
-
-[[package]]
-name = "micyou-audio"
-version = "2.0.0"
-dependencies = [
- "cpal",
- "log",
- "micyou-protocol",
- "ndarray 0.16.1",
- "nnnoiseless",
- "num-complex",
- "ort",
- "ort-tract",
- "ringbuf",
- "rubato",
- "rustfft",
- "serde",
-]
-
-[[package]]
-name = "micyou-protocol"
-version = "2.0.0"
-dependencies = [
- "bytes",
- "prost 0.14.4",
- "prost-build",
- "protoc-bin-vendored",
- "serde",
 ]
 
 [[package]]

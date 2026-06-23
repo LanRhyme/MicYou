@@ -5,11 +5,10 @@ use prost::Message;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 use serde::Serialize;
-use micyou_protocol::{PACKET_MAGIC, HANDSHAKE_CLIENT_STR, HANDSHAKE_SERVER_STR};
-use micyou_protocol::micyou::{MessageWrapper, AudioPacketMessageOrdered};
+use crate::protocol::{PACKET_MAGIC, HANDSHAKE_CLIENT_STR, HANDSHAKE_SERVER_STR};
+use crate::protocol::micyou::{MessageWrapper, AudioPacketMessageOrdered};
 use tokio_util::sync::CancellationToken;
 
 #[cfg(windows)]
@@ -24,7 +23,7 @@ pub struct DeviceInfo {
     pub latency: u32,
 }
 
-pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: String, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>, active_socket_handle: Arc<Mutex<Option<RawSocketHandle>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: String, cancel_token: CancellationToken, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<tokio::sync::Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>, active_socket_handle: Arc<tokio::sync::Mutex<Option<RawSocketHandle>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
     let listener = TcpListener::bind(format!("{}:{}", bind_address, port)).await?;
     println!("TCP Control Server listening on {}:{}", bind_address, port);
 
@@ -81,7 +80,7 @@ pub fn force_close_socket(raw: RawSocketHandle) {
     }
 }
 
-async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppHandle, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>, active_socket_handle: Arc<Mutex<Option<RawSocketHandle>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppHandle, audio_tx: tokio::sync::mpsc::Sender<AudioPacketMessageOrdered>, stats: std::sync::Arc<crate::stats::NetworkStats>, mode: String, connection_tx: Arc<tokio::sync::Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>, active_socket_handle: Arc<tokio::sync::Mutex<Option<RawSocketHandle>>>) -> Result<(), Box<dyn Error + Send + Sync>> {
     // 1. Handshake
     let mut handshake_buf = vec![0u8; HANDSHAKE_CLIENT_STR.len()];
     socket.read_exact(&mut handshake_buf).await?;
@@ -164,7 +163,7 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
                 connect: None,
                 mute: None,
                 plugin_sync: None,
-                ping: Some(micyou_protocol::micyou::PingMessage {
+                ping: Some(crate::protocol::micyou::PingMessage {
                     timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64,
                 }),
                 pong: None,
@@ -269,7 +268,7 @@ async fn handle_message(msg: MessageWrapper, tx: &tokio::sync::mpsc::Sender<Mess
             mute: None,
             plugin_sync: None,
             ping: None,
-            pong: Some(micyou_protocol::micyou::PongMessage {
+            pong: Some(crate::protocol::micyou::PongMessage {
                 timestamp: ping.timestamp,
             }),
         };

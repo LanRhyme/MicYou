@@ -1,7 +1,7 @@
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use std::collections::HashMap;
 use log;
-use micyou_protocol::MDNS_SERVICE_TYPE;
+use crate::protocol::MDNS_SERVICE_TYPE;
 
 pub struct NetworkManager {
     mdns: ServiceDaemon,
@@ -20,12 +20,12 @@ impl NetworkManager {
         } else {
             bind_address.to_string()
         };
-        
+
         let service_fullname = format!("{}.{}", instance_name, MDNS_SERVICE_TYPE);
-        
+
         // Hostname must be a valid DNS name, e.g. "mycomputer.local."
         let valid_host_name = format!("{}.local.", host_name.replace(" ", "-"));
-        
+
         // Setup mDNS service info
         let properties: HashMap<String, String> = HashMap::new();
         let service_info = ServiceInfo::new(
@@ -34,13 +34,13 @@ impl NetworkManager {
             &valid_host_name,
             &local_ip.to_string(),
             port,
-            Some(properties)
+            Some(properties),
         )?;
-        
+
         // Register the service
         mdns.register(service_info)?;
         println!("mDNS Service registered: {}", service_fullname);
-        
+
         Ok(Self {
             mdns,
             service_fullname,
@@ -61,11 +61,11 @@ impl NetworkManager {
         } else {
             bind_address.to_string()
         };
-        let service_fullname = format!("{}.{}", instance_name, micyou_protocol::MDNS_WEB_SERVICE_TYPE);
+        let service_fullname = format!("{}.{}", instance_name, crate::protocol::MDNS_WEB_SERVICE_TYPE);
         let valid_host_name = format!("{}.local.", host_name.replace(" ", "-"));
         let properties: HashMap<String, String> = HashMap::new();
         let service_info = ServiceInfo::new(
-            micyou_protocol::MDNS_WEB_SERVICE_TYPE,
+            crate::protocol::MDNS_WEB_SERVICE_TYPE,
             &instance_name,
             &valid_host_name,
             &local_ip.to_string(),
@@ -87,12 +87,12 @@ impl NetworkManager {
                 if ip.is_loopback() || !ip.is_ipv4() { continue; }
                 let ip_str = ip.to_string();
                 let name_lower = name.to_lowercase();
-                
+
                 // Filter out common TUN/VPN and virtual interfaces
                 if ip_str.starts_with("198.18.") || name_lower.contains("tailscale") || name_lower.contains("virtual") || name_lower.contains("wsl") || name_lower.contains("veth") || name_lower.contains("flclash") || name_lower.contains("clash") {
                     continue;
                 }
-                
+
                 if ip_str.starts_with("192.168.") {
                     return Some(ip_str); // Prefer 192.168.x.x
                 }

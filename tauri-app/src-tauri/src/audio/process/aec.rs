@@ -495,7 +495,7 @@ mod tests {
     fn test_aec7_infer_new_and_reset() {
         // This test requires the model file in resources/
         let model_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../src-tauri/resources/aec7_ep0185.onnx");
+            .join("resources/aec7_ep0185.onnx");
         if !model_path.exists() {
             eprintln!("Skipping test: model file not found at {:?}", model_path);
             return;
@@ -515,7 +515,7 @@ mod tests {
     #[test]
     fn test_aec7_processor_creation() {
         let model_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../src-tauri/resources/aec7_ep0185.onnx");
+            .join("resources/aec7_ep0185.onnx");
         if !model_path.exists() {
             eprintln!("Skipping test: model file not found at {:?}", model_path);
             return;

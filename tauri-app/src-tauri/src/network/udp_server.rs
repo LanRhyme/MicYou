@@ -2,9 +2,9 @@ use tokio::net::UdpSocket;
 
 use prost::Message;
 use std::error::Error;
-use micyou_protocol::UDP_PACKET_MAGIC;
+use crate::protocol::UDP_PACKET_MAGIC;
 use tokio::sync::mpsc::Sender;
-use micyou_protocol::micyou::{AudioPacketMessageOrdered, MessageWrapper};
+use crate::protocol::micyou::{AudioPacketMessageOrdered, MessageWrapper};
 use tokio_util::sync::CancellationToken;
 
 pub async fn start_udp_server(tx: Sender<AudioPacketMessageOrdered>, port: u16, bind_address: String, cancel_token: CancellationToken, stats: std::sync::Arc<crate::stats::NetworkStats>) -> Result<(), Box<dyn Error + Send + Sync>> {

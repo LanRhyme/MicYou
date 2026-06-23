@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use micyou_protocol::micyou::AudioPacketMessageOrdered;
+use crate::protocol::micyou::AudioPacketMessageOrdered;
 
 pub struct JitterBuffer {
     buffer: BTreeMap<i32, AudioPacketMessageOrdered>,
@@ -129,7 +129,7 @@ impl JitterBuffer {
             fec_sequence_number: -1,
             timestamp: reference_packet.timestamp,
             fec_buffer: Vec::new(),
-            audio_packet: Some(micyou_protocol::micyou::AudioPacketMessage {
+            audio_packet: Some(crate::protocol::micyou::AudioPacketMessage {
                 buffer: recovered_buffer,
                 sample_rate: ref_audio.sample_rate,
                 channel_count: ref_audio.channel_count,

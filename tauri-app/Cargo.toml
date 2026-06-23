@@ -2,8 +2,6 @@
 resolver = "2"
 members = [
     "src-tauri",
-    "crates/micyou-protocol",
-    "crates/micyou-audio",
 ]
 
 [workspace.package]
