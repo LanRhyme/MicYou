@@ -7,3 +7,4 @@ pub mod agc;
 pub mod vad;
 pub mod dsp;
 pub mod aec;
+pub mod far_end;

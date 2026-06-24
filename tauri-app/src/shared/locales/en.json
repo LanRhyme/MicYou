@@ -166,7 +166,9 @@
       "attack": "Attack",
       "decay": "Decay",
       "vad": "Voice Activity Detection",
-      "threshold": "Threshold"
+      "threshold": "Threshold",
+      "aec": "Acoustic Echo Cancellation",
+      "aecDelay": "Reference Delay"
     },
     "audioChain": {
       "title": "Audio Processing Chain",

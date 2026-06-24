@@ -427,6 +427,21 @@
               </div>
             </div>
 
+            <!-- Acoustic Echo Cancellation -->
+            <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
+              <div class="flex justify-between items-center cursor-pointer" @click="settings.aecEnabled = !settings.aecEnabled">
+                <span class="font-medium text-on-surface">{{ $t('settings.audioParams.aec') }}</span>
+                <div class="w-10 h-5 rounded-full relative transition-colors" :class="settings.aecEnabled ? 'bg-primary' : 'bg-surface-variant'">
+                  <div class="w-5 h-5 bg-white rounded-full absolute shadow-sm transition-all" :class="settings.aecEnabled ? 'right-0' : 'left-0'"></div>
+                </div>
+              </div>
+              <div v-if="settings.aecEnabled" class="flex items-center gap-4 pt-4 border-t border-surface-variant/20">
+                <span class="text-xs text-on-surface-variant whitespace-nowrap">{{ $t('settings.audioParams.aecDelay') }}</span>
+                <input type="range" min="50" max="500" step="10" v-model.number="settings.aecDelayMs" class="w-full accent-primary">
+                <span class="text-xs w-12 text-right">{{ settings.aecDelayMs }} ms</span>
+              </div>
+            </div>
+
             <!-- Audio Processing Chain -->
             <div @click="showAudioChain = true" class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-3 cursor-pointer hover:bg-surface-variant transition-colors group">
               <div class="flex items-center justify-between">
@@ -705,6 +720,8 @@ const settings = reactive({
   vadEnabled: false,
   vadThreshold: -40,
   processingChain: ['NoiseReduction', 'Dereverb', 'Equalizer', 'Amplifier', 'AGC', 'VAD'],
+  aecEnabled: false,
+  aecDelayMs: 200,
   equalizer: {
     enabled: false,
     preAmp: 0,
@@ -968,6 +985,8 @@ const syncSettingsToBackend = async () => {
         vadEnabled: settings.vadEnabled,
         vadThreshold: settings.vadThreshold,
         processingChain: settings.processingChain,
+        aecEnabled: settings.aecEnabled,
+        aecDelayMs: settings.aecDelayMs,
         equalizer: settings.equalizer,
       }
     });

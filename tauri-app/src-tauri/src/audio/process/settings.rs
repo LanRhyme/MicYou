@@ -19,6 +19,17 @@ pub struct AudioDspSettings {
     pub processing_chain: Vec<String>,
     #[serde(default)]
     pub equalizer: EqualizerConfig,
+
+    /// Acoustic Echo Cancellation (requires aec7_ep0185.onnx model)
+    #[serde(default)]
+    pub aec_enabled: bool,
+    /// Far-end reference read delay in milliseconds (default 200)
+    #[serde(default = "default_aec_delay")]
+    pub aec_delay_ms: f32,
+}
+
+fn default_aec_delay() -> f32 {
+    200.0
 }
 
 impl Default for AudioDspSettings {
@@ -45,6 +56,8 @@ impl Default for AudioDspSettings {
                 "VAD".to_string(),
             ],
             equalizer: EqualizerConfig::default(),
+            aec_enabled: false,
+            aec_delay_ms: 200.0,
         }
     }
 }

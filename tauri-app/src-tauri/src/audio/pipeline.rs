@@ -7,6 +7,7 @@ use std::sync::RwLock;
 
 use crate::audio::process::settings::AudioDspSettings;
 use crate::audio::process::dsp::DspProcessor;
+use crate::audio::process::far_end::FarEndBuffer;
 use crate::audio::{AudioOutputManager, RubatoResampler};
 use crate::audio::jitter_buffer::JitterBuffer;
 use crate::protocol::micyou::AudioPacketMessageOrdered;
@@ -100,6 +101,10 @@ pub fn spawn_audio_pipeline(
 
         let resources_dir = find_model_dir();
         let mut dsp_processor = DspProcessor::new(dsp_settings, resources_dir);
+        let mut far_end_buf = FarEndBuffer::new(
+            3.0,  // 3 seconds capacity
+            200.0, // 200 ms read delay (acoustic path + network RTT)
+        );
         let mut jb = JitterBuffer::new(12);
         let mut frame_counter = 0u32;
         let mut input_resampler: Option<RubatoResampler> = None;
@@ -144,11 +149,14 @@ pub fn spawn_audio_pipeline(
                             let sum: f32 = pcm_f32.iter().map(|x| x * x).sum();
                             (sum / pcm_f32.len() as f32).sqrt()
                         } else {
-                            let (_raw, processed) = dsp_processor.process(&mut pcm_f32, channels.max(1), queued_ms);
+                            let (_raw, processed) = dsp_processor.process(&mut pcm_f32, channels.max(1), queued_ms, &far_end_buf);
                             processed
                         };
 
                         audio_manager.push_audio_data(&pcm_f32, channels.max(1));
+
+                        // Store speaker output for future AEC far-end reference
+                        far_end_buf.push_interleaved(&pcm_f32, channels.max(1));
 
                         frame_counter += 1;
                         if frame_counter % 3 == 0 {

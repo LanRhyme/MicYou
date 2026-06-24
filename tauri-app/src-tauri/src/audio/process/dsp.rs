@@ -14,6 +14,10 @@ use crate::audio::process::noise::ulunas::UlunasProcessor;
 #[cfg(feature = "dsp")]
 use crate::audio::process::noise::speex::SpeexDenoiser;
 use crate::audio::process::noise::lightweight::LightweightDenoiser;
+use crate::audio::process::far_end::FarEndBuffer;
+
+#[cfg(feature = "dsp")]
+use crate::audio::process::aec::Aec7Processor;
 
 /// The main DSP processor. Operates on f32 PCM samples at 48kHz.
 /// Internally accumulates to 480-sample aligned frames before processing
@@ -38,12 +42,20 @@ pub struct DspProcessor {
     raw_spectrum: Vec<f32>,
     processed_spectrum: Vec<f32>,
     accum_buffer: Vec<f32>,
+
+    /// AEC7 acoustic echo cancellation (ONNX-based)
+    #[cfg(feature = "dsp")]
+    aec: Option<Aec7Processor>,
+    /// AEC model path for lazy init
+    #[cfg(feature = "dsp")]
+    aec_model_path: Option<PathBuf>,
 }
 
 const RNNOISE_FRAME_SIZE: usize = 480;
 
 impl DspProcessor {
     pub fn new(settings: Arc<RwLock<AudioDspSettings>>, _model_dir: Option<PathBuf>) -> Self {
+        let aec_path = _model_dir.as_ref().map(|d| d.join("aec7_ep0185.onnx"));
         Self {
             settings: settings.clone(),
             ulunas_model_path: _model_dir.map(|d| d.join("ulunas.onnx")),
@@ -64,12 +76,20 @@ impl DspProcessor {
             raw_spectrum: vec![0.0; 64],
             processed_spectrum: vec![0.0; 64],
             accum_buffer: Vec::new(),
+            #[cfg(feature = "dsp")]
+            aec: None,
+            #[cfg(feature = "dsp")]
+            aec_model_path: aec_path,
         }
     }
 
     /// Process a chunk of f32 PCM audio in-place.
     /// Returns (raw_rms, processed_rms) for level metering.
-    pub fn process(&mut self, data: &mut Vec<f32>, channels: usize, queued_ms: f64) -> (f32, f32) {
+    ///
+    /// * `far_end` — far-end reference buffer for AEC (can be &FarEndBuffer if "dsp" feature enabled,
+    ///   otherwise a dummy type; pass `&()` if not using dsp feature)
+    #[allow(unused_variables)]
+    pub fn process(&mut self, data: &mut Vec<f32>, channels: usize, queued_ms: f64, far_end: &FarEndBuffer) -> (f32, f32) {
         if data.is_empty() {
             return (0.0, 0.0);
         }
@@ -93,6 +113,12 @@ impl DspProcessor {
 
         let settings = self.settings.read().unwrap().clone();
         self.equalizer.update_filters(&settings.equalizer);
+
+        // ── AEC: must run FIRST, before any nonlinear processing ────────────
+        #[cfg(feature = "dsp")]
+        if settings.aec_enabled {
+            to_process = self.apply_aec(to_process, channels, far_end);
+        }
 
         // Dynamic Processing Chain
         for effect in &settings.processing_chain {
@@ -152,6 +178,79 @@ impl DspProcessor {
 
     pub fn get_spectrums(&self) -> (Vec<f32>, Vec<f32>) {
         (self.raw_spectrum.clone(), self.processed_spectrum.clone())
+    }
+
+    // ── AEC (Acoustic Echo Cancellation) ────────────────────────────────────
+
+    /// Apply AEC7 to the accumulated mono-mic frame, using delayed far-end
+    /// reference from the speaker output ring buffer.
+    #[cfg(feature = "dsp")]
+    fn apply_aec(&mut self, data: Vec<f32>, channels: usize, far_end: &FarEndBuffer) -> Vec<f32> {
+        let frame_samples = data.len() / channels.max(1);
+
+        // Mix multi-channel mic to mono for AEC
+        let mic_mono: Vec<f32> = (0..frame_samples)
+            .map(|i| {
+                let sum: f32 = (0..channels.max(1)).map(|c| data[i * channels.max(1) + c]).sum();
+                sum / channels.max(1) as f32
+            })
+            .collect();
+
+        // Read delayed far-end reference (same length as mic frame)
+        let far_mono = far_end.read_delayed(mic_mono.len());
+
+        // Lazy-init AEC processor on first use
+        if self.aec.is_none() {
+            if let Some(ref path) = self.aec_model_path {
+                if path.exists() {
+                    match Aec7Processor::new(path) {
+                        Ok(proc) => {
+                            log::info!("[DSP] AEC7 ONNX model loaded: {:?}", path);
+                            self.aec = Some(proc);
+                        }
+                        Err(e) => {
+                            log::error!("[DSP] Failed to load AEC7 model: {}", e);
+                            return data; // passthrough on init failure
+                        }
+                    }
+                } else {
+                    log::warn!("[DSP] AEC7 model not found at {:?}, AEC disabled", path);
+                    return data;
+                }
+            } else {
+                return data;
+            }
+        }
+
+        // Run AEC processing
+        let aec = self.aec.as_mut().unwrap();
+        match aec.process(&mic_mono, &far_mono) {
+            Ok(enhanced_mono) => {
+                if enhanced_mono.is_empty() {
+                    // First frame may return empty (OLA warmup), passthrough
+                    return data;
+                }
+                // Expand mono back to multi-channel
+                let out_len = enhanced_mono.len().min(frame_samples);
+                let mut result = Vec::with_capacity(out_len * channels.max(1));
+                for i in 0..out_len {
+                    let sample = enhanced_mono[i];
+                    for _ in 0..channels.max(1) {
+                        result.push(sample);
+                    }
+                }
+                // Pad if needed
+                while result.len() < data.len() {
+                    result.push(0.0);
+                }
+                result.truncate(data.len());
+                result
+            }
+            Err(e) => {
+                log::error!("[DSP] AEC7 process error: {}", e);
+                data // passthrough on error
+            }
+        }
     }
 
     // ── Noise Reduction Dispatcher ─────────────────────────────────────────
@@ -303,7 +402,8 @@ mod tests {
         }));
         let mut processor = DspProcessor::new(settings, None);
         let mut data = vec![0.1; 480];
-        processor.process(&mut data, 1, 80.0);
+        let far_end = FarEndBuffer::new(0.5, 200.0);
+        processor.process(&mut data, 1, 80.0, &far_end);
         assert!(data[0] > 0.9, "Expected amplified sample, got {}", data[0]);
     }
 
@@ -315,7 +415,8 @@ mod tests {
         }));
         let mut processor = DspProcessor::new(settings, None);
         let mut data = vec![0.5; 480];
-        processor.process(&mut data, 1, 80.0);
+        let far_end = FarEndBuffer::new(0.5, 200.0);
+        processor.process(&mut data, 1, 80.0, &far_end);
         assert!(data[0] < 0.1, "Expected attenuated sample, got {}", data[0]);
     }
 
@@ -328,7 +429,8 @@ mod tests {
         }));
         let mut processor = DspProcessor::new(settings, None);
         let mut data = vec![0.001; 960];
-        for _ in 0..20 { processor.process(&mut data, 1, 80.0); }
+        let far_end = FarEndBuffer::new(0.5, 200.0);
+        for _ in 0..20 { processor.process(&mut data, 1, 80.0, &far_end); }
         assert!(data[data.len() - 1].abs() < 0.01, "Expected muted, got {}", data[data.len() - 1]);
     }
 
@@ -343,7 +445,8 @@ mod tests {
         }));
         let mut processor = DspProcessor::new(settings, None);
         let mut data: Vec<f32> = vec![0.01; 4800];
-        for _ in 0..10 { processor.process(&mut data, 1, 80.0); }
+        let far_end = FarEndBuffer::new(0.5, 200.0);
+        for _ in 0..10 { processor.process(&mut data, 1, 80.0, &far_end); }
         assert!(data[data.len() - 1].abs() > 0.01, "AGC should have amplified the signal");
     }
 }

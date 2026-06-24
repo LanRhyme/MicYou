@@ -166,7 +166,9 @@
       "attack": "起效时间",
       "decay": "释放时间",
       "vad": "人声活动检测",
-      "threshold": "阈值"
+      "threshold": "阈值",
+      "aec": "声学回声消除 (AEC)",
+      "aecDelay": "参考延迟"
     },
     "audioChain": {
       "title": "音频处理链路",
