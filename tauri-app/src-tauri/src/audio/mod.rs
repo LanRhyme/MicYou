@@ -8,5 +8,6 @@ pub use process::dsp::{DspProcessor, compute_rms};
 pub use process::settings::{AudioDspSettings, EqualizerConfig};
 
 pub fn init_onnx_runtime() {
-    ort::set_api(ort_tract::api());
+    // ONNX Runtime is initialized automatically via ort's download-binaries feature.
+    // The prebuilt shared library is downloaded at build time and statically linked.
 }
