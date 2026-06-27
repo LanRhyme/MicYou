@@ -45,8 +45,13 @@
                 <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
                   <SelectGroup>
                     <SelectItem value="system">{{ $t('settings.language.system') }}</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
                     <SelectItem value="zh">简体中文</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="cat">喵喵语 (´,,•ω•,,)</SelectItem>
+                    <SelectItem value="zh-hk">粤语</SelectItem>
+                    <SelectItem value="zh-tw">繁體中文（台灣）</SelectItem>
+                    <SelectItem value="zh-ss">中国人（坚硬）</SelectItem>
+                    <SelectItem value="lzh">文言</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
