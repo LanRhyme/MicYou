@@ -230,7 +230,7 @@ onUnmounted(() => {
         <div class="border-t border-outline/10 pt-1">
           <button
             @click="openSettings"
-            class="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-surface-variant/50 transition-colors text-left"
+            class="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-surface-variant/60 transition-colors text-left"
           >
             <Settings class="w-3.5 h-3.5 text-on-surface-variant" />
             <span class="text-xs text-on-surface">{{ t('settings.title') }}</span>
