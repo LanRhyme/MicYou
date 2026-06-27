@@ -183,7 +183,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="w-full h-full haze-surface rounded-2xl shadow-xl border border-outline/10 overflow-hidden"
+    class="w-full h-full bg-surface-container rounded-2xl shadow-xl border border-outline/10 overflow-hidden"
     :class="[noTransition ? '' : 'transition-all duration-200 ease-out', {
       'opacity-0 -translate-y-1.5 scale-95': animState === 'hidden' || animState === 'entering',
       'opacity-100 translate-y-0 scale-100': animState === 'visible',
