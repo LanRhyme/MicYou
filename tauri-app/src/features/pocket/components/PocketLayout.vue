@@ -72,6 +72,7 @@ interface OverlayHandle {
   window: WebviewWindow | null;
   created: boolean;
   unlisteners: (() => void)[];
+  dismissed: boolean;
 }
 
 const OVERLAY_W = 220;
@@ -80,7 +81,7 @@ const OVERLAY_LABEL_PREFIX = 'pocket-overlay-';
 const overlays: Record<string, OverlayHandle> = {};
 
 const getOverlay = (id: string): OverlayHandle => {
-  if (!overlays[id]) overlays[id] = { window: null, created: false, unlisteners: [] };
+  if (!overlays[id]) overlays[id] = { window: null, created: false, unlisteners: [], dismissed: false };
   return overlays[id];
 };
 
@@ -95,7 +96,7 @@ const positionOverlay = async (align: 'right' | 'left' = 'right', offsetY = 2) =
 };
 
 const showOverlay = async (h: OverlayHandle) => {
-  if (!h.window) return;
+  if (!h.window || h.dismissed) return;
   try {
     // Prepare: set isShowing guard + reset state before show()
     await h.window.emit('popup-prepare');
@@ -130,6 +131,8 @@ const syncAndShow = async (id: string, url: string, syncFn: () => void, opts?: {
     // Register popup-ready BEFORE other async ops to avoid missing the event
     h.unlisteners.push(
       await h.window.listen('popup-ready', () => {
+        if (h.dismissed) return;  // was dismissed while loading
+        h.dismissed = false;
         showOverlay(h);
       })
     );
@@ -146,6 +149,7 @@ const syncAndShow = async (id: string, url: string, syncFn: () => void, opts?: {
     opts?.onCreated?.(h);
     h.created = true;
   } else {
+    h.dismissed = false;
     const { x, y } = await positionOverlay(opts?.align);
     try { await h.window.setPosition(new LogicalPosition(x, y)); } catch {}
     try { await h.window.emit('popup-refresh'); } catch {}
@@ -167,6 +171,7 @@ const closePopup = async () => {
 const hideAllOverlays = async () => {
   for (const id of Object.keys(overlays)) {
     const h = overlays[id];
+    h.dismissed = true;
     if (h.window) {
       try {
         await h.window.emit('popup-closing');

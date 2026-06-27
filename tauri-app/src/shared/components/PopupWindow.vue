@@ -115,6 +115,7 @@ const openSettings = () => {
 };
 
 const refreshState = () => {
+  syncTheme();
   connectionMode.value = localStorage.getItem('popup_connectionMode') || 'wifi';
   serverPort.value = Number(localStorage.getItem('popup_serverPort')) || 8554;
   webPort.value = Number(localStorage.getItem('popup_webPort')) || 8443;

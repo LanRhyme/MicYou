@@ -52,6 +52,7 @@ const selectIp = (ip: string, autoSelect: boolean) => {
 };
 
 const refreshState = () => {
+  syncTheme();
   selectedIp.value = localStorage.getItem('popup_ip') || '0.0.0.0';
   isAutoBind.value = localStorage.getItem('popup_isAutoBind') !== 'false';
   interfaces.value = JSON.parse(localStorage.getItem('popup_interfaces') || '[]');
