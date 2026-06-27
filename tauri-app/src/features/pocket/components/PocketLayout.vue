@@ -109,6 +109,7 @@ const showOverlay = async (h: OverlayHandle) => {
 
 const syncAndShow = async (id: string, url: string, syncFn: () => void, opts?: { height?: number; align?: 'right' | 'left'; onCreated?: (h: OverlayHandle) => void }) => {
   const h = getOverlay(id);
+  h.dismissed = false;
   emit('update:popupOpen', true);
   syncFn();
 
@@ -132,7 +133,6 @@ const syncAndShow = async (id: string, url: string, syncFn: () => void, opts?: {
     h.unlisteners.push(
       await h.window.listen('popup-ready', () => {
         if (h.dismissed) return;  // was dismissed while loading
-        h.dismissed = false;
         showOverlay(h);
       })
     );

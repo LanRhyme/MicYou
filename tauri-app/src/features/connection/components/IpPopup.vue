@@ -19,11 +19,14 @@ const isAutoBind = ref(localStorage.getItem('popup_isAutoBind') !== 'false');
 const interfaces = ref<NetworkInterface[]>(JSON.parse(localStorage.getItem('popup_interfaces') || '[]'));
 const contentRef = ref<HTMLElement | null>(null);
 
+const mq = window.matchMedia('(prefers-color-scheme: dark)');
+const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+  document.documentElement.classList.toggle('dark', e.matches);
+};
+
 const syncTheme = () => {
   const html = document.documentElement;
-  const mq = window.matchMedia('(prefers-color-scheme: dark)');
   html.classList.toggle('dark', mq.matches);
-  mq.addEventListener('change', (e) => html.classList.toggle('dark', e.matches));
 
   const themeColor = localStorage.getItem('micyou_theme_color') || 'theme-blue';
   const uiStyle = localStorage.getItem('micyou_ui_style') || 'style-default';
@@ -87,6 +90,7 @@ let unlisteners: (() => void)[] = [];
 
 onMounted(async () => {
   syncTheme();
+  mq.addEventListener('change', handleSystemThemeChange);
   // Remove default focus outline on the popup window
   const style = document.createElement('style');
   style.textContent = 'html, body, *:focus { outline: none !important; }';
@@ -111,6 +115,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  mq.removeEventListener('change', handleSystemThemeChange);
   window.removeEventListener('blur', onBlur);
   unlisteners.forEach(fn => fn());
 });
