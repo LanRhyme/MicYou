@@ -3,7 +3,7 @@ import { useStorage } from '@vueuse/core';
 
 export function useTheme() {
   const themeColor = useStorage('micyou_theme_color', 'theme-blue');
-  const uiStyle = useStorage('micyou_ui_style', 'style-glass');
+  const uiStyle = useStorage('micyou_ui_style', 'style-default');
   const customH = useStorage('micyou_custom_h', 215);
   const customS = useStorage('micyou_custom_s', 35);
   const customL = useStorage('micyou_custom_l', 55);
