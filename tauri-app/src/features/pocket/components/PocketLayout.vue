@@ -172,7 +172,7 @@ const hideAllOverlays = async () => {
     if (h.window) {
       try {
         await h.window.emit('popup-closing');
-        h.window.close();
+        await h.window.close();
       } catch {}
     }
     h.unlisteners.forEach(fn => fn());
@@ -185,13 +185,13 @@ const hideAllOverlays = async () => {
   emit('update:popupOpen', false);
 };
 
-const destroyAllOverlays = () => {
+const destroyAllOverlays = async () => {
   for (const id of Object.keys(overlays)) {
     const h = overlays[id];
     h.unlisteners.forEach(fn => fn());
     h.unlisteners = [];
     if (h.window) {
-      try { h.window.close(); } catch {}
+      try { await h.window.close(); } catch {}
       h.window = null;
       h.created = false;
     }
