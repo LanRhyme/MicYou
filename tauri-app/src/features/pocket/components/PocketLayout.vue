@@ -199,7 +199,7 @@ const destroyAllOverlays = () => {
 
 const showIpPopup = async () => {
   await hideAllOverlays();
-  syncAndShow('ip', '#/popup/ip', () => {
+  await syncAndShow('ip', '#/popup/ip', () => {
     localStorage.setItem('popup_ip', props.isAutoBind ? '0.0.0.0' : props.selectedIp);
     localStorage.setItem('popup_isAutoBind', String(props.isAutoBind));
     localStorage.setItem('popup_interfaces', JSON.stringify(props.networkInterfaces));
@@ -226,20 +226,19 @@ const showIpPopup = async () => {
 const showMoreMenu = async () => {
   await hideAllOverlays();
   moreMenuOpen.value = true;
-  syncAndShow('more', '#/popup/more-menu', () => {
+  await syncAndShow('more', '#/popup/more-menu', () => {
     localStorage.setItem('popup_connectionMode', props.connectionMode);
     localStorage.setItem('popup_serverPort', String(props.serverPort));
-  }, { height: 210, align: 'right' });
-
-  const h = getOverlay('more');
-  h.window?.listen('popup-update', (event: any) => {
-    const { key, value } = event.payload;
-    switch (key) {
-      case 'popup_connectionMode': emit('updateMode', value); break;
-      case 'popup_serverPort': emit('updatePort', Number(value)); break;
-      case 'popup_openSettings': closePopup(); emit('openSettings'); break;
-    }
-  });
+  }, { height: 210, align: 'right', onCreated: (h) => {
+    h.window?.listen('popup-update', (event: any) => {
+      const { key, value } = event.payload;
+      switch (key) {
+        case 'popup_connectionMode': emit('updateMode', value); break;
+        case 'popup_serverPort': emit('updatePort', Number(value)); break;
+        case 'popup_openSettings': closePopup(); emit('openSettings'); break;
+      }
+    });
+  }});
 };
 
 onUnmounted(() => {
