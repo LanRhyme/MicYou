@@ -5,6 +5,7 @@ use rubato::{Resampler, Async, FixedAsync, PolynomialDegree};
 use rubato::audioadapter_buffers::owned::InterleavedOwned;
 use rubato::audioadapter::{Adapter, AdapterMut};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 pub struct RubatoResampler {
     resampler: Async<f32>,
@@ -37,7 +38,7 @@ impl RubatoResampler {
     pub fn resample(&mut self, input: &[f32], channels: usize) -> Vec<f32> {
         let in_frames = input.len() / channels;
 
-        // For small inputs or mismatched sizes, fall back to simple passthrough
+        // For very small inputs or mismatched sizes, fall back to simple passthrough
         // to avoid the overhead of the resampler
         if in_frames <= 2 || in_frames > self.chunk_size {
             return input.to_vec();
@@ -79,6 +80,22 @@ impl RubatoResampler {
             }
         }
     }
+}
+
+/// Fast PRNG for TPDF dithering (xorshift32), returns [0, 1) range.
+fn rand_f32() -> f32 {
+    use std::cell::Cell;
+    thread_local! {
+        static STATE: Cell<u32> = Cell::new(12345);
+    }
+    STATE.with(|s| {
+        let mut x = s.get();
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        s.set(x);
+        (x & 0x007FFFFF) as f32 / 8388608.0
+    })
 }
 
 fn map_channels(input: &[f32], in_channels: usize, out_channels: usize) -> Vec<f32> {
@@ -187,9 +204,9 @@ impl AudioOutputManager {
             self.resampler = None;
         }
 
-        // Initialize a ring buffer for ~400ms of audio
-        let buffer_size = (self.device_sample_rate as usize * self.device_channels * 2) / 5;
-        let ring_buffer = HeapRb::<f32>::new(buffer_size.max(8192));
+        // Initialize a ring buffer for ~800ms of audio — generous headroom to prevent underruns
+        let buffer_size = (self.device_sample_rate as usize * self.device_channels * 4) / 5;
+        let ring_buffer = HeapRb::<f32>::new(buffer_size.max(16384));
         let (producer, mut consumer) = ring_buffer.split();
 
         self.producer = Some(producer);
@@ -198,28 +215,55 @@ impl AudioOutputManager {
         let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
 
         let stream = match config.sample_format() {
-            SampleFormat::F32 => device.build_output_stream(
+            SampleFormat::F32 => {
+                let underrun_counter = Arc::new(AtomicU32::new(0));
+                device.build_output_stream(
                 &stream_config,
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
                     for sample in data.iter_mut() {
-                        *sample = consumer.pop().unwrap_or(0.0);
+                        match consumer.pop() {
+                            Some(s) => {
+                                *sample = s;
+                                underrun_counter.store(0, Ordering::Relaxed);
+                            }
+                            None => {
+                                // Soft fade to silence on underrun instead of hard cut
+                                let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
+                                let fade = (1.0 - count as f32 * 0.01).max(0.0);
+                                *sample *= fade;
+                            }
+                        }
                     }
                 },
                 err_fn,
                 None,
-            )?,
-            SampleFormat::I16 => device.build_output_stream(
+            )?},
+            SampleFormat::I16 => {
+                let underrun_counter = Arc::new(AtomicU32::new(0));
+                device.build_output_stream(
                 &stream_config,
                 move |data: &mut [i16], _: &OutputCallbackInfo| {
                     for sample in data.iter_mut() {
-                        let f_sample = consumer.pop().unwrap_or(0.0);
-                        // Use 32768.0 for symmetric range (-1.0 to 1.0 maps to -32768 to 32767)
-                        *sample = (f_sample * 32768.0).clamp(-32768.0, 32767.0) as i16;
+                        let f_sample = match consumer.pop() {
+                            Some(s) => {
+                                underrun_counter.store(0, Ordering::Relaxed);
+                                s
+                            }
+                            None => {
+                                let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
+                                let fade = (1.0 - count as f32 * 0.01).max(0.0);
+                                0.0 * fade // Soft fade on underrun
+                            }
+                        };
+                        // TPDF dithering for f32→i16 conversion — reduces quantization noise
+                        let dither: f32 = (rand_f32() - 0.5 + rand_f32() - 0.5) * (1.0 / 32768.0);
+                        let dithered = f_sample + dither;
+                        *sample = (dithered * 32768.0).clamp(-32768.0, 32767.0) as i16;
                     }
                 },
                 err_fn,
                 None,
-            )?,
+            )?},
             _ => return Err("Unsupported sample format".into()),
         };
 

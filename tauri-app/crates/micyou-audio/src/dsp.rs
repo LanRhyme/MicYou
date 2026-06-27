@@ -87,6 +87,8 @@ struct UlunasProcessor {
     ola_accumulator: Vec<f32>,
     state_data: Vec<Vec<f32>>,
     state_shapes: Vec<Vec<usize>>,
+    fft_forward: std::sync::Arc<dyn rustfft::Fft<f32>>,
+    fft_inverse: std::sync::Arc<dyn rustfft::Fft<f32>>,
 }
 
 #[cfg(feature = "noise-suppression")]
@@ -102,6 +104,11 @@ impl UlunasProcessor {
 
         let window = Self::hanning_window(frame_size);
         let ola_gain = Self::calc_ola_gain(&window, hop_length);
+
+        use rustfft::FftPlanner;
+        let mut planner = FftPlanner::new();
+        let fft_forward = planner.plan_fft_forward(frame_size);
+        let fft_inverse = planner.plan_fft_inverse(frame_size);
 
         // State shapes
         let state_shapes: Vec<Vec<usize>> = vec![
@@ -128,6 +135,8 @@ impl UlunasProcessor {
             ola_accumulator: vec![0.0; frame_size],
             state_data,
             state_shapes,
+            fft_forward,
+            fft_inverse,
         })
     }
 
@@ -171,18 +180,14 @@ impl UlunasProcessor {
             fft_buffer[i] *= self.window[i];
         }
 
-        // FFT using rustfft
-        use rustfft::FftPlanner;
+        // FFT using cached planner
         use rustfft::num_complex::Complex;
-
-        let mut planner = FftPlanner::new();
-        let fft = planner.plan_fft_forward(frame_size);
 
         let mut complex_buf: Vec<Complex<f32>> = fft_buffer
             .iter()
             .map(|&v| Complex::new(v, 0.0))
             .collect();
-        fft.process(&mut complex_buf);
+        self.fft_forward.process(&mut complex_buf);
 
         // Convert to model input format: flat vec for [1, spec_size, 1, 2]
         let mut spec_flat = vec![0.0f32; spec_size * 2];
@@ -237,8 +242,7 @@ impl UlunasProcessor {
         }
 
         // IFFT
-        let ifft = planner.plan_fft_inverse(frame_size);
-        ifft.process(&mut complex_buf);
+        self.fft_inverse.process(&mut complex_buf);
         let scale = 1.0 / frame_size as f32;
         for i in 0..frame_size {
             fft_buffer[i] = complex_buf[i].re * scale * self.window[i];
@@ -275,21 +279,28 @@ struct SpeexStyleNS {
     frame_size: usize,
     noise_estimate: Vec<f32>, // Running noise floor estimate per frequency bin
     adaptation_rate: f32,
+    fft_forward: std::sync::Arc<dyn rustfft::Fft<f32>>,
+    fft_inverse: std::sync::Arc<dyn rustfft::Fft<f32>>,
 }
 
 #[cfg(feature = "dsp")]
 impl SpeexStyleNS {
     fn new() -> Self {
+        use rustfft::FftPlanner;
         let frame_size = 480;
+        let mut planner = FftPlanner::new();
+        let fft_forward = planner.plan_fft_forward(frame_size);
+        let fft_inverse = planner.plan_fft_inverse(frame_size);
         Self {
             frame_size,
             noise_estimate: vec![0.0; frame_size / 2 + 1],
             adaptation_rate: 0.02,
+            fft_forward,
+            fft_inverse,
         }
     }
 
     fn process(&mut self, data: &mut [f32], intensity: f32) {
-        use rustfft::FftPlanner;
         use rustfft::num_complex::Complex;
 
         let len = data.len();
@@ -297,12 +308,9 @@ impl SpeexStyleNS {
             return;
         }
 
-        let mut planner = FftPlanner::new();
-        let fft_forward = planner.plan_fft_forward(self.frame_size);
-        let fft_inverse = planner.plan_fft_inverse(self.frame_size);
-
         let num_frames = len / self.frame_size;
         let mix = (intensity / 100.0).clamp(0.0, 1.0);
+        let spec_size = self.frame_size / 2 + 1;
 
         for frame_idx in 0..num_frames {
             let offset = frame_idx * self.frame_size;
@@ -313,14 +321,11 @@ impl SpeexStyleNS {
                 .map(|&s| Complex::new(s, 0.0))
                 .collect();
 
-            fft_forward.process(&mut complex);
-
-            let spec_size = self.frame_size / 2 + 1;
+            self.fft_forward.process(&mut complex);
 
             // Compute magnitude and update noise estimate
             for i in 0..spec_size {
                 let mag = complex[i].norm();
-                // Slow adaptation: update noise floor estimate
                 self.noise_estimate[i] = self.noise_estimate[i] * (1.0 - self.adaptation_rate)
                     + mag * self.adaptation_rate;
             }
@@ -330,15 +335,14 @@ impl SpeexStyleNS {
                 let mag = complex[i].norm();
                 let phase = complex[i].arg();
                 let noise = self.noise_estimate[i] * mix * 2.0;
-                let clean_mag = (mag - noise).max(mag * 0.05); // Spectral floor
+                let clean_mag = (mag - noise).max(mag * 0.05);
                 complex[i] = Complex::from_polar(clean_mag, phase);
-                // Mirror
                 if i > 0 && i < self.frame_size - i {
                     complex[self.frame_size - i] = complex[i].conj();
                 }
             }
 
-            fft_inverse.process(&mut complex);
+            self.fft_inverse.process(&mut complex);
 
             let scale = 1.0 / self.frame_size as f32;
             for i in 0..self.frame_size {
@@ -448,105 +452,63 @@ impl EqualizerEffect {
     }
 }
 
-// ─── Adaptive Resampler (Jitter Buffer) ─────────────────────────────────────
+// ─── Buffer Level Manager (replaces adaptive resampler) ─────────────────────
 
-struct ResamplerEffect {
-    playback_ratio: f64,
-    playback_ratio_integral: f64,
-    pos: f64,
-    prev_frame: Vec<f32>,
+/// Manages playback timing by monitoring the output buffer level.
+/// Instead of continuous resampling (which introduces interpolation artifacts),
+/// this uses simple sample duplication/dropping only when the buffer drifts
+/// significantly from the target level.
+struct BufferLevelManager {
+    underrun_count: u32,
+    overrun_count: u32,
 }
 
-impl ResamplerEffect {
+impl BufferLevelManager {
     fn new() -> Self {
         Self {
-            playback_ratio: 1.0,
-            playback_ratio_integral: 0.0,
-            pos: 0.0,
-            prev_frame: Vec::new(),
+            underrun_count: 0,
+            overrun_count: 0,
         }
     }
 
-    fn update_playback_ratio(&mut self, queued_ms: f64) {
-        let target_ms = 80.0;
-        let error_ms = queued_ms - target_ms;
-
-        let kp = 0.0008;
-        let ki = 0.000008;
-        let max_adjust = 0.03;
-
-        let mut integral = self.playback_ratio_integral + error_ms * 0.01;
-        integral = integral.clamp(-5000.0, 5000.0);
-        self.playback_ratio_integral = integral;
-
-        let adjust = (error_ms * kp + integral * ki).clamp(-max_adjust, max_adjust);
-        self.playback_ratio = (1.0 + adjust).clamp(1.0 - max_adjust, 1.0 + max_adjust);
-    }
-
-    fn process(&mut self, input: &[f32], channels: usize) -> Vec<f32> {
-        if (self.playback_ratio - 1.0).abs() < 0.00005 {
-            return input.to_vec();
-        }
-
+    fn process(&mut self, input: &[f32], channels: usize, queued_ms: f64) -> Vec<f32> {
         if channels == 0 || input.is_empty() {
             return input.to_vec();
         }
 
-        let input_frames = input.len() / channels;
-        if input_frames <= 1 {
+        let frames = input.len() / channels;
+
+        // Buffer critically low (< 15ms): duplicate last frame to prevent underrun
+        if queued_ms < 15.0 {
+            self.underrun_count += 1;
+            self.overrun_count = 0;
+            // Duplicate the last frame
+            if frames >= 1 && self.underrun_count <= 3 {
+                let mut output = Vec::with_capacity(input.len() + channels);
+                output.extend_from_slice(input);
+                let last_frame_start = (frames - 1) * channels;
+                for c in 0..channels {
+                    output.push(input[last_frame_start + c]);
+                }
+                return output;
+            }
             return input.to_vec();
         }
 
-        if self.prev_frame.len() != channels {
-            self.prev_frame = input[..channels].to_vec();
-            self.pos = 1.0;
-        }
-
-        let effective_frames = input_frames + 1;
-        let mut pos = self.pos;
-        let estimated_out_frames = ((input_frames as f64 / self.playback_ratio) + 4.0) as usize;
-        let mut output = Vec::with_capacity(estimated_out_frames * channels);
-
-        let get_sample = |frame: usize, ch: usize| -> f32 {
-            if frame == 0 {
-                self.prev_frame[ch]
-            } else {
-                input[(frame - 1) * channels + ch]
+        // Buffer critically high (> 300ms): drop first frame to prevent overflow
+        if queued_ms > 300.0 {
+            self.overrun_count += 1;
+            self.underrun_count = 0;
+            if frames > 2 && self.overrun_count <= 3 {
+                return input[channels..].to_vec();
             }
-        };
-
-        while (pos as usize) + 1 < effective_frames {
-            let base = pos as usize;
-            let frac = (pos - base as f64) as f32;
-
-            for c in 0..channels {
-                // Cubic Hermite interpolation for better quality
-                let s0 = if base > 0 { get_sample(base - 1, c) } else { get_sample(0, c) };
-                let s1 = get_sample(base, c);
-                let s2 = get_sample(base + 1, c);
-                let s3 = if base + 2 < effective_frames { get_sample(base + 2, c) } else { s2 };
-
-                // Catmull-Rom spline coefficients
-                let a = -0.5 * s0 + 1.5 * s1 - 1.5 * s2 + 0.5 * s3;
-                let b = s0 - 2.5 * s1 + 2.0 * s2 - 0.5 * s3;
-                let c_coeff = -0.5 * s0 + 0.5 * s2;
-                let d = s1;
-
-                let v = a * frac * frac * frac + b * frac * frac + c_coeff * frac + d;
-                output.push(v);
-            }
-
-            pos += self.playback_ratio;
+            return input.to_vec();
         }
 
-        let last_frame_offset = (input_frames - 1) * channels;
-        for c in 0..channels {
-            self.prev_frame[c] = input[last_frame_offset + c];
-        }
-
-        self.pos = pos - input_frames as f64;
-
-        output
+        // Normal range: pass through unchanged
+        self.underrun_count = 0;
+        self.overrun_count = 0;
+        input.to_vec()
     }
 }
 
@@ -581,13 +543,16 @@ pub struct DspProcessor {
     // Equalizer
     equalizer: EqualizerEffect,
     // Adaptive Resampler
-    resampler: ResamplerEffect,
+    // Buffer level manager (replaces adaptive resampler)
+    buffer_manager: BufferLevelManager,
     // Dereverb state
     dereverb_buffer_left: Vec<f32>,
     dereverb_buffer_right: Vec<f32>,
     dereverb_index: usize,
     // AGC envelope follower
     agc_envelope: f32,
+    // AGC smoothed gain (avoids sudden gain jumps causing pops)
+    agc_smoothed_gain: f32,
     // VAD fade state (0.0 = muted, 1.0 = full)
     vad_fade: f32,
     // Spectrum snapshots
@@ -624,11 +589,12 @@ impl DspProcessor {
             #[cfg(feature = "dsp")]
             speex_ns: SpeexStyleNS::new(),
             equalizer: EqualizerEffect::new(),
-            resampler: ResamplerEffect::new(),
+            buffer_manager: BufferLevelManager::new(),
             dereverb_buffer_left: vec![0.0; 480],
             dereverb_buffer_right: vec![0.0; 480],
             dereverb_index: 0,
             agc_envelope: 0.0,
+            agc_smoothed_gain: 1.0,
             vad_fade: 1.0,
             raw_spectrum: vec![0.0; 64],
             processed_spectrum: vec![0.0; 64],
@@ -715,14 +681,13 @@ impl DspProcessor {
             }
         }
 
-        // Resampler
-        self.resampler.update_playback_ratio(queued_ms);
-        let resampled = self.resampler.process(&to_process, channels);
-        *data = resampled;
+        // Buffer level manager — only corrects when buffer is critically low/high
+        let managed = self.buffer_manager.process(&to_process, channels, queued_ms);
+        *data = managed;
 
-        // Clamp
+        // Soft clip — avoids harsh hard-clipping artifacts (crackling/pops)
         for sample in data.iter_mut() {
-            *sample = sample.clamp(-1.0, 1.0);
+            *sample = soft_clip(*sample);
         }
 
         let processed_rms = compute_rms(data);
@@ -1031,6 +996,10 @@ impl DspProcessor {
 
     fn apply_agc(&mut self, data: &mut Vec<f32>, target: f32, attack: f32, decay: f32) {
         let target_linear = target / 32767.0;
+        // Noise gate threshold: below this level, don't apply AGC gain
+        // (prevents amplifying hiss/noise floor during speech pauses)
+        let gate_threshold = 0.005_f32; // ~ -46dB
+
         for sample in data.iter_mut() {
             let abs_sample = sample.abs();
             if abs_sample > self.agc_envelope {
@@ -1038,10 +1007,18 @@ impl DspProcessor {
             } else {
                 self.agc_envelope += decay * (abs_sample - self.agc_envelope);
             }
-            if self.agc_envelope > 1e-6 {
+            if self.agc_envelope > gate_threshold {
                 let desired_gain = target_linear / self.agc_envelope;
-                let clamped_gain = desired_gain.clamp(0.1, 10.0);
-                *sample *= clamped_gain;
+                let clamped_gain = desired_gain.clamp(0.1, 5.0);
+                // Smooth gain transition to avoid pops (exponential moving average)
+                let smooth_factor = 0.005_f32;
+                self.agc_smoothed_gain += smooth_factor * (clamped_gain - self.agc_smoothed_gain);
+                *sample *= self.agc_smoothed_gain;
+            } else {
+                // Below noise gate: smoothly reduce gain toward unity
+                let smooth_factor = 0.002_f32;
+                self.agc_smoothed_gain += smooth_factor * (1.0 - self.agc_smoothed_gain);
+                *sample *= self.agc_smoothed_gain;
             }
         }
     }
@@ -1092,6 +1069,23 @@ fn compute_rms(data: &[f32]) -> f32 {
     if data.is_empty() { return 0.0; }
     let sum: f32 = data.iter().map(|s| s * s).sum();
     (sum / data.len() as f32).sqrt()
+}
+
+/// Soft clip — smooth polynomial knee to avoid harsh hard-clipping artifacts.
+/// Identity below 0.95, smooth Hermite compression to ±1.0 at ±2.0.
+fn soft_clip(sample: f32) -> f32 {
+    let a = sample.abs();
+    if a <= 0.95 {
+        sample
+    } else if a <= 2.0 {
+        let sign = sample.signum();
+        let t = (a - 0.95) / 1.05; // 0..1 over [0.95, 2.0]
+        // Hermite smoothstep: C1 continuous, f(0)=0, f(1)=1, f'(0)=f'(1)=0
+        let s = t * t * (3.0 - 2.0 * t);
+        sign * (0.95 + 0.05 * s)
+    } else {
+        sample.signum()
+    }
 }
 
 #[cfg(test)]
