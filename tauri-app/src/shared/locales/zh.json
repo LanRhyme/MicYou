@@ -144,6 +144,12 @@
       "available": "可用于自动切换输入设备",
       "switchAudioSourceMissing": "请安装 SwitchAudioSource（brew install switchaudio-osx）以启用自动切换输入设备"
     },
+    "pipewire": {
+      "active": "已激活",
+      "available": "可用",
+      "notAvailable": "不可用",
+      "desc": "PipeWire 虚拟音频设备会在服务器启动时自动创建。音频通过虚拟 Sink 路由到虚拟 Source，其他应用程序可将其用作麦克风输入。"
+    },
     "audioOutput": {
       "title": "输出设备",
       "desc": "麦克风的声音应该在哪里播放？",

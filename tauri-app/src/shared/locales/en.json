@@ -144,6 +144,12 @@
       "available": "available for auto input switching",
       "switchAudioSourceMissing": "Install SwitchAudioSource (brew install switchaudio-osx) for auto input switching"
     },
+    "pipewire": {
+      "active": "Active",
+      "available": "Available",
+      "notAvailable": "Not Available",
+      "desc": "PipeWire virtual audio device is automatically created when the server starts. Audio is routed through a virtual sink to a virtual source that other applications can use as microphone input."
+    },
     "audioOutput": {
       "title": "Output Device",
       "desc": "Where should the microphone audio be played?",

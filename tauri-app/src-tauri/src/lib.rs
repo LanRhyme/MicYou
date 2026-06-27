@@ -12,6 +12,7 @@ pub mod tray;
 pub mod vbcable;
 pub mod blackhole;
 pub mod jitter_buffer;
+pub mod pipewire;
 
 use tauri::{Emitter, AppHandle, Manager, State};
 use tauri::window::Effect;
@@ -153,6 +154,22 @@ fn get_network_interfaces() -> Vec<NetworkInterfaceInfo> {
 
 use cpal::traits::{DeviceTrait, HostTrait};
 
+#[derive(serde::Serialize)]
+struct PipeWireStatus {
+    available: bool,
+    setup: bool,
+    device_exists: bool,
+}
+
+#[tauri::command]
+fn check_pipewire() -> PipeWireStatus {
+    PipeWireStatus {
+        available: pipewire::is_available(),
+        setup: pipewire::is_setup(),
+        device_exists: pipewire::device_exists(),
+    }
+}
+
 #[tauri::command]
 fn get_audio_devices() -> Vec<String> {
     let mut names = Vec::new();
@@ -211,6 +228,25 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
 
     let dsp_settings = state.dsp_settings.clone();
 
+    // On Linux, set up PipeWire virtual audio device before starting audio output.
+    // The ALSA config file (micyou-pipewire.conf) redirects default ALSA output to the virtual sink.
+    if cfg!(target_os = "linux") && output_device.is_none() {
+        if pipewire::is_available() {
+            if !pipewire::is_setup() {
+                log::info!("[PipeWire] Setting up virtual audio device...");
+                if pipewire::setup() {
+                    log::info!("[PipeWire] Virtual device ready, ALSA will route to virtual sink");
+                } else {
+                    log::warn!("[PipeWire] Setup failed, falling back to default device");
+                }
+            }
+        } else {
+            log::info!("[PipeWire] Not available, using default audio device");
+        }
+    }
+
+    let resolved_output_device = output_device;
+
     let (audio_tx, mut audio_rx) = tokio::sync::mpsc::channel(1024);
 
     // Start audio output pipeline (shared by all modes)
@@ -218,7 +254,7 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
     let is_web_mode = _mode == "web";
     std::thread::spawn(move || {
         let mut audio_manager = micyou_audio::AudioOutputManager::new();
-        if let Err(e) = audio_manager.start(output_device) {
+        if let Err(e) = audio_manager.start(resolved_output_device) {
             eprintln!("Failed to start audio output: {}", e);
             return;
         }
@@ -459,6 +495,11 @@ async fn stop_server(app: AppHandle, state: State<'_, ServerState>) -> Result<St
         {
             let _ = blackhole::do_restore_input_device().await;
         }
+        // Clean up PipeWire virtual devices on Linux
+        #[cfg(target_os = "linux")]
+        {
+            pipewire::cleanup();
+        }
         let _ = app.emit("server-stopped", ());
         Ok("Server stopped".to_string())
     } else {
@@ -586,6 +627,12 @@ async fn start_window_drag(app: AppHandle) -> Result<(), String> {
     });
 
     Ok(())
+}
+
+#[cfg(not(windows))]
+#[tauri::command]
+async fn start_window_drag(_app: AppHandle) -> Result<(), String> {
+    Err("Window drag is only supported on Windows".to_string())
 }
 
 fn restore_acrylic(window: &tauri::WebviewWindow) -> Result<(), String> {
@@ -774,6 +821,7 @@ pub fn run() {
             blackhole::check_blackhole,
             blackhole::set_blackhole_as_input,
             blackhole::restore_input_device,
+            check_pipewire,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

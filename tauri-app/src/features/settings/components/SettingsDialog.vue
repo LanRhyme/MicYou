@@ -181,7 +181,7 @@
                   </SelectContent>
                 </Select>
               </div>
-              <p v-if="settings.audioDevice === 'auto' || (settings.audioDevice && (settings.audioDevice.includes('CABLE Input') || settings.audioDevice.toLowerCase().includes('blackhole')))" class="text-xs text-green-400 font-medium">
+              <p v-if="settings.audioDevice === 'auto' || (settings.audioDevice && (settings.audioDevice.includes('CABLE Input') || settings.audioDevice.toLowerCase().includes('blackhole') || settings.audioDevice.toLowerCase().includes('micyou')))" class="text-xs text-green-400 font-medium">
                 {{ $t('settings.audioOutput.routingActive') }}
               </p>
             </div>
@@ -213,6 +213,20 @@
                 >
                   <Download class="w-4 h-4" /> {{ $t('settings.blackhole.download') }}
                 </button>
+              </div>
+            </div>
+            <div v-else-if="isLinux" class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-on-surface text-lg">PipeWire</h4>
+                <span class="text-xs font-medium px-2 py-1 rounded-md" :class="pipewireStatus.available ? (pipewireStatus.device_exists ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400') : 'bg-red-500/20 text-red-400'">
+                  {{ pipewireStatus.available ? (pipewireStatus.device_exists ? $t('settings.pipewire.active') : $t('settings.pipewire.available')) : $t('settings.pipewire.notAvailable') }}
+                </span>
+              </div>
+              <p class="text-xs text-on-surface-variant">
+                {{ $t('settings.pipewire.desc') }}
+              </p>
+              <div v-if="!pipewireStatus.available" class="text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg p-3 select-all">
+                sudo apt install pipewire pipewire-pulse
               </div>
             </div>
             <div v-else class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
@@ -716,6 +730,8 @@ const audioDevices = ref<string[]>([]);
 const hasVBCable = computed(() => audioDevices.value.some(d => d.toLowerCase().includes('cable')));
 const hasBlackHole = computed(() => audioDevices.value.some(d => d.toLowerCase().includes('blackhole')));
 const isMacOS = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform || navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
+const isLinux = typeof navigator !== 'undefined' && /Linux/.test(navigator.platform || navigator.userAgent) && !/Android/.test(navigator.userAgent);
+const pipewireStatus = ref<{ available: boolean; setup: boolean; device_exists: boolean }>({ available: false, setup: false, device_exists: false });
 const vbcableInstalling = ref(false);
 const vbcableInstallProgress = ref('');
 let unlistenVbcableProgress: UnlistenFn | null = null;
@@ -883,6 +899,15 @@ async function checkBlackHoleStatus() {
   }
 }
 
+async function checkPipeWireStatus() {
+  if (!isLinux) return;
+  try {
+    pipewireStatus.value = await invoke<{ available: boolean; setup: boolean; device_exists: boolean }>('check_pipewire');
+  } catch (e) {
+    console.error('Failed to check PipeWire status:', e);
+  }
+}
+
 // Lifecycle
 onMounted(async () => {
   try {
@@ -928,6 +953,7 @@ const fetchDevices = async () => {
     console.error("Failed to fetch audio devices", e);
   }
   checkBlackHoleStatus();
+  checkPipeWireStatus();
 };
 
 const loadSettings = () => {
