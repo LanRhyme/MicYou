@@ -163,18 +163,23 @@ const closePopup = async () => {
   moreMenuOpen.value = false;
 };
 
-// Immediately hide all overlays (no animation) — used when switching between popups
+// Close all overlays (destroy & reset) — used when switching between popups
 const hideAllOverlays = async () => {
   for (const id of Object.keys(overlays)) {
     const h = overlays[id];
     if (h.window) {
       try {
         await h.window.emit('popup-closing');
-        await h.window.hide();
+        h.window.close();
       } catch {}
     }
+    h.unlisteners.forEach(fn => fn());
+    h.unlisteners = [];
+    h.window = null;
+    h.created = false;
   }
   moreMenuOpen.value = false;
+  emit('update:popupOpen', false);
 };
 
 const destroyAllOverlays = () => {
