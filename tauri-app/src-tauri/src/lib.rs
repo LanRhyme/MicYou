@@ -12,6 +12,7 @@ pub mod tray;
 pub mod vbcable;
 pub mod blackhole;
 pub mod jitter_buffer;
+#[cfg(target_os = "linux")]
 pub mod pipewire;
 
 use tauri::{Emitter, AppHandle, Manager, State};
@@ -161,12 +162,23 @@ struct PipeWireStatus {
     device_exists: bool,
 }
 
+#[cfg(target_os = "linux")]
 #[tauri::command]
 fn check_pipewire() -> PipeWireStatus {
     PipeWireStatus {
         available: pipewire::is_available(),
         setup: pipewire::is_setup(),
         device_exists: pipewire::device_exists(),
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+#[tauri::command]
+fn check_pipewire() -> PipeWireStatus {
+    PipeWireStatus {
+        available: false,
+        setup: false,
+        device_exists: false,
     }
 }
 
@@ -230,7 +242,8 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
 
     // On Linux, set up PipeWire virtual audio device before starting audio output.
     // The ALSA config file (micyou-pipewire.conf) redirects default ALSA output to the virtual sink.
-    if cfg!(target_os = "linux") && output_device.is_none() {
+    #[cfg(target_os = "linux")]
+    if output_device.is_none() {
         if pipewire::is_available() {
             if !pipewire::is_setup() {
                 log::info!("[PipeWire] Setting up virtual audio device...");
