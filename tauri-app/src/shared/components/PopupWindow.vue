@@ -161,7 +161,10 @@ onMounted(async () => {
     noTransition.value = true;
     animState.value = 'hidden';
   }));
-  unlisteners.push(await popupWindow.listen('popup-refresh', refreshState));
+  unlisteners.push(await popupWindow.listen('popup-refresh', () => {
+    syncTheme();
+    refreshState();
+  }));
   unlisteners.push(await popupWindow.listen('popup-animate-in', animateIn));
   unlisteners.push(await popupWindow.listen('popup-animate-out', animateOut));
 
@@ -179,17 +182,15 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="w-full h-full" style="background: hsl(var(--surface))">
-    <div
-      class="haze-surface rounded-2xl shadow-xl border border-outline/10 overflow-hidden"
-      style="background: hsl(var(--surface))"
-      :class="[noTransition ? '' : 'transition-all duration-200 ease-out', {
-        'opacity-0 -translate-y-1.5 scale-95': animState === 'hidden' || animState === 'entering',
-        'opacity-100 translate-y-0 scale-100': animState === 'visible',
-        'opacity-0 -translate-y-1 scale-95': animState === 'leaving',
-      }]"
-    >
-      <div class="pt-1">
+  <div
+    class="w-full h-full haze-surface rounded-2xl shadow-xl border border-outline/10 overflow-hidden"
+    :class="[noTransition ? '' : 'transition-all duration-200 ease-out', {
+      'opacity-0 -translate-y-1.5 scale-95': animState === 'hidden' || animState === 'entering',
+      'opacity-100 translate-y-0 scale-100': animState === 'visible',
+      'opacity-0 -translate-y-1 scale-95': animState === 'leaving',
+    }]"
+  >
+    <div class="pt-1">
         <div class="px-3 py-2">
           <div class="text-[10px] text-on-surface-variant font-medium mb-1.5 uppercase tracking-wider">{{ t('app.connectionMode') }}</div>
           <div class="flex gap-1">
@@ -236,6 +237,5 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
-    </div>
   </div>
 </template>
