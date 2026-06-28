@@ -253,6 +253,12 @@ class NetworkServer(
         output: ByteWriteChannel,
         closeAction: suspend () -> Unit
     ) {
+        // 每当新连接到来时，重置抖动缓冲区的序列号状态，防止旧连接的序列号干扰新连接
+        jitterBuffer?.let { buf ->
+            buf.stop()
+            buf.start()
+        }
+
         _state.value = StreamState.Streaming
         _lastError.value = null
 

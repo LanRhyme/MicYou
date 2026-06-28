@@ -143,8 +143,6 @@ data class AppUiState(
 
     // Performance State
     val performanceMode: String = "Default",
-    val audioMetrics: AudioMetrics? = null,
-    val metricsHistory: List<AudioMetrics> = emptyList(),
     val showMonitoringPanel: Boolean = false,
 
     // Discovery State
@@ -186,6 +184,7 @@ class MainViewModel : ViewModel() {
     val processedSpectrum = audioStreamViewModel.processedSpectrum
     val audioLevelData = audioStreamViewModel.audioLevelData
     val audioMetricsFlow = audioStreamViewModel.audioMetrics
+    val metricsHistoryFlow = audioStreamViewModel.metricsHistoryFlow
     val levelHistory = audioStreamViewModel.levelHistory
     
     private val settings = SettingsFactory.getSettings()
@@ -275,29 +274,12 @@ class MainViewModel : ViewModel() {
 
     private fun setupStateObservers() {
         viewModelScope.launch {
-            val audioDataFlow = combine(
-                audioStreamViewModel.uiState,
-                audioStreamViewModel.audioMetrics,
-                audioStreamViewModel.metricsHistoryFlow
-            ) { state, metrics, history ->
-                // Return a data structure to hold the 3 audio-related states
-                object {
-                    val state = state
-                    val metrics = metrics
-                    val history = history
-                }
-            }
-
             combine(
-                audioDataFlow,
+                audioStreamViewModel.uiState,
                 settingsViewModel.uiState,
                 pluginViewModel.uiState,
                 updateViewModel.uiState
-            ) { audioData, settingsState, pluginState, updateState ->
-                val audioState = audioData.state
-                val currentMetrics = audioData.metrics
-                val history = audioData.history
-                
+            ) { audioState, settingsState, pluginState, updateState ->
                 _uiState.update { current ->
                     current.copy(
                         mode = audioState.mode,
@@ -369,8 +351,6 @@ class MainViewModel : ViewModel() {
                         updateTotalBytes = updateState.updateTotalBytes,
                         updateErrorMessage = updateState.updateErrorMessage,
                         performanceMode = audioState.performanceMode,
-                        audioMetrics = currentMetrics,
-                        metricsHistory = history,
                         showMonitoringPanel = audioState.showMonitoringPanel,
                         snackbarMessage = settingsState.snackbarMessage,
                         webUrl = audioState.webUrl,

@@ -2,7 +2,9 @@ package com.lanrhyme.micyou
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -103,7 +105,7 @@ class AudioStreamViewModel : ViewModel() {
     val metricsHistoryFlow: StateFlow<List<AudioMetrics>> = _metricsHistoryFlow.asStateFlow()
 
     private val settings = SettingsFactory.getSettings()
-    private var isStartStreamRequestPending = false
+    private var streamJob: Job? = null
 
     init {
         loadSettings()
@@ -390,20 +392,21 @@ class AudioStreamViewModel : ViewModel() {
     }
 
     fun startStream() {
-        if (isStartStreamRequestPending ||
-            _uiState.value.streamState == StreamState.Streaming ||
+        if (_uiState.value.streamState == StreamState.Streaming ||
             _uiState.value.streamState == StreamState.Connecting
         ) {
             Logger.d("AudioStreamViewModel", "Start stream request ignored: already starting or running")
             return
         }
 
-        isStartStreamRequestPending = true
-        viewModelScope.launch {
+        streamJob?.cancel()
+        streamJob = viewModelScope.launch {
+            _uiState.update { it.copy(streamState = StreamState.Connecting) }
             try {
                 startStreamInternal()
-            } finally {
-                isStartStreamRequestPending = false
+            } catch (e: CancellationException) {
+                _uiState.update { it.copy(streamState = StreamState.Idle) }
+                throw e
             }
         }
     }
@@ -461,6 +464,7 @@ class AudioStreamViewModel : ViewModel() {
             _audioEngine.start(ip, port, mode, isClient, sampleRate, channelCount, audioFormat, _uiState.value.transportProtocol)
             Logger.i("AudioStreamViewModel", "Stream started successfully")
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Logger.e("AudioStreamViewModel", "Failed to start stream", e)
 
             val errorType = ConnectionErrorHelper.analyzeError(e, mode)
@@ -503,6 +507,7 @@ class AudioStreamViewModel : ViewModel() {
 
     fun stopStream() {
         Logger.i("AudioStreamViewModel", "Stopping stream")
+        streamJob?.cancel()
         _uiState.update { it.copy(streamState = StreamState.Idle) }
         _audioEngine.stop()
     }

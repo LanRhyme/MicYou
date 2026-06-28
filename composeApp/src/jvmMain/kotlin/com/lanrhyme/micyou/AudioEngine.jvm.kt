@@ -137,7 +137,7 @@ actual class AudioEngine actual constructor() {
                 if (newState == StreamState.Streaming) {
                     audioPipeline.reset()
                     startAudioProcessing()
-                } else if (newState == StreamState.Idle || newState == StreamState.Error) {
+                } else if (newState == StreamState.Connecting || newState == StreamState.Idle || newState == StreamState.Error) {
                     stopAudioProcessing()
                 }
                 _state.value = newState
@@ -395,8 +395,10 @@ actual class AudioEngine actual constructor() {
         val bindAddress = ip.takeIf { it.isNotBlank() } ?: getPreferredLocalIpAddress()
         currentBindAddress = bindAddress
         networkServer.start(port, bindAddress, transportProtocol, mode)
-        runCatching { mdnsAdvertiser.reAdvertise(port, bindAddress) }
-            .onFailure { Logger.w("AudioEngine", "mDNS advertise failed: ${it.message}") }
+        scope.launch(Dispatchers.IO) {
+            runCatching { mdnsAdvertiser.reAdvertise(port, bindAddress) }
+                .onFailure { Logger.w("AudioEngine", "mDNS advertise failed: ${it.message}") }
+        }
         updateNetworkAddressMonitor(bindAddress)
         Logger.i("AudioEngine", "NetworkServer started successfully on $bindAddress:$port")
     }

@@ -261,9 +261,11 @@ fun DesktopHomeEnhanced(
                     )
 
                     if (state.showMonitoringPanel) {
+                        val currentMetrics by viewModel.audioMetricsFlow.collectAsState(initial = null)
+                        val currentHistory by viewModel.metricsHistoryFlow.collectAsState(initial = emptyList())
                         MonitoringPanel(
-                            metrics = state.audioMetrics,
-                            history = state.metricsHistory,
+                            metrics = currentMetrics,
+                            history = currentHistory,
                             audioLevel = audioLevel,
                             isRunning = state.streamState == StreamState.Streaming,
                             modifier = Modifier.weight(0.28f),
@@ -1494,6 +1496,11 @@ private fun MainControlButton(
         animationSpec = infiniteRepeatable(tween(1500, easing = EasingFunctions.EaseInOutCubic), RepeatMode.Reverse),
         label = "Glow"
     )
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing)),
+        label = "SpinnerAngle"
+    )
 
     Box(
         contentAlignment = Alignment.Center,
@@ -1519,7 +1526,12 @@ private fun MainControlButton(
                     isRunning -> Icons.Filled.LinkOff
                     else -> Icons.Filled.Link
                 },
-                null, modifier = Modifier.size(28.dp))
+                null,
+                modifier = Modifier.size(28.dp).then(
+                    if (isConnecting) Modifier.graphicsLayer { rotationZ = angle }
+                    else Modifier
+                )
+            )
         }
     }
 }

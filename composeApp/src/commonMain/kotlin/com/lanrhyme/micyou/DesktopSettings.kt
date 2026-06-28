@@ -32,6 +32,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -103,6 +105,8 @@ import com.lanrhyme.micyou.animation.EasingFunctions
 import com.lanrhyme.micyou.theme.ExpressiveCard
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.round
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.aboutSection
 import micyou.composeapp.generated.resources.agcAttackRateLabel
@@ -1714,6 +1718,8 @@ fun SettingsSection.getLabel(): String {
 fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
     val state by viewModel.uiState.collectAsState()
     val eqConfig = state.equalizerConfig
+    val coroutineScope = rememberCoroutineScope()
+    val presetRowState = rememberLazyListState()
     
     val presets = listOf(
         stringResource(Res.string.equalizerNormalPreset) to List(10) { 0f },
@@ -1740,11 +1746,35 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                     .fillMaxWidth()
                     .clip(MaterialTheme.shapes.medium)
                     .background(MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity * 0.5f))
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                if (event.type == PointerEventType.Scroll) {
+                                    val scrollDelta = event.changes.firstOrNull()?.scrollDelta?.y ?: continue
+                                    if (scrollDelta != 0f) {
+                                        val currentIndex = presetRowState.firstVisibleItemIndex
+                                        val targetIndex = if (scrollDelta < 0f)
+                                            maxOf(0, currentIndex - 1)
+                                        else
+                                            minOf(presets.size - 1, currentIndex + 1)
+                                        coroutineScope.launch {
+                                            presetRowState.scrollToItem(targetIndex)
+                                        }
+                                        event.changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
+                        }
+                    }
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(stringResource(Res.string.equalizerPresetsLabel), style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(8.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LazyRow(
+                        state = presetRowState,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         items(presets) { preset ->
                             FilterChip(
                                 selected = eqConfig.gains == preset.second,
@@ -1774,19 +1804,10 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                     Slider(
                         value = eqConfig.preAmp,
                         onValueChange = { viewModel.setEqualizerConfig(eqConfig.copy(preAmp = it)) },
+                        onValueChangeFinished = {
+                            viewModel.setEqualizerConfig(eqConfig.copy(preAmp = round(eqConfig.preAmp)))
+                        },
                         valueRange = -30f..30f,
-                        modifier = Modifier.pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val event = awaitPointerEvent()
-                                    if (event.type == PointerEventType.Scroll) {
-                                        val delta = event.changes.first().scrollDelta.y
-                                        val newValue = (eqConfig.preAmp - delta).coerceIn(-30f, 30f)
-                                        viewModel.setEqualizerConfig(eqConfig.copy(preAmp = newValue))
-                                    }
-                                }
-                            }
-                        }
                     )
                 }
             }
@@ -1813,31 +1834,18 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.fillMaxHeight().width(44.dp)
                             ) {
+                                val displayVal = gain.toInt()
                                 Text(
-                                    if (gain >= 0) "+${gain.toInt()}" else "${gain.toInt()}",
+                                    if (displayVal > 0) "+$displayVal" else "$displayVal",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = if (gain != 0f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = if (gain != 0f) FontWeight.Bold else FontWeight.Normal
+                                    color = if (displayVal != 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = if (displayVal != 0) FontWeight.Bold else FontWeight.Normal
                                 )
                                 Spacer(Modifier.height(8.dp))
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .width(44.dp)
-                                        .pointerInput(Unit) {
-                                            awaitPointerEventScope {
-                                                while (true) {
-                                                    val event = awaitPointerEvent()
-                                                    if (event.type == PointerEventType.Scroll) {
-                                                        val delta = event.changes.first().scrollDelta.y
-                                                        val newValue = (gain - delta).coerceIn(-30f, 30f)
-                                                        val newGains = eqConfig.gains.toMutableList()
-                                                        newGains[index] = newValue
-                                                        viewModel.setEqualizerConfig(eqConfig.copy(gains = newGains))
-                                                    }
-                                                }
-                                            }
-                                        },
+                                        .width(44.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Slider(
@@ -1846,6 +1854,14 @@ fun EqualizerContent(viewModel: MainViewModel, cardOpacity: Float) {
                                             val newGains = eqConfig.gains.toMutableList()
                                             newGains[index] = newValue
                                             viewModel.setEqualizerConfig(eqConfig.copy(gains = newGains))
+                                        },
+                                        onValueChangeFinished = {
+                                            val rounded = round(eqConfig.gains[index])
+                                            if (rounded != eqConfig.gains[index]) {
+                                                val newGains = eqConfig.gains.toMutableList()
+                                                newGains[index] = rounded
+                                                viewModel.setEqualizerConfig(eqConfig.copy(gains = newGains))
+                                            }
                                         },
                                         valueRange = -30f..30f,
                                         modifier = Modifier
