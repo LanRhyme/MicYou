@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useStorage } from '@vueuse/core';
-import { X, Upload, Trash2 } from 'lucide-vue-next';
+import { X, Upload, Trash2 } from '@lucide/vue';
 import { Codemirror } from 'vue-codemirror';
 import { css } from '@codemirror/lang-css';
 import { oneDark } from '@codemirror/theme-one-dark';

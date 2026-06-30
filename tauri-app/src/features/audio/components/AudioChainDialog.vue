@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { X, GripVertical, RotateCcw } from 'lucide-vue-next';
+import { X, GripVertical, RotateCcw } from '@lucide/vue';
 
 const props = defineProps<{ isOpen: boolean, chain: string[] }>();
 const emit = defineEmits(['close', 'update:chain']);

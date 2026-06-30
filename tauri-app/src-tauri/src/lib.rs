@@ -43,11 +43,6 @@ pub struct ServerState {
 }
 
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
-#[tauri::command]
 fn enable_usb_mode(port: u16, device_serial: Option<String>) -> Result<adb_manager::UsbModeResult, String> {
     adb_manager::enable_usb_mode(port, device_serial.as_deref())
 }
@@ -648,6 +643,7 @@ async fn start_window_drag(_app: AppHandle) -> Result<(), String> {
     Err("Window drag is only supported on Windows".to_string())
 }
 
+#[cfg(windows)]
 fn restore_acrylic(window: &tauri::WebviewWindow) -> Result<(), String> {
     use tauri::window::EffectsBuilder;
     window.set_effects(
@@ -810,7 +806,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             set_window_effects,
             start_window_drag,
-            greet,
             enable_usb_mode,
             list_adb_devices,
             get_network_info,

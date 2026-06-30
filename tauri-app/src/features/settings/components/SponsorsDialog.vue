@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { X, Heart } from 'lucide-vue-next';
+import { X, Heart } from '@lucide/vue';
 import { invoke } from '@tauri-apps/api/core';
 
 const props = defineProps<{ isOpen: boolean }>();

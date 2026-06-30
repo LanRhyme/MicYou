@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useI18n } from 'vue-i18n';
-import { Globe, CheckCircle2 } from 'lucide-vue-next';
+import { Globe, CheckCircle2 } from '@lucide/vue';
 
 interface NetworkInterface {
   ip: string;

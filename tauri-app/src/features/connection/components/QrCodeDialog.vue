@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Copy, Users, CheckCircle2 } from 'lucide-vue-next'
+import { Copy, Users, CheckCircle2 } from '@lucide/vue'
 
 const props = defineProps<{
   show: boolean

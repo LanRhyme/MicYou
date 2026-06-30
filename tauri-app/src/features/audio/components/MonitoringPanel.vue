@@ -90,7 +90,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { Activity as ActivityIcon, TrendingUp as TrendingUpIcon, ActivitySquare as WaveformIcon, Settings2 as Settings2Icon } from 'lucide-vue-next'
+import { Activity as ActivityIcon, TrendingUp as TrendingUpIcon, ActivitySquare as WaveformIcon, Settings2 as Settings2Icon } from '@lucide/vue'
 
 const props = defineProps<{
   serverState: string

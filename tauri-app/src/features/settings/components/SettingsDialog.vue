@@ -620,7 +620,7 @@ import {
   SlidersHorizontal,
   Palette,
   Network
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
 import LicensesDialog from './LicensesDialog.vue';
