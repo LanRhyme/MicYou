@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ShieldAlert as ShieldAlertIcon } from 'lucide-vue-next'
+import { ShieldAlert as ShieldAlertIcon } from '@lucide/vue'
 
 defineProps<{
   show: boolean

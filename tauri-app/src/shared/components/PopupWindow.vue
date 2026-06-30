@@ -4,7 +4,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useI18n } from 'vue-i18n';
 import {
   Wifi, Mic, Globe, Settings
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 
 const { t } = useI18n();
 const popupWindow = getCurrentWindow();

@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useI18n } from 'vue-i18n';
-import { X, CheckCircle2, Download, Loader2, ArrowRight } from 'lucide-vue-next';
+import { X, CheckCircle2, Download, Loader2, ArrowRight } from '@lucide/vue';
 
 const { t } = useI18n();
 

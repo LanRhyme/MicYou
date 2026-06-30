@@ -6,7 +6,7 @@ import {
   Link, Unlink, RefreshCw, Minus, X,
   Globe, ChevronDown, MoreHorizontal,
   VolumeX, Volume2, Loader2
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 
 interface NetworkInterface {
   ip: string;

@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Check, Palette } from 'lucide-vue-next';
+import { Check, Palette } from '@lucide/vue';
 
 const props = defineProps<{
   modelValue: string;

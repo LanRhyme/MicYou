@@ -36,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 
 defineProps<{ isOpen: boolean }>();
 const emit = defineEmits(['close']);

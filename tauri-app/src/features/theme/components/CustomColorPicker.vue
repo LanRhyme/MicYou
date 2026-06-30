@@ -93,7 +93,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 
 const props = defineProps<{
   isOpen: boolean;
