@@ -1,0 +1,448 @@
+{
+  "app": {
+    "connectionMode": "连接之法",
+    "port": "端口",
+    "level": "音量：",
+    "start": "启",
+    "stop": "止",
+    "status": {
+      "streaming": "音频传送中矣",
+      "connecting": "恭候装置中...",
+      "starting": "正启服务...",
+      "ready": "已备矣",
+      "streamingDesc": "安卓装置已通矣。",
+      "connectingDesc": "监听端口 {port} 中",
+      "startingDesc": "音频服务正始化，且稍候。",
+      "readyDesc": "点启以候连接。",
+      "stateStreaming": "传送中",
+      "stateConnecting": "连接中...",
+      "stateStarting": "始化中...",
+      "stateIdle": "闲",
+      "mute": "静之",
+      "unmute": "复声",
+      "wifi": "以 Wi-Fi 相连",
+      "usb": "以 USB 相连",
+      "disconnected": "未连",
+      "waiting": "候连接中...",
+      "running": "MicYou 服务行中",
+      "web": "以网页相连",
+      "webClients": "{count} 端已连",
+      "webWaiting": "候浏览器连接中..."
+    },
+    "web": {
+      "title": "网页连接",
+      "scanToConnect": "扫码相连",
+      "clientsConnected": "{count} 端已连",
+      "noClients": "候连接中...",
+      "webUrl": "网页之址",
+      "openInBrowser": "启于浏览器",
+      "dialogTitle": "网页连接",
+      "copyUrl": "录其址",
+      "close": "闭"
+    },
+    "notify": {
+      "connected": "装置已通矣。",
+      "disconnected": "装置已断矣。",
+      "usbDisconnected": "USB 断矣，复插而后连。"
+    },
+    "ipSelector": {
+      "allInterfaces": "诸网",
+      "allInterfacesDesc": "监听诸网接口",
+      "switchConfirmTitle": "换网接口",
+      "switchConfirmMessage": "换网接口则重启连接，续乎？",
+      "continue": "续",
+      "cancel": "止"
+    },
+    "deviceSelector": {
+      "title": "择 USB 装置",
+      "desc": "探得数装置，请择一而连：",
+      "cancel": "止"
+    },
+    "monitoring": {
+      "title": "音频之质",
+      "rtt": "网延迟",
+      "jitter": "抖动",
+      "loss": "丢包之率",
+      "trend": "延迟之势",
+      "waveform": "实时波形",
+      "specs": "音频之格",
+      "sampleRate": "采样之率",
+      "bitrate": "比特之率",
+      "totalLatency": "总延迟",
+      "buffer": "缓冲"
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "categories": {
+      "general": "通用",
+      "appearance": "外观",
+      "audio": "音频",
+      "network": "网络",
+      "plugins": "插件",
+      "about": "关于"
+    },
+    "language": {
+      "title": "语言",
+      "desc": "择应用之语言",
+      "system": "随系统"
+    },
+    "theme": {
+      "title": "主题",
+      "desc": "择应用之主题",
+      "auto": "随系统",
+      "light": "明",
+      "dark": "暗"
+    },
+    "themeColor": {
+      "title": "主题之色",
+      "desc": "择主色",
+      "blue": "青",
+      "green": "碧",
+      "rose": "粉",
+      "purple": "紫"
+    },
+    "customCss": {
+      "title": "自定 CSS",
+      "desc": "入 CSS 码以饰应用。",
+      "placeholder": "/* 例：\nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
+      "editBtn": "编 CSS",
+      "loadFromFile": "从档载入",
+      "clear": "清之"
+    },
+    "customColor": {
+      "title": "自定之色",
+      "preview": "预览",
+      "hue": "色相",
+      "advanced": "高设",
+      "saturation": "饱和",
+      "lightness": "明度",
+      "autoManaged": "饱和与明度由系统自管，以保观瞻。"
+    },
+    "pocketMode": {
+      "title": "袖珍之式",
+      "desc": "紧凑横栏，余控移至弹出之单。"
+    },
+    "uiStyle": {
+      "title": "界面之式",
+      "desc": "择应用之观感",
+      "default": "默认",
+      "glass": "毛玻璃"
+    },
+    "vbcable": {
+      "title": "VB-Cable 转发",
+      "installed": "已装",
+      "notDetected": "未探得",
+      "desc": "欲将音频转至他应用，需装 VB-Audio Virtual Cable。",
+      "download": "下载 VB-Cable"
+    },
+    "blackhole": {
+      "installed": "已装",
+      "notDetected": "未探得",
+      "desc": "BlackHole 者，macOS 之虚拟音频装置也。可将麦克风音频转至他应用而无回响。",
+      "download": "BlackHole GitHub",
+      "available": "可用于自动切换",
+      "switchAudioSourceMissing": "装 SwitchAudioSource 以启自动切换"
+    },
+    "pipewire": {
+      "active": "活",
+      "available": "可用",
+      "notAvailable": "不可用",
+      "desc": "PipeWire 虚拟音频装置于服务启时自建，他应用可作麦克风用之。"
+    },
+    "audioOutput": {
+      "title": "输出装置",
+      "desc": "音频当于何处播放乎？",
+      "auto": "自动",
+      "routingActive": "虚拟音频路由已启，音频将转至虚拟装置。"
+    },
+    "spectrum": {
+      "title": "实时频谱",
+      "raw": "原",
+      "processed": "已处"
+    },
+    "audioParams": {
+      "gain": "增益",
+      "noiseSuppression": "降噪",
+      "intensity": "强度",
+      "dereverb": "去混响",
+      "level": "音量",
+      "agc": "自动增益",
+      "target": "目标",
+      "attack": "起效",
+      "decay": "衰减",
+      "vad": "语音检测",
+      "threshold": "阈值"
+    },
+    "audioChain": {
+      "title": "音频处理链",
+      "desc": "点以配音频之效",
+      "descPopup": "拖以重排音频之效",
+      "reset": "复为默认",
+      "NoiseReduction": "降噪",
+      "Dereverb": "去混响",
+      "Amplifier": "放大",
+      "AGC": "自动增益",
+      "VAD": "语音检测",
+      "Equalizer": "均衡器"
+    },
+    "equalizer": {
+      "title": "均衡器",
+      "enable": "启之",
+      "preAmp": "前级增益",
+      "presets": "预设",
+      "presetNormal": "常",
+      "presetBrightVocal": "清亮人声",
+      "presetDeepVoice": "深沉男声",
+      "presetPodcast": "播客",
+      "presetVocalClarity": "人声清晰",
+      "presetWarmVocal": "温暖人声"
+    },
+    "plugins": {
+      "underConstruction": "营造中",
+      "portedDesc": "此部正从旧版移植。"
+    },
+    "webPort": {
+      "title": "网页端口",
+      "desc": "网页连接之端口（默认：8443）",
+      "webOnly": "切至网页模式方可配此。"
+    },
+    "about": {
+      "version": "应用之版",
+      "updates": "查更新",
+      "updatesBtn": "更新",
+      "contributorsDesc": "助建此目者",
+      "contributorsBtn": "贡献者",
+      "sponsorsDesc": "览赞助者",
+      "sponsorsBtn": "赞助者",
+      "licensesDesc": "开源许可证",
+      "licensesBtn": "许可证",
+      "logsDesc": "出日志",
+      "logsBtn": "出日志",
+      "introTitle": "简介",
+      "introText": "MicYou 者，开源麦克风之具也。可使安卓装置变为电脑之高品质麦克风，以 Wi-Fi 或 USB 相连，音频传输延迟极低。"
+    }
+  },
+  "dialogs": {
+    "close": "闭",
+    "cancel": "止",
+    "apply": "用",
+    "contributors": {
+      "title": "贡献者",
+      "loading": "载贡献者中...",
+      "count": "{count} 位贡献者",
+      "empty": "未得贡献者"
+    },
+    "sponsors": {
+      "title": "赞助者",
+      "loading": "载赞助者中...",
+      "count": "{count} 位赞助者",
+      "empty": "尚无赞助者",
+      "disclaimer": "仅示爱发电上对目主 LanRhyme 之赞助。",
+      "sponsorBtn": "赞助"
+    },
+    "licenses": {
+      "title": "开源许可证",
+      "loading": "载许可证中..."
+    },
+    "update": {
+      "checking": "查更新中...",
+      "available": "新版本可得：{version}\n欲览发布之页乎？",
+      "latest": "已是最新之版矣。",
+      "failed": "查更新败：{error}"
+    },
+    "logs": {
+      "success": "日志已出矣。",
+      "failed": "日志出败：{error}"
+    },
+    "udpWarning": {
+      "title": "防火墙阻 UDP 连接",
+      "desc": "移动应用已连成，然电脑未收 UDP 音频数据。此常因 Windows 防火墙阻 UDP 端口（{port}）。\n\n请于防火墙中许 MicYou 网络访问，或以管理员运行之。"
+    }
+  },
+  "tray": {
+    "tooltip": "MicYou 桌面",
+    "show": "示应用",
+    "hide": "隐应用",
+    "start": "启传输",
+    "stop": "止传输",
+    "exit": "出"
+  },
+  "closeConfirm": {
+    "title": "关闭确认",
+    "message": "欲何为乎？",
+    "hide": "隐至托盘",
+    "exit": "出应用",
+    "remember": "勿复问"
+  },
+  "closeBehavior": {
+    "title": "关闭之行",
+    "desc": "关窗时当何为乎？",
+    "ask": "每次问",
+    "hide": "隐至托盘",
+    "exit": "出应用"
+  },
+  "startMinimized": {
+    "title": "始而最小",
+    "desc": "启时隐于托盘而不显窗。"
+  },
+  "autostart": {
+    "title": "开机自启",
+    "desc": "登电脑时自启 MicYou。"
+  },
+  "notifications": {
+    "title": "通知",
+    "desc": "装置连断时示通知。"
+  },
+  "autoStream": {
+    "title": "自动传输",
+    "desc": "应用启时自始传输。"
+  },
+  "error": {
+    "suggestionsTitle": "建议：",
+    "technicalDetails": "详情：",
+    "dialog": {
+      "retry": "复试",
+      "dismiss": "罢",
+      "help": "览助"
+    },
+    "networkTimeout": {
+      "title": "连接超时",
+      "message": "连接超时矣，请查网络与装置。"
+    },
+    "portInUse": {
+      "title": "端口已被占",
+      "message": "端口 {port} 已为他应用所占，请择他端口或闭占者。"
+    },
+    "connectionRefused": {
+      "title": "连接被拒",
+      "message": "连接被拒矣。装置或未行 MicYou 或未于端口监听。",
+      "wifiMessage": "连至 {ip} 被拒，请保桌面服务正行且配同端口。"
+    },
+    "networkUnreachable": {
+      "title": "网络不可达",
+      "message": "不可达 IP：{ip}，请验地址并保二装置同网。"
+    },
+    "firewallBlocked": {
+      "title": "防火墙阻之",
+      "message": "端口 {port} 为防火墙所阻，请加规或以管理员运行。"
+    },
+    "permissionDenied": {
+      "title": "权限不足",
+      "message": "权限不足，请以管理员运行。"
+    },
+    "deviceNotFound": {
+      "title": "未得装置",
+      "message": "未得指定装置，请查网络。"
+    },
+    "usbConnectionFailed": {
+      "title": "USB 连接败",
+      "message": "USB 连接败矣，请查线并保已启调试。"
+    },
+    "adbCommandFailed": {
+      "title": "ADB 命令败",
+      "message": "ADB 命令行败，请保已装且已启调试。"
+    },
+    "handshakeFailed": {
+      "title": "握手败",
+      "message": "握手败矣，或版本不匹或协议误。"
+    },
+    "protocolError": {
+      "title": "协议误",
+      "message": "通信中生协议误，请重启两端应用。"
+    },
+    "audioDevice": {
+      "title": "音频装置误",
+      "message": "音频装置误，请查设并重启应用。"
+    },
+    "audioFormat": {
+      "title": "音频格式误",
+      "message": "格式不支持，请试他设或用自动配。"
+    },
+    "versionMismatch": {
+      "title": "版本不匹",
+      "message": "版本不匹，请保二装置同版。"
+    },
+    "adminPrivilege": {
+      "title": "需管理员权限",
+      "message": "此操需管理员权限，请以管理员重启。"
+    },
+    "udpPortBlocked": {
+      "title": "UDP 端口被阻",
+      "message": "UDP 端口 {port} 为防火墙所阻。音频传输需 TCP 与 UDP 皆可达，请加规或以管理员运行。"
+    },
+    "unknown": {
+      "title": "未知误",
+      "message": "生未知误：{error}"
+    },
+    "suggestion": {
+      "checkNetwork": "查网络连接",
+      "checkTargetRunning": "保目标装置正行服务",
+      "tryDifferentPort": "试他端口",
+      "changePort": "于设中改端口",
+      "checkOtherApps": "查有无他应用占端口",
+      "checkServerRunning": "验桌面服务正行",
+      "checkServerConfig": "查服务配",
+      "checkNetworkConnection": "验装置间网络",
+      "verifyIpAddress": "复核 IP 地址",
+      "checkWifiConnected": "保二装置同网",
+      "addFirewallRule": "许 MicYou 过防火墙",
+      "runAsAdmin": "以管理员运行",
+      "checkAntivirus": "查安全软件设",
+      "checkUsbCable": "查 USB 线",
+      "enableUsbDebugging": "启 USB 调试",
+      "runAdbCommand": "于电脑行此令：{cmd}",
+      "checkAdbInstalled": "保已装 ADB",
+      "runAdbManually": "手行：{cmd}",
+      "versionMatch": "保二装置同版",
+      "restartApp": "重启应用",
+      "checkVersion": "于 GitHub 查更新",
+      "checkAudioDevice": "查音频装置",
+      "changeAudioConfig": "试他音频配",
+      "useDefaultConfig": "用默认配",
+      "updateApp": "更新至最新版",
+      "checkLogs": "览日志取详情"
+    }
+  },
+  "onboarding": {
+    "title": "迎用 MicYou",
+    "desc": "此应用可使安卓装置变为电脑之高品质麦克风，以 Wi-Fi 或 USB 相连。",
+    "quickStart": "速启指南",
+    "step1Title": "一、装桌面应用",
+    "step1Desc": "于电脑下载并装 MicYou",
+    "step2Title": "二、连装置",
+    "step2WifiDesc": "Wi-Fi：于应用入电脑 IP",
+    "step2UsbDesc": "USB：以线连而行 ADB 令",
+    "step3Title": "三、启传输",
+    "step3Desc": "点启钮以始音频传输",
+    "step4Title": "四、配音频",
+    "step4Desc": "于录软中择 VB-Cable 为输入",
+    "videoGuide": "视频教程",
+    "textGuide": "文字教程",
+    "gotIt": "吾已知矣",
+    "next": "下",
+    "skip": "略",
+    "complete": "设成",
+    "completeDesc": "诸事已备，可始用矣。",
+    "startUsing": "始用"
+  },
+  "vbcableDetect": {
+    "title": "需 VB-Cable 驱动",
+    "message": "MicYou 于 Windows 上需 VB-Cable 方可运行，欲自装乎？",
+    "autoInstall": "自装",
+    "manualDownload": "手下载",
+    "skipForNow": "暂略",
+    "installed": "VB-Cable 已装"
+  },
+  "vbcableInstall": {
+    "installing": "装中...",
+    "downloading": "下载中...",
+    "configuring": "配中...",
+    "waitingDevice": "候装置...",
+    "complete": "装成",
+    "failed": "装败",
+    "adminRequired": "需管理员权限，请准 UAC 之示。",
+    "timeout": "超时矣，请复试。",
+    "retry": "复试"
+  }
+}

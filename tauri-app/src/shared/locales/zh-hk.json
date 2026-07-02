@@ -1,0 +1,448 @@
+{
+  "app": {
+    "connectionMode": "連線模式",
+    "port": "埠口",
+    "level": "音量級別:",
+    "start": "開始",
+    "stop": "停止",
+    "status": {
+      "streaming": "接收緊音訊",
+      "connecting": "等緊裝置...",
+      "starting": "服務啟動緊...",
+      "ready": "準備就緒",
+      "streamingDesc": "已經成功連接 Android 裝置",
+      "connectingDesc": "喺埠口 {port} 度監聽緊",
+      "startingDesc": "初始化緊音訊服務，請等吓",
+      "readyDesc": "㩒開始掣等連線",
+      "stateStreaming": "傳輸緊",
+      "stateConnecting": "連線中...",
+      "stateStarting": "啟動緊...",
+      "stateIdle": "閒置",
+      "mute": "靜音",
+      "unmute": "開咪",
+      "wifi": "經 Wi-Fi 連接咗",
+      "usb": "經 USB 連接咗",
+      "disconnected": "未連接",
+      "waiting": "等緊連線...",
+      "running": "MicYou 服務行緊",
+      "web": "經 Web 連接咗",
+      "webClients": "已經連接咗 {count} 個客戶端",
+      "webWaiting": "等緊瀏覽器連線..."
+    },
+    "web": {
+      "title": "Web 連線",
+      "scanToConnect": "掃碼連接",
+      "clientsConnected": "已經連接咗 {count} 個客戶端",
+      "noClients": "等緊連線...",
+      "webUrl": "Web 網址",
+      "openInBrowser": "喺瀏覽器度開",
+      "dialogTitle": "Web 連線",
+      "copyUrl": "複製連結",
+      "close": "關閉"
+    },
+    "notify": {
+      "connected": "裝置已經成功連接",
+      "disconnected": "裝置已經斷開連接",
+      "usbDisconnected": "USB 斷開咗，請重新插返條線再㩒連線"
+    },
+    "ipSelector": {
+      "allInterfaces": "全部",
+      "allInterfacesDesc": "監聽所有網絡介面",
+      "switchConfirmTitle": "切換 IP 位址",
+      "switchConfirmMessage": "切換 IP 位址需要重新連接，係咪繼續？",
+      "continue": "繼續",
+      "cancel": "取消"
+    },
+    "deviceSelector": {
+      "title": "揀 USB 裝置",
+      "desc": "偵測到多個裝置，請揀一個嚟連接：",
+      "cancel": "取消"
+    },
+    "monitoring": {
+      "title": "音訊品質",
+      "rtt": "網路延遲",
+      "jitter": "抖動",
+      "loss": "丟包率",
+      "trend": "延遲趨勢",
+      "waveform": "即時波形",
+      "specs": "音訊串流參數",
+      "sampleRate": "取樣率",
+      "bitrate": "即時位元率",
+      "totalLatency": "總估算延遲",
+      "buffer": "緩衝區時長"
+    }
+  },
+  "settings": {
+    "title": "設定",
+    "categories": {
+      "general": "一般",
+      "appearance": "外觀",
+      "audio": "音訊",
+      "network": "網絡",
+      "plugins": "插件",
+      "about": "關於"
+    },
+    "language": {
+      "title": "語言",
+      "desc": "揀應用程式語言",
+      "system": "跟系統"
+    },
+    "theme": {
+      "title": "主題",
+      "desc": "揀應用程式主題",
+      "auto": "跟系統",
+      "light": "淺色",
+      "dark": "深色"
+    },
+    "themeColor": {
+      "title": "主題顏色",
+      "desc": "揀你鍾意嘅主色調",
+      "blue": "藍色",
+      "green": "綠色",
+      "rose": "玫瑰紅",
+      "purple": "紫色"
+    },
+    "customCss": {
+      "title": "自訂 CSS",
+      "desc": "喺度輸入自訂嘅 CSS 代碼，會即時應用到成個應用程式",
+      "placeholder": "/* 例如: \nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
+      "editBtn": "編輯自訂 CSS",
+      "loadFromFile": "從檔案匯入",
+      "clear": "清除代碼"
+    },
+    "customColor": {
+      "title": "自訂顏色",
+      "preview": "預覽",
+      "hue": "色相",
+      "advanced": "進階設定",
+      "saturation": "飽和度",
+      "lightness": "明亮度",
+      "autoManaged": "系統已經接管飽和度同明亮度，幫你鎖定最佳嘅極簡莫蘭迪色感"
+    },
+    "pocketMode": {
+      "title": "袋裝模式",
+      "desc": "用返個細啲嘅橫向佈局，其他控制項收埋去彈出選單度"
+    },
+    "uiStyle": {
+      "title": "介面風格",
+      "desc": "揀介面嘅視覺質感",
+      "default": "預設純色",
+      "glass": "磨砂玻璃效果"
+    },
+    "vbcable": {
+      "title": "VB-Cable 驅動程式",
+      "installed": "已安裝",
+      "notDetected": "未安裝",
+      "desc": "要將咪高峰聲音傳去其他應用程式（好似 OBS 或者 Discord），你需要裝 VB-Audio Virtual Cable",
+      "download": "下載 VB-Cable"
+    },
+    "blackhole": {
+      "installed": "已安裝",
+      "notDetected": "搵唔到",
+      "desc": "BlackHole 係 macOS 嘅虛擬音訊裝置，可以將咪高峰音訊傳去其他應用程式（好似 OBS 或者 Zoom），唔會有喇叭回饋嘅問題。",
+      "download": "BlackHole GitHub",
+      "available": "可以用嚟自動切換輸入裝置",
+      "switchAudioSourceMissing": "請裝 SwitchAudioSource（brew install switchaudio-osx）嚟啟用自動切換輸入裝置"
+    },
+    "pipewire": {
+      "active": "已啟用",
+      "available": "可用",
+      "notAvailable": "唔可用",
+      "desc": "PipeWire 虛擬音訊裝置會喺伺服器啟動嗰陣自動建立。音訊經虛擬 Sink 傳去虛擬 Source，其他應用程式可以用佢做咪高峰輸入。"
+    },
+    "audioOutput": {
+      "title": "輸出裝置",
+      "desc": "咪高峰嘅聲音應該喺邊度播？",
+      "auto": "自動",
+      "routingActive": "虛擬音訊傳輸已啟用，音訊會傳去虛擬裝置"
+    },
+    "spectrum": {
+      "title": "即時頻譜",
+      "raw": "原始 (Raw)",
+      "processed": "處理後 (Processed)"
+    },
+    "audioParams": {
+      "gain": "增益",
+      "noiseSuppression": "降噪",
+      "intensity": "強度",
+      "dereverb": "去迴響",
+      "level": "級別",
+      "agc": "自動增益控制",
+      "target": "目標電平",
+      "attack": "起效速率",
+      "decay": "衰減速率",
+      "vad": "語音活動偵測",
+      "threshold": "靈敏度"
+    },
+    "audioChain": {
+      "title": "音訊處理鏈路",
+      "desc": "㩒箭頭重新排列音訊效果",
+      "descPopup": "拖曳重新排列音訊效果",
+      "reset": "重置為預設",
+      "NoiseReduction": "降噪",
+      "Dereverb": "去迴響",
+      "Amplifier": "增益放大",
+      "AGC": "自動增益控制 (AGC)",
+      "VAD": "語音活動偵測 (VAD)",
+      "Equalizer": "等化器 (EQ)"
+    },
+    "equalizer": {
+      "title": "等化器",
+      "enable": "啟用等化器",
+      "preAmp": "前級增益",
+      "presets": "預設",
+      "presetNormal": "預設",
+      "presetBrightVocal": "清亮人聲",
+      "presetDeepVoice": "深沉男聲",
+      "presetPodcast": "播客電台",
+      "presetVocalClarity": "人聲清晰",
+      "presetWarmVocal": "溫暖人聲"
+    },
+    "plugins": {
+      "underConstruction": "興建緊",
+      "portedDesc": "呢個部分正在從 KMP 版本移植緊"
+    },
+    "webPort": {
+      "title": "Web 埠口",
+      "desc": "Web 連線模式嘅埠口（預設：8443）",
+      "webOnly": "請轉去 Web 連線模式嚟設定呢個選項。"
+    },
+    "about": {
+      "version": "應用程式版本",
+      "updates": "檢查更新",
+      "updatesBtn": "檢查更新",
+      "contributorsDesc": "多謝每一位幫過呢個項目嘅人",
+      "contributorsBtn": "貢獻者",
+      "sponsorsDesc": "睇吓愛發電贊助者",
+      "sponsorsBtn": "贊助者",
+      "licensesDesc": "開源軟件授權",
+      "licensesBtn": "開源授權",
+      "logsDesc": "匯出應用程式日誌嚟除錯",
+      "logsBtn": "匯出日誌",
+      "introTitle": "軟件介紹",
+      "introText": "MicYou 係一個開源嘅咪高峰工具，可以將你嘅 Android 裝置變做電腦嘅高質素咪高峰，支援 Wi-Fi (TCP) 同 USB 連線，畀到低延遲嘅音訊傳輸體驗。"
+    }
+  },
+  "dialogs": {
+    "close": "關閉",
+    "cancel": "取消",
+    "apply": "套用",
+    "contributors": {
+      "title": "貢獻者",
+      "loading": "載入緊貢獻者...",
+      "count": "{count} 位貢獻者",
+      "empty": "暫時冇貢獻者"
+    },
+    "sponsors": {
+      "title": "贊助者",
+      "loading": "載入緊贊助者...",
+      "count": "{count} 位贊助者",
+      "empty": "暫時冇贊助者",
+      "disclaimer": "呢度淨係顯示喺愛發電上面對項目發起人 LanRhyme 嘅個人贊助。",
+      "sponsorBtn": "去贊助"
+    },
+    "licenses": {
+      "title": "開源授權",
+      "loading": "載入緊授權..."
+    },
+    "update": {
+      "checking": "檢查更新緊...",
+      "available": "有新版本 ({version}) 可以用。即刻去更新？",
+      "latest": "而家已經係最新版本",
+      "failed": "檢查更新失敗：{error}"
+    },
+    "logs": {
+      "success": "日誌匯出成功",
+      "failed": "匯出日誌失敗：{error}"
+    },
+    "udpWarning": {
+      "title": "防火牆擋住咗 UDP 音訊連線",
+      "desc": "手機端已經成功連接，但電腦端收唔到任何 UDP 音訊數據。呢個通常係因為 Windows 防火牆擋住咗 UDP 埠口 ({port})\n\n請喺防火牆度允許 MicYou 程式使用網路，或者試吓以管理員身份重新行過個程式。"
+    }
+  },
+  "tray": {
+    "tooltip": "MicYou 桌面端",
+    "show": "顯示應用程式",
+    "hide": "隱藏應用程式",
+    "start": "開始串流",
+    "stop": "停止串流",
+    "exit": "離開"
+  },
+  "closeConfirm": {
+    "title": "確認離開",
+    "message": "閂應用程式嗰陣，你想做乜嘢？",
+    "hide": "縮到系統匣",
+    "exit": "直接離開應用程式",
+    "remember": "唔再問"
+  },
+  "closeBehavior": {
+    "title": "撳關閉掣嘅動作",
+    "desc": "閂主視窗嗰陣想點做？",
+    "ask": "每次都問",
+    "hide": "縮到系統匣",
+    "exit": "直接離開"
+  },
+  "startMinimized": {
+    "title": "啟動時縮到最細",
+    "desc": "啟動嗰陣將個應用收埋喺系統托盤度，唔開主視窗"
+  },
+  "autostart": {
+    "title": "開機自啟",
+    "desc": "登入電腦嗰陣自動啟動 MicYou"
+  },
+  "notifications": {
+    "title": "系統通知",
+    "desc": "裝置連接或者斷開嗰陣顯示系統通知"
+  },
+  "autoStream": {
+    "title": "自動串流",
+    "desc": "啟動應用程式嗰陣自動開始串流"
+  },
+  "error": {
+    "suggestionsTitle": "建議：",
+    "technicalDetails": "技術詳情：",
+    "dialog": {
+      "retry": "試多次",
+      "dismiss": "關閉",
+      "help": "睇說明"
+    },
+    "networkTimeout": {
+      "title": "連線超時",
+      "message": "連線超時。請檢查網路連線同目標裝置狀態。"
+    },
+    "portInUse": {
+      "title": "埠口俾人用咗",
+      "message": "埠口 {port} 已經俾其他應用程式用緊。請揀過另一個埠口或者閂咗用緊嗰個應用程式。"
+    },
+    "connectionRefused": {
+      "title": "連線被拒絕",
+      "message": "連線被拒絕。目標裝置可能無執行 MicYou 或者無喺指定埠口度聽。",
+      "wifiMessage": "連去 {ip} 被拒絕。請確保桌面伺服器行緊同埋設定咗同一埠口。"
+    },
+    "networkUnreachable": {
+      "title": "網路去唔到",
+      "message": "去唔到 IP 位址：{ip}。請驗證 IP 位址並確保兩台裝置喺同一網路度。"
+    },
+    "firewallBlocked": {
+      "title": "防火牆擋住咗",
+      "message": "埠口 {port} 俾 Windows 防火牆擋住。請加防火牆規則或者以管理員身份行應用程式。"
+    },
+    "permissionDenied": {
+      "title": "權限唔夠",
+      "message": "權限唔夠，做唔到呢個操作。請以管理員身份行應用程式。"
+    },
+    "deviceNotFound": {
+      "title": "搵唔到裝置",
+      "message": "搵唔到指定嘅裝置。請檢查網絡連線。"
+    },
+    "usbConnectionFailed": {
+      "title": "USB 連線失敗",
+      "message": "USB 連線失敗，請檢查 USB 線同埋確保 Android 裝置開咗 USB 偵錯"
+    },
+    "adbCommandFailed": {
+      "title": "ADB 指令失敗",
+      "message": "ADB 指令執行失敗。請確保裝咗 ADB 同埋開咗 USB 偵錯。"
+    },
+    "handshakeFailed": {
+      "title": "握手失敗",
+      "message": "同目標裝置握手失敗。咁可能係版本唔夾或者協定錯誤。"
+    },
+    "protocolError": {
+      "title": "協定錯誤",
+      "message": "通訊嗰陣發生協定錯誤。請重開兩邊嘅應用程式。"
+    },
+    "audioDevice": {
+      "title": "音訊裝置錯誤",
+      "message": "音訊裝置錯誤。請檢查音訊裝置設定同埋重開應用程式。"
+    },
+    "audioFormat": {
+      "title": "音訊格式錯誤",
+      "message": "唔支援嘅音訊格式。請試吓唔同嘅音訊設定或者用自動設定。"
+    },
+    "versionMismatch": {
+      "title": "版本唔夾",
+      "message": "偵測到版本唔夾。請確保兩台裝置行緊同一版本嘅 MicYou。"
+    },
+    "adminPrivilege": {
+      "title": "要管理員權限",
+      "message": "呢個操作要管理員權限。請以管理員身份重新開過應用程式。"
+    },
+    "udpPortBlocked": {
+      "title": "UDP 埠口俾擋住咗",
+      "message": "UDP 音訊埠口 {port} 俾防火牆擋住。音訊傳輸需要 TCP 同 UDP 埠口都可以用。請為 UDP 埠口加防火牆規則，或者以管理員身份行應用程式。"
+    },
+    "unknown": {
+      "title": "未知錯誤",
+      "message": "發生未知錯誤：{error}"
+    },
+    "suggestion": {
+      "checkNetwork": "檢查 Wi-Fi 或者網路連線",
+      "checkTargetRunning": "確保目標裝置行緊 MicYou 伺服器",
+      "tryDifferentPort": "試吓用唔同嘅埠口",
+      "changePort": "喺設定度改埠口",
+      "checkOtherApps": "檢查有無其他應用程式用緊呢個埠口",
+      "checkServerRunning": "驗證桌面伺服器行緊同埋準備好",
+      "checkServerConfig": "檢查伺服器設定（埠口、防火牆設定）",
+      "checkNetworkConnection": "驗證裝置之間嘅網路連線",
+      "verifyIpAddress": "再確認一次 IP 位址",
+      "checkWifiConnected": "確保兩台裝置連線到同一個 Wi-Fi 網路",
+      "addFirewallRule": "畀 MicYou 通過 Windows 防火牆",
+      "runAsAdmin": "以管理員身份行應用程式",
+      "checkAntivirus": "檢查防毒或者安全軟件設定",
+      "checkUsbCable": "檢查 USB 線連線",
+      "enableUsbDebugging": "喺 Android 開發人員選項度開 USB 偵錯",
+      "runAdbCommand": "喺電腦度行呢個指令：{cmd}",
+      "checkAdbInstalled": "確保電腦裝咗 ADB",
+      "runAdbManually": "手動執行：{cmd}",
+      "versionMatch": "確保兩台裝置用緊同一版本嘅 MicYou",
+      "restartApp": "重開應用程式",
+      "checkVersion": "去 GitHub 度檢查更新",
+      "checkAudioDevice": "檢查音訊裝置權限同埋可用性",
+      "changeAudioConfig": "試吓唔同嘅音訊設定",
+      "useDefaultConfig": "用預設或者自動設定",
+      "updateApp": "更新到最新版本",
+      "checkLogs": "睇應用程式日誌攞詳細錯誤資訊"
+    }
+  },
+  "onboarding": {
+    "title": "歡迎使用 MicYou",
+    "desc": "您好似係第一次使用 MicYou，呢個 App 可以將你嘅 Android 裝置透過 Wi-Fi 或者 USB 變做電腦嘅高質量咪高峰",
+    "quickStart": "快速入門指南",
+    "step1Title": "1. 安裝桌面應用程式",
+    "step1Desc": "喺電腦下載同安裝 MicYou 桌面應用程式",
+    "step2Title": "2. 連接裝置",
+    "step2WifiDesc": "Wi-Fi: 喺 App 入面輸入電腦 IP 位址",
+    "step2UsbDesc": "USB: 用 USB 線連接同埋行 ADB 命令",
+    "step3Title": "3. 開始傳輸",
+    "step3Desc": "㩒開始掣開始音訊傳輸",
+    "step4Title": "4. 配置音訊",
+    "step4Desc": "喺錄音軟件揀 VB-Cable 做輸入裝置",
+    "videoGuide": "影片教學",
+    "textGuide": "文字教學",
+    "gotIt": "我很清楚點樣使用",
+    "next": "下一步",
+    "skip": "跳過",
+    "complete": "設定完成",
+    "completeDesc": "搞掂晒！你而家可以開始用 MicYou 喇！",
+    "startUsing": "開始使用"
+  },
+  "vbcableDetect": {
+    "title": "需要 VB-Cable 驅動",
+    "message": "VB-Cable 驅動係 MicYou 喺 Windows 上面做虛擬咪高峰需要嘅。你想自動安裝嗎？",
+    "autoInstall": "自動安裝",
+    "manualDownload": "手動下載",
+    "skipForNow": "暫時跳過",
+    "installed": "VB-Cable 已經裝咗"
+  },
+  "vbcableInstall": {
+    "installing": "安裝緊...",
+    "downloading": "下載緊安裝程式...",
+    "configuring": "配置緊裝置...",
+    "waitingDevice": "等緊裝置初始化...",
+    "complete": "安裝完成",
+    "failed": "安裝失敗",
+    "adminRequired": "需要管理員權限，批准吓 UAC 提示。",
+    "timeout": "安裝逾時，再試过。",
+    "retry": "重試"
+  }
+}

@@ -1,0 +1,448 @@
+{
+  "app": {
+    "connectionMode": "连接模式喵~ (=^･ω･^=)",
+    "port": "端口喵~",
+    "level": "等级喵:",
+    "start": "开始喵~ (๑•̀ㅂ•́)و✧",
+    "stop": "停止喵~",
+    "status": {
+      "streaming": "传输中喵~ (ﾉ>ω<)ﾉ",
+      "connecting": "等待设备喵... (๑•̀ㅂ•́)و✧",
+      "starting": "启动服务中喵...",
+      "ready": "就绪喵~",
+      "streamingDesc": "已成功连接安卓设备喵~",
+      "connectingDesc": "正在监听端口 {port} 喵~",
+      "startingDesc": "正在初始化音频服务喵，请稍等~",
+      "readyDesc": "点击开始等待连接喵~",
+      "stateStreaming": "传输中喵~",
+      "stateConnecting": "连接中...",
+      "stateStarting": "启动中...",
+      "stateIdle": "摸鱼中... ( -ω- )",
+      "mute": "静音喵",
+      "unmute": "取消静音喵~",
+      "wifi": "通过 Wi-Fi 连接喵~",
+      "usb": "通过 USB 连接喵~",
+      "disconnected": "未连接喵~",
+      "waiting": "等待连接中喵...",
+      "running": "MicYou 服务运行中喵~",
+      "web": "通过网页连接喵~",
+      "webClients": "{count} 个客户端已连接喵~",
+      "webWaiting": "等待浏览器连接中喵..."
+    },
+    "web": {
+      "title": "网页连接喵~",
+      "scanToConnect": "扫码连接喵~",
+      "clientsConnected": "{count} 个客户端已连接喵~",
+      "noClients": "等待连接中喵...",
+      "webUrl": "网页地址喵~",
+      "openInBrowser": "在浏览器中打开喵~",
+      "dialogTitle": "网页连接喵~",
+      "copyUrl": "复制地址喵~",
+      "close": "关闭喵~"
+    },
+    "notify": {
+      "connected": "设备连接成功喵~ ✓",
+      "disconnected": "设备断开连接喵~ (×_×;)",
+      "usbDisconnected": "USB 断开了喵~请重新插线并点击连接喵~"
+    },
+    "ipSelector": {
+      "allInterfaces": "全部喵~",
+      "allInterfacesDesc": "监听所有网络接口喵~",
+      "switchConfirmTitle": "切换网络接口喵~",
+      "switchConfirmMessage": "切换网络接口会重新连接喵~要继续吗？",
+      "continue": "继续喵~",
+      "cancel": "取消喵~"
+    },
+    "deviceSelector": {
+      "title": "选择 USB 设备喵~",
+      "desc": "检测到多个设备喵~请选择要连接的设备喵：",
+      "cancel": "取消喵~"
+    },
+    "monitoring": {
+      "title": "音频质量喵~ 📊",
+      "rtt": "网络延迟喵~",
+      "jitter": "抖动喵~",
+      "loss": "丢包率喵~ (ToT)",
+      "trend": "延迟趋势喵~",
+      "waveform": "实时波形喵~ 〰️",
+      "specs": "音频参数喵~",
+      "sampleRate": "采样率喵~",
+      "bitrate": "比特率喵~",
+      "totalLatency": "总延迟喵~",
+      "buffer": "缓冲区喵~"
+    }
+  },
+  "settings": {
+    "title": "设置喵~ ⚙️",
+    "categories": {
+      "general": "通用设置喵~",
+      "appearance": "外观设置喵~ ✨",
+      "audio": "音频设置喵~ 🎵",
+      "network": "网络设置喵~",
+      "plugins": "插件喵~ 🔌",
+      "about": "关于喵~ (´,,•ω•,,)"
+    },
+    "language": {
+      "title": "语言喵~",
+      "desc": "选择应用语言喵~",
+      "system": "跟随系统喵~"
+    },
+    "theme": {
+      "title": "主题模式喵~",
+      "desc": "选择应用主题喵~",
+      "auto": "跟随系统喵~",
+      "light": "浅色喵~ ☀️",
+      "dark": "深色喵~ 🌙"
+    },
+    "themeColor": {
+      "title": "主题颜色喵~ 🎨",
+      "desc": "选择品牌主色调喵~",
+      "blue": "蓝色喵~",
+      "green": "绿色喵~",
+      "rose": "粉色喵~",
+      "purple": "紫色喵~"
+    },
+    "customCss": {
+      "title": "自定义 CSS 喵~",
+      "desc": "输入自定义 CSS 代码来全局样式化应用喵~",
+      "placeholder": "/* 例如: \nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
+      "editBtn": "编辑自定义 CSS 喵~",
+      "loadFromFile": "从文件加载喵~",
+      "clear": "清除 CSS 喵~"
+    },
+    "customColor": {
+      "title": "自定义颜色喵~ 🎨",
+      "preview": "预览喵~",
+      "hue": "色相喵~",
+      "advanced": "高级设置喵~",
+      "saturation": "饱和度喵~",
+      "lightness": "明度喵~",
+      "autoManaged": "饱和度和明度由系统自动管理以保持最佳视觉效果喵~"
+    },
+    "pocketMode": {
+      "title": "袖珍模式喵~",
+      "desc": "紧凑水平栏布局喵~其他控件移到弹出菜单中喵~"
+    },
+    "uiStyle": {
+      "title": "UI 样式喵~",
+      "desc": "选择应用视觉风格喵~",
+      "default": "默认实体喵~",
+      "glass": "毛玻璃喵~ (´・ω・`)"
+    },
+    "vbcable": {
+      "title": "VB-Cable 转发喵~",
+      "installed": "已安装喵~",
+      "notDetected": "未检测到喵~",
+      "desc": "要把音频路由到其他应用（如 OBS 或 Discord）喵~需要安装 VB-Audio Virtual Cable 喵~",
+      "download": "下载 VB-Cable 喵~"
+    },
+    "blackhole": {
+      "installed": "已安装喵~",
+      "notDetected": "未检测到喵~",
+      "desc": "BlackHole 是 macOS 的虚拟音频设备喵~它把麦克风音频路由到其他应用（如 OBS 或 Zoom）而不会有扬声器回声喵~",
+      "download": "BlackHole GitHub 喵~",
+      "available": "可用于自动输入切换喵~",
+      "switchAudioSourceMissing": "安装 SwitchAudioSource (brew install switchaudio-osx) 以启用自动输入切换喵~"
+    },
+    "pipewire": {
+      "active": "活跃喵~",
+      "available": "可用喵~",
+      "notAvailable": "不可用喵~",
+      "desc": "PipeWire 虚拟音频设备在服务器启动时自动创建喵~音频通过虚拟 sink 路由到虚拟 source，其他应用可以把它当麦克风输入喵~"
+    },
+    "audioOutput": {
+      "title": "输出设备喵~",
+      "desc": "麦克风音频应该在哪里播放喵？",
+      "auto": "自动喵~",
+      "routingActive": "虚拟音频路由已激活喵~音频将被转发到虚拟设备喵~"
+    },
+    "spectrum": {
+      "title": "实时频谱喵~ 📈",
+      "raw": "原始喵~",
+      "processed": "处理后喵~"
+    },
+    "audioParams": {
+      "gain": "增益喵~",
+      "noiseSuppression": "降噪喵~ 🔇",
+      "intensity": "强度喵~",
+      "dereverb": "去混响喵~",
+      "level": "等级喵~",
+      "agc": "自动增益喵~",
+      "target": "目标喵~",
+      "attack": "起效速率喵~ (๑•̀ㅂ•́)و✧",
+      "decay": "衰减速率喵~",
+      "vad": "语音检测喵~",
+      "threshold": "灵敏度喵~"
+    },
+    "audioChain": {
+      "title": "音频处理链路喵~ 🎵",
+      "desc": "点击配置音频效果喵~",
+      "descPopup": "拖拽重新排序音频效果喵~",
+      "reset": "重置为默认喵~",
+      "NoiseReduction": "降噪喵~ 🔇",
+      "Dereverb": "去混响喵~",
+      "Amplifier": "放大器（增益）喵~",
+      "AGC": "自动增益喵~",
+      "VAD": "语音检测喵~",
+      "Equalizer": "均衡器（EQ）喵~ 🎵"
+    },
+    "equalizer": {
+      "title": "均衡器喵~ 🎵",
+      "enable": "启用均衡器喵~ (´・ω・`)",
+      "preAmp": "前级增益喵~",
+      "presets": "预设喵~",
+      "presetNormal": "默认喵~",
+      "presetBrightVocal": "清亮人声喵~ ✨",
+      "presetDeepVoice": "深沉男声喵~",
+      "presetPodcast": "播客电台喵~ 🎙️",
+      "presetVocalClarity": "人声清晰喵~ (≧∇≦)",
+      "presetWarmVocal": "温暖人声喵~ (´,,•ω•,,)"
+    },
+    "plugins": {
+      "underConstruction": "建设中喵~",
+      "portedDesc": "此部分正在从 KMP 版本移植喵~"
+    },
+    "webPort": {
+      "title": "网页端口喵~",
+      "desc": "网页连接模式的端口喵~（默认：8443）",
+      "webOnly": "切换到网页连接模式才能配置此设置喵~"
+    },
+    "about": {
+      "version": "应用版本喵~",
+      "updates": "检查更新喵~",
+      "updatesBtn": "更新喵~",
+      "contributorsDesc": "帮助构建此项目的喵们~ 💖",
+      "contributorsBtn": "贡献者喵~",
+      "sponsorsDesc": "查看爱发电赞助者喵~ ❤️",
+      "sponsorsBtn": "赞助者喵~",
+      "licensesDesc": "开源软件许可证喵~",
+      "licensesBtn": "许可证喵~",
+      "logsDesc": "导出调试日志喵~",
+      "logsBtn": "导出日志喵~",
+      "introTitle": "简介喵~",
+      "introText": "MicYou 是一个开源麦克风工具喵~可以把你的安卓设备变成电脑的高质量麦克风喵！支持 Wi-Fi 和 USB 连接，提供低延迟音频传输喵~ (≧∇≦)/"
+    }
+  },
+  "dialogs": {
+    "close": "关闭喵~",
+    "cancel": "取消喵~",
+    "apply": "应用喵~",
+    "contributors": {
+      "title": "贡献者喵~ 💖",
+      "loading": "正在加载贡献者喵... (・_・)",
+      "count": "{count} 位贡献者喵~",
+      "empty": "没有找到贡献者喵~ (´・ω・`)"
+    },
+    "sponsors": {
+      "title": "赞助者喵~ ❤️",
+      "loading": "正在加载赞助者喵... (´・ω・`)",
+      "count": "{count} 位赞助者喵~",
+      "empty": "暂无赞助者喵~ 等待好心人出现 (｡•́︿•̀｡)",
+      "disclaimer": "此处仅显示爱发电上对项目发起者个人 LanRhyme 的赞助喵~ 🐾",
+      "sponsorBtn": "赞助喵~ ❤️"
+    },
+    "licenses": {
+      "title": "开源许可证喵~",
+      "loading": "正在加载许可证喵..."
+    },
+    "update": {
+      "checking": "正在检查更新喵... (・_・)",
+      "available": "发现新版本喵~ ✨: {version}\n要去发布页面看看喵？",
+      "latest": "已是最新版本喵~ ✓",
+      "failed": "检查更新失败喵: {error} (ToT)"
+    },
+    "logs": {
+      "success": "日志导出成功喵~ ✓",
+      "failed": "日志导出失败喵: {error} (ToT)"
+    },
+    "udpWarning": {
+      "title": "UDP 音频警告喵~",
+      "desc": "TCP 连接已建立了喵~，但没有收到任何 UDP 音频包喵~。音频传输需要 TCP 和 UDP 端口都可以访问喵~\n\n请检查喵~：\n• 确保 UDP 端口 {port} 已在防火墙中放行喵~\n• 两台设备应在同一网络中喵~\n• 尝试重新连接喵~ (´・ω・`)"
+    }
+  },
+  "tray": {
+    "tooltip": "MicYou 桌面版喵~",
+    "show": "显示应用喵~",
+    "hide": "隐藏应用喵~",
+    "start": "开始传输喵~",
+    "stop": "停止传输喵~",
+    "exit": "退出喵~ (´;ω;`)"
+  },
+  "closeConfirm": {
+    "title": "关闭确认喵~",
+    "message": "你想怎么做喵？(・∀・)",
+    "hide": "最小化到托盘喵~",
+    "exit": "退出应用喵~",
+    "remember": "不再询问喵~"
+  },
+  "closeBehavior": {
+    "title": "关闭按钮行为喵~",
+    "desc": "关闭主窗口时应该怎么做喵？",
+    "ask": "每次询问喵~",
+    "hide": "最小化到托盘喵~",
+    "exit": "退出应用喵~"
+  },
+  "startMinimized": {
+    "title": "最小化启动喵~",
+    "desc": "启动时隐藏到系统托盘而不是打开窗口喵~"
+  },
+  "autostart": {
+    "title": "开机自启喵~",
+    "desc": "登录电脑时自动启动 MicYou 喵~"
+  },
+  "notifications": {
+    "title": "通知喵~ 🔔",
+    "desc": "设备连接或断开时显示系统通知喵~"
+  },
+  "autoStream": {
+    "title": "自动传输喵~",
+    "desc": "应用启动时自动开始传输喵~"
+  },
+  "error": {
+    "suggestionsTitle": "建议喵~",
+    "technicalDetails": "技术详情喵:",
+    "dialog": {
+      "retry": "重试喵~",
+      "dismiss": "关闭喵~",
+      "help": "查看帮助喵~"
+    },
+    "networkTimeout": {
+      "title": "连接超时喵~",
+      "message": "连接超时喵~请检查网络连接和目标设备状态喵~ (・_・)"
+    },
+    "portInUse": {
+      "title": "端口被占用喵~",
+      "message": "端口 {port} 已被其他应用占用喵~请选择其他端口或关闭占用该端口的应用喵~ (×_×;)"
+    },
+    "connectionRefused": {
+      "title": "连接被拒绝喵~",
+      "message": "连接被拒绝喵~目标设备可能未运行 MicYou 或未在指定端口监听喵~",
+      "wifiMessage": "连接到 {ip} 被拒绝喵~请确保桌面服务器正在运行并配置了相同端口喵~"
+    },
+    "networkUnreachable": {
+      "title": "网络不可达喵~",
+      "message": "无法到达 IP：{ip} 喵~请验证 IP 地址并确保两台设备在同一网络中喵~"
+    },
+    "firewallBlocked": {
+      "title": "防火墙挡住了喵~",
+      "message": "端口 {port} 被防火墙阻止喵~请添加防火墙规则或以管理员身份运行应用喵~ (・_・;)"
+    },
+    "permissionDenied": {
+      "title": "权限不够喵~",
+      "message": "权限不足喵~请以管理员身份运行应用喵~"
+    },
+    "deviceNotFound": {
+      "title": "找不到设备喵~",
+      "message": "未找到指定的设备喵~请检查网络连接喵~"
+    },
+    "usbConnectionFailed": {
+      "title": "USB 连接失败喵~",
+      "message": "USB 连接失败喵~请检查 USB 线缆并确保 Android 设备已启用 USB 调试喵~"
+    },
+    "adbCommandFailed": {
+      "title": "ADB 命令失败喵~",
+      "message": "ADB 命令执行失败喵~请确保已安装 ADB 且已启用 USB 调试喵~"
+    },
+    "handshakeFailed": {
+      "title": "握手失败喵~",
+      "message": "与目标设备握手失败喵~这可能表示版本不匹配或协议错误喵~"
+    },
+    "protocolError": {
+      "title": "协议错误喵~",
+      "message": "通信过程中发生协议错误喵~请重启两端应用喵~"
+    },
+    "audioDevice": {
+      "title": "音频设备错误喵~",
+      "message": "音频设备错误喵~请检查音频设备设置并重启应用喵~"
+    },
+    "audioFormat": {
+      "title": "音频格式错误喵~",
+      "message": "不支持的音频格式喵~请尝试不同的音频设置或使用自动配置喵~"
+    },
+    "versionMismatch": {
+      "title": "版本不匹配喵~",
+      "message": "检测到版本不匹配喵~请确保两台设备运行相同版本的 MicYou 喵~"
+    },
+    "adminPrivilege": {
+      "title": "需要管理员权限喵~",
+      "message": "此操作需要管理员权限喵~请以管理员身份重新启动应用喵~"
+    },
+    "udpPortBlocked": {
+      "title": "UDP 端口被阻止了喵~",
+      "message": "UDP 音频端口 {port} 被防火墙阻止了喵~音频传输需要 TCP 和 UDP 端口都可以访问喵~请为 UDP 端口添加防火墙规则，或以管理员身份运行应用喵~ (´・ω・`)"
+    },
+    "unknown": {
+      "title": "未知错误喵~",
+      "message": "发生未知错误：{error} 喵~"
+    },
+    "suggestion": {
+      "checkNetwork": "检查 Wi-Fi 或网络连接喵~",
+      "checkTargetRunning": "确保目标设备正在运行 MicYou 服务器喵~",
+      "tryDifferentPort": "尝试使用不同的端口喵~",
+      "changePort": "在设置中更改端口喵~",
+      "checkOtherApps": "检查是否有其他应用占用此端口喵~",
+      "checkServerRunning": "验证桌面服务器正在运行且就绪喵~",
+      "checkServerConfig": "检查服务器配置（端口、防火墙设置）喵~",
+      "checkNetworkConnection": "验证设备间的网络连接喵~",
+      "verifyIpAddress": "再次确认 IP 地址喵~",
+      "checkWifiConnected": "确保两台设备连接到同一 Wi-Fi 网络喵~",
+      "addFirewallRule": "允许 MicYou 通过防火墙喵~",
+      "runAsAdmin": "以管理员身份运行应用喵~",
+      "checkAntivirus": "检查防病毒或安全软件设置喵~",
+      "checkUsbCable": "检查 USB 线缆连接喵~",
+      "enableUsbDebugging": "在 Android 开发者选项中启用 USB 调试喵~",
+      "runAdbCommand": "在电脑上运行此命令：{cmd} 喵~",
+      "checkAdbInstalled": "确保电脑上已安装 ADB 喵~",
+      "runAdbManually": "手动运行：{cmd} 喵~",
+      "versionMatch": "确保两台设备使用相同版本的 MicYou 喵~",
+      "restartApp": "重启应用喵~",
+      "checkVersion": "在 GitHub 上检查更新喵~",
+      "checkAudioDevice": "检查音频设备权限和可用性喵~",
+      "changeAudioConfig": "尝试不同的音频配置设置喵~",
+      "useDefaultConfig": "使用默认或自动配置喵~",
+      "updateApp": "更新到最新版本喵~",
+      "checkLogs": "查看应用日志获取详细错误信息喵~"
+    }
+  },
+  "onboarding": {
+    "title": "欢迎使用 MicYou 喵~",
+    "desc": "本应用可以把你的安卓设备变成电脑的高质量麦克风喵~支持 Wi-Fi 和 USB 连接喵~",
+    "quickStart": "快速入门指南喵~ (๑•̀ㅂ•́)و✧",
+    "step1Title": "1. 安装桌面应用喵~",
+    "step1Desc": "在电脑上下载并安装 MicYou 桌面应用喵~",
+    "step2Title": "2. 连接设备喵~",
+    "step2WifiDesc": "Wi-Fi 喵: 在应用中输入电脑 IP 地址",
+    "step2UsbDesc": "USB 喵: 通过 USB 线连接并执行 ADB 命令",
+    "step3Title": "3. 开始传输喵~",
+    "step3Desc": "点击开始按钮启动音频传输喵~",
+    "step4Title": "4. 配置音频喵~",
+    "step4Desc": "在录音软件中选择 VB-Cable 作为输入设备喵~",
+    "videoGuide": "视频教程喵~",
+    "textGuide": "文字教程喵~",
+    "gotIt": "猫猫知道怎么使用喵~",
+    "next": "下一步喵~",
+    "skip": "跳过喵~",
+    "complete": "设置完成喵~ ✨",
+    "completeDesc": "都搞掂啦喵~现在可以开始使用 MicYou 了喵！",
+    "startUsing": "开始使用喵~ (๑•̀ㅂ•́)و✧"
+  },
+  "vbcableDetect": {
+    "title": "笨蛋喵~ 喵喵酱忘记装 VB-Cable 啦! (・_・;)",
+    "message": "在 Windows 上 MicYou 需要安装 VB-Cable 驱动作为虚拟麦克风才能正常工作喵~需要 MicYou 帮喵喵酱自动安装喵? (・_・)",
+    "autoInstall": "好的喵~",
+    "manualDownload": "手动下载喵~",
+    "skipForNow": "先跳过喵~",
+    "installed": "VB-Cable 已安装喵~"
+  },
+  "vbcableInstall": {
+    "installing": "安装中喵... (・_・)",
+    "downloading": "正在下载安装包喵...",
+    "configuring": "正在配置设备喵...",
+    "waitingDevice": "等待设备初始化喵...",
+    "complete": "安装完成喵~ ✓",
+    "failed": "安装失败喵... (ToT)",
+    "adminRequired": "需要管理员权限喵~请批准 UAC 提示喵~",
+    "timeout": "安装超时喵~请重试喵~ (´・ω・`)",
+    "retry": "重试喵~"
+  }
+}

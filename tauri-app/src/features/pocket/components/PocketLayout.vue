@@ -42,6 +42,7 @@ const emit = defineEmits([
 
 const appWindow = getCurrentWindow();
 const moreMenuOpen = ref(false);
+const activeOverlay = ref<string | null>(null);
 
 const isMacOS = typeof navigator !== 'undefined' &&
   /Mac/.test(navigator.platform || navigator.userAgent) &&
@@ -140,6 +141,7 @@ const syncAndShow = async (id: string, url: string, syncFn: () => void, opts?: {
       await h.window.listen('popup-closing', () => {
         emit('update:popupOpen', false);
         moreMenuOpen.value = false;
+        activeOverlay.value = null;
       })
     );
 
@@ -163,27 +165,33 @@ const closePopup = async () => {
   moreMenuOpen.value = false;
 };
 
-// Immediately hide all overlays (no animation) — used when switching between popups
+// Close all overlays (destroy & reset) — used when switching between popups
 const hideAllOverlays = async () => {
   for (const id of Object.keys(overlays)) {
     const h = overlays[id];
     if (h.window) {
       try {
         await h.window.emit('popup-closing');
-        await h.window.hide();
+        await h.window.close();
       } catch {}
     }
+    h.unlisteners.forEach(fn => fn());
+    h.unlisteners = [];
+    h.window = null;
+    h.created = false;
   }
   moreMenuOpen.value = false;
+  activeOverlay.value = null;
+  emit('update:popupOpen', false);
 };
 
-const destroyAllOverlays = () => {
+const destroyAllOverlays = async () => {
   for (const id of Object.keys(overlays)) {
     const h = overlays[id];
     h.unlisteners.forEach(fn => fn());
     h.unlisteners = [];
     if (h.window) {
-      try { h.window.close(); } catch {}
+      try { await h.window.close(); } catch {}
       h.window = null;
       h.created = false;
     }
@@ -193,8 +201,13 @@ const destroyAllOverlays = () => {
 // ---- IP popup ----
 
 const showIpPopup = async () => {
+  if (activeOverlay.value === 'ip') {
+    await hideAllOverlays();
+    return;
+  }
   await hideAllOverlays();
-  syncAndShow('ip', '#/popup/ip', () => {
+  activeOverlay.value = 'ip';
+  await syncAndShow('ip', '#/popup/ip', () => {
     localStorage.setItem('popup_ip', props.isAutoBind ? '0.0.0.0' : props.selectedIp);
     localStorage.setItem('popup_isAutoBind', String(props.isAutoBind));
     localStorage.setItem('popup_interfaces', JSON.stringify(props.networkInterfaces));
@@ -219,22 +232,26 @@ const showIpPopup = async () => {
 // ---- More menu popup ----
 
 const showMoreMenu = async () => {
+  if (activeOverlay.value === 'more') {
+    await hideAllOverlays();
+    return;
+  }
   await hideAllOverlays();
   moreMenuOpen.value = true;
-  syncAndShow('more', '#/popup/more-menu', () => {
+  activeOverlay.value = 'more';
+  await syncAndShow('more', '#/popup/more-menu', () => {
     localStorage.setItem('popup_connectionMode', props.connectionMode);
     localStorage.setItem('popup_serverPort', String(props.serverPort));
-  }, { height: 210, align: 'right' });
-
-  const h = getOverlay('more');
-  h.window?.listen('popup-update', (event: any) => {
-    const { key, value } = event.payload;
-    switch (key) {
-      case 'popup_connectionMode': emit('updateMode', value); break;
-      case 'popup_serverPort': emit('updatePort', Number(value)); break;
-      case 'popup_openSettings': closePopup(); emit('openSettings'); break;
-    }
-  });
+  }, { height: 210, align: 'right', onCreated: (h) => {
+    h.window?.listen('popup-update', (event: any) => {
+      const { key, value } = event.payload;
+      switch (key) {
+        case 'popup_connectionMode': emit('updateMode', value); break;
+        case 'popup_serverPort': emit('updatePort', Number(value)); break;
+        case 'popup_openSettings': closePopup(); emit('openSettings'); break;
+      }
+    });
+  }});
 };
 
 onUnmounted(() => {
