@@ -2,12 +2,15 @@ package com.lanrhyme.micyou.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import com.lanrhyme.micyou.audio.AudioEngine
 import com.lanrhyme.micyou.audio.AudioFormat
 import com.lanrhyme.micyou.audio.AudioLevelData
@@ -114,7 +117,7 @@ class AudioStreamViewModel : ViewModel() {
     val metricsHistoryFlow: StateFlow<List<AudioMetrics>> = _metricsHistoryFlow.asStateFlow()
 
     private val settings = SettingsFactory.getSettings()
-    private var isStartStreamRequestPending = false
+    private var streamJob: Job? = null
 
     init {
         loadSettings()
@@ -346,20 +349,21 @@ class AudioStreamViewModel : ViewModel() {
     }
 
     fun startStream() {
-        if (isStartStreamRequestPending ||
-            _uiState.value.streamState == StreamState.Streaming ||
+        if (_uiState.value.streamState == StreamState.Streaming ||
             _uiState.value.streamState == StreamState.Connecting
         ) {
             Logger.d("AudioStreamViewModel", "Start stream request ignored: already starting or running")
             return
         }
 
-        isStartStreamRequestPending = true
-        viewModelScope.launch {
+        streamJob?.cancel()
+        streamJob = viewModelScope.launch {
+            _uiState.update { it.copy(streamState = StreamState.Connecting) }
             try {
                 startStreamInternal()
-            } finally {
-                isStartStreamRequestPending = false
+            } catch (e: CancellationException) {
+                _uiState.update { it.copy(streamState = StreamState.Idle) }
+                throw e
             }
         }
     }
@@ -449,8 +453,11 @@ class AudioStreamViewModel : ViewModel() {
 
     fun stopStream() {
         Logger.i("AudioStreamViewModel", "Stopping stream")
+        streamJob?.cancel()
         _uiState.update { it.copy(streamState = StreamState.Idle) }
-        _audioEngine.stop()
+        viewModelScope.launch {
+            _audioEngine.stop()
+        }
     }
 
     fun setMode(mode: ConnectionMode) {
@@ -727,7 +734,9 @@ class AudioStreamViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         discoveryManager.stopDiscovery()
-        _audioEngine.stop()
+        runBlocking {
+            _audioEngine.stop()
+        }
     }
 
     fun startDiscovery() {

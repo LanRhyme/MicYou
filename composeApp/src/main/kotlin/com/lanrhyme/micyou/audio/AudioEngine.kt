@@ -106,7 +106,11 @@ class AudioEngine constructor() {
         private var activeEngine: AudioEngine? = null
 
         fun requestDisconnectFromNotification() {
-            activeEngine?.stop()
+            activeEngine?.let { engine ->
+                CoroutineScope(Dispatchers.Main).launch {
+                    engine.stop()
+                }
+            }
         }
 
         fun isStreaming(): Boolean {
@@ -671,24 +675,25 @@ class AudioEngine constructor() {
         }
     }
     
-    fun stop() {
-        job?.cancel()
-        job = null
-        _state.value = StreamState.Idle
-        isRunning = false
+    suspend fun stop() {
+        startStopMutex.withLock {
+            job?.cancel()
+            job?.join()
+            job = null
+            _state.value = StreamState.Idle
+            isRunning = false
 
-        clearActiveEngine()
-    val context = ContextHelper.getContext()
-        if (context != null) {
-            val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
-            context.startService(intent)
+            clearActiveEngine()
+        val context = ContextHelper.getContext()
+            if (context != null) {
+                val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
+                context.startService(intent)
+            }
         }
     }
 
     suspend fun stopAndWait() {
-        val currentJob = job
         stop()
-        currentJob?.join()
     }
     
     fun setMonitoring(enabled: Boolean) { }
