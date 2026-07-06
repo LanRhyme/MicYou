@@ -161,7 +161,10 @@ onMounted(async () => {
     noTransition.value = true;
     animState.value = 'hidden';
   }));
-  unlisteners.push(await popupWindow.listen('popup-refresh', refreshState));
+  unlisteners.push(await popupWindow.listen('popup-refresh', () => {
+    syncTheme();
+    refreshState();
+  }));
   unlisteners.push(await popupWindow.listen('popup-animate-in', animateIn));
   unlisteners.push(await popupWindow.listen('popup-animate-out', animateOut));
 
@@ -179,17 +182,15 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="w-full h-full" style="background: hsl(var(--surface))">
-    <div
-      class="haze-surface rounded-2xl shadow-xl border border-outline/10 overflow-hidden"
-      style="background: hsl(var(--surface))"
-      :class="[noTransition ? '' : 'transition-all duration-200 ease-out', {
-        'opacity-0 -translate-y-1.5 scale-95': animState === 'hidden' || animState === 'entering',
-        'opacity-100 translate-y-0 scale-100': animState === 'visible',
-        'opacity-0 -translate-y-1 scale-95': animState === 'leaving',
-      }]"
-    >
-      <div class="pt-1">
+  <div
+    class="w-full h-full bg-surface-container rounded-2xl shadow-xl border border-outline/10 overflow-hidden"
+    :class="[noTransition ? '' : 'transition-all duration-200 ease-out', {
+      'opacity-0 -translate-y-1.5 scale-95': animState === 'hidden' || animState === 'entering',
+      'opacity-100 translate-y-0 scale-100': animState === 'visible',
+      'opacity-0 -translate-y-1 scale-95': animState === 'leaving',
+    }]"
+  >
+    <div class="pt-1">
         <div class="px-3 py-2">
           <div class="text-[10px] text-on-surface-variant font-medium mb-1.5 uppercase tracking-wider">{{ t('app.connectionMode') }}</div>
           <div class="flex gap-1">
@@ -229,13 +230,12 @@ onUnmounted(() => {
         <div class="border-t border-outline/10 pt-1">
           <button
             @click="openSettings"
-            class="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-surface-variant/50 transition-colors text-left"
+            class="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-surface-variant/60 transition-colors text-left"
           >
             <Settings class="w-3.5 h-3.5 text-on-surface-variant" />
             <span class="text-xs text-on-surface">{{ t('settings.title') }}</span>
           </button>
         </div>
       </div>
-    </div>
   </div>
 </template>

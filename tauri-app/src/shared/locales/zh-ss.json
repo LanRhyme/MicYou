@@ -1,0 +1,449 @@
+{
+  "app": {
+    "connectionMode": "连接样式模式",
+    "port": "港口",
+    "level": "音量级别:",
+    "start": "开始动作",
+    "stop": "停止动作",
+    "status": {
+      "streaming": "正在接收音频",
+      "connecting": "等待设备连接...",
+      "starting": "服务启动中...",
+      "ready": "准备就绪",
+      "streamingDesc": "已成功连接至 Android 设备",
+      "connectingDesc": "正在监听端口 {port}",
+      "startingDesc": "正在初始化音频服务，请稍候",
+      "readyDesc": "点击来开始呀",
+      "stateStreaming": "流的媒体",
+      "stateConnecting": "连接中...",
+      "stateStarting": "启动中...",
+      "stateIdle": "闲置的",
+      "mute": "静默化",
+      "unmute": "不静音",
+      "wifi": "已通过 Wi-Fi 连接",
+      "usb": "已通过 USB 连接",
+      "disconnected": "未连接",
+      "waiting": "等待连接中...",
+      "running": "MicYou 服务运行中",
+      "web": "通过 Web 连接",
+      "webClients": "已连接 {count} 个客户端",
+      "webWaiting": "等待浏览器连接..."
+    },
+    "web": {
+      "title": "扫码连接标题项",
+      "scanToConnect": "扫码连接",
+      "clientsConnected": "已连接客户端计数标签项",
+      "noClients": "等待连接...",
+      "webUrl": "网页地址项",
+      "openInBrowser": "在浏览器中打开",
+      "dialogTitle": "扫码连接标题项",
+      "copyUrl": "复制链接",
+      "close": "合起来"
+    },
+    "notify": {
+      "connected": "设备已成功连接",
+      "disconnected": "设备已断开连接",
+      "usbDisconnected": "USB 已断开，请重新插上数据线后点击连接"
+    },
+    "ipSelector": {
+      "allInterfaces": "全部",
+      "allInterfacesDesc": "监听所有网络接口",
+      "switchConfirmTitle": "切换 IP 地址",
+      "switchConfirmMessage": "切换 IP 地址需要重新连接，是否继续？",
+      "continue": "继续",
+      "cancel": "取消"
+    },
+    "deviceSelector": {
+      "title": "选择 USB 设备",
+      "desc": "检测到多个设备，请选择要连接的设备：",
+      "cancel": "取消"
+    },
+    "monitoring": {
+      "title": "音频质量实时监测标题项",
+      "rtt": "监测网络延迟项",
+      "jitter": "监测抖动项",
+      "loss": "监测丢包率项",
+      "trend": "监测延迟趋势项",
+      "waveform": "监测音频波形项",
+      "specs": "监测音频流参数项",
+      "sampleRate": "监测采样率项",
+      "bitrate": "监测实时比特率项",
+      "totalLatency": "监测总估算延迟项",
+      "buffer": "监测缓冲区时长项"
+    }
+  },
+  "settings": {
+    "title": "设置标题项",
+    "categories": {
+      "general": "一般性部分",
+      "appearance": "外观性部分",
+      "audio": "音频性部分",
+      "network": "网络",
+      "plugins": "插件项目部分",
+      "about": "关于性部分"
+    },
+    "language": {
+      "title": "语言标签项",
+      "desc": "选择应用程序的显示语言",
+      "system": "跟随系统"
+    },
+    "theme": {
+      "title": "主题标签项",
+      "desc": "选择应用程序的外观主题",
+      "auto": "系统式",
+      "light": "光亮式",
+      "dark": "暗式"
+    },
+    "themeColor": {
+      "title": "主题颜色数字值",
+      "desc": "选择您喜欢的主色调",
+      "blue": "星空蓝",
+      "green": "翡翠绿",
+      "rose": "玫瑰红",
+      "purple": "电竞紫"
+    },
+    "customCss": {
+      "title": "自定义 CSS",
+      "desc": "在这里输入自定义的 CSS 代码，将实时应用到整个应用中",
+      "placeholder": "/* 例如: \nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
+      "editBtn": "编辑自定义 CSS",
+      "loadFromFile": "从文件导入",
+      "clear": "清空代码"
+    },
+    "customColor": {
+      "title": "自定义颜色",
+      "preview": "预览",
+      "hue": "色相",
+      "advanced": "高级设置",
+      "saturation": "饱和度",
+      "lightness": "明度",
+      "autoManaged": "系统已接管饱和度和明度，为您锁定最佳的极简莫兰迪色感"
+    },
+    "pocketMode": {
+      "title": "袖珍样式模式项",
+      "desc": "使用紧凑窗口布局项"
+    },
+    "uiStyle": {
+      "title": "界面风格",
+      "desc": "选择界面的视觉质感",
+      "default": "默认纯色",
+      "glass": "毛玻璃拟态"
+    },
+    "vbcable": {
+      "title": "VB-电缆 驱动器件项",
+      "installed": "已经安装了",
+      "notDetected": "没有安装",
+      "desc": "若要将麦克风声音路由到其他应用程序（如 OBS 或 Discord），你需要安装 VB-Audio Virtual Cable",
+      "download": "下载 VB-Cable"
+    },
+    "blackhole": {
+      "installed": "已经安装了",
+      "notDetected": "没有安装",
+      "desc": "BlackHole 是 macOS 的虚拟音频设备，可将麦克风音频路由到其他应用（如 OBS 或 Zoom），且不会产生扬声器啸叫。",
+      "download": "BlackHole GitHub",
+      "available": "可用于自动切换输入设备",
+      "switchAudioSourceMissing": "请安装 SwitchAudioSource（brew install switchaudio-osx）以启用自动切换输入设备"
+    },
+    "pipewire": {
+      "active": "已激活",
+      "available": "可用",
+      "notAvailable": "不可用",
+      "desc": "PipeWire 虚拟音频设备会在服务器启动时自动创建。音频通过虚拟 Sink 路由到虚拟 Source，其他应用程序可将其用作麦克风输入。"
+    },
+    "audioOutput": {
+      "title": "输出设备",
+      "desc": "麦克风的声音应该在哪里播放？",
+      "auto": "自动",
+      "routingActive": "虚拟音频路由已激活，音频将被转发到虚拟设备"
+    },
+    "spectrum": {
+      "title": "实时频谱（原始 vs 处理后）项",
+      "raw": "原始 (Raw)",
+      "processed": "处理后 (Processed)"
+    },
+    "audioParams": {
+      "gain": "增益",
+      "noiseSuppression": "降噪",
+      "intensity": "降噪强度项",
+      "dereverb": "去混响",
+      "level": "等级别数",
+      "agc": "启用自动增益控制项",
+      "target": "目标等级值",
+      "attack": "自动增益控制起效速率项",
+      "decay": "自动增益控制衰减速率项",
+      "vad": "启用声音活动检测项",
+      "threshold": "敏感阈值数值"
+    },
+    "audioChain": {
+      "title": "音频处理链路标题项",
+      "desc": "点击箭头重新排序音频效果项",
+      "descPopup": "拖动以重新排序音频效果",
+      "reset": "重置为默认",
+      "NoiseReduction": "开启噪音压制项",
+      "Dereverb": "启用去混响项",
+      "Amplifier": "放大倍增项",
+      "AGC": "启用自动增益控制项",
+      "VAD": "启用声音活动检测项",
+      "Equalizer": "启用均衡器项"
+    },
+    "equalizer": {
+      "title": "均衡器部分项",
+      "enable": "启用均衡器项",
+      "preAmp": "均衡器前级增益项",
+      "presets": "均衡器预设项",
+      "presetNormal": "默认预设项",
+      "presetBrightVocal": "清亮人声预设项",
+      "presetDeepVoice": "深沉男声预设项",
+      "presetPodcast": "播客电台预设项",
+      "presetVocalClarity": "人声清晰预设项",
+      "presetWarmVocal": "温暖人声预设项"
+    },
+    "plugins": {
+      "underConstruction": "正在建设中",
+      "portedDesc": "此部分正在从 KMP 版本移植"
+    },
+    "webPort": {
+      "title": "Web 端口",
+      "desc": "Web 连接模式的端口（默认：8443）",
+      "webOnly": "请切换到 Web 连接模式以配置此设置。"
+    },
+    "about": {
+      "version": "版本号码值",
+      "updates": "检查更新项目",
+      "updatesBtn": "检查更新",
+      "contributorsDesc": "感谢每一个为这个项目贡献的人们们。",
+      "contributorsBtn": "贡献者们们",
+      "sponsorsDesc": "查看爱发电赞助者项",
+      "sponsorsBtn": "赞助者项",
+      "licensesDesc": "开源软件许可协议",
+      "licensesBtn": "开源许可证书",
+      "logsDesc": "出口应用日志记录为了调试用",
+      "logsBtn": "出口日志记录项目",
+      "introTitle": "软件介绍项",
+      "introText": "麦克风你是一个打开来源微型手机工具那转弯你的安卓设备进入一个高质量微型手机为了你的计算机。 基于在安卓麦克风， 它支持 无线保真度 (传输控制协定)， 蓝色牙齿， 和 通用串行总线式 联系, 提供低延迟声音的传播。"
+    }
+  },
+  "dialogs": {
+    "close": "合起来",
+    "cancel": "取消",
+    "apply": "应用",
+    "contributors": {
+      "title": "贡献者们们",
+      "loading": "正在加载贡献者...",
+      "count": "%d 位贡献者",
+      "empty": "暂无贡献者"
+    },
+    "sponsors": {
+      "title": "赞助者项",
+      "loading": "正在加载赞助者数据项...",
+      "count": "%s 位赞助者项",
+      "empty": "暂无赞助者项",
+      "disclaimer": "仅显示在爱发电上对项目创建者 LanRhyme 的个人赞助",
+      "sponsorBtn": "赞助项"
+    },
+    "licenses": {
+      "title": "开源库和许可证书们",
+      "loading": "正在加载协议..."
+    },
+    "update": {
+      "checking": "检查更新之中...",
+      "available": "新版本可以使用",
+      "latest": "已经是最新的版本",
+      "failed": "检查更新失败: %s"
+    },
+    "logs": {
+      "success": "日志记录出口到达处: %s",
+      "failed": "出口日志记录失败了啊"
+    },
+    "udpWarning": {
+      "title": "UDP 音讯警告",
+      "desc": "手机端已成功连接，但电脑端未能收到任何 UDP 音频数据，这通常是因为 Windows 防火墙拦截了 UDP 端口 ({port})\n\n请在防火墙中允许 MicYou 程序的网络访问，或者尝试以管理员身份重新运行程序"
+    }
+  },
+  "tray": {
+    "tooltip": "MicYou 桌面端",
+    "show": "展示应用程序项",
+    "hide": "隐藏应用程序项",
+    "start": "开始推流",
+    "stop": "停止推流",
+    "exit": "出口程序项"
+  },
+  "closeConfirm": {
+    "title": "关闭确认标题项",
+    "message": "在关闭应用程序时你想做什么事情？",
+    "hide": "更小化到托盘里",
+    "exit": "出口应用程序项",
+    "remember": "不要再问一次了吧"
+  },
+  "closeBehavior": {
+    "title": "关闭按钮动作项项",
+    "desc": "点击主窗口关闭按钮时的行为",
+    "ask": "每一次都询问",
+    "hide": "更小化到托盘里",
+    "exit": "出口应用程序项"
+  },
+  "startMinimized": {
+    "title": "启动时最小化",
+    "desc": "启动时将应用隐藏在系统托盘，而不是打开主窗口"
+  },
+  "autostart": {
+    "title": "开机自启",
+    "desc": "登录电脑时自动启动 MicYou"
+  },
+  "notifications": {
+    "title": "系统通知",
+    "desc": "设备连接或断开时显示系统通知"
+  },
+  "autoStream": {
+    "title": "自动串流",
+    "desc": "应用启动时自动开始串流"
+  },
+  "error": {
+    "suggestionsTitle": "建议项目：",
+    "technicalDetails": "技术详情：",
+    "dialog": {
+      "retry": "再去试一次",
+      "dismiss": "关闭掉",
+      "help": "去查看帮助文档"
+    },
+    "networkTimeout": {
+      "title": "网络连线超时项目",
+      "message": "连线超时了啊。请检查网络连线和目标装置状态。"
+    },
+    "portInUse": {
+      "title": "港口被占用项目",
+      "message": "港口 %s 已被其他应用程式占用。请选择其他港口或关闭占用该港口的应用程式。"
+    },
+    "connectionRefused": {
+      "title": "连线被拒绝项目",
+      "message": "连线被拒绝掉了。目标装置可能未执行麦克风你或未在指定港口监听。",
+      "wifiMessage": "连线到 %s 被拒绝掉了。请确保桌面伺服器正在执行并设定了相同港口。"
+    },
+    "networkUnreachable": {
+      "title": "网络无法到达项目",
+      "message": "无法到达互联网协议位址：%s。请验证互联网协议位址并确保两台装置在同一网络中。"
+    },
+    "firewallBlocked": {
+      "title": "防火墙阻挡项目",
+      "message": "港口 %s 被窗户防火墙阻挡。请新增防火墙规则或以管理者身份执行应用程式。"
+    },
+    "permissionDenied": {
+      "title": "权限被拒绝项目",
+      "message": "权限不足以执行此操作。请以管理者身份执行应用程式。"
+    },
+    "deviceNotFound": {
+      "title": "装置找不到项目",
+      "message": "未找到指定的蓝色牙齿装置。请确保装置已配对且蓝色牙齿已启用。"
+    },
+    "usbConnectionFailed": {
+      "title": "通用串行总线式连线失败项目",
+      "message": "通用串行总线式连线失败。请检查通用串行总线式缆线并确保安卓装置已启用通用串行总线式侦错。"
+    },
+    "adbCommandFailed": {
+      "title": "安卓调试桥接指令失败项目",
+      "message": "安卓调试桥接指令执行失败。请确保已安装安卓调试桥接且已启用通用串行总线式侦错。"
+    },
+    "handshakeFailed": {
+      "title": "握手失败项目",
+      "message": "与目标装置握手失败。这可能表示版本不匹配或通讯协定错误。"
+    },
+    "protocolError": {
+      "title": "通讯协定错误项目",
+      "message": "通讯过程中发生通讯协定错误。请重新启动两端应用程式。"
+    },
+    "audioDevice": {
+      "title": "音讯装置错误项目",
+      "message": "音讯装置错误。请检查音讯装置设定并重新启动应用程式。"
+    },
+    "audioFormat": {
+      "title": "音讯格式错误项目",
+      "message": "不支援的音讯格式。请尝试不同的音讯设定或使用自动设定。"
+    },
+    "versionMismatch": {
+      "title": "版本不匹配项目",
+      "message": "侦测到版本不匹配。请确保两台装置执行相同版本的麦克风你。"
+    },
+    "adminPrivilege": {
+      "title": "需要管理者特权项目",
+      "message": "此操作需要管理者特权。请以管理者身份重新启动应用程式。"
+    },
+    "udpPortBlocked": {
+      "title": "UDP 港口被阻挡",
+      "message": "UDP 音讯港口 %d 被防火墙阻挡。音讯传输需要 TCP 和 UDP 港口均可存取。请为 UDP 港口新增防火墙规则，或以管理者身份执行应用程式。"
+    },
+    "unknown": {
+      "title": "未知错误项目",
+      "message": "发生未知错误：%s"
+    },
+    "suggestion": {
+      "checkNetwork": "检查无线保真度或网络连线",
+      "checkTargetRunning": "确保目标装置正在执行麦克风你伺服器",
+      "tryDifferentPort": "尝试使用不同的港口",
+      "changePort": "在设定中变更港口",
+      "checkOtherApps": "检查是否有其他应用程式占用此港口",
+      "checkServerRunning": "验证桌面伺服器正在执行且就绪",
+      "checkServerConfig": "检查伺服器设定（港口、防火墙设定）",
+      "checkNetworkConnection": "验证装置间的网络连线",
+      "verifyIpAddress": "再次确认互联网协议位址",
+      "checkWifiConnected": "确保两台装置连线到同一无线保真度网络",
+      "addFirewallRule": "允许麦克风你通过窗户防火墙",
+      "runAsAdmin": "以管理者身份执行应用程式",
+      "checkAntivirus": "检查防毒或安全软体设定",
+      "checkUsbCable": "检查通用串行总线式缆线连线",
+      "enableUsbDebugging": "在安卓开发者选项中启用通用串行总线式侦错",
+      "runAdbCommand": "在电脑上执行此指令：%s",
+      "checkAdbInstalled": "确保电脑上已安装安卓调试桥接",
+      "runAdbManually": "手动执行：%s",
+      "versionMatch": "确保两台装置使用相同版本的麦克风你",
+      "restartApp": "重新启动应用程式",
+      "checkVersion": "在吉特哈布上检查更新",
+      "checkAudioDevice": "检查音讯装置权限和可用性",
+      "changeAudioConfig": "尝试不同的音讯设定",
+      "useDefaultConfig": "使用预设或自动设定",
+      "updateApp": "更新到最新版本",
+      "checkLogs": "检视应用程式日志以取得详细错误资讯"
+    }
+  },
+  "onboarding": {
+    "title": "欢迎使用麦克风你",
+    "desc": "您似乎是第一次使用麦克风你。本应用可以将您的安卓设备通过无线保真度、蓝色牙齿或者通用串行总线式变成电脑的高质量微型电话。",
+    "quickStart": "快速入门指南标题项",
+    "step1Title": "1. 安装桌面应用程序项",
+    "step1Desc": "在电脑上下载并安装麦克风你桌面应用程序项",
+    "step2Title": "2. 连接设备项",
+    "step2WifiDesc": "无线保真度: 在应用程序中输入电脑互联网协议地址项",
+    "step2UsbDesc": "通用串行总线式: 通过通用串行总线式线缆连接并执行安卓调试桥接指令项",
+    "step3Title": "3. 开始传输项",
+    "step3Desc": "点击开始按钮启动音频传输项",
+    "step4Title": "4. 配置音频项",
+    "step4Desc": "在录音软件中选择VB-电缆作为输入设备项",
+    "step4DescMac": "在录音软件中选择黑洞作为输入设备项",
+    "videoGuide": "视频教程项",
+    "textGuide": "文字教程项",
+    "gotIt": "我知道怎么用项",
+    "next": "下一步",
+    "skip": "跳过",
+    "complete": "设置完成",
+    "completeDesc": "一切就绪！您现在可以开始使用 MicYou 了！",
+    "startUsing": "开始使用"
+  },
+  "vbcableDetect": {
+    "title": "VB-Cable Driver Required",
+    "message": "VB-Cable driver is required for MicYou to function as a virtual microphone on Windows. Would you like to install it automatically?",
+    "autoInstall": "Install Automatically",
+    "manualDownload": "Manual Download",
+    "skipForNow": "Skip for Now",
+    "installed": "已经安装了"
+  },
+  "vbcableInstall": {
+    "installing": "正在安装 VB-电缆...",
+    "downloading": "正在下载...",
+    "configuring": "正在配置...",
+    "waitingDevice": "等待设备初始化...",
+    "complete": "配置完成了呀",
+    "failed": "VB-Cable 安装失败了: %s",
+    "adminRequired": "需要管理员权限，请批准 UAC 提示。",
+    "timeout": "安装超时了，请重试。",
+    "retry": "重试"
+  }
+}
