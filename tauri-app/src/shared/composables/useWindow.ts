@@ -11,6 +11,7 @@ export function useWindow() {
 
   function minimizeWindow() {
     appWindow.minimize();
+    isHidden.value = true;
   }
 
   async function showMainWindow() {
