@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted, computed, watchEffect } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watchEffect } from 'vue';
 import { useStorage } from '@vueuse/core';
 import { LogicalSize } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
@@ -101,6 +101,8 @@ useTray(
     onShow: async () => {
       if (win.isHidden.value) {
         await win.showMainWindow();
+      } else {
+        await win.hideMainWindow();
       }
     },
     onToggleStream: () => toggleStreaming(),
@@ -109,6 +111,13 @@ useTray(
   visibilityRef,
   streamingRef,
 );
+
+// Auto-hide window on startup if "start minimized" is enabled
+onMounted(() => {
+  if (win.isHidden.value) {
+    void win.hideMainWindow();
+  }
+});
 
 // Resize window when pocket mode changes
 watchEffect(async () => {

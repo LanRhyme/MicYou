@@ -30,6 +30,7 @@ impl TrayMenuStrings {
 }
 
 #[derive(Deserialize, Debug, Clone, Copy, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct TrayState {
     pub window_visible: bool,
     pub is_streaming: bool,
@@ -104,7 +105,11 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             }
         })
         .on_tray_icon_event(|tray, event| {
-            if let TrayIconEvent::DoubleClick { button: MouseButton::Left, .. } = event {
+            if let TrayIconEvent::DoubleClick {
+                button: MouseButton::Left,
+                ..
+            } = event
+            {
                 let app = tray.app_handle();
                 let _ = app.emit("tray-action", MENU_ID_SHOW);
             }
@@ -150,13 +155,7 @@ fn build_menu<R: Runtime>(
         true,
         None::<&str>,
     )?;
-    let exit = MenuItem::with_id(
-        app,
-        MENU_ID_EXIT,
-        &strings.exit,
-        true,
-        None::<&str>,
-    )?;
+    let exit = MenuItem::with_id(app, MENU_ID_EXIT, &strings.exit, true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     Menu::with_items(app, &[&show_hide, &toggle_stream, &separator, &exit])
 }
@@ -178,22 +177,58 @@ mod tests {
 
     #[test]
     fn show_hide_label_uses_hide_when_visible() {
-        assert_eq!(show_hide_label(TrayState { window_visible: true, is_streaming: false }, &s()), "Hide");
+        assert_eq!(
+            show_hide_label(
+                TrayState {
+                    window_visible: true,
+                    is_streaming: false
+                },
+                &s()
+            ),
+            "Hide"
+        );
     }
 
     #[test]
     fn show_hide_label_uses_show_when_hidden() {
-        assert_eq!(show_hide_label(TrayState { window_visible: false, is_streaming: false }, &s()), "Show");
+        assert_eq!(
+            show_hide_label(
+                TrayState {
+                    window_visible: false,
+                    is_streaming: false
+                },
+                &s()
+            ),
+            "Show"
+        );
     }
 
     #[test]
     fn stream_toggle_label_uses_stop_when_streaming() {
-        assert_eq!(stream_toggle_label(TrayState { window_visible: true, is_streaming: true }, &s()), "Stop");
+        assert_eq!(
+            stream_toggle_label(
+                TrayState {
+                    window_visible: true,
+                    is_streaming: true
+                },
+                &s()
+            ),
+            "Stop"
+        );
     }
 
     #[test]
     fn stream_toggle_label_uses_start_when_idle() {
-        assert_eq!(stream_toggle_label(TrayState { window_visible: true, is_streaming: false }, &s()), "Start");
+        assert_eq!(
+            stream_toggle_label(
+                TrayState {
+                    window_visible: true,
+                    is_streaming: false
+                },
+                &s()
+            ),
+            "Start"
+        );
     }
 
     #[test]
