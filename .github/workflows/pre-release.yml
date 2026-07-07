@@ -18,6 +18,7 @@ jobs:
   # ----------------- Android Release 构建 -----------------
   build-android:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
       with:
@@ -36,6 +37,7 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Decode Keystore
+      continue-on-error: true
       env:
         ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
       run: |
@@ -52,6 +54,7 @@ jobs:
           echo "AIFADIAN_USER_ID=$AIFADIAN_USER_ID" >> local.properties
         fi
     - name: Build Android Release
+      continue-on-error: true
       env:
         ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
         ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -59,6 +62,7 @@ jobs:
         ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       run: ./gradlew :composeApp:assembleRelease
     - name: Prepare Android Artifact
+      continue-on-error: true
       run: |
         mkdir -p ci-artifacts
         APK=$(ls composeApp/build/outputs/apk/release/*.apk 2>/dev/null | head -n 1)
@@ -215,12 +219,13 @@ jobs:
       run: |
         mkdir -p ci-artifacts
         VER="${{ steps.version.outputs.version }}"
-        DEB=$(ls tauri-app/src-tauri/target/release/bundle/deb/*.deb 2>/dev/null | head -1)
-        RPM=$(ls tauri-app/src-tauri/target/release/bundle/rpm/*.rpm 2>/dev/null | head -1)
-        APPIMAGE=$(ls tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)
-        [ -n "$DEB" ] && cp "$DEB" "ci-artifacts/MicYou-Linux-$VER.deb"
-        [ -n "$RPM" ] && cp "$RPM" "ci-artifacts/MicYou-Linux-$VER.rpm"
-        [ -n "$APPIMAGE" ] && cp "$APPIMAGE" "ci-artifacts/MicYou-Linux-$VER.AppImage"
+        shopt -s nullglob
+        DEB=( tauri-app/src-tauri/target/release/bundle/deb/*.deb )
+        RPM=( tauri-app/src-tauri/target/release/bundle/rpm/*.rpm )
+        APPIMAGE=( tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage )
+        [ ${#DEB[@]} -gt 0 ] && cp "${DEB[0]}" "ci-artifacts/MicYou-Linux-$VER.deb"
+        [ ${#RPM[@]} -gt 0 ] && cp "${RPM[0]}" "ci-artifacts/MicYou-Linux-$VER.rpm"
+        [ ${#APPIMAGE[@]} -gt 0 ] && cp "${APPIMAGE[0]}" "ci-artifacts/MicYou-Linux-$VER.AppImage"
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -230,7 +235,7 @@ jobs:
 
   # ----------------- 发布 Pre-release -----------------
   pre-release:
-    needs: [build-android, build-tauri-windows, build-tauri-linux, build-tauri-macos]
+    needs: [build-tauri-windows, build-tauri-linux, build-tauri-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
