@@ -221,12 +221,12 @@ jobs:
         mkdir -p ci-artifacts
         VER="${{ steps.version.outputs.version }}"
         shopt -s nullglob
-        DEB=( tauri-app/src-tauri/target/release/bundle/deb/*.deb )
-        RPM=( tauri-app/src-tauri/target/release/bundle/rpm/*.rpm )
-        APPIMAGE=( tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage )
-        [ ${#DEB[@]} -gt 0 ] && cp "${DEB[0]}" "ci-artifacts/MicYou-Linux-$VER.deb"
-        [ ${#RPM[@]} -gt 0 ] && cp "${RPM[0]}" "ci-artifacts/MicYou-Linux-$VER.rpm"
-        [ ${#APPIMAGE[@]} -gt 0 ] && cp "${APPIMAGE[0]}" "ci-artifacts/MicYou-Linux-$VER.AppImage"
+        deb_files=( tauri-app/src-tauri/target/release/bundle/deb/*.deb )
+        rpm_files=( tauri-app/src-tauri/target/release/bundle/rpm/*.rpm )
+        appimage_files=( tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage )
+        if [ ${#deb_files[@]} -gt 0 ]; then cp "${deb_files[0]}" "ci-artifacts/MicYou-Linux-$VER.deb"; fi
+        if [ ${#rpm_files[@]} -gt 0 ]; then cp "${rpm_files[0]}" "ci-artifacts/MicYou-Linux-$VER.rpm"; fi
+        if [ ${#appimage_files[@]} -gt 0 ]; then cp "${appimage_files[0]}" "ci-artifacts/MicYou-Linux-$VER.AppImage"; fi
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
