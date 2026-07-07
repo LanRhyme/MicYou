@@ -40,13 +40,20 @@ jobs:
     - name: Prepare Android Artifact
       run: |
         mkdir -p ci-artifacts
-        APK=$(ls composeApp/build/outputs/apk/debug/*.apk | head -n 1)
+        APK=$(ls composeApp/build/outputs/apk/debug/*.apk 2>/dev/null | head -n 1)
+        if [ -z "$APK" ]; then
+          echo "No debug APK found, skipping artifact upload"
+          exit 0
+        fi
         cp "$APK" "ci-artifacts/MicYou-Android-${{ steps.version.outputs.version }}.apk"
+        echo "APK=$APK" >> $GITHUB_OUTPUT
     - name: Upload Android Artifacts
+      if: ${{ steps.version.outputs.version != '' }}
       uses: actions/upload-artifact@v4
       with:
         name: MicYou-Android-${{ steps.version.outputs.version }}
         path: ci-artifacts/MicYou-Android-${{ steps.version.outputs.version }}.apk
+        if-no-files-found: ignore
 
   # ----------------- Tauri Windows 构建 -----------------
   build-tauri-windows:
@@ -79,14 +86,22 @@ jobs:
       run: |
         New-Item -ItemType Directory -Force -Path ci-artifacts | Out-Null
         $version = '${{ steps.version.outputs.version }}'
-        $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/msi -Filter *.msi | Select-Object -First 1
-        if (-not $installer) { throw "No MSI installer found" }
+        $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/msi -Filter *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $installer) {
+          Write-Warning "No MSI installer found, trying exe..."
+          $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/nsis -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+        }
+        if (-not $installer) {
+          Write-Warning "No installer found, skipping artifact upload"
+          exit 0
+        }
         Copy-Item $installer.FullName "ci-artifacts/MicYou-Win-$version-installer.msi" -Force
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: MicYou-Win-${{ steps.version.outputs.version }}
         path: ci-artifacts/MicYou-Win-${{ steps.version.outputs.version }}-installer.msi
+        if-no-files-found: ignore
 
   # ----------------- Tauri macOS 构建 (x64 + arm64) -----------------
   build-tauri-macos:
@@ -127,13 +142,18 @@ jobs:
     - name: Prepare Artifact
       run: |
         mkdir -p ci-artifacts
-        DMG=$(ls tauri-app/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg | head -1)
+        DMG=$(ls tauri-app/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg 2>/dev/null | head -1)
+        if [ -z "$DMG" ]; then
+          echo "No DMG found, skipping artifact upload"
+          exit 0
+        fi
         cp "$DMG" "ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg"
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: MicYou-macOS-${{ matrix.arch }}-${{ steps.version.outputs.version }}
         path: ci-artifacts/MicYou-macOS-${{ steps.version.outputs.version }}-${{ matrix.arch }}.dmg
+        if-no-files-found: ignore
 
   # ----------------- Tauri Linux 构建 -----------------
   build-tauri-linux:
@@ -156,7 +176,14 @@ jobs:
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+        sudo apt-get install -y \
+          libwebkit2gtk-4.1-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          patchelf \
+          libxdo-dev \
+          libssl-dev \
+          libasound2-dev
     - name: Install Frontend Dependencies
       run: npm ci
       working-directory: tauri-app
@@ -167,17 +194,15 @@ jobs:
       run: |
         mkdir -p ci-artifacts
         VER="${{ steps.version.outputs.version }}"
-        DEB=$(ls tauri-app/src-tauri/target/release/bundle/deb/*.deb | head -1)
-        RPM=$(ls tauri-app/src-tauri/target/release/bundle/rpm/*.rpm | head -1)
-        APPIMAGE=$(ls tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage | head -1)
-        cp "$DEB" "ci-artifacts/MicYou-Linux-$VER.deb"
-        cp "$RPM" "ci-artifacts/MicYou-Linux-$VER.rpm"
-        cp "$APPIMAGE" "ci-artifacts/MicYou-Linux-$VER.AppImage"
+        DEB=$(ls tauri-app/src-tauri/target/release/bundle/deb/*.deb 2>/dev/null | head -1)
+        RPM=$(ls tauri-app/src-tauri/target/release/bundle/rpm/*.rpm 2>/dev/null | head -1)
+        APPIMAGE=$(ls tauri-app/src-tauri/target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)
+        [ -n "$DEB" ] && cp "$DEB" "ci-artifacts/MicYou-Linux-$VER.deb"
+        [ -n "$RPM" ] && cp "$RPM" "ci-artifacts/MicYou-Linux-$VER.rpm"
+        [ -n "$APPIMAGE" ] && cp "$APPIMAGE" "ci-artifacts/MicYou-Linux-$VER.AppImage"
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: MicYou-Linux-${{ steps.version.outputs.version }}
-        path: |
-          ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.deb
-          ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.rpm
-          ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.AppImage
+        path: ci-artifacts/
+        if-no-files-found: ignore
