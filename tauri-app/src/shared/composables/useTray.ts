@@ -1,7 +1,7 @@
-import { onMounted, onBeforeUnmount, watch, type Ref } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { useI18n } from 'vue-i18n';
+import { onMounted, onBeforeUnmount, watch, type Ref } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { useI18n } from "vue-i18n";
 
 export interface TrayMenuStrings {
   tooltip: string;
@@ -23,14 +23,16 @@ export interface TrayCallbacks {
   onExit: () => void | Promise<void>;
 }
 
-export function trayStringsFromI18n(t: (key: string) => string): TrayMenuStrings {
+export function trayStringsFromI18n(
+  t: (key: string) => string,
+): TrayMenuStrings {
   return {
-    tooltip: t('tray.tooltip'),
-    show: t('tray.show'),
-    hide: t('tray.hide'),
-    start: t('tray.start'),
-    stop: t('tray.stop'),
-    exit: t('tray.exit'),
+    tooltip: t("tray.tooltip"),
+    show: t("tray.show"),
+    hide: t("tray.hide"),
+    start: t("tray.start"),
+    stop: t("tray.stop"),
+    exit: t("tray.exit"),
   };
 }
 
@@ -49,37 +51,40 @@ export function useTray(
     if (key === lastPushedStrings) return;
     lastPushedStrings = key;
     try {
-      await invoke('set_tray_strings', { strings });
+      await invoke("set_tray_strings", { strings });
     } catch (e) {
-      console.error('set_tray_strings failed:', e);
+      console.error("set_tray_strings failed:", e);
     }
   }
 
   async function pushState() {
     try {
-      await invoke('set_tray_state', {
-        state: { windowVisible: visibility.value, isStreaming: streaming.value },
+      await invoke("set_tray_state", {
+        state: {
+          windowVisible: visibility.value,
+          isStreaming: streaming.value,
+        },
       });
     } catch (e) {
-      console.error('set_tray_state failed:', e);
+      console.error("set_tray_state failed:", e);
     }
   }
 
   onMounted(async () => {
-    unlisten = await listen<string>('tray-action', (event) => {
+    unlisten = await listen<string>("tray-action", (event) => {
       const id = event.payload;
       switch (id) {
-        case 'show':
+        case "show":
           void callbacks.onShow();
           break;
-        case 'toggle_stream':
+        case "toggle_stream":
           void callbacks.onToggleStream();
           break;
-        case 'exit':
+        case "exit":
           void callbacks.onExit();
           break;
         default:
-          console.warn('Unknown tray-action id:', id);
+          console.warn("Unknown tray-action id:", id);
       }
     });
 

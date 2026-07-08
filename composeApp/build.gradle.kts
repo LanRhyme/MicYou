@@ -115,7 +115,6 @@ dependencies {
     implementation(libs.filekit.core)
     implementation(libs.filekit.dialogs.compose)
     implementation(libs.materialKolor)
-    implementation(project(":plugin-api"))
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

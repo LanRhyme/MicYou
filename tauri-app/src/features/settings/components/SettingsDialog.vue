@@ -607,7 +607,6 @@ import {
   ArrowRight,
   SlidersHorizontal,
   Palette,
-  Network
 } from '@lucide/vue';
 import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
@@ -648,8 +647,6 @@ const closeBehavior = useStorage<'ask' | 'hide' | 'exit' | null>('micyou_remembe
 const startMinimized = useStorage<boolean>('micyou_start_minimized', false);
 const notificationsEnabled = useStorage<boolean>('micyou_notifications', true);
 const autoStream = useStorage<boolean>('micyou_auto_stream', false);
-const connectionMode = useStorage<'wifi' | 'usb' | 'web'>('micyou_connectionMode', 'wifi');
-const webPort = useStorage('micyou_webPort', 8443);
 const autostartEnabled = ref(false);
 
 const applyCustomColor = (color: { h: number, s: number, l: number }) => {
