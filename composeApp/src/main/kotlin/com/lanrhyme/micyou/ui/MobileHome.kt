@@ -94,7 +94,6 @@ import com.lanrhyme.micyou.animation.rememberGlowAnimation
 import com.lanrhyme.micyou.animation.rememberPulseAnimation
 import com.lanrhyme.micyou.animation.rememberRotationAnimation
 import com.lanrhyme.micyou.animation.rememberWaveAnimation
-import com.lanrhyme.micyou.plugin.PluginInfo
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.delay
@@ -110,8 +109,6 @@ import com.lanrhyme.micyou.theme.isDarkThemeActive
 import com.lanrhyme.micyou.ui.visualizer.AudioVisualizer
 import com.lanrhyme.micyou.ui.background.CustomBackground
 import com.lanrhyme.micyou.ui.background.HazeSurface
-import com.lanrhyme.micyou.ui.dialog.OpenPluginWindow
-import com.lanrhyme.micyou.ui.dialog.PluginListPopup
 import com.lanrhyme.micyou.ui.MobileHome
 import com.lanrhyme.micyou.ui.ShardTextField
 import com.lanrhyme.micyou.ui.visualizer.ConnectingAnimation
@@ -734,9 +731,6 @@ private fun MobileBottomBar(
     cardOpacity: Float = 1f,
     hazeState: HazeState? = null
 ) {
-    var showPluginPopup by remember { mutableStateOf(false) }
-    var activePluginWindow by remember { mutableStateOf<String?>(null) }
-    
     HazeSurface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceBright.copy(alpha = cardOpacity),
@@ -753,52 +747,11 @@ private fun MobileBottomBar(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MobileMuteButton(
                     isMuted = state.isMuted,
-                    onToggle = { viewModel.toggleMute() })
-    val enabledPlugins = state.plugins.filter { it.isEnabled }
-    val pluginInteractionSource = remember { MutableInteractionSource() }
-    val isPluginPressed by pluginInteractionSource.collectIsPressedAsState()
-    val pluginScale by animateFloatAsState(
-                    targetValue = if (isPluginPressed) 0.9f else 1f,
-                    animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
+                    onToggle = { viewModel.toggleMute() }
                 )
-    val pluginBgColor by animateColorAsState(
-                    targetValue = if (enabledPlugins.isNotEmpty()) MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surfaceContainerHighest,
-                    animationSpec = tween(200)
-                )
-    val pluginContentColor by animateColorAsState(
-                    targetValue = if (enabledPlugins.isNotEmpty()) MaterialTheme.colorScheme.onPrimaryContainer
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    animationSpec = tween(200)
-                )
-                
-                Surface(
-                    shape = MaterialTheme.shapes.small,
-                    color = pluginBgColor,
-                    modifier = Modifier.scale(pluginScale).clickable(pluginInteractionSource, null) { showPluginPopup = true }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Extension,
-                            contentDescription = stringResource(R.string.pluginsSection),
-                            tint = pluginContentColor,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        if (enabledPlugins.isNotEmpty()) {
-                            Text(
-                                enabledPlugins.size.toString(),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = pluginContentColor
-                            )
-                        }
-                    }
-                }
             }
-    val dotColor by animateColorAsState(
+            
+            val dotColor by animateColorAsState(
                 targetValue = when (state.streamState) {
                     StreamState.Idle -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                     StreamState.Connecting -> MaterialTheme.colorScheme.tertiary
@@ -807,7 +760,7 @@ private fun MobileBottomBar(
                 },
                 animationSpec = tween(300)
             )
-    val dotPulse = if (state.streamState == StreamState.Streaming)
+            val dotPulse = if (state.streamState == StreamState.Streaming)
                 rememberPulseAnimation(0.8f, 1.2f, 1200) else 1f
             
             Surface(
@@ -816,33 +769,6 @@ private fun MobileBottomBar(
                 modifier = Modifier.size(8.dp).scale(dotPulse)
             ) {}
         }
-    }
-    
-    // 显示插件窗口
-    activePluginWindow?.let { pluginId ->
-        OpenPluginWindow(
-            pluginId = pluginId,
-            viewModel = viewModel,
-            onClose = { activePluginWindow = null }
-        )
-    }
-
-    if (showPluginPopup) {
-        PluginListPopup(
-            plugins = state.plugins,
-            onDismiss = { showPluginPopup = false },
-            onPluginClick = { plugin ->
-                showPluginPopup = false
-            },
-            onOpenPluginWindow = { pluginId ->
-                activePluginWindow = pluginId
-                showPluginPopup = false
-            },
-            onOpenSettings = {
-                showPluginPopup = false
-            },
-            viewModel = viewModel
-        )
     }
 }
 

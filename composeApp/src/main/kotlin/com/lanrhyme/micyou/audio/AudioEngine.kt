@@ -480,7 +480,7 @@ class AudioEngine constructor() {
                             android.media.AudioFormat.ENCODING_PCM_FLOAT -> 4
                             else -> 2
                         }
-                        val frameAlignBytes = 480 * bytesPerSample * channelCount.value
+                        val frameAlignBytes = bytesPerSample * channelCount.value
                         val alignedPayloadSize = (udpSafePayloadSize / frameAlignBytes) * frameAlignBytes
                         val readBufSize = minOf(minBufSize, alignedPayloadSize).coerceAtLeast(frameAlignBytes)
                         val buffer = ByteArray(readBufSize)

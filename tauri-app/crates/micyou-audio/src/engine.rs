@@ -36,49 +36,47 @@ impl RubatoResampler {
     }
 
     pub fn resample(&mut self, input: &[f32], channels: usize) -> Vec<f32> {
-        let in_frames = input.len() / channels;
+        let mut output = Vec::with_capacity(
+            (input.len() as f64 * (self.resampler.output_frames_max() as f64 / self.chunk_size as f64)).ceil() as usize
+        );
+        let mut offset = 0;
 
-        // For very small inputs or mismatched sizes, fall back to simple passthrough
-        // to avoid the overhead of the resampler
-        if in_frames <= 2 || in_frames > self.chunk_size {
-            return input.to_vec();
-        }
+        while offset < input.len() {
+            let chunk_input = &input[offset..(offset + self.chunk_size * channels).min(input.len())];
+            offset += chunk_input.len();
 
-        // Zero out only the unused part of the input buffer to avoid stale data
-        for frame in in_frames..self.chunk_size {
-            for ch in 0..channels {
-                self.input_buffer.write_sample(ch, frame, &0.0);
+            let in_frames = chunk_input.len() / channels;
+            
+            for frame in 0..self.chunk_size {
+                for ch in 0..channels {
+                    if frame < in_frames {
+                        self.input_buffer.write_sample(ch, frame, &chunk_input[frame * channels + ch]);
+                    } else {
+                        self.input_buffer.write_sample(ch, frame, &0.0);
+                    }
+                }
             }
-        }
 
-        // Fill the pre-allocated input buffer
-        for (i, &sample) in input.iter().enumerate() {
-            let frame = i / channels;
-            let ch = i % channels;
-            if frame < self.chunk_size {
-                self.input_buffer.write_sample(ch, frame, &sample);
-            }
-        }
-
-        // Process using the convenience method
-        match self.resampler.process(&self.input_buffer, 0, None) {
-            Ok(output_buffer) => {
-                let out_frames = output_buffer.frames();
-                let mut output = Vec::with_capacity(out_frames * channels);
-                for frame in 0..out_frames {
-                    for ch in 0..channels {
-                        if let Some(sample) = output_buffer.read_sample(ch, frame) {
-                            output.push(sample);
+            match self.resampler.process(&self.input_buffer, 0, None) {
+                Ok(output_buffer) => {
+                    let out_frames = output_buffer.frames();
+                    let expected_out_frames = (in_frames as f64 * (out_frames as f64 / self.chunk_size as f64)).round() as usize;
+                    for frame in 0..expected_out_frames.min(out_frames) {
+                        for ch in 0..channels {
+                            if let Some(sample) = output_buffer.read_sample(ch, frame) {
+                                output.push(sample);
+                            }
                         }
                     }
                 }
-                output
-            }
-            Err(e) => {
-                eprintln!("Resample error: {}", e);
-                input.to_vec()
+                Err(e) => {
+                    eprintln!("Resample error: {}", e);
+                    output.extend_from_slice(chunk_input);
+                }
             }
         }
+        
+        output
     }
 }
 
@@ -230,7 +228,7 @@ impl AudioOutputManager {
                                 // Soft fade to silence on underrun instead of hard cut
                                 let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
                                 let fade = (1.0 - count as f32 * 0.01).max(0.0);
-                                *sample *= fade;
+                                *sample = 0.0 * fade;
                             }
                         }
                     }

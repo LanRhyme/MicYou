@@ -2,7 +2,6 @@ package com.lanrhyme.micyou.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lanrhyme.micyou.plugin.PluginInfo
 import com.lanrhyme.micyou.theme.PaletteStyle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +30,7 @@ import com.lanrhyme.micyou.util.Constants
 import com.lanrhyme.micyou.util.getString
 import com.lanrhyme.micyou.audio.AudioEffectType
 import com.lanrhyme.micyou.audio.EqualizerConfig
-import com.lanrhyme.micyou.ui.dialog.MissingPluginInfo
+
 import com.lanrhyme.micyou.R
 import com.lanrhyme.micyou.viewmodel.ConnectionMode
 import com.lanrhyme.micyou.viewmodel.UpdateDownloadState
@@ -137,10 +136,6 @@ data class AppUiState(
     val backgroundSettings: BackgroundSettings = BackgroundSettings(),
     val showFirstLaunchDialog: Boolean = false,
     
-    // Plugin State
-    val plugins: List<PluginInfo> = emptyList(),
-    val showPluginSyncWarning: Boolean = false,
-    val missingPlugins: List<MissingPluginInfo> = emptyList(),
     
     // Update State
     val updateInfo: UpdateInfo? = null,
@@ -174,7 +169,7 @@ class MainViewModel : ViewModel() {
     // Specialized ViewModels
     private val audioStreamViewModel = AudioStreamViewModel()
     private val settingsViewModel = SettingsViewModel()
-    private val pluginViewModel = PluginViewModel()
+
     private val updateViewModel = UpdateViewModel()
     
     private val _uiState = MutableStateFlow(AppUiState())
@@ -191,40 +186,12 @@ class MainViewModel : ViewModel() {
     private val settings = SettingsFactory.getSettings()
     
     init {
-        // Initialize Plugin ViewModel with shared AudioEngine
+        // Initialize from settings
         val initialLanguage = try { 
             AppLanguage.valueOf(settings.getString("language", AppLanguage.System.name)) 
         } catch(e: Exception) { 
             AppLanguage.System 
         }
-        
-        pluginViewModel.initialize(
-            audioEngine = audioStreamViewModel.audioEngine,
-            showSnackbarCallback = { message ->
-                _uiState.update { it.copy(snackbarMessage = message) }
-            },
-            appLanguageProvider = { 
-                val lang = _uiState.value.language
-                when (lang) {
-                    AppLanguage.Chinese -> "zh"
-                    AppLanguage.ChineseTraditional -> "zh-TW"
-                    AppLanguage.Cantonese -> "zh-HK"
-                    AppLanguage.English -> "en"
-                    AppLanguage.ChineseCat -> "cat"
-                    AppLanguage.ChineseHard -> "zh"
-                    AppLanguage.System -> {
-                        val locale = java.util.Locale.getDefault().toLanguageTag()
-                        when {
-                            locale.startsWith("zh-HK") -> "zh-HK"
-                            locale.startsWith("zh-TW") || locale.startsWith("zh-Hant") -> "zh-TW"
-                            locale.startsWith("zh") -> "zh"
-                            else -> "en"
-                        }
-                    }
-                }
-            },
-            appStringProvider = { it }
-        )
         
         // Observe and merge states from all ViewModels
         setupStateObservers()
@@ -278,9 +245,8 @@ class MainViewModel : ViewModel() {
             combine(
                 audioDataFlow,
                 settingsViewModel.uiState,
-                pluginViewModel.uiState,
                 updateViewModel.uiState
-            ) { audioData, settingsState, pluginState, updateState ->
+            ) { audioData, settingsState, updateState ->
                 val audioState = audioData.state
                 val currentMetrics = audioData.metrics
                 val history = audioData.history
@@ -337,9 +303,7 @@ class MainViewModel : ViewModel() {
                         visualizerStyle = settingsState.visualizerStyle,
                         backgroundSettings = settingsState.backgroundSettings,
                         showFirstLaunchDialog = settingsState.showFirstLaunchDialog,
-                        plugins = pluginState.plugins,
-                        showPluginSyncWarning = pluginState.showPluginSyncWarning,
-                        missingPlugins = pluginState.missingPlugins,
+
                         updateInfo = updateState.updateInfo,
                         updateDownloadState = updateState.updateDownloadState,
                         updateDownloadProgress = updateState.updateDownloadProgress,
@@ -434,17 +398,7 @@ class MainViewModel : ViewModel() {
     fun dismissFirstLaunchDialog() = settingsViewModel.dismissFirstLaunchDialog()
     fun exportLog(onResult: (String?) -> Unit) = settingsViewModel.exportLog(onResult)
     
-    // Plugin methods
-    fun importPlugin(filePath: String, onResult: (Result<PluginInfo>) -> Unit) = 
-        pluginViewModel.importPlugin(filePath, onResult)
-    fun enablePlugin(pluginId: String) = pluginViewModel.enablePlugin(pluginId)
-    fun disablePlugin(pluginId: String) = pluginViewModel.disablePlugin(pluginId)
-    fun deletePlugin(pluginId: String) = pluginViewModel.deletePlugin(pluginId)
-    fun getPluginUIProvider(pluginId: String): Any? = pluginViewModel.getPluginUIProvider(pluginId)
-    fun getPluginSettingsProvider(pluginId: String): Any? = pluginViewModel.getPluginSettingsProvider(pluginId)
-    fun showPluginSyncWarning(missingPlugins: List<MissingPluginInfo>) = 
-        pluginViewModel.showPluginSyncWarning(missingPlugins)
-    fun dismissPluginSyncWarning() = pluginViewModel.dismissPluginSyncWarning()
+
     
     // Update methods
     fun checkUpdateManual() {

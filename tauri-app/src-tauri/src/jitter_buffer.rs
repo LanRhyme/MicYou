@@ -9,6 +9,7 @@ pub struct JitterBuffer {
     expected_sequence_number: i32,
     initialized: bool,
     fec_group_size: i32,
+    prebuffered: bool,
 }
 
 impl JitterBuffer {
@@ -20,6 +21,7 @@ impl JitterBuffer {
             expected_sequence_number: 0,
             initialized: false,
             fec_group_size,
+            prebuffered: false,
         }
     }
 
@@ -58,6 +60,13 @@ impl JitterBuffer {
             return None;
         }
 
+        if !self.prebuffered {
+            if self.buffer.len() < 15 {
+                return None;
+            }
+            self.prebuffered = true;
+        }
+
         let seq_num = self.expected_sequence_number;
 
         if let Some(packet) = self.buffer.remove(&seq_num) {
@@ -67,19 +76,17 @@ impl JitterBuffer {
             return Some(packet);
         }
 
-        let next_available = self.buffer.keys().next().copied();
-        if let Some(next_seq) = next_available {
-            if next_seq <= seq_num {
-                return None;
-            }
-
-            // Gap detected! Try FEC recovery.
-            if let Some(recovered) = self.try_fec_recovery(seq_num) {
-                self.expected_sequence_number += 1;
-                return Some(recovered);
-            } else {
-                // Cannot recover, we must skip to next available
-                self.expected_sequence_number = next_seq;
+        let highest_seq = self.buffer.keys().next_back().copied();
+        if let Some(highest) = highest_seq {
+            if highest >= seq_num + 5 {
+                // Gap confirmed. Try FEC recovery.
+                if let Some(recovered) = self.try_fec_recovery(seq_num) {
+                    self.expected_sequence_number += 1;
+                    return Some(recovered);
+                } else {
+                    // Cannot recover, skip this seq
+                    self.expected_sequence_number += 1;
+                }
             }
         }
 
