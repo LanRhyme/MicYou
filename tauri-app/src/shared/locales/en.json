@@ -117,7 +117,20 @@
       "advanced": "Advanced Settings",
       "saturation": "Saturation",
       "lightness": "Lightness",
-      "autoManaged": "Saturation and Lightness are automatically managed to maintain a premium tonal aesthetic."
+      "autoManaged": "Saturation and Lightness are automatically managed to maintain a premium tonal aesthetic.",
+      "variant": "Theme Variant",
+      "variantDesc": "Configure the extended algorithm to generate associated colors",
+      "variants": {
+        "tonalSpot": "Tonal Spot",
+        "neutral": "Neutral",
+        "vibrant": "Vibrant",
+        "expressive": "Expressive",
+        "rainbow": "Rainbow",
+        "fruitSalad": "Fruit Salad",
+        "monochrome": "Monochrome",
+        "fidelity": "Fidelity",
+        "content": "Content"
+      }
     },
     "pocketMode": {
       "title": "Pocket Mode",

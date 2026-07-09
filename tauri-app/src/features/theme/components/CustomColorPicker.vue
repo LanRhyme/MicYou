@@ -90,7 +90,7 @@
 
 <script setup lang="ts">
 import MD3Slider from "@/shared/components/ui/slider/MD3Slider.vue"
-import { ref, watch, computed } from 'vue';
+import { ref, watch } from 'vue';
 import { X } from '@lucide/vue';
 
 const props = defineProps<{

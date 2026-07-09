@@ -117,7 +117,20 @@
       "advanced": "高设",
       "saturation": "饱和",
       "lightness": "明度",
-      "autoManaged": "饱和与明度由系统自管，以保观瞻。"
+      "autoManaged": "饱和与明度由系统自管，以保观瞻。",
+      "variant": "色彩之变",
+      "variantDesc": "置设衍生色之算法",
+      "variants": {
+        "tonalSpot": "温雅",
+        "neutral": "中庸",
+        "vibrant": "鲜艳",
+        "expressive": "纵情",
+        "rainbow": "长虹",
+        "fruitSalad": "果珍",
+        "monochrome": "单色",
+        "fidelity": "拟真",
+        "content": "取色"
+      }
     },
     "pocketMode": {
       "title": "袖珍之式",

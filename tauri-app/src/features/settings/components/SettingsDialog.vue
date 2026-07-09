@@ -319,6 +319,32 @@
               </div>
             </div>
 
+            <!-- Theme Generation Variant Settings -->
+            <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
+              <div>
+                <h4 class="font-bold text-on-surface">{{ $t('settings.customColor.variant') }}</h4>
+                <p class="text-xs text-on-surface-variant">{{ $t('settings.customColor.variantDesc') }}</p>
+              </div>
+              <Select v-model="customVariant">
+                <SelectTrigger class="w-[160px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
+                  <SelectGroup>
+                    <SelectItem value="TonalSpot">{{ $t('settings.customColor.variants.tonalSpot') }}</SelectItem>
+                    <SelectItem value="Neutral">{{ $t('settings.customColor.variants.neutral') }}</SelectItem>
+                    <SelectItem value="Vibrant">{{ $t('settings.customColor.variants.vibrant') }}</SelectItem>
+                    <SelectItem value="Expressive">{{ $t('settings.customColor.variants.expressive') }}</SelectItem>
+                    <SelectItem value="Rainbow">{{ $t('settings.customColor.variants.rainbow') }}</SelectItem>
+                    <SelectItem value="FruitSalad">{{ $t('settings.customColor.variants.fruitSalad') }}</SelectItem>
+                    <SelectItem value="Monochrome">{{ $t('settings.customColor.variants.monochrome') }}</SelectItem>
+                    <SelectItem value="Fidelity">{{ $t('settings.customColor.variants.fidelity') }}</SelectItem>
+                    <SelectItem value="Content">{{ $t('settings.customColor.variants.content') }}</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
             <!-- UI Style Settings -->
             <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
               <div>
@@ -694,6 +720,7 @@ const uiStyle = useStorage('micyou_ui_style', 'style-default');
 const customH = useStorage('micyou_custom_h', 215);
 const customS = useStorage('micyou_custom_s', 35);
 const customL = useStorage('micyou_custom_l', 55);
+const customVariant = useStorage('micyou_custom_variant', 'TonalSpot');
 const showColorPicker = ref(false);
 const pocketMode = useStorage('micyou_pocket_mode', false);
 const closeBehavior = useStorage<'ask' | 'hide' | 'exit' | null>('micyou_remember_close_action', null);

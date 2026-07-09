@@ -137,7 +137,7 @@
 
 <script setup lang="ts">
 import MD3Slider from "@/shared/components/ui/slider/MD3Slider.vue"
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 
 const props = defineProps<{

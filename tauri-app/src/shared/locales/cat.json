@@ -117,7 +117,20 @@
       "advanced": "高级设置喵~",
       "saturation": "饱和度喵~",
       "lightness": "明度喵~",
-      "autoManaged": "饱和度和明度由系统自动管理以保持最佳视觉效果喵~"
+      "autoManaged": "饱和度和明度由系统自动管理以保持最佳视觉效果喵~",
+      "variant": "主题变体喵~",
+      "variantDesc": "配置生成关联颜色的扩展算法喵~",
+      "variants": {
+        "tonalSpot": "柔和喵~",
+        "neutral": "中性喵~",
+        "vibrant": "鲜艳喵~",
+        "expressive": "表现力喵~",
+        "rainbow": "彩虹喵~",
+        "fruitSalad": "水果拼盘喵~",
+        "monochrome": "单色喵~",
+        "fidelity": "仿真喵~",
+        "content": "内容取色喵~"
+      }
     },
     "pocketMode": {
       "title": "袖珍模式喵~",

@@ -117,7 +117,20 @@
       "advanced": "進階設定",
       "saturation": "飽和度",
       "lightness": "明度",
-      "autoManaged": "系統已接管飽和度和明度，為您鎖定最佳的極簡莫蘭迪色感"
+      "autoManaged": "系統已接管飽和度和明度，為您鎖定最佳的極簡莫蘭迪色感",
+      "variant": "主題變體",
+      "variantDesc": "配置生成關聯顏色的擴展演算法",
+      "variants": {
+        "tonalSpot": "柔和",
+        "neutral": "中性",
+        "vibrant": "鮮豔",
+        "expressive": "表現力",
+        "rainbow": "彩虹",
+        "fruitSalad": "水果拼盤",
+        "monochrome": "單色",
+        "fidelity": "擬真",
+        "content": "內容取色"
+      }
     },
     "pocketMode": {
       "title": "袖珍模式",
