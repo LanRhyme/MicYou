@@ -547,6 +547,7 @@
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-surface-variant;
   }
+
 }
 
 @layer utilities {

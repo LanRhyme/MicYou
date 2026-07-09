@@ -279,7 +279,7 @@ defineExpose({ closePopup });
     <!-- Connect Button -->
     <button
       @click="emit('toggleStream')"
-      class="h-8 px-3 rounded-lg text-xs font-bold text-on-primary flex items-center gap-1.5 transition-colors flex-shrink-0"
+      class="h-8 px-3 rounded-lg text-xs font-bold text-on-primary flex items-center gap-1.5 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-md flex-shrink-0"
       :class="buttonColor"
     >
       <RefreshCw v-if="serverState === 'connecting'" class="w-3.5 h-3.5 animate-spin" />
@@ -292,7 +292,7 @@ defineExpose({ closePopup });
     <!-- IP Display -->
     <button
       @click="showIpPopup"
-      class="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-surface-variant/40 transition-colors flex-shrink-0 max-w-[120px]"
+      class="flex items-center gap-1 px-2 py-1 rounded-md hover:bg-surface-variant/50 transition-all duration-300 hover:shadow-sm active:scale-95 flex-shrink-0 max-w-[120px]"
     >
       <Globe class="w-3 h-3 text-primary flex-shrink-0" />
       <span class="text-xs font-medium text-on-surface truncate">{{ displayIp }}</span>
@@ -305,7 +305,7 @@ defineExpose({ closePopup });
     <!-- Mute -->
     <button
       @click="emit('toggleMute')"
-      class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-variant/40 transition-colors flex-shrink-0"
+      class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-variant/60 transition-all duration-300 hover:scale-110 active:scale-90 flex-shrink-0"
     >
       <VolumeX v-if="isMuted" class="w-4 h-4" />
       <Volume2 v-else class="w-4 h-4 text-on-surface-variant" />
@@ -317,8 +317,8 @@ defineExpose({ closePopup });
     <!-- More Menu -->
     <button
       @click="showMoreMenu"
-      class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors flex-shrink-0"
-      :class="moreMenuOpen ? 'bg-surface-variant/60' : 'hover:bg-surface-variant/40'"
+      class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90 flex-shrink-0"
+      :class="moreMenuOpen ? 'bg-surface-variant/60' : 'hover:bg-surface-variant/50'"
     >
       <MoreHorizontal class="w-4 h-4 text-on-surface-variant" />
     </button>

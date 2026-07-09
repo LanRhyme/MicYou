@@ -16,18 +16,21 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 <template>
   <SliderRoot
     :class="cn(
-      'relative flex w-full touch-none select-none items-center data-[orientation=vertical]:flex-col data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full',
+      'group relative flex w-full touch-none select-none items-center data-[orientation=vertical]:flex-col data-[orientation=vertical]:w-2 data-[orientation=vertical]:h-full py-4',
       props.class,
     )"
     v-bind="forwarded"
   >
-    <SliderTrack class="relative h-2 w-full data-[orientation=vertical]:w-2 grow overflow-hidden rounded-full bg-secondary">
-      <SliderRange class="absolute h-full data-[orientation=vertical]:w-full bg-primary" />
+    <SliderTrack class="relative h-3 w-full data-[orientation=vertical]:w-3 grow overflow-hidden rounded-full bg-secondary/60 transition-colors duration-300 group-hover:bg-secondary">
+      <SliderRange class="absolute h-full data-[orientation=vertical]:w-full bg-primary transition-all duration-300 ease-out" />
     </SliderTrack>
     <SliderThumb
       v-for="(_, key) in modelValue"
       :key="key"
-      class="block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-    />
+      class="relative block h-5 w-5 rounded-full bg-primary shadow-md ring-offset-background transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-125 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 focus-visible:scale-125 disabled:pointer-events-none disabled:opacity-50 border-0"
+    >
+      <!-- Hover Halo -->
+      <div class="absolute inset-0 rounded-full bg-primary opacity-0 transition-opacity duration-300 group-hover:opacity-20 scale-[2.5] pointer-events-none -z-10"></div>
+    </SliderThumb>
   </SliderRoot>
 </template>

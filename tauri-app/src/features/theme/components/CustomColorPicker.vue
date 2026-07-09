@@ -27,7 +27,7 @@
           </div>
           <input 
             type="range" 
-            min="0" max="360" 
+            min="0" :max="360" 
             v-model.number="localH"
             class="w-full h-3 rounded-full appearance-none cursor-pointer hue-slider"
           />
@@ -36,12 +36,19 @@
         <!-- Advanced Toggle -->
         <div class="flex items-center justify-between pt-2 border-t border-surface-variant/20">
           <span class="text-sm font-medium text-on-surface">{{ $t('settings.customColor.advanced') }}</span>
-          <div class="w-10 h-5 rounded-full relative transition-colors cursor-pointer" 
-               :class="advanced ? 'bg-primary' : 'bg-surface-variant'" 
-               @click="advanced = !advanced">
-            <div class="w-5 h-5 bg-white rounded-full absolute shadow-sm transition-all" 
-                 :class="advanced ? 'right-0' : 'left-0'"></div>
-          </div>
+          <button
+            @click="advanced = !advanced"
+            class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+            :class="advanced ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
+          >
+            <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="advanced ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+              
+              <span
+                class="pointer-events-none block rounded-full shadow-sm ring-0 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                :class="advanced ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface group-hover:scale-125'"
+              />
+            </div>
+          </button>
         </div>
 
         <!-- Advanced Sliders -->
@@ -51,24 +58,14 @@
               <label class="text-xs font-medium text-on-surface-variant">{{ $t('settings.customColor.saturation') }}</label>
               <span class="text-xs text-on-surface-variant font-mono">{{ localS }}%</span>
             </div>
-            <input 
-              type="range" 
-              min="0" max="100" 
-              v-model.number="localS"
-              class="w-full h-2 rounded-full appearance-none cursor-pointer bg-surface-variant/50 accent-primary"
-            />
+            <MD3Slider :min="0" :max="100" v-model="localS" />
           </div>
           <div class="space-y-2">
             <div class="flex justify-between items-center">
               <label class="text-xs font-medium text-on-surface-variant">{{ $t('settings.customColor.lightness') }}</label>
               <span class="text-xs text-on-surface-variant font-mono">{{ localL }}%</span>
             </div>
-            <input 
-              type="range" 
-              min="0" max="100" 
-              v-model.number="localL"
-              class="w-full h-2 rounded-full appearance-none cursor-pointer bg-surface-variant/50 accent-primary"
-            />
+            <MD3Slider :min="0" :max="100" v-model="localL" />
           </div>
         </div>
         <div v-else class="text-xs text-on-surface-variant/80 text-center py-2">
@@ -92,7 +89,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import MD3Slider from "@/shared/components/ui/slider/MD3Slider.vue"
+import { ref, watch, computed } from 'vue';
 import { X } from '@lucide/vue';
 
 const props = defineProps<{

@@ -85,13 +85,16 @@
               </div>
               <button
                 @click="startMinimized = !startMinimized"
-                class="relative w-11 h-6 rounded-full transition-colors duration-200"
-                :class="startMinimized ? 'bg-primary' : 'bg-surface-variant'"
+                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                :class="startMinimized ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
               >
-                <span
-                  class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
-                  :class="startMinimized ? 'translate-x-5' : 'translate-x-0'"
-                />
+                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="startMinimized ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                  
+                  <span
+                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                    :class="startMinimized ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                  />
+                </div>
               </button>
             </div>
 
@@ -103,13 +106,16 @@
               </div>
               <button
                 @click="toggleAutostart"
-                class="relative w-11 h-6 rounded-full transition-colors duration-200"
-                :class="autostartEnabled ? 'bg-primary' : 'bg-surface-variant'"
+                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                :class="autostartEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
               >
-                <span
-                  class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
-                  :class="autostartEnabled ? 'translate-x-5' : 'translate-x-0'"
-                />
+                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="autostartEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                  
+                  <span
+                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                    :class="autostartEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                  />
+                </div>
               </button>
             </div>
 
@@ -121,13 +127,16 @@
               </div>
               <button
                 @click="notificationsEnabled = !notificationsEnabled"
-                class="relative w-11 h-6 rounded-full transition-colors duration-200"
-                :class="notificationsEnabled ? 'bg-primary' : 'bg-surface-variant'"
+                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                :class="notificationsEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
               >
-                <span
-                  class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
-                  :class="notificationsEnabled ? 'translate-x-5' : 'translate-x-0'"
-                />
+                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="notificationsEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                  
+                  <span
+                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                    :class="notificationsEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                  />
+                </div>
               </button>
             </div>
 
@@ -139,13 +148,16 @@
               </div>
               <button
                 @click="autoStream = !autoStream"
-                class="relative w-11 h-6 rounded-full transition-colors duration-200"
-                :class="autoStream ? 'bg-primary' : 'bg-surface-variant'"
+                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                :class="autoStream ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
               >
-                <span
-                  class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
-                  :class="autoStream ? 'translate-x-5' : 'translate-x-0'"
-                />
+                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="autoStream ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                  
+                  <span
+                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                    :class="autoStream ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                  />
+                </div>
               </button>
             </div>
 
@@ -157,13 +169,17 @@
               </div>
               <button
                 @click="pocketMode = !pocketMode"
-                class="relative w-11 h-6 rounded-full transition-colors duration-200"
-                :class="pocketMode ? 'bg-primary' : 'bg-surface-variant'"
+                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                :class="pocketMode ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
               >
-                <span
-                  class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
-                  :class="pocketMode ? 'translate-x-5' : 'translate-x-0'"
-                />
+                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="pocketMode ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                  <!-- State layer (hover halo) -->
+                  
+                  <span
+                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                    :class="pocketMode ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                  />
+                </div>
               </button>
             </div>
 
@@ -248,7 +264,7 @@
                 <button
                   @click="installVBCableFromSettings"
                   :disabled="vbcableInstalling"
-                  class="w-full py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-xl text-sm font-bold text-on-primary flex items-center justify-center gap-2 transition-colors"
+                  class="w-full py-2 bg-primary disabled:opacity-50 rounded-xl text-sm font-bold text-on-primary flex items-center justify-center gap-2 transition-colors"
                 >
                   <Loader2 v-if="vbcableInstalling" class="w-4 h-4 animate-spin" />
                   <Download v-else class="w-4 h-4" />
@@ -360,7 +376,7 @@
             <!-- Amplifier (Gain) -->
             <div class="bg-surface-bright rounded-2xl p-4 shadow-sm flex items-center gap-4">
               <span class="text-sm font-medium text-on-surface whitespace-nowrap">{{ $t('settings.audioParams.gain') }}</span>
-              <input type="range" min="-50" max="50" v-model.number="settings.gain" class="w-full accent-primary">
+              <MD3Slider :min="-50" :max="50" v-model="settings.gain" />
               <span class="text-xs w-12 text-right">{{ settings.gain > 0 ? '+' : '' }}{{ settings.gain }} dB</span>
             </div>
 
@@ -368,9 +384,18 @@
             <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
               <div class="flex justify-between items-center cursor-pointer" @click="settings.nsEnabled = !settings.nsEnabled">
                 <span class="font-medium text-on-surface">{{ $t('settings.audioParams.noiseSuppression') }}</span>
-                <div class="w-10 h-5 rounded-full relative transition-colors" :class="settings.nsEnabled ? 'bg-primary' : 'bg-surface-variant'">
-                  <div class="w-5 h-5 bg-white rounded-full absolute shadow-sm transition-all" :class="settings.nsEnabled ? 'right-0' : 'left-0'"></div>
-                </div>
+                <button
+                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                  :class="settings.nsEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
+                >
+                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.nsEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                    
+                    <span
+                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                      :class="settings.nsEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                    />
+                  </div>
+                </button>
               </div>
               <div v-if="settings.nsEnabled" class="space-y-4 pt-2 border-t border-surface-variant/20">
                 <div class="flex gap-2 mt-4">
@@ -383,7 +408,7 @@
                 </div>
                 <div class="flex items-center gap-4">
                   <span class="text-xs text-on-surface-variant whitespace-nowrap">{{ $t('settings.audioParams.intensity') }}</span>
-                  <input type="range" min="0" max="100" v-model.number="settings.nsIntensity" class="w-full accent-primary">
+                  <MD3Slider :min="0" :max="100" v-model="settings.nsIntensity" />
                   <span class="text-xs w-8 text-right">{{ settings.nsIntensity }}%</span>
                 </div>
               </div>
@@ -393,13 +418,22 @@
             <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
               <div class="flex justify-between items-center cursor-pointer" @click="settings.dereverbEnabled = !settings.dereverbEnabled">
                 <span class="font-medium text-on-surface">{{ $t('settings.audioParams.dereverb') }}</span>
-                <div class="w-10 h-5 rounded-full relative transition-colors" :class="settings.dereverbEnabled ? 'bg-primary' : 'bg-surface-variant'">
-                  <div class="w-5 h-5 bg-white rounded-full absolute shadow-sm transition-all" :class="settings.dereverbEnabled ? 'right-0' : 'left-0'"></div>
-                </div>
+                <button
+                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                  :class="settings.dereverbEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
+                >
+                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.dereverbEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                    
+                    <span
+                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                      :class="settings.dereverbEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                    />
+                  </div>
+                </button>
               </div>
               <div v-if="settings.dereverbEnabled" class="flex items-center gap-4 pt-4 border-t border-surface-variant/20">
                 <span class="text-xs text-on-surface-variant whitespace-nowrap">{{ $t('settings.audioParams.level') }}</span>
-                <input type="range" min="0" max="100" v-model.number="settings.dereverbLevel" class="w-full accent-primary">
+                <MD3Slider :min="0" :max="100" v-model="settings.dereverbLevel" />
                 <span class="text-xs w-8 text-right">{{ settings.dereverbLevel }}%</span>
               </div>
             </div>
@@ -408,24 +442,33 @@
             <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
               <div class="flex justify-between items-center cursor-pointer" @click="settings.agcEnabled = !settings.agcEnabled">
                 <span class="font-medium text-on-surface">{{ $t('settings.audioParams.agc') }}</span>
-                <div class="w-10 h-5 rounded-full relative transition-colors" :class="settings.agcEnabled ? 'bg-primary' : 'bg-surface-variant'">
-                  <div class="w-5 h-5 bg-white rounded-full absolute shadow-sm transition-all" :class="settings.agcEnabled ? 'right-0' : 'left-0'"></div>
-                </div>
+                <button
+                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                  :class="settings.agcEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
+                >
+                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.agcEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                    
+                    <span
+                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                      :class="settings.agcEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                    />
+                  </div>
+                </button>
               </div>
               <div v-if="settings.agcEnabled" class="space-y-4 pt-4 border-t border-surface-variant/20">
                 <div class="flex items-center gap-4">
                   <span class="text-xs text-on-surface-variant w-20">{{ $t('settings.audioParams.target') }}</span>
-                  <input type="range" min="0" max="32767" v-model.number="settings.agcTarget" class="w-full accent-primary">
+                  <MD3Slider :min="0" :max="32767" v-model="settings.agcTarget" />
                   <span class="text-xs w-10 text-right">{{ settings.agcTarget }}</span>
                 </div>
                 <div class="flex items-center gap-4">
                   <span class="text-xs text-on-surface-variant w-20">{{ $t('settings.audioParams.attack') }}</span>
-                  <input type="range" min="1" max="100" v-model.number="settings.agcAttack" class="w-full accent-primary">
+                  <MD3Slider :min="1" :max="100" v-model="settings.agcAttack" />
                   <span class="text-xs w-10 text-right">{{ (settings.agcAttack / 1000).toFixed(3) }}</span>
                 </div>
                 <div class="flex items-center gap-4">
                   <span class="text-xs text-on-surface-variant w-20">{{ $t('settings.audioParams.decay') }}</span>
-                  <input type="range" min="1" max="100" v-model.number="settings.agcDecay" class="w-full accent-primary">
+                  <MD3Slider :min="1" :max="100" v-model="settings.agcDecay" />
                   <span class="text-xs w-10 text-right">{{ (settings.agcDecay / 10000).toFixed(4) }}</span>
                 </div>
               </div>
@@ -435,13 +478,22 @@
             <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
               <div class="flex justify-between items-center cursor-pointer" @click="settings.vadEnabled = !settings.vadEnabled">
                 <span class="font-medium text-on-surface">{{ $t('settings.audioParams.vad') }}</span>
-                <div class="w-10 h-5 rounded-full relative transition-colors" :class="settings.vadEnabled ? 'bg-primary' : 'bg-surface-variant'">
-                  <div class="w-5 h-5 bg-white rounded-full absolute shadow-sm transition-all" :class="settings.vadEnabled ? 'right-0' : 'left-0'"></div>
-                </div>
+                <button
+                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                  :class="settings.vadEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
+                >
+                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.vadEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                    
+                    <span
+                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                      :class="settings.vadEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                    />
+                  </div>
+                </button>
               </div>
               <div v-if="settings.vadEnabled" class="flex items-center gap-4 pt-4 border-t border-surface-variant/20">
                 <span class="text-xs text-on-surface-variant whitespace-nowrap">{{ $t('settings.audioParams.threshold') }}</span>
-                <input type="range" min="-100" max="0" v-model.number="settings.vadThreshold" class="w-full accent-primary">
+                <MD3Slider :min="-100" :max="0" v-model="settings.vadThreshold" />
                 <span class="text-xs w-12 text-right">{{ settings.vadThreshold }} dB</span>
               </div>
             </div>
@@ -583,6 +635,7 @@
 </template>
 
 <script setup lang="ts">
+import MD3Slider from "@/shared/components/ui/slider/MD3Slider.vue"
 import { ref, computed, watch, reactive, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useColorMode, useStorage } from '@vueuse/core';

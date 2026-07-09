@@ -7,9 +7,19 @@
       </div>
       <div class="flex items-center gap-3">
         <span class="text-sm font-medium text-on-surface-variant">{{ $t('settings.equalizer.enable') }}</span>
-        <div class="w-10 h-5 rounded-full relative transition-colors cursor-pointer" :class="config.enabled ? 'bg-primary' : 'bg-surface-variant'" @click="config.enabled = !config.enabled">
-          <div class="w-5 h-5 bg-white rounded-full absolute shadow-sm transition-all" :class="config.enabled ? 'right-0' : 'left-0'"></div>
-        </div>
+        <button
+          @click="config.enabled = !config.enabled"
+          class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+          :class="config.enabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
+        >
+          <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="config.enabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+            
+            <span
+              class="pointer-events-none block rounded-full shadow-sm ring-0 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+              :class="config.enabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface group-hover:scale-125'"
+            />
+          </div>
+        </button>
       </div>
     </div>
 
@@ -44,14 +54,7 @@
           <h4 class="text-sm font-bold text-on-surface">{{ $t('settings.equalizer.preAmp') }}</h4>
           <span class="text-xs font-mono font-medium text-primary">{{ config.preAmp > 0 ? '+' : '' }}{{ config.preAmp.toFixed(1) }} dB</span>
         </div>
-        <input 
-          type="range" 
-          v-model.number="config.preAmp" 
-          min="-15" 
-          max="15" 
-          step="0.1"
-          class="w-full h-1.5 bg-surface-variant/30 rounded-full appearance-none cursor-pointer accent-primary"
-        />
+        <MD3Slider v-model="config.preAmp" :min="-15" :max="15" :step="0.1" />
         <div class="flex justify-between text-[10px] text-on-surface-variant mt-2">
           <span>-15dB</span>
           <span>0dB</span>
@@ -133,7 +136,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import MD3Slider from "@/shared/components/ui/slider/MD3Slider.vue"
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 
 const props = defineProps<{

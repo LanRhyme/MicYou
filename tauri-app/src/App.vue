@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watchEffect } from 'vue';
-import { useStorage } from '@vueuse/core';
+import { useStorage, onClickOutside } from '@vueuse/core';
 import { LogicalSize } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import { useI18n } from 'vue-i18n';
@@ -79,15 +79,32 @@ const pocketMode = useStorage('micyou_pocket_mode', false);
 const pocketPopupOpen = ref(false);
 const pocketLayoutRef = ref<InstanceType<typeof PocketLayout> | null>(null);
 
+const ipMenuRef = ref<HTMLDivElement | null>(null);
+onClickOutside(ipMenuRef, () => {
+  server.showIpMenu.value = false;
+});
+
+// Also close the IP menu when the window loses focus
+onMounted(() => {
+  window.addEventListener('blur', () => {
+    server.showIpMenu.value = false;
+  });
+});
+onUnmounted(() => {
+  window.removeEventListener('blur', () => {
+    server.showIpMenu.value = false;
+  });
+});
+
 // Cross-feature: toggle streaming (server + animation)
 const toggleStreaming = async () => {
   await server.toggleStreaming();
   if (centralBtnRef.value) {
     anime({
       targets: centralBtnRef.value,
-      scale: [1, 0.92, 1.05, 1],
-      duration: 400,
-      easing: 'easeOutElastic(1, .5)',
+      scale: [1, 0.9, 1.05, 1],
+      duration: 600,
+      easing: 'spring(1, 80, 10, 0)',
     });
   }
 };
@@ -150,9 +167,9 @@ const onCentralBtnHover = () => {
   if (centralBtnRef.value) {
     anime({
       targets: centralBtnRef.value,
-      scale: 1.05,
-      duration: 300,
-      easing: 'easeOutElastic(1, .6)',
+      scale: 1.08,
+      duration: 400,
+      easing: 'easeOutExpo',
     });
   }
 };
@@ -162,8 +179,8 @@ const onCentralBtnLeave = () => {
     anime({
       targets: centralBtnRef.value,
       scale: 1,
-      duration: 200,
-      easing: 'easeOutQuad',
+      duration: 500,
+      easing: 'easeOutExpo',
     });
   }
 };
@@ -289,9 +306,9 @@ onUnmounted(() => {
 
         <div class="flex items-center gap-4">
           <!-- Network Selector -->
-          <div class="relative">
+          <div class="relative" ref="ipMenuRef">
             <div
-              class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-colors px-3 py-1.5 rounded-lg cursor-pointer border border-white/5"
+              class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 hover:shadow-sm px-3 py-1.5 rounded-lg cursor-pointer border border-white/5"
               role="button"
               @click="server.showIpMenu.value = !server.showIpMenu.value"
             >
@@ -299,8 +316,6 @@ onUnmounted(() => {
               <span class="text-xs font-medium mr-1 select-none pointer-events-none">{{ server.displayIp.value }}</span>
               <ChevronDown class="w-4 h-4 text-on-surface-variant/60 pointer-events-none transition-transform" :class="{ 'rotate-180': server.showIpMenu.value }" />
             </div>
-
-            <div v-if="server.showIpMenu.value" class="fixed inset-0 z-40" @click="server.showIpMenu.value = false" />
 
             <Transition
               enter-active-class="transition ease-out duration-150"
@@ -365,24 +380,24 @@ onUnmounted(() => {
             <div class="flex gap-1.5">
               <button
                 @click="server.connectionMode.value = 'wifi'"
-                class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
-                :class="server.connectionMode.value === 'wifi' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+                class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 hover:-translate-y-0.5 active:scale-95"
+                :class="server.connectionMode.value === 'wifi' ? 'bg-primary text-on-primary shadow-lg shadow-primary/30' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/70 hover:shadow-md'"
               >
                 <Wifi class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">Wi-Fi</span>
               </button>
               <button
                 @click="server.connectionMode.value = 'usb'"
-                class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
-                :class="server.connectionMode.value === 'usb' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+                class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 hover:-translate-y-0.5 active:scale-95"
+                :class="server.connectionMode.value === 'usb' ? 'bg-primary text-on-primary shadow-lg shadow-primary/30' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/70 hover:shadow-md'"
               >
                 <Mic class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">USB</span>
               </button>
               <button
                 @click="server.connectionMode.value = 'web'"
-                class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-colors duration-200"
-                :class="server.connectionMode.value === 'web' ? 'bg-primary text-on-primary shadow-lg shadow-primary/20' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/60'"
+                class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 hover:-translate-y-0.5 active:scale-95"
+                :class="server.connectionMode.value === 'web' ? 'bg-primary text-on-primary shadow-lg shadow-primary/30' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/70 hover:shadow-md'"
               >
                 <Globe class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">Web</span>
@@ -396,7 +411,7 @@ onUnmounted(() => {
             <input
               v-model="server.serverPort.value"
               type="number"
-              class="w-full bg-surface-variant/40 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+              class="w-full bg-surface-variant/40 hover:bg-surface-variant/60 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:bg-surface-variant/60 transition-all duration-300"
             />
           </div>
 
@@ -405,7 +420,7 @@ onUnmounted(() => {
             <span class="text-xs text-on-surface-variant font-medium self-start">{{ $t('app.port') }}</span>
             <div v-if="server.serverState.value === 'idle'" class="w-full">
                 <input v-model="server.webPort.value" type="number"
-                    class="w-full bg-surface-variant/40 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all" />
+                    class="w-full bg-surface-variant/40 hover:bg-surface-variant/60 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:bg-surface-variant/60 transition-all duration-300" />
             </div>
             <button v-if="server.serverState.value !== 'idle'" @click="server.showQrDialog.value = true"
                 class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 active:scale-[0.98] transition-all">
@@ -418,12 +433,12 @@ onUnmounted(() => {
           </div>
 
           <!-- Status Card -->
-          <div class="haze-surface rounded-2xl p-4 flex-1 flex flex-col items-center justify-center text-center gap-3">
-            <div class="w-12 h-12 rounded-full flex items-center justify-center transition-colors duration-500"
+          <div class="haze-surface rounded-2xl p-4 flex-1 flex flex-col items-center justify-center text-center gap-3 group transition-all duration-300 hover:shadow-md hover:-translate-y-0.5">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 group-hover:scale-110"
                  :class="server.serverState.value === 'streaming' ? 'bg-primary/20 text-primary' : (server.serverState.value === 'starting' ? 'bg-secondary/20 text-secondary' : (server.serverState.value === 'connecting' ? 'bg-tertiary/20 text-tertiary' : 'bg-surface-variant/50 text-on-surface-variant'))">
               <CheckCircle2 v-if="server.serverState.value === 'streaming'" class="w-6 h-6 animate-pulse" />
               <Loader2 v-else-if="server.serverState.value === 'starting'" class="w-6 h-6 animate-spin" />
-              <RadioTower v-else class="w-6 h-6" :class="{ 'animate-spin-slow': server.serverState.value === 'connecting' }" />
+              <RadioTower v-else class="w-6 h-6 transition-transform duration-500 group-hover:rotate-12" :class="{ 'animate-spin-slow': server.serverState.value === 'connecting' }" />
             </div>
             <div>
               <h3 class="text-sm font-bold">{{ server.serverState.value === 'streaming' ? $t('app.status.streaming') : (server.serverState.value === 'connecting' ? $t('app.status.connecting') : (server.serverState.value === 'starting' ? $t('app.status.starting') : $t('app.status.ready'))) }}</h3>
@@ -450,8 +465,8 @@ onUnmounted(() => {
             </AudioRing>
 
             <div v-else class="relative w-full h-full flex items-center justify-center">
-              <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-95 border border-white/5 hover:shadow-lg hover:shadow-primary/30"
-                      :class="server.serverState.value === 'starting' ? 'bg-secondary shadow-secondary/20 text-on-secondary' : (server.serverState.value === 'connecting' ? 'bg-tertiary shadow-tertiary/20 text-on-tertiary' : 'bg-primary shadow-primary/20 text-on-primary')">
+              <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 active:scale-95 border border-white/10 hover:shadow-2xl hover:shadow-primary/40"
+                      :class="server.serverState.value === 'starting' ? 'bg-secondary shadow-secondary/30 text-on-secondary' : (server.serverState.value === 'connecting' ? 'bg-tertiary shadow-tertiary/30 text-on-tertiary' : 'bg-primary shadow-primary/30 text-on-primary')">
                 <RefreshCw v-if="server.serverState.value === 'connecting'" class="w-7 h-7 animate-spin-slow" stroke-width="2.5" />
                 <Loader2 v-else-if="server.serverState.value === 'starting'" class="w-7 h-7 animate-spin" stroke-width="2.5" />
                 <Link v-else class="w-7 h-7" stroke-width="2.5" />
@@ -476,19 +491,19 @@ onUnmounted(() => {
         <div class="flex items-center gap-2 pr-1">
           <button
             @click="audio.toggleMute()"
-            class="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-            :class="audio.isMuted.value ? 'bg-error/20 text-error' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'"
+            class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90"
+            :class="audio.isMuted.value ? 'bg-error/20 text-error hover:bg-error/30' : 'bg-surface-variant/40 hover:bg-surface-variant text-on-surface-variant'"
             :title="audio.isMuted.value ? $t('app.status.unmute') : $t('app.status.mute')"
           >
             <VolumeX v-if="audio.isMuted.value" class="w-4 h-4" />
             <Volume2 v-else class="w-4 h-4" />
           </button>
 
-          <button @click="audio.showMonitoringPanel.value = !audio.showMonitoringPanel.value" class="w-10 h-10 rounded-full flex items-center justify-center transition-colors" :class="audio.showMonitoringPanel.value ? 'bg-primary/20 text-primary' : 'bg-surface-variant/40 hover:bg-surface-variant/80 text-on-surface-variant'">
+          <button @click="audio.showMonitoringPanel.value = !audio.showMonitoringPanel.value" class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90" :class="audio.showMonitoringPanel.value ? 'bg-primary/20 text-primary hover:bg-primary/30' : 'bg-surface-variant/40 hover:bg-surface-variant text-on-surface-variant'">
             <MonitoringIcon class="w-4 h-4" />
           </button>
 
-          <button @click="isSettingsOpen = true" class="w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors">
+          <button @click="isSettingsOpen = true" class="w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90">
             <Settings class="w-4 h-4 text-on-surface-variant" />
           </button>
         </div>
