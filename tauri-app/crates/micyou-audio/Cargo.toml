@@ -6,8 +6,8 @@ edition.workspace = true
 
 [features]
 default = ["dsp"]
-dsp = ["dep:nnnoiseless", "dep:ort", "dep:ort-tract", "dep:rustfft"]
-noise-suppression = ["dsp", "dep:ort", "dep:ort-tract"]
+dsp = ["dep:nnnoiseless", "dep:ort", "dep:rustfft"]
+noise-suppression = ["dsp"]
 
 [dependencies]
 micyou-protocol = { path = "../micyou-protocol" }
@@ -19,6 +19,13 @@ ringbuf = "0.3.3"
 
 # DSP dependencies (optional)
 nnnoiseless = { version = "0.5.2", optional = true }
-ort = { version = "=2.0.0-rc.12", default-features = false, features = ["std", "ndarray", "api-17", "alternative-backend"], optional = true }
-ort-tract = { version = "0.3.0", optional = true }
+ort = { version = "=2.0.0-rc.12", default-features = false, features = ["download-binaries", "tls-rustls", "std", "ndarray", "api-17"], optional = true }
 rustfft = { version = "6.4.1", optional = true }
+
+[[bin]]
+name = "test_onnx"
+path = "src/test_onnx.rs"
+
+[[bin]]
+name = "test_ola"
+path = "src/test_ola.rs"

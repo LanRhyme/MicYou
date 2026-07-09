@@ -18,7 +18,7 @@ web-server = ["dep:axum", "dep:rcgen", "dep:rustls", "dep:tokio-rustls", "dep:ru
 [dependencies]
 # Workspace crates
 micyou-protocol = { path = "../crates/micyou-protocol" }
-micyou-audio = { path = "../crates/micyou-audio", features = ["dsp"] }
+micyou-audio = { path = "../crates/micyou-audio", features = ["dsp", "noise-suppression"] }
 
 # Tauri
 tauri = { version = "2", features = ["macos-private-api", "tray-icon", "image-png"] }
