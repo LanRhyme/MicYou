@@ -218,7 +218,6 @@ use std::sync::Mutex;
 static ORIGINAL_INPUT_DEVICE: Mutex<Option<AudioDevice>> = Mutex::new(None);
 
 /// Get full BlackHole status for the frontend
-#[tauri::command]
 pub async fn check_blackhole() -> Result<BlackHoleStatus, String> {
     let installed = is_installed();
     let switch_audio = is_switch_audio_source_installed().await;
@@ -236,7 +235,6 @@ pub async fn check_blackhole() -> Result<BlackHoleStatus, String> {
 }
 
 /// Set BlackHole as the system default input device, saving the original
-#[tauri::command]
 pub async fn set_blackhole_as_input() -> Result<BlackHoleResult, String> {
     if !is_installed() {
         return Ok(BlackHoleResult {
@@ -321,7 +319,6 @@ pub async fn do_restore_input_device() -> Result<(), String> {
 }
 
 /// Restore the original input device (Tauri command)
-#[tauri::command]
 pub async fn restore_input_device() -> Result<BlackHoleResult, String> {
     let has_saved = ORIGINAL_INPUT_DEVICE.lock().map(|g| g.is_some()).unwrap_or(false);
     if !has_saved {

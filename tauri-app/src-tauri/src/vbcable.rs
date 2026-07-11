@@ -292,23 +292,4 @@ async fn install_inner(app: &tauri::AppHandle) -> VBCableResult {
     }
 }
 
-#[tauri::command]
-pub async fn check_vbcable() -> Result<bool, String> {
-    Ok(is_installed())
-}
 
-#[cfg(feature = "vbcable")]
-#[tauri::command]
-pub async fn install_vbcable(app: tauri::AppHandle) -> Result<VBCableResult, String> {
-    Ok(install(app).await)
-}
-
-#[cfg(not(feature = "vbcable"))]
-#[tauri::command]
-pub fn install_vbcable() -> Result<VBCableResult, String> {
-    Ok(VBCableResult {
-        success: false,
-        error_type: Some("feature_disabled".to_string()),
-        message: Some("VB-Cable installation feature not enabled".to_string()),
-    })
-}
