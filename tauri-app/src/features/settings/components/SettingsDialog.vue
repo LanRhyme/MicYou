@@ -824,6 +824,7 @@ interface SpectrumPayload {
 }
 
 const drawSpectrum = () => {
+  if (!props.isOpen) return;
   if (!spectrumCanvas.value) {
     animationFrameId = requestAnimationFrame(drawSpectrum);
     return;
@@ -979,7 +980,9 @@ onMounted(async () => {
   } catch (e) {
     console.error("Failed to get version", e);
   }
-  animationFrameId = requestAnimationFrame(drawSpectrum);
+  if (props.isOpen) {
+    animationFrameId = requestAnimationFrame(drawSpectrum);
+  }
   try {
     autostartEnabled.value = await isAutostartEnabled();
   } catch (e) {
@@ -1090,7 +1093,11 @@ watch(() => props.isOpen, async (newVal) => {
       rawSpectrum.value = event.payload.raw;
       processedSpectrum.value = event.payload.processed;
     });
+    animationFrameId = requestAnimationFrame(drawSpectrum);
   } else {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
     if (unlistenLevel) {
       unlistenLevel();
       unlistenLevel = null;
