@@ -39,10 +39,10 @@ impl RubatoResampler {
         })
     }
 
-    pub fn resample(&mut self, input: &[f32], channels: usize) -> Vec<f32> {
-        let mut output = Vec::with_capacity(
-            (input.len() as f64 * (self.resampler.output_frames_max() as f64 / self.chunk_size as f64)).ceil() as usize
-        );
+    pub fn resample(&mut self, input: &[f32], channels: usize, output: &mut Vec<f32>) {
+        output.clear();
+        let capacity = (input.len() as f64 * (self.resampler.output_frames_max() as f64 / self.chunk_size as f64)).ceil() as usize;
+        output.reserve(capacity);
         let mut offset = 0;
 
         while offset < input.len() {
@@ -79,8 +79,6 @@ impl RubatoResampler {
                 }
             }
         }
-        
-        output
     }
 }
 
@@ -100,13 +98,15 @@ fn rand_f32() -> f32 {
     })
 }
 
-fn map_channels(input: &[f32], in_channels: usize, out_channels: usize) -> Vec<f32> {
+fn map_channels(input: &[f32], in_channels: usize, out_channels: usize, output: &mut Vec<f32>) {
+    output.clear();
     if in_channels == out_channels {
-        return input.to_vec();
+        output.extend_from_slice(input);
+        return;
     }
     
-    let mut output = Vec::with_capacity((input.len() / in_channels) * out_channels);
     let in_frames = input.len() / in_channels;
+    output.reserve(in_frames * out_channels);
     
     for i in 0..in_frames {
         let in_idx = i * in_channels;
@@ -115,7 +115,6 @@ fn map_channels(input: &[f32], in_channels: usize, out_channels: usize) -> Vec<f
             output.push(input[in_idx + src_c]);
         }
     }
-    output
 }
 
 pub struct AudioOutputManager {
@@ -124,6 +123,8 @@ pub struct AudioOutputManager {
     resampler: Option<RubatoResampler>,
     device_sample_rate: u32,
     device_channels: usize,
+    channel_map_buffer: Vec<f32>,
+    resample_buffer: Vec<f32>,
 }
 
 impl AudioOutputManager {
@@ -134,6 +135,8 @@ impl AudioOutputManager {
             resampler: None,
             device_sample_rate: 48000,
             device_channels: 2,
+            channel_map_buffer: Vec::new(),
+            resample_buffer: Vec::new(),
         }
     }
 
@@ -280,16 +283,17 @@ impl AudioOutputManager {
     }
 
     pub fn push_audio_data(&mut self, data: &[f32], input_channels: usize) {
-        let mapped = map_channels(data, input_channels, self.device_channels);
+        map_channels(data, input_channels, self.device_channels, &mut self.channel_map_buffer);
         
-        let final_data = if let Some(resampler) = &mut self.resampler {
-            resampler.resample(&mapped, self.device_channels)
+        if let Some(resampler) = &mut self.resampler {
+            resampler.resample(&self.channel_map_buffer, self.device_channels, &mut self.resample_buffer);
+            if let Some(producer) = &mut self.producer {
+                producer.push_slice(&self.resample_buffer);
+            }
         } else {
-            mapped
-        };
-
-        if let Some(producer) = &mut self.producer {
-            producer.push_slice(&final_data);
+            if let Some(producer) = &mut self.producer {
+                producer.push_slice(&self.channel_map_buffer);
+            }
         }
     }
 
