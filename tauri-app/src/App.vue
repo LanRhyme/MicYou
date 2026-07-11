@@ -5,17 +5,21 @@ import { LogicalSize } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
 import { useI18n } from 'vue-i18n';
 
-// Icons
-import { Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, Link, Unlink, RefreshCw, ActivitySquare as MonitoringIcon, X, Minus, VolumeX, Volume2, QrCode as QrCodeIcon, Loader2 } from '@lucide/vue';
+// UI icons imported from lucide-vue
+import { 
+  Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, 
+  Link, Unlink, RefreshCw, ActivitySquare as MonitoringIcon, X, Minus, 
+  VolumeX, Volume2, QrCode as QrCodeIcon, Loader2 
+} from '@lucide/vue';
 
-// Feature composables
+// Composables managing server connection, audio, theme, window, and system tray
 import { useServer } from './features/connection/composables/useServer';
 import { useAudio } from './features/audio/composables/useAudio';
 import { useTheme } from './features/theme/composables/useTheme';
 import { useWindow } from './shared/composables/useWindow';
 import { useTray } from './shared/composables/useTray';
 
-// Feature components
+// UI components for connection flows, onboarding, and layouts
 import ConnectionErrorDialog from './features/connection/components/ConnectionErrorDialog.vue';
 import QrCodeDialog from './features/connection/components/QrCodeDialog.vue';
 import AudioRing from './features/audio/components/AudioRing.vue';
@@ -27,10 +31,11 @@ import CustomBackground from './shared/components/CustomBackground.vue';
 import CloseConfirmDialog from './shared/components/CloseConfirmDialog.vue';
 import UdpWarningDialog from './shared/components/UdpWarningDialog.vue';
 
+// Raw asset content and animation utilities
 import appIconSvg from './shared/assets/app_icon.svg?raw';
 import anime from 'animejs';
 
-// Detect macOS platform for native vibrancy (NSVisualEffectView)
+// Detect macOS platform to enable platform-specific classes and native vibrancy behaviors
 const isMacOS = typeof navigator !== 'undefined' &&
   /Mac/.test(navigator.platform || navigator.userAgent) &&
   !/iPhone|iPad|iPod/.test(navigator.userAgent) &&
@@ -41,16 +46,18 @@ if (isMacOS && typeof document !== 'undefined') {
 
 const { t } = useI18n();
 
-// Feature composables
+// Initialize shared features
 const audio = useAudio();
 const server = useServer({ audioLevel: audio.audioLevel, isMuted: audio.isMuted });
 useTheme();
 const win = useWindow();
 
-// Window drag handling: use Rust-side Win32 drag loop on Windows, fallback on other platforms
+/**
+ * Handles custom window dragging. Uses custom Win32 loop on Windows, falls back to Tauri API on other OSs.
+ * Prevents dragging when clicking interactive controls.
+ */
 const startDrag = async (e: MouseEvent) => {
   if (e.button !== 0) return;
-  // Ignore clicks on interactive elements so buttons/inputs work normally
   const target = e.target as HTMLElement;
   if (target.closest('button, a, input, select, textarea, [role="button"]')) return;
   try {
@@ -65,7 +72,7 @@ const startDrag = async (e: MouseEvent) => {
   }
 };
 
-// Animation refs
+// References to HTML elements for animations
 const centralBtnRef = ref<HTMLButtonElement | null>(null);
 const glowRef = ref<HTMLDivElement | null>(null);
 const statusDotRef = ref<HTMLDivElement | null>(null);
@@ -73,18 +80,20 @@ const statusDotRef = ref<HTMLDivElement | null>(null);
 let breatheAnim: ReturnType<typeof anime> | null = null;
 let dotPulseAnim: ReturnType<typeof anime> | null = null;
 
+// App wizard and pocket mode settings
 const showOnboarding = ref(localStorage.getItem('micyou_onboarding_completed') !== 'true');
 const isSettingsOpen = ref(false);
 const pocketMode = useStorage('micyou_pocket_mode', false);
 const pocketPopupOpen = ref(false);
 const pocketLayoutRef = ref<InstanceType<typeof PocketLayout> | null>(null);
 
+// IP configuration selector panel behavior
 const ipMenuRef = ref<HTMLDivElement | null>(null);
 onClickOutside(ipMenuRef, () => {
   server.showIpMenu.value = false;
 });
 
-// Also close the IP menu when the window loses focus
+// Close IP menu on window blur to maintain clean UI focus
 onMounted(() => {
   window.addEventListener('blur', () => {
     server.showIpMenu.value = false;
@@ -96,7 +105,9 @@ onUnmounted(() => {
   });
 });
 
-// Cross-feature: toggle streaming (server + animation)
+/**
+ * Coordinates server stream toggle and trigger scale rebound animations on the central button
+ */
 const toggleStreaming = async () => {
   await server.toggleStreaming();
   if (centralBtnRef.value) {
@@ -109,10 +120,11 @@ const toggleStreaming = async () => {
   }
 };
 
-// Tray integration
+// Computed state tracking stream and visibility for System Tray syncs
 const streamingRef = computed(() => server.isStreaming(server.serverState.value));
 const visibilityRef = computed(() => !win.isHidden.value);
 
+// Initialize system tray integration
 useTray(
   {
     onShow: async () => {
@@ -129,14 +141,14 @@ useTray(
   streamingRef,
 );
 
-// Auto-hide window on startup if "start minimized" is enabled
+// Auto-hide window on startup if start minimized is configured in preferences
 onMounted(() => {
   if (win.isHidden.value) {
     void win.hideMainWindow();
   }
 });
 
-// Resize window when pocket mode changes
+// Watch and adjust physical window dimensions when entering or leaving pocket layout mode
 watchEffect(async () => {
   const isPocket = pocketMode.value;
   if (isPocket && isSettingsOpen.value) return;
@@ -151,7 +163,7 @@ watchEffect(async () => {
   }
 });
 
-// Resize for settings dialog in pocket mode
+// Revert to full size layout (800x600) when settings modal opens within pocket mode
 watchEffect(async () => {
   if (pocketMode.value && isSettingsOpen.value) {
     try {
@@ -162,7 +174,7 @@ watchEffect(async () => {
   }
 });
 
-// Animation: button hover
+// Central action button hover animations
 const onCentralBtnHover = () => {
   if (centralBtnRef.value) {
     anime({
@@ -185,11 +197,12 @@ const onCentralBtnLeave = () => {
   }
 };
 
+// Computes visual mic visualizer scale based on real-time audio input level
 const micScale = computed(() => {
   return 1 + (audio.audioLevel.value / 100) * 0.5;
 });
 
-// Streaming breathing glow animation
+// Sets up dynamic breathing glow animation during active streams
 watchEffect(() => {
   if (server.serverState.value === 'streaming' && glowRef.value) {
     if (!breatheAnim) {
@@ -214,7 +227,7 @@ watchEffect(() => {
   }
 });
 
-// Status dot pulse animation
+// Sets up pulse animation on bottom bar indicator during active streams
 watchEffect(() => {
   if (server.serverState.value === 'streaming' && statusDotRef.value) {
     if (!dotPulseAnim) {

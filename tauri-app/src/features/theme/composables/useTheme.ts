@@ -1,24 +1,44 @@
 import { watchEffect } from 'vue';
 import { useStorage } from '@vueuse/core';
 
-const BUILTIN_THEMES: Record<string, {h: number, s: number, l: number}> = {
-  'theme-blue': {h: 215, s: 35, l: 55},
-  'theme-green': {h: 150, s: 30, l: 50},
-  'theme-rose': {h: 350, s: 40, l: 60},
-  'theme-purple': {h: 270, s: 30, l: 60},
-  'theme-orange': {h: 25, s: 40, l: 55},
-  'theme-amber': {h: 40, s: 40, l: 50},
-  'theme-teal': {h: 175, s: 30, l: 45},
-  'theme-cyan': {h: 190, s: 40, l: 45},
+// Represents an HSL color configuration
+export interface HslColor {
+  h: number;
+  s: number;
+  l: number;
+}
+
+// Built-in theme presets mapped by color key
+const BUILTIN_THEMES: Record<string, HslColor> = {
+  'theme-blue': { h: 215, s: 35, l: 55 },
+  'theme-green': { h: 150, s: 30, l: 50 },
+  'theme-rose': { h: 350, s: 40, l: 60 },
+  'theme-purple': { h: 270, s: 30, l: 60 },
+  'theme-orange': { h: 25, s: 40, l: 55 },
+  'theme-amber': { h: 40, s: 40, l: 50 },
+  'theme-teal': { h: 175, s: 30, l: 45 },
+  'theme-cyan': { h: 190, s: 40, l: 45 },
 };
 
-function generateThemeCSS(baseH: number, baseS: number, baseL: number, variant: string, isDark: boolean) {
+/**
+ * Dynamically generates a CSS block containing Material 3 compatible HSL color tokens.
+ * Computes primary, secondary, tertiary, background, surface, and outline colors based on
+ * the selected base HSL color, active variant style, and dark mode state.
+ * 
+ * @param baseH Base Hue (0 - 360)
+ * @param baseS Base Saturation (0 - 100)
+ * @param baseL Base Lightness (0 - 100)
+ * @param variant Dynamic palette variant (e.g. Vibrant, Expressive, Monochrome)
+ * @param isDark True for dark mode theme generation
+ */
+function generateThemeCSS(baseH: number, baseS: number, baseL: number, variant: string, isDark: boolean): string {
   let priH = baseH, priS = baseS, priL = baseL;
   let secH = baseH, secS = 20, secL = isDark ? 16 : 90;
   let terH = baseH, terS = 20, terL = isDark ? 16 : 90;
   let bgH = baseH, bgS = 15, bgL = isDark ? 8 : 96;
   let surH = baseH, surS = 15, surL = isDark ? 10 : 98;
   
+  // Calculate variant-specific saturation and hue transformations
   switch (variant) {
     case 'Neutral':
       priS = Math.max(0, baseS - 15);
@@ -64,10 +84,11 @@ function generateThemeCSS(baseH: number, baseS: number, baseL: number, variant: 
       break;
     case 'TonalSpot':
     default:
-      // Keep default
+      // Keep defaults as is
       break;
   }
 
+  // Calculate lightness tokens based on target dark/light theme setting
   const fgL = isDark ? 85 : 25;
   const onPriL = isDark ? 20 : 92;
   const priContL = isDark ? 25 : 85;
@@ -115,15 +136,20 @@ function generateThemeCSS(baseH: number, baseS: number, baseL: number, variant: 
   `;
 }
 
+/**
+ * Composable for managing application theming.
+ * Listens to configuration changes and applies class tags and dynamic custom CSS styles to document root.
+ */
 export function useTheme() {
-  const themeColor = useStorage('micyou_theme_color', 'theme-blue');
-  const uiStyle = useStorage('micyou_ui_style', 'style-default');
-  const customH = useStorage('micyou_custom_h', 215);
-  const customS = useStorage('micyou_custom_s', 35);
-  const customL = useStorage('micyou_custom_l', 55);
-  const customVariant = useStorage('micyou_custom_variant', 'TonalSpot');
-  const customCss = useStorage('micyou_custom_css', '');
+  const themeColor = useStorage<string>('micyou_theme_color', 'theme-blue');
+  const uiStyle = useStorage<string>('micyou_ui_style', 'style-default');
+  const customH = useStorage<number>('micyou_custom_h', 215);
+  const customS = useStorage<number>('micyou_custom_s', 35);
+  const customL = useStorage<number>('micyou_custom_l', 55);
+  const customVariant = useStorage<string>('micyou_custom_variant', 'TonalSpot');
+  const customCss = useStorage<string>('micyou_custom_css', '');
 
+  // Applies user custom CSS injector rules
   watchEffect(() => {
     if (typeof document !== 'undefined') {
       let userStyle = document.getElementById('micyou-user-custom-css');
@@ -136,6 +162,7 @@ export function useTheme() {
     }
   });
 
+  // Generates and injects the dynamic theme CSS palette
   watchEffect(() => {
     if (typeof document !== 'undefined') {
       const themes = ['theme-blue', 'theme-green', 'theme-rose', 'theme-purple', 'theme-orange', 'theme-amber', 'theme-teal', 'theme-cyan', 'theme-custom'];
@@ -173,6 +200,13 @@ export function useTheme() {
   });
 
   return {
-    themeColor, uiStyle, customH, customS, customL, customVariant, customCss,
+    themeColor,
+    uiStyle,
+    customH,
+    customS,
+    customL,
+    customVariant,
+    customCss,
   };
 }
+
