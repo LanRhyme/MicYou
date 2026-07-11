@@ -7,6 +7,10 @@ use rubato::audioadapter::{Adapter, AdapterMut};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
+const BUFFER_HEADROOM_MS: usize = 800;
+const MS_PER_SECOND: usize = 1000;
+const MIN_BUFFER_SIZE: usize = 16384;
+
 pub struct RubatoResampler {
     resampler: Async<f32>,
     input_buffer: InterleavedOwned<f32>,
@@ -14,7 +18,7 @@ pub struct RubatoResampler {
 }
 
 impl RubatoResampler {
-    pub fn new(in_rate: u32, out_rate: u32, channels: usize) -> Self {
+    pub fn new(in_rate: u32, out_rate: u32, channels: usize) -> Result<Self, rubato::ResamplerConstructionError> {
         let chunk_size = 480; // Match typical audio frame size
         // Use polynomial interpolation - much faster than sinc, good enough quality
         let resampler = Async::<f32>::new_poly(
@@ -24,15 +28,15 @@ impl RubatoResampler {
             chunk_size,
             channels,
             FixedAsync::Input,
-        ).unwrap();
+        )?;
 
         let input_buffer = InterleavedOwned::<f32>::new(0.0f32, channels, chunk_size);
 
-        Self {
+        Ok(Self {
             resampler,
             input_buffer,
             chunk_size,
-        }
+        })
     }
 
     pub fn resample(&mut self, input: &[f32], channels: usize) -> Vec<f32> {
@@ -197,14 +201,14 @@ impl AudioOutputManager {
         self.device_channels = config.channels() as usize;
 
         if self.device_sample_rate != 48000 {
-            self.resampler = Some(RubatoResampler::new(48000, self.device_sample_rate, self.device_channels));
+            self.resampler = Some(RubatoResampler::new(48000, self.device_sample_rate, self.device_channels)?);
         } else {
             self.resampler = None;
         }
 
         // Initialize a ring buffer for ~800ms of audio — generous headroom to prevent underruns
-        let buffer_size = (self.device_sample_rate as usize * self.device_channels * 4) / 5;
-        let ring_buffer = HeapRb::<f32>::new(buffer_size.max(16384));
+        let buffer_size = (self.device_sample_rate as usize * self.device_channels * BUFFER_HEADROOM_MS) / MS_PER_SECOND;
+        let ring_buffer = HeapRb::<f32>::new(buffer_size.max(MIN_BUFFER_SIZE));
         let (producer, mut consumer) = ring_buffer.split();
 
         self.producer = Some(producer);
@@ -215,6 +219,7 @@ impl AudioOutputManager {
         let stream = match config.sample_format() {
             SampleFormat::F32 => {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
+                let mut last_sample = 0.0f32;
                 device.build_output_stream(
                 &stream_config,
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
@@ -222,13 +227,14 @@ impl AudioOutputManager {
                         match consumer.pop() {
                             Some(s) => {
                                 *sample = s;
+                                last_sample = s;
                                 underrun_counter.store(0, Ordering::Relaxed);
                             }
                             None => {
                                 // Soft fade to silence on underrun instead of hard cut
                                 let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
                                 let fade = (1.0 - count as f32 * 0.01).max(0.0);
-                                *sample = 0.0 * fade;
+                                *sample = last_sample * fade;
                             }
                         }
                     }
@@ -238,6 +244,7 @@ impl AudioOutputManager {
             )?},
             SampleFormat::I16 => {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
+                let mut last_sample = 0.0f32;
                 device.build_output_stream(
                 &stream_config,
                 move |data: &mut [i16], _: &OutputCallbackInfo| {
@@ -245,12 +252,13 @@ impl AudioOutputManager {
                         let f_sample = match consumer.pop() {
                             Some(s) => {
                                 underrun_counter.store(0, Ordering::Relaxed);
+                                last_sample = s;
                                 s
                             }
                             None => {
                                 let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
                                 let fade = (1.0 - count as f32 * 0.01).max(0.0);
-                                0.0 * fade // Soft fade on underrun
+                                last_sample * fade // Soft fade on underrun
                             }
                         };
                         // TPDF dithering for f32→i16 conversion — reduces quantization noise

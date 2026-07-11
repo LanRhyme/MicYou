@@ -337,10 +337,19 @@ async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port
 
                         if sample_rate > 0 && sample_rate != 48000 {
                             if current_input_sample_rate != sample_rate {
-                                input_resampler = Some(micyou_audio::RubatoResampler::new(
+                                match micyou_audio::RubatoResampler::new(
                                     sample_rate, 48000, channels.max(1)
-                                ));
-                                current_input_sample_rate = sample_rate;
+                                ) {
+                                    Ok(res) => {
+                                        input_resampler = Some(res);
+                                        current_input_sample_rate = sample_rate;
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to create resampler: {}", e);
+                                        input_resampler = None;
+                                        current_input_sample_rate = 48000;
+                                    }
+                                }
                             }
                             if let Some(ref mut resampler) = input_resampler {
                                 pcm_f32 = resampler.resample(&pcm_f32, channels.max(1));

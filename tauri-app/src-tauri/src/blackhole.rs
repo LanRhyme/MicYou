@@ -19,6 +19,7 @@ struct AudioDevice {
     name: String,
 }
 
+#[cfg(target_os = "macos")]
 fn is_blackhole_name(name: &str) -> bool {
     let lower = name.to_lowercase();
     lower.contains("blackhole")
@@ -183,18 +184,20 @@ async fn find_blackhole_input_device() -> Option<AudioDevice> {
     }
     None
 }
-
+#[cfg(target_os = "macos")]
 fn parse_device_json(json: &str) -> Option<AudioDevice> {
     let content = json.trim().trim_start_matches('[').trim_end_matches(']');
     parse_device_json_single(content)
 }
 
+#[cfg(target_os = "macos")]
 fn parse_device_json_single(obj_str: &str) -> Option<AudioDevice> {
     let id = extract_json_field(obj_str, "id")?;
     let name = extract_json_field(obj_str, "name")?;
     Some(AudioDevice { id, name })
 }
 
+#[cfg(target_os = "macos")]
 fn extract_json_field(json: &str, field: &str) -> Option<String> {
     let needle = format!("\"{}\"", field);
     let start = json.find(&needle)? + needle.len();

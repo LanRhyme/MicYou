@@ -8,7 +8,7 @@ use tokio_util::sync::CancellationToken;
 pub const DEFAULT_WEB_PORT: u16 = 8443;
 
 pub struct WebServer {
-    cancel_token: CancellationToken,
+    cancel_token: std::sync::Mutex<CancellationToken>,
     client_count: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
 }
@@ -302,7 +302,7 @@ impl Listener for TlsListener {
 impl WebServer {
     pub fn new() -> Self {
         Self {
-            cancel_token: CancellationToken::new(),
+            cancel_token: std::sync::Mutex::new(CancellationToken::new()),
             client_count: Arc::new(AtomicUsize::new(0)),
             running: Arc::new(AtomicBool::new(false)),
         }
@@ -368,7 +368,12 @@ impl WebServer {
 
         log::info!("Web server listening on https://0.0.0.0:{}", port);
 
-        let cancel = self.cancel_token.clone();
+        let new_token = CancellationToken::new();
+        {
+            let mut token_guard = self.cancel_token.lock().unwrap();
+            *token_guard = new_token.clone();
+        }
+        let cancel = new_token;
         let running = self.running.clone();
         let client_count = self.client_count.clone();
 
@@ -388,7 +393,9 @@ impl WebServer {
     }
 
     pub fn stop(&self) {
-        self.cancel_token.cancel();
+        if let Ok(token_guard) = self.cancel_token.lock() {
+            token_guard.cancel();
+        }
         self.running.store(false, Ordering::SeqCst);
         self.client_count.store(0, Ordering::SeqCst);
     }
