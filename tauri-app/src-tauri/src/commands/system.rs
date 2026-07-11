@@ -92,6 +92,7 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
         let mut frame_counter = 0;
         let mut input_resampler: Option<micyou_audio::RubatoResampler> = None;
         let mut current_input_sample_rate: u32 = 0;
+        let mut resample_out_buf = Vec::new();
 
         while let Some(packet) = audio_rx.blocking_recv() {
             jb.push(packet);
@@ -99,7 +100,14 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
 
             for ordered_packet in packets {
                 if let Some(audio_data) = ordered_packet.audio_packet {
-                    let mut pcm_f32 = Vec::new();
+                    let capacity = match audio_data.audio_format {
+                        2 => audio_data.buffer.len() / 2,
+                        3 => audio_data.buffer.len(),
+                        4 => audio_data.buffer.len() / 4,
+                        6 => audio_data.buffer.len() / 3,
+                        _ => 0,
+                    };
+                    let mut pcm_f32 = Vec::with_capacity(capacity);
                     match audio_data.audio_format {
                         2 => {
                             for chunk in audio_data.buffer.chunks_exact(2) {
@@ -152,7 +160,9 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
                                 }
                             }
                             if let Some(ref mut resampler) = input_resampler {
-                                pcm_f32 = resampler.resample(&pcm_f32, channels.max(1));
+                                resampler.resample(&pcm_f32, channels.max(1), &mut resample_out_buf);
+                                pcm_f32.clear();
+                                pcm_f32.extend_from_slice(&resample_out_buf);
                             }
                         } else {
                             input_resampler = None;
