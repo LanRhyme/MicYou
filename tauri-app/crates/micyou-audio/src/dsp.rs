@@ -1252,11 +1252,12 @@ impl DspProcessor {
             return;
         }
 
-        static BAND_LIMITS: std::sync::OnceLock<[f32; 65]> = std::sync::OnceLock::new();
+        const BANDS: usize = 64;
+        static BAND_LIMITS: std::sync::OnceLock<[f32; BANDS + 1]> = std::sync::OnceLock::new();
         let limits = BAND_LIMITS.get_or_init(|| {
-            let mut array = [0.0; 65];
-            for i in 0..=64 {
-                array[i] = (i as f32 / 64.0).powf(1.5);
+            let mut array = [0.0; BANDS + 1];
+            for i in 0..=BANDS {
+                array[i] = (i as f32 / BANDS as f32).powf(1.5);
             }
             array
         });

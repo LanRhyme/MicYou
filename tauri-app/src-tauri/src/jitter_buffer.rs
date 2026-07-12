@@ -153,12 +153,6 @@ impl JitterBuffer {
             return;
         }
         
-        while let Some(key) = self.played_packets.keys().next().copied() {
-            if key < threshold {
-                self.played_packets.remove(&key);
-            } else {
-                break;
-            }
-        }
+        self.played_packets = self.played_packets.split_off(&threshold);
     }
 }

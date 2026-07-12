@@ -93,6 +93,7 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
         let mut input_resampler: Option<micyou_audio::RubatoResampler> = None;
         let mut current_input_sample_rate: u32 = 0;
         let mut resample_out_buf = Vec::new();
+        let mut pcm_f32 = Vec::new();
 
         while let Some(packet) = audio_rx.blocking_recv() {
             jb.push(packet);
@@ -107,7 +108,8 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
                         6 => audio_data.buffer.len() / 3,
                         _ => 0,
                     };
-                    let mut pcm_f32 = Vec::with_capacity(capacity);
+                    pcm_f32.clear();
+                    pcm_f32.reserve(capacity);
                     match audio_data.audio_format {
                         2 => {
                             for chunk in audio_data.buffer.chunks_exact(2) {
@@ -129,7 +131,7 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
                         }
                         6 => {
                             for chunk in audio_data.buffer.chunks_exact(3) {
-                                let sample24 = (chunk[0] as i32) | ((chunk[1] as i32) << 8) | ((chunk[2] as i32) << 16);
+                                let sample24 = (chunk[0] as i32) | ((chunk[1] as i32) << 8) | ((chunk[2] as i8 as i32) << 16);
                                 let sample_f32 = (sample24 as f32) / 8388608.0;
                                 pcm_f32.push(sample_f32);
                             }
@@ -479,11 +481,8 @@ pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn exit_app(app: AppHandle, state: State<'_, ServerState>) -> Result<(), String> {
-    let rt = tauri::async_runtime::handle();
-    rt.block_on(async {
-        let _ = stop_server(app.clone(), state).await;
-    });
+pub async fn exit_app(app: AppHandle, state: State<'_, ServerState>) -> Result<(), String> {
+    let _ = stop_server(app.clone(), state).await;
     log::info!(target: "tray", "exit_app: stopping application");
     app.exit(0);
     Ok(())

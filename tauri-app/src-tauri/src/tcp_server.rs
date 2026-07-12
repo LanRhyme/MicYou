@@ -131,6 +131,15 @@ async fn handle_client(mut socket: TcpStream, addr: SocketAddr, app_handle: AppH
 
     let (mut read_half, mut write_half) = socket.into_split();
 
+    let _ = app_handle.emit("device-connected", DeviceInfo {
+        name: "MicYou Mobile".to_string(),
+        ip: addr.ip().to_string(),
+        latency: 12,
+    });
+
+    let current_time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+    stats.mark_tcp_connected(current_time);
+
     let mut buffer = BytesMut::with_capacity(8192);
 
     // 2. Channel for writing
