@@ -13,7 +13,7 @@ pub struct SpectrumPayload {
 }
 
 #[tauri::command]
-pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port: u16, _mode: String, bind_address: Option<String>, output_device: Option<String>) -> Result<String, String> {
+pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port: u16, mode: String, bind_address: Option<String>, output_device: Option<String>) -> Result<String, String> {
     let bind_addr = bind_address.unwrap_or_else(|| "0.0.0.0".to_string());
     let mut token_lock = state.cancel_token.lock().await;
     if token_lock.is_some() {
@@ -59,7 +59,7 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
 
     // Start audio output pipeline (shared by all modes)
     let app_handle_audio = app_handle.clone();
-    let is_web_mode = _mode == "web";
+    let is_web_mode = mode == "web";
     std::thread::spawn(move || {
         let mut audio_manager = micyou_audio::AudioOutputManager::new();
         if let Err(e) = audio_manager.start(resolved_output_device) {
@@ -208,7 +208,7 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
 
     // Web mode: start web server and return (skip TCP/UDP)
     #[cfg(feature = "web-server")]
-    if _mode == "web" {
+    if mode == "web" {
         let web_port = port;
         let web_server_instance = crate::web_server::WebServer::new();
 
@@ -247,7 +247,7 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
     }
 
     #[cfg(not(feature = "web-server"))]
-    if _mode == "web" {
+    if mode == "web" {
         return Err("Web server feature not enabled".to_string());
     }
 
@@ -256,7 +256,7 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
     let port_tcp = port;
     let audio_tx_tcp = audio_tx.clone();
     let stats_tcp = state.network_stats.clone();
-    let mode_tcp = _mode.clone();
+    let mode_tcp = mode.clone();
     let bind_addr_tcp = bind_addr.clone();
     let connection_tx_tcp = state.connection_tx.clone();
     let active_socket_handle_tcp = state.active_socket_handle.clone();

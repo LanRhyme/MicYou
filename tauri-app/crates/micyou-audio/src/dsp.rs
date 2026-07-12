@@ -841,7 +841,7 @@ impl DspProcessor {
 
         // Soft clip — avoids harsh hard-clipping artifacts (crackling/pops)
         for sample in self.output_buffer.iter_mut() {
-            *sample = soft_clip(*sample).clamp(-1.0, 1.0);
+            *sample = soft_clip(*sample);
         }
 
         self.to_process_buf = to_process;

@@ -100,6 +100,9 @@ fn rand_f32() -> f32 {
 
 fn map_channels(input: &[f32], in_channels: usize, out_channels: usize, output: &mut Vec<f32>) {
     output.clear();
+    if in_channels == 0 || out_channels == 0 {
+        return;
+    }
     if in_channels == out_channels {
         output.extend_from_slice(input);
         return;
