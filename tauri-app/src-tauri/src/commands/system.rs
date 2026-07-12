@@ -15,22 +15,26 @@ pub struct SpectrumPayload {
 #[tauri::command]
 pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port: u16, mode: String, bind_address: Option<String>, output_device: Option<String>) -> Result<String, String> {
     let bind_addr = bind_address.unwrap_or_else(|| "0.0.0.0".to_string());
-    let mut token_lock = state.cancel_token.lock().await;
-    if token_lock.is_some() {
-        return Err("Server is already running".to_string());
-    }
-
-    let cancel_token = CancellationToken::new();
-    *token_lock = Some(cancel_token.clone());
+    let cancel_token = {
+        let mut token_lock = state.cancel_token.lock().await;
+        if token_lock.is_some() {
+            return Err("Server is already running".to_string());
+        }
+        let token = CancellationToken::new();
+        *token_lock = Some(token.clone());
+        token
+    };
 
     // Start mDNS
-    let mut mdns_lock = state.mdns_manager.lock().await;
-    match crate::network::NetworkManager::start_mdns(port, &bind_addr) {
-        Ok(manager) => {
-            *mdns_lock = Some(manager);
-        }
-        Err(e) => {
-            eprintln!("Failed to start mDNS: {}", e);
+    {
+        let mut mdns_lock = state.mdns_manager.lock().await;
+        match crate::network::NetworkManager::start_mdns(port, &bind_addr) {
+            Ok(manager) => {
+                *mdns_lock = Some(manager);
+            }
+            Err(e) => {
+                eprintln!("Failed to start mDNS: {}", e);
+            }
         }
     }
 
@@ -397,21 +401,14 @@ pub async fn start_window_drag(app: AppHandle) -> Result<(), String> {
     let pos = window.outer_position().map_err(|e| e.to_string())?;
     let start_win = (pos.x, pos.y);
 
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?;
+
     let _ = window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>);
     drop(window);
 
-    let title = CString::new("MicYou").map_err(|e| e.to_string())?;
-    let hwnd = unsafe { FindWindowA(std::ptr::null(), title.as_ptr()) };
-    if hwnd.is_null() {
-        if let Some(win) = app.get_webview_window("main") {
-            let _ = restore_acrylic(&win);
-        }
-        return Err("FindWindowA failed".to_string());
-    }
-
     let app_clone = app.clone();
     let flags = SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE;
-    let hwnd_raw = hwnd as isize;
+    let hwnd_raw = hwnd.0 as isize;
 
     std::thread::spawn(move || {
         loop {

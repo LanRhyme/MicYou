@@ -68,8 +68,11 @@ pub async fn set_mute_state(_app: AppHandle, state: State<'_, ServerState>, is_m
         pong: None,
     };
 
-    let lock = state.connection_tx.lock().await;
-    if let Some(tx) = lock.as_ref() {
+    let tx = {
+        let lock = state.connection_tx.lock().await;
+        lock.clone()
+    };
+    if let Some(tx) = tx {
         tx.send(mute_msg).await.map_err(|e| e.to_string())?;
         Ok(())
     } else {
