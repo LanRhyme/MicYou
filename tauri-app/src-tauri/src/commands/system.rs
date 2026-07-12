@@ -58,18 +58,20 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
     }
 
     let resolved_output_device = output_device;
-
     let (audio_tx, mut audio_rx) = tokio::sync::mpsc::channel(1024);
 
     // Start audio output pipeline (shared by all modes)
     let app_handle_audio = app_handle.clone();
     let is_web_mode = mode == "web";
+    let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
+
     std::thread::spawn(move || {
         let mut audio_manager = micyou_audio::AudioOutputManager::new();
         if let Err(e) = audio_manager.start(resolved_output_device) {
-            eprintln!("Failed to start audio output: {}", e);
+            let _ = ready_tx.send(Err(e.to_string()));
             return;
         }
+        let _ = ready_tx.send(Ok(()));
 
         let mut dsp_processor = {
             let exe_dir = std::env::current_exe()
@@ -209,6 +211,10 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
             }
         }
     });
+
+    ready_rx.await
+        .map_err(|_| "Audio thread panicked during startup".to_string())?
+        .map_err(|e| format!("Failed to start audio output: {}", e))?;
 
     // Web mode: start web server and return (skip TCP/UDP)
     #[cfg(feature = "web-server")]
