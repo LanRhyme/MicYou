@@ -1086,14 +1086,22 @@ watch(() => props.isOpen, async (newVal) => {
     loadSettings();
     // Sync existing settings to backend on open
     await syncSettingsToBackend();
-    unlistenLevel = await listen<number>('audio-level', (event) => {
+    const ulLevel = await listen<number>('audio-level', (event) => {
       audioLevel.value = event.payload;
     });
-    unlistenSpectrum = await listen<SpectrumPayload>('audio-spectrum', (event) => {
+    const ulSpectrum = await listen<SpectrumPayload>('audio-spectrum', (event) => {
       rawSpectrum.value = event.payload.raw;
       processedSpectrum.value = event.payload.processed;
     });
-    animationFrameId = requestAnimationFrame(drawSpectrum);
+
+    if (props.isOpen) {
+      unlistenLevel = ulLevel;
+      unlistenSpectrum = ulSpectrum;
+      animationFrameId = requestAnimationFrame(drawSpectrum);
+    } else {
+      ulLevel();
+      ulSpectrum();
+    }
   } else {
     if (animationFrameId) {
       cancelAnimationFrame(animationFrameId);
