@@ -93,6 +93,10 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
   const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') || '');
   const showQrDialog = ref(false);
 
+  // Active configurations when the server is running
+  const activeConnectionMode = ref<ConnectionMode | null>(null);
+  const activePort = ref<number | null>(null);
+
   // Computes the display representation of the active bind IP address
   const displayIp = computed(() => {
     if (isAutoBind.value) {
@@ -103,17 +107,17 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
 
   // Dynamic text description showing the status of the connection
   const statusDescription = computed(() => {
+    const mode = activeConnectionMode.value || connectionMode.value;
+    const port = activePort.value || (mode === 'web' ? webPort.value : serverPort.value);
+
     if (serverState.value === 'streaming') {
-      if (connectionMode.value === 'web') {
+      if (mode === 'web') {
         return t('app.web.clientsConnected', { count: webClientCount.value });
       }
       return t('app.status.streamingDesc');
     }
     if (serverState.value === 'connecting') {
-      if (connectionMode.value === 'web') {
-        return t('app.status.connectingDesc', { port: webPort.value });
-      }
-      return t('app.status.connectingDesc', { port: serverPort.value });
+      return t('app.status.connectingDesc', { port: port });
     }
     if (serverState.value === 'starting') return t('app.status.startingDesc');
     return t('app.status.readyDesc');
@@ -163,22 +167,27 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     if (serverState.value !== 'idle') {
       try {
         await invoke('stop_server');
+      } catch (e) {
+        console.warn('Failed to stop server cleanly:', e);
+      } finally {
         serverState.value = 'idle';
+        activeConnectionMode.value = null;
+        activePort.value = null;
         if (options?.audioLevel) options.audioLevel.value = 0;
         // Restore original input device on macOS when using BlackHole virtual audio
         if (isMacOS) {
           try { await invoke('restore_input_device'); } catch {}
         }
-      } catch (e) {
-        console.error(e);
       }
     } else {
       try {
         serverState.value = 'starting';
+        activeConnectionMode.value = connectionMode.value;
+        activePort.value = connectionMode.value === 'web' ? Number(webPort.value) : Number(serverPort.value);
         const bindAddress = isAutoBind.value ? null : selectedIp.value;
         await invoke('start_server', {
-          port: connectionMode.value === 'web' ? Number(webPort.value) : Number(serverPort.value),
-          mode: connectionMode.value,
+          port: activePort.value,
+          mode: activeConnectionMode.value,
           bindAddress: bindAddress,
           outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
         });
@@ -186,26 +195,30 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
         if (isMacOS) {
           try { await invoke('set_blackhole_as_input'); } catch {}
         }
-        if (connectionMode.value === 'usb') {
-          const result = await invoke<{ type: string; devices?: AdbDevice[] }>('enable_usb_mode', { port: Number(serverPort.value), deviceSerial: null });
+        if (activeConnectionMode.value === 'usb') {
+          const result = await invoke<{ type: string; devices?: AdbDevice[] }>('enable_usb_mode', { port: activePort.value, deviceSerial: null });
           if (result.type === 'MultipleDevices') {
             try { await invoke('stop_server'); } catch {}
             adbDevices.value = result.devices || [];
-            pendingUsbPort.value = Number(serverPort.value);
+            pendingUsbPort.value = activePort.value || Number(serverPort.value);
             showDeviceSelector.value = true;
             serverState.value = 'idle';
+            activeConnectionMode.value = null;
+            activePort.value = null;
             return;
           } else if (result.type === 'NoDevices') {
             try { await invoke('stop_server'); } catch {}
             serverState.value = 'idle';
+            activeConnectionMode.value = null;
+            activePort.value = null;
             const msg = 'No USB devices found. Please connect a device and enable USB debugging.';
             const type = analyzeError(msg);
-            errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
+            errorDetails.value = generateErrorDetails(type, msg, activeConnectionMode.value || connectionMode.value, activePort.value || Number(serverPort.value), selectedIp.value, t);
             showErrorDialog.value = true;
             return;
           }
         }
-        if (connectionMode.value === 'web') {
+        if (activeConnectionMode.value === 'web') {
           const info = networkInfo.value;
           const ip = info && info.ips.length > 0 ? info.ips[0] : 'localhost';
           const url = `https://${ip}:${webPort.value}`;
@@ -269,32 +282,40 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     showIpSwitchConfirm.value = false;
     if (serverState.value === 'streaming' || serverState.value === 'connecting') {
       try {
-        await invoke('stop_server');
+        try { await invoke('stop_server'); } catch (e) { console.warn('stop_server during IP switch:', e); }
         serverState.value = 'idle';
+        activeConnectionMode.value = null;
+        activePort.value = null;
         if (options?.audioLevel) options.audioLevel.value = 0;
         const bindAddress = isAutoBind.value ? null : selectedIp.value;
+        activeConnectionMode.value = connectionMode.value;
+        activePort.value = connectionMode.value === 'web' ? Number(webPort.value) : Number(serverPort.value);
         await invoke('start_server', {
-          port: Number(serverPort.value),
-          mode: connectionMode.value,
+          port: activePort.value,
+          mode: activeConnectionMode.value,
           bindAddress: bindAddress,
           outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
         });
         serverState.value = 'connecting';
-        if (connectionMode.value === 'usb') {
-          const result = await invoke<{ type: string; devices?: AdbDevice[] }>('enable_usb_mode', { port: Number(serverPort.value), deviceSerial: null });
+        if (activeConnectionMode.value === 'usb') {
+          const result = await invoke<{ type: string; devices?: AdbDevice[] }>('enable_usb_mode', { port: activePort.value, deviceSerial: null });
           if (result.type === 'MultipleDevices') {
             try { await invoke('stop_server'); } catch {}
             adbDevices.value = result.devices || [];
-            pendingUsbPort.value = Number(serverPort.value);
+            pendingUsbPort.value = activePort.value || Number(serverPort.value);
             showDeviceSelector.value = true;
             serverState.value = 'idle';
+            activeConnectionMode.value = null;
+            activePort.value = null;
             return;
           } else if (result.type === 'NoDevices') {
             try { await invoke('stop_server'); } catch {}
             serverState.value = 'idle';
+            activeConnectionMode.value = null;
+            activePort.value = null;
             const msg = 'No USB devices found. Please connect a device and enable USB debugging.';
             const type = analyzeError(msg);
-            errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
+            errorDetails.value = generateErrorDetails(type, msg, activeConnectionMode.value || connectionMode.value, activePort.value || Number(serverPort.value), selectedIp.value, t);
             showErrorDialog.value = true;
             return;
           }
@@ -304,9 +325,11 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
         try { await invoke('stop_server'); } catch {}
         const msg = typeof e === 'string' ? e : e?.message ?? String(e);
         const type = analyzeError(msg);
-        errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
+        errorDetails.value = generateErrorDetails(type, msg, activeConnectionMode.value || connectionMode.value, activePort.value || Number(serverPort.value), selectedIp.value, t);
         showErrorDialog.value = true;
         serverState.value = 'idle';
+        activeConnectionMode.value = null;
+        activePort.value = null;
       }
     }
   };
@@ -318,10 +341,12 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     showDeviceSelector.value = false;
     try {
       serverState.value = 'starting';
+      activeConnectionMode.value = 'usb';
+      activePort.value = pendingUsbPort.value;
       const bindAddress = isAutoBind.value ? null : selectedIp.value;
       await invoke('start_server', {
-        port: pendingUsbPort.value,
-        mode: 'usb',
+        port: activePort.value,
+        mode: activeConnectionMode.value,
         bindAddress: bindAddress,
         outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
       });
@@ -335,6 +360,8 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
       errorDetails.value = generateErrorDetails(type, msg, 'usb', pendingUsbPort.value, selectedIp.value, t);
       showErrorDialog.value = true;
       serverState.value = 'idle';
+      activeConnectionMode.value = null;
+      activePort.value = null;
     }
   };
 
@@ -370,6 +397,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
 
     // Listen for client connection successful event
     unlistenDeviceConnected = await listen('device-connected', () => {
+      if (serverState.value === 'idle') return;
       serverState.value = 'streaming';
       if (notificationsEnabled.value) {
         notify(t('app.notify.connected'));
@@ -379,9 +407,12 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     // Listen for client disconnect events
     unlistenDeviceDisconnected = await listen('device-disconnected', async () => {
       if (serverState.value === 'streaming') {
-        if (connectionMode.value === 'usb') {
+        const mode = activeConnectionMode.value || connectionMode.value;
+        if (mode === 'usb') {
           try { await invoke('stop_server'); } catch {}
           serverState.value = 'idle';
+          activeConnectionMode.value = null;
+          activePort.value = null;
           if (options?.audioLevel) options.audioLevel.value = 0;
           if (options?.isMuted) options.isMuted.value = false;
           if (notificationsEnabled.value) {
@@ -400,6 +431,8 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     // Listen for general server stops triggered elsewhere
     unlistenServerStopped = await listen('server-stopped', () => {
       serverState.value = 'idle';
+      activeConnectionMode.value = null;
+      activePort.value = null;
       if (options?.audioLevel) options.audioLevel.value = 0;
       if (options?.isMuted) options.isMuted.value = false;
     });
