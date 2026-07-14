@@ -51,6 +51,10 @@ class ConnectionHandler(
     @Volatile
     private var rtt = 0L
 
+    // 连接存活检测：记录最近一次收到对端数据的时间
+    @Volatile
+    private var lastInboundAt = System.currentTimeMillis()
+
     /**
      * Starts the connection handling loop.
      * This function suspends until the connection is closed or an error occurs.
@@ -80,12 +84,29 @@ class ConnectionHandler(
                     }
                 }
 
+                // 存活看门狗：客户端每秒回一次 pong，若长时间收不到任何数据，
+                // 说明对端已异常掉线(半开连接)，主动断开以便服务器接受新连接。
+                // 否则接收循环会阻塞在无超时的 read 上，直到操作系统内核放弃
+                // 该死连接(可能长达十几分钟)，期间新客户端无法真正接入。
+                lastInboundAt = System.currentTimeMillis()
+                val watchdogJob = launch {
+                    while (isActive) {
+                        delay(Constants.CONNECTION_LIVENESS_CHECK_INTERVAL_MS)
+                        val silentMs = System.currentTimeMillis() - lastInboundAt
+                        if (silentMs > Constants.CONNECTION_LIVENESS_TIMEOUT_MS) {
+                            Logger.w("ConnectionHandler", "存活检测超时: ${silentMs}ms 未收到对端数据，判定连接已死，主动断开")
+                            throw IOException("Liveness timeout: no inbound data for ${silentMs}ms")
+                        }
+                    }
+                }
+
                 // 3. Start receive loop
                 try {
                     processReceiveLoop()
                 } finally {
                     writerJob?.cancel()
                     pingJob?.cancel()
+                    watchdogJob.cancel()
                 }
             }
         } catch (e: Exception) {
@@ -189,6 +210,9 @@ class ConnectionHandler(
     val packetBytes = ByteArray(length)
             input.readFully(packetBytes)
 
+            // 收到一个完整数据包，刷新存活时间戳
+            lastInboundAt = System.currentTimeMillis()
+
             try {
                 val wrapper: MessageWrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), packetBytes)
 
@@ -255,6 +279,7 @@ class ConnectionHandler(
             if (msg.contains("Socket closed", ignoreCase = true)) return true
             if (msg.contains("Connection reset", ignoreCase = true)) return true
             if (msg.contains("Broken pipe", ignoreCase = true)) return true
+            if (msg.contains("Liveness timeout", ignoreCase = true)) return true
         }
         return false
     }

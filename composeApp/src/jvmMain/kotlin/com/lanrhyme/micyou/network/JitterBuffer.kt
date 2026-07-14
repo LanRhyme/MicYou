@@ -24,6 +24,15 @@ class JitterBuffer(
     private val onAudioPacketReady: suspend (AudioPacketMessage) -> Unit,
     private val fecGroupSize: Int = 12
 ) {
+    companion object {
+        /**
+         * 序列号倒退超过该阈值时，判定为客户端重连的新会话（而非普通乱序）。
+         * 取一个足够大的值以免把正常乱序误判为重连：正常网络乱序只差几个到几十个包，
+         * 而重连时序列号会从头(接近 0)开始，与当前期待值相差成千上万。
+         */
+        private const val SESSION_RESET_BACKWARD_GAP = 1000
+    }
+
     private val buffer = ConcurrentHashMap<Int, AudioPacketMessageOrdered>()
 
     private val fecPackets = ConcurrentHashMap<Int, AudioPacketMessageOrdered>()
@@ -68,7 +77,22 @@ class JitterBuffer(
         }
 
         val currentExpected = expectedSequenceNumber.get()
-        if (packet.sequenceNumber < currentExpected) {
+
+        // 新会话检测：序列号大幅倒退说明客户端已重连、序列号从头重新开始。
+        // 若不处理，新会话的小序列号会一直被下面的 "< currentExpected" 判定为
+        // 过期乱序包而全部丢弃，导致重连后有连接、有 UDP 包却完全没有声音。
+        // 此处重置缓冲状态，以新序列号为基准重新开始播放。
+        if (packet.sequenceNumber < currentExpected - SESSION_RESET_BACKWARD_GAP) {
+            Logger.i(
+                "JitterBuffer",
+                "检测到序列号大幅倒退 (期待 $currentExpected, 收到 ${packet.sequenceNumber})，" +
+                        "判定为客户端重连，重置抖动缓冲以恢复音频"
+            )
+            resetForNewSession(packet.sequenceNumber)
+        }
+
+        val expectedAfterReset = expectedSequenceNumber.get()
+        if (packet.sequenceNumber < expectedAfterReset) {
             packetsOutOfOrder.incrementAndGet()
             return
         }
@@ -76,6 +100,17 @@ class JitterBuffer(
         buffer[packet.sequenceNumber] = packet
         processBuffer()
         maybeLogStats()
+    }
+
+    /**
+     * 客户端重连后，序列号从头开始，需要清空旧会话遗留的缓冲/FEC/已播放数据，
+     * 并以新的序列号作为新的期待起点，否则新包会被当作过期乱序包丢弃。
+     */
+    private fun resetForNewSession(newSequenceNumber: Int) {
+        buffer.clear()
+        fecPackets.clear()
+        playedPackets.clear()
+        expectedSequenceNumber.set(newSequenceNumber)
     }
 
     private fun processBuffer() {

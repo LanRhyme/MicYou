@@ -27,6 +27,12 @@ object Constants {
     /** TCP 连接超时时间 (毫秒) */
     const val TCP_CONNECTION_TIMEOUT_MS = 10000L
 
+    /** 连接存活检测：超过该时间未收到对端任何数据(pong 每秒一次)则判定连接已死并主动断开 (毫秒) */
+    const val CONNECTION_LIVENESS_TIMEOUT_MS = 5000L
+
+    /** 连接存活检测的轮询间隔 (毫秒) */
+    const val CONNECTION_LIVENESS_CHECK_INTERVAL_MS = 1000L
+
     // ==================== 端口配置 ====================
     /** 默认 TCP 端口 (Wi-Fi / USB 模式) */
     const val DEFAULT_TCP_PORT = 6000
