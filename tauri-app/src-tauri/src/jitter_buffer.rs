@@ -153,13 +153,6 @@ impl JitterBuffer {
             return;
         }
         
-        let keys_to_remove: Vec<i32> = self.played_packets.keys()
-            .filter(|&&k| k < threshold)
-            .copied()
-            .collect();
-            
-        for k in keys_to_remove {
-            self.played_packets.remove(&k);
-        }
+        self.played_packets = self.played_packets.split_off(&threshold);
     }
 }

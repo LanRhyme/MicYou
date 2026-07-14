@@ -19,6 +19,7 @@ struct AudioDevice {
     name: String,
 }
 
+#[cfg(target_os = "macos")]
 fn is_blackhole_name(name: &str) -> bool {
     let lower = name.to_lowercase();
     lower.contains("blackhole")
@@ -183,18 +184,20 @@ async fn find_blackhole_input_device() -> Option<AudioDevice> {
     }
     None
 }
-
+#[cfg(target_os = "macos")]
 fn parse_device_json(json: &str) -> Option<AudioDevice> {
     let content = json.trim().trim_start_matches('[').trim_end_matches(']');
     parse_device_json_single(content)
 }
 
+#[cfg(target_os = "macos")]
 fn parse_device_json_single(obj_str: &str) -> Option<AudioDevice> {
     let id = extract_json_field(obj_str, "id")?;
     let name = extract_json_field(obj_str, "name")?;
     Some(AudioDevice { id, name })
 }
 
+#[cfg(target_os = "macos")]
 fn extract_json_field(json: &str, field: &str) -> Option<String> {
     let needle = format!("\"{}\"", field);
     let start = json.find(&needle)? + needle.len();
@@ -215,7 +218,6 @@ use std::sync::Mutex;
 static ORIGINAL_INPUT_DEVICE: Mutex<Option<AudioDevice>> = Mutex::new(None);
 
 /// Get full BlackHole status for the frontend
-#[tauri::command]
 pub async fn check_blackhole() -> Result<BlackHoleStatus, String> {
     let installed = is_installed();
     let switch_audio = is_switch_audio_source_installed().await;
@@ -233,7 +235,6 @@ pub async fn check_blackhole() -> Result<BlackHoleStatus, String> {
 }
 
 /// Set BlackHole as the system default input device, saving the original
-#[tauri::command]
 pub async fn set_blackhole_as_input() -> Result<BlackHoleResult, String> {
     if !is_installed() {
         return Ok(BlackHoleResult {
@@ -318,7 +319,6 @@ pub async fn do_restore_input_device() -> Result<(), String> {
 }
 
 /// Restore the original input device (Tauri command)
-#[tauri::command]
 pub async fn restore_input_device() -> Result<BlackHoleResult, String> {
     let has_saved = ORIGINAL_INPUT_DEVICE.lock().map(|g| g.is_some()).unwrap_or(false);
     if !has_saved {

@@ -615,9 +615,11 @@ impl BufferLevelManager {
         }
     }
 
-    fn process(&mut self, input: &[f32], channels: usize, queued_ms: f64) -> Vec<f32> {
+    fn process(&mut self, input: &[f32], channels: usize, queued_ms: f64, output: &mut Vec<f32>) {
+        output.clear();
         if channels == 0 || input.is_empty() {
-            return input.to_vec();
+            output.extend_from_slice(input);
+            return;
         }
 
         let frames = input.len() / channels;
@@ -628,15 +630,16 @@ impl BufferLevelManager {
             self.overrun_count = 0;
             // Duplicate the last frame
             if frames >= 1 && self.underrun_count <= 3 {
-                let mut output = Vec::with_capacity(input.len() + channels);
+                output.reserve(input.len() + channels);
                 output.extend_from_slice(input);
                 let last_frame_start = (frames - 1) * channels;
                 for c in 0..channels {
                     output.push(input[last_frame_start + c]);
                 }
-                return output;
+                return;
             }
-            return input.to_vec();
+            output.extend_from_slice(input);
+            return;
         }
 
         // Buffer critically high (> 300ms): drop first frame to prevent overflow
@@ -644,15 +647,17 @@ impl BufferLevelManager {
             self.overrun_count += 1;
             self.underrun_count = 0;
             if frames > 2 && self.overrun_count <= 3 {
-                return input[channels..].to_vec();
+                output.extend_from_slice(&input[channels..]);
+                return;
             }
-            return input.to_vec();
+            output.extend_from_slice(input);
+            return;
         }
 
         // Normal range: pass through unchanged
         self.underrun_count = 0;
         self.overrun_count = 0;
-        input.to_vec()
+        output.extend_from_slice(input);
     }
 }
 
@@ -708,6 +713,7 @@ pub struct DspProcessor {
     // Frame accumulation buffer (align to 480-sample frames for noise reduction)
     accum_buffer: Vec<f32>,
     output_buffer: Vec<f32>,
+    to_process_buf: Vec<f32>,
 }
 
 const RNNOISE_FRAME_SIZE: usize = 480;
@@ -751,6 +757,7 @@ impl DspProcessor {
             processed_spectrum: vec![0.0; 64],
             accum_buffer: Vec::new(),
             output_buffer: vec![0.0; 960],
+            to_process_buf: Vec::new(),
         }
     }
 
@@ -780,8 +787,11 @@ impl DspProcessor {
         }
 
         let process_count = frame_count * samples_per_frame;
-        let mut to_process: Vec<f32> = self.accum_buffer[..process_count].to_vec();
-        self.accum_buffer = self.accum_buffer[process_count..].to_vec();
+        self.to_process_buf.clear();
+        self.to_process_buf.extend_from_slice(&self.accum_buffer[..process_count]);
+        self.accum_buffer.drain(..process_count);
+
+        let mut to_process = std::mem::take(&mut self.to_process_buf);
 
         let settings = self.settings.read().unwrap().clone();
         self.equalizer.update_filters(&settings.equalizer);
@@ -827,13 +837,17 @@ impl DspProcessor {
             }
         }
 
-        let managed = self.buffer_manager.process(&to_process, channels, queued_ms);
-        *data = managed;
+        self.buffer_manager.process(&to_process, channels, queued_ms, &mut self.output_buffer);
 
         // Soft clip — avoids harsh hard-clipping artifacts (crackling/pops)
-        for sample in data.iter_mut() {
+        for sample in self.output_buffer.iter_mut() {
             *sample = soft_clip(*sample);
         }
+
+        self.to_process_buf = to_process;
+
+        data.clear();
+        data.extend_from_slice(&self.output_buffer);
 
         let processed_rms = compute_rms(data);
         self.compute_spectrum(data, false);
@@ -1238,9 +1252,19 @@ impl DspProcessor {
             return;
         }
 
+        const BANDS: usize = 64;
+        static BAND_LIMITS: std::sync::OnceLock<[f32; BANDS + 1]> = std::sync::OnceLock::new();
+        let limits = BAND_LIMITS.get_or_init(|| {
+            let mut array = [0.0; BANDS + 1];
+            for i in 0..=BANDS {
+                array[i] = (i as f32 / BANDS as f32).powf(1.5);
+            }
+            array
+        });
+
         for (band_idx, band_val) in target.iter_mut().enumerate() {
-            let start = (band_idx as f32 / bands as f32).powf(1.5) * data.len() as f32;
-            let end = (((band_idx + 1) as f32) / bands as f32).powf(1.5) * data.len() as f32;
+            let start = limits[band_idx] * data.len() as f32;
+            let end = limits[band_idx + 1] * data.len() as f32;
             let start = start as usize;
             let end = (end as usize).min(data.len());
             if start >= end { *band_val *= 0.85; continue; }

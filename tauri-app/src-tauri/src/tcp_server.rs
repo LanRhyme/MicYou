@@ -65,19 +65,36 @@ pub async fn start_tcp_server(app_handle: AppHandle, port: u16, bind_address: St
     Ok(())
 }
 
+#[cfg(windows)]
+fn safe_shutdown_socket(raw: RawSocketHandle) -> std::io::Result<()> {
+    let status = unsafe {
+        winapi::um::winsock2::shutdown(raw as winapi::um::winsock2::SOCKET, winapi::um::winsock2::SD_BOTH)
+    };
+    if status == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(unix)]
+fn safe_shutdown_socket(raw: RawSocketHandle) -> std::io::Result<()> {
+    let status = unsafe {
+        libc::shutdown(raw, libc::SHUT_RDWR)
+    };
+    if status == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
 /// Force-close the active TCP socket from another task.
 /// This calls OS-level shutdown so any pending read/write in handle_client
 /// will immediately fail, causing the task to exit and clean up.
 pub fn force_close_socket(raw: RawSocketHandle) {
-    unsafe {
-        #[cfg(windows)]
-        {
-            winapi::um::winsock2::shutdown(raw as winapi::um::winsock2::SOCKET, 2);
-        }
-        #[cfg(unix)]
-        {
-            libc::shutdown(raw, libc::SHUT_RDWR);
-        }
+    if let Err(e) = safe_shutdown_socket(raw) {
+        eprintln!("Force close socket error: {}", e);
     }
 }
 

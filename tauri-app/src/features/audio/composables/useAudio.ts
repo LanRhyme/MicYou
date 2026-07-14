@@ -2,11 +2,36 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 
+/**
+ * Interface representing the real-time audio statistics from the audio engine
+ */
+export interface AudioMetrics {
+  bitrate: number;
+  sampleRate: number;
+  latencyMs: number;
+  networkLatencyMs: number;
+  packetLossRate: number;
+  jitterMs: number;
+  bufferDurationMs: number;
+}
+
+/**
+ * Composable for managing audio status, mute state, audio level, metrics and warning dialogs
+ */
 export function useAudio() {
+  // Real-time audio input volume level (0-100)
   const audioLevel = ref(0);
+  
+  // Audio mute status
   const isMuted = ref(false);
-  const audioMetrics = ref<any>(null);
+  
+  // Real-time audio performance and network statistics
+  const audioMetrics = ref<AudioMetrics | null>(null);
+  
+  // Flag showing/hiding the monitoring panel
   const showMonitoringPanel = ref(false);
+  
+  // Flag indicating if the UDP port fallback warning should be displayed
   const showUdpWarning = ref(false);
 
   let unlistenAudioLevel: UnlistenFn | null = null;
@@ -14,6 +39,9 @@ export function useAudio() {
   let unlistenMuteState: UnlistenFn | null = null;
   let unlistenUdpWarning: UnlistenFn | null = null;
 
+  /**
+   * Toggles the mute state of the server-side audio engine
+   */
   async function toggleMute() {
     const newVal = !isMuted.value;
     isMuted.value = newVal;
@@ -25,20 +53,30 @@ export function useAudio() {
     }
   }
 
+  /**
+   * Toggles the visibility of the monitoring panel
+   */
   function toggleMonitoring() {
     showMonitoringPanel.value = !showMonitoringPanel.value;
   }
 
   onMounted(async () => {
+    // Listen for real-time audio amplitude updates from backend
     unlistenAudioLevel = await listen<number>('audio-level', (event) => {
       audioLevel.value = event.payload;
     });
-    unlistenAudioMetrics = await listen<any>('audio-metrics', (event) => {
+    
+    // Listen for performance metrics updates from backend
+    unlistenAudioMetrics = await listen<AudioMetrics>('audio-metrics', (event) => {
       audioMetrics.value = event.payload;
     });
+    
+    // Listen for mute state synchronizations from other surfaces
     unlistenMuteState = await listen<boolean>('mute-state-changed', (event) => {
       isMuted.value = event.payload;
     });
+    
+    // Listen for warnings if UDP traffic is blocked and falls back to TCP
     unlistenUdpWarning = await listen('udp_audio_warning', () => {
       showUdpWarning.value = true;
     });
@@ -52,7 +90,13 @@ export function useAudio() {
   });
 
   return {
-    audioLevel, isMuted, audioMetrics, showMonitoringPanel, showUdpWarning,
-    toggleMute, toggleMonitoring,
+    audioLevel,
+    isMuted,
+    audioMetrics,
+    showMonitoringPanel,
+    showUdpWarning,
+    toggleMute,
+    toggleMonitoring,
   };
 }
+

@@ -149,16 +149,38 @@ const waveform = ref<number[]>(Array(waveformSize).fill(0))
 
 let animationFrameId: number
 const updateWaveform = () => {
+  if (props.serverState !== 'streaming') {
+    waveform.value.fill(0)
+    return
+  }
   waveform.value.shift()
-  waveform.value.push(props.serverState === 'streaming' ? props.audioLevel : 0)
+  waveform.value.push(props.audioLevel)
   animationFrameId = requestAnimationFrame(updateWaveform)
 }
 
+watch(() => props.serverState, (newVal) => {
+  if (newVal === 'streaming') {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId)
+    }
+    updateWaveform()
+  } else {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId)
+    }
+    waveform.value.fill(0)
+  }
+})
+
 onMounted(() => {
-  updateWaveform()
+  if (props.serverState === 'streaming') {
+    updateWaveform()
+  }
 })
 
 onUnmounted(() => {
-  cancelAnimationFrame(animationFrameId)
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId)
+  }
 })
 </script>
