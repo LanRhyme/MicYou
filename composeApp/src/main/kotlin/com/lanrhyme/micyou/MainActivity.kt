@@ -1,13 +1,12 @@
 package com.lanrhyme.micyou
+
 import com.lanrhyme.micyou.R
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.content.pm.PackageManager
 import android.view.WindowManager
 import android.widget.Toast
 import java.util.Locale
@@ -23,18 +22,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.vinceglb.filekit.FileKit
 import io.github.vinceglb.filekit.dialogs.init
-import com.lanrhyme.micyou.settings.Settings
 import com.lanrhyme.micyou.theme.isDarkThemeActive
 import com.lanrhyme.micyou.theme.ThemeMode
-import com.lanrhyme.micyou.util.AppLanguage
 import com.lanrhyme.micyou.util.ContextHelper
+import com.lanrhyme.micyou.util.LocaleManager
 import com.lanrhyme.micyou.util.Logger
 import com.lanrhyme.micyou.util.PermissionState
 import com.lanrhyme.micyou.ui.dialog.getRequiredPermissions
@@ -85,27 +81,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun attachBaseContext(newBase: Context) {
-        val savedLanguage = try {
-            val prefs = newBase.getSharedPreferences("android_mic_prefs", Context.MODE_PRIVATE)
-            val raw = prefs.getString("language", null)
-            if (raw != null) {
-                try {
-                    AppLanguage.valueOf(raw).code
-                } catch (_: Exception) {
-                    raw
-                }
-            } else {
-                "system"
-            }
-        } catch (e: Exception) {
-            "system"
-        }
-        val wrappedContext = if (savedLanguage != "system") {
-            wrapContextWithLocale(newBase, savedLanguage)
-        } else {
-            newBase
-        }
-        super.attachBaseContext(wrappedContext)
+        super.attachBaseContext(LocaleManager.attachBaseContext(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -115,36 +91,20 @@ class MainActivity : ComponentActivity() {
         ContextHelper.init(this)
 
         // Initialize locale from saved settings
-        val savedLanguage = try {
-            val prefs = getSharedPreferences("android_mic_prefs", MODE_PRIVATE)
-            val raw = prefs.getString("language", null)
-            if (raw != null) {
-                // Saved value is AppLanguage.name, convert to AppLanguage.code
-                try {
-                    AppLanguage.valueOf(raw).code
-                } catch (_: Exception) {
-                    // Fallback: if the raw value looks like a code already, use it
-                    raw
-                }
-            } else {
-                "system"
-            }
-        } catch (e: Exception) {
-            "system"
-        }
+        val savedLanguage = LocaleManager.getSavedLanguageCode(this)
         setAppLocale(savedLanguage)
 
         Logger.init(this)
         Logger.i("MainActivity", "App started")
 
         FileKit.init(this)
-    val shouldQuickStart = intent?.action == ACTION_QUICK_START
+        val shouldQuickStart = intent?.action == ACTION_QUICK_START
 
         // Initialize permission state
         currentPermissionsState.value = getRequiredPermissions(this)
 
         // Show permission dialog first if needed (before first launch dialog)
-    val needsPermissions = shouldShowPermissionDialog()
+        val needsPermissions = shouldShowPermissionDialog()
         if (needsPermissions) {
             permissionDialogState.value = true
         } else {
@@ -154,10 +114,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val appViewModel: MainViewModel = viewModel()
-    val keepScreenOn by appViewModel.uiState.collectAsState().let { state ->
+            val keepScreenOn by appViewModel.uiState.collectAsState().let { state ->
                 derivedStateOf { state.value.keepScreenOn }
             }
-    val streamState by appViewModel.uiState.collectAsState().let { state ->
+            val streamState by appViewModel.uiState.collectAsState().let { state ->
                 derivedStateOf { state.value.streamState }
             }
 
@@ -177,17 +137,19 @@ class MainActivity : ComponentActivity() {
                         StreamState.Streaming -> {
                             Toast.makeText(this@MainActivity, R.string.qs_toast_connected, Toast.LENGTH_SHORT).show()
                         }
+
                         StreamState.Error -> {
                             Toast.makeText(this@MainActivity, R.string.qs_toast_failed, Toast.LENGTH_SHORT).show()
                         }
+
                         else -> {}
                     }
                 }
             }
-    val themeMode by appViewModel.uiState.collectAsState().let { state ->
+            val themeMode by appViewModel.uiState.collectAsState().let { state ->
                 derivedStateOf { state.value.themeMode }
             }
-    val isDark = isDarkThemeActive(themeMode)
+            val isDark = isDarkThemeActive(themeMode)
 
             DisposableEffect(isDark) {
                 this@MainActivity.enableEdgeToEdge(

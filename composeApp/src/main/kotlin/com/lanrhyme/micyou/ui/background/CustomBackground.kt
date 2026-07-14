@@ -22,11 +22,6 @@ import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
-import com.lanrhyme.micyou.settings.Settings
-import com.lanrhyme.micyou.ui.background.BackgroundSettings
-import com.lanrhyme.micyou.ui.background.CustomBackground
-import com.lanrhyme.micyou.ui.background.HazeSurface
-import com.lanrhyme.micyou.ui.background.loadImageBitmap
 
 @Composable
 fun rememberHazeState(): HazeState {
@@ -53,7 +48,7 @@ fun CustomBackground(
     val imageBitmap = remember(settings.imagePath) {
         loadImageBitmap(settings.imagePath)
     }
-    
+
     if (imageBitmap != null) {
         Box(
             modifier = modifier.then(
@@ -72,7 +67,7 @@ fun CustomBackground(
                     .blur(radius = settings.blurRadius.dp),
                 contentScale = ContentScale.Crop
             )
-            
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()

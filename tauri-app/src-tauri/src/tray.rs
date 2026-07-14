@@ -77,8 +77,18 @@ struct TrayHandleStorage<R: Runtime>(Mutex<Option<tauri::tray::TrayIcon<R>>>);
 
 pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let ctx = app.state::<TrayContext>();
-    let strings = ctx.strings.lock().unwrap().clone();
-    let state = *ctx.state.lock().unwrap();
+    let strings = ctx
+        .strings
+        .lock()
+        .map_err(|e| {
+            log::error!(target: "tray", "Tray strings mutex poisoned: {e}");
+            tauri::Error::AssetNotFound("tray strings lock poisoned".into())
+        })?
+        .clone();
+    let state = *ctx.state.lock().map_err(|e| {
+        log::error!(target: "tray", "Tray state mutex poisoned: {e}");
+        tauri::Error::AssetNotFound("tray state lock poisoned".into())
+    })?;
 
     let menu = build_menu(app, &strings, state)?;
     let icon = app
@@ -122,11 +132,25 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
 
 pub fn rebuild_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let ctx = app.state::<TrayContext>();
-    let strings = ctx.strings.lock().unwrap().clone();
-    let state = *ctx.state.lock().unwrap();
+    let strings = ctx
+        .strings
+        .lock()
+        .map_err(|e| {
+            log::error!(target: "tray", "Tray strings mutex poisoned (rebuild): {e}");
+            tauri::Error::AssetNotFound("tray strings lock poisoned".into())
+        })?
+        .clone();
+    let state = *ctx.state.lock().map_err(|e| {
+        log::error!(target: "tray", "Tray state mutex poisoned (rebuild): {e}");
+        tauri::Error::AssetNotFound("tray state lock poisoned".into())
+    })?;
     let menu = build_menu(app, &strings, state)?;
     if let Some(storage) = app.try_state::<TrayHandleStorage<R>>() {
-        if let Some(tray) = storage.0.lock().unwrap().as_ref() {
+        let tray_opt = storage.0.lock().map_err(|e| {
+            log::error!(target: "tray", "Tray handle mutex poisoned (rebuild): {e}");
+            tauri::Error::AssetNotFound("tray handle lock poisoned".into())
+        })?;
+        if let Some(tray) = tray_opt.as_ref() {
             tray.set_menu(Some(menu))?;
         }
     }

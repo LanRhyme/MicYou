@@ -1,11 +1,15 @@
-use std::collections::BTreeMap;
 use micyou_protocol::micyou::AudioPacketMessageOrdered;
+use std::collections::BTreeMap;
 
+/// Jitter buffer with FEC (Forward Error Correction) recovery.
+///
+/// Buffers incoming audio packets to smooth out network jitter, and
+/// attempts to recover lost packets using XOR-based FEC.
 pub struct JitterBuffer {
     buffer: BTreeMap<i32, AudioPacketMessageOrdered>,
     fec_packets: BTreeMap<i32, AudioPacketMessageOrdered>,
     played_packets: BTreeMap<i32, AudioPacketMessageOrdered>,
-    
+
     expected_sequence_number: i32,
     initialized: bool,
     fec_group_size: i32,
@@ -29,8 +33,8 @@ impl JitterBuffer {
         // Due to proto3 defaulting missing ints to 0, and Kotlin sending -1 which gets omitted,
         // regular packets will have fec_sequence_number == 0.
         // FEC packets have fec_sequence_number = fecGroupStartSeq (0, 12, 24...)
-        let is_fec = packet.fec_sequence_number > 0 || 
-                    (packet.fec_sequence_number == 0 && packet.sequence_number == self.fec_group_size);
+        let is_fec = packet.fec_sequence_number > 0
+            || (packet.fec_sequence_number == 0 && packet.sequence_number == self.fec_group_size);
 
         if is_fec {
             self.fec_packets.insert(packet.fec_sequence_number, packet);
@@ -102,7 +106,11 @@ impl JitterBuffer {
             if seq == missing_seq {
                 continue;
             }
-            if let Some(pkt) = self.buffer.get(&seq).or_else(|| self.played_packets.get(&seq)) {
+            if let Some(pkt) = self
+                .buffer
+                .get(&seq)
+                .or_else(|| self.played_packets.get(&seq))
+            {
                 if let Some(audio_pkt) = &pkt.audio_packet {
                     received_in_group.push(&audio_pkt.buffer);
                 } else {
@@ -124,7 +132,9 @@ impl JitterBuffer {
             }
         }
 
-        let reference_packet = self.buffer.get(&group_start)
+        let reference_packet = self
+            .buffer
+            .get(&group_start)
             .or_else(|| self.played_packets.get(&group_start))
             .or_else(|| self.buffer.get(&(group_start + 1)))
             .or_else(|| self.played_packets.get(&(group_start + 1)))?;
@@ -152,7 +162,7 @@ impl JitterBuffer {
         if threshold <= 0 {
             return;
         }
-        
+
         self.played_packets = self.played_packets.split_off(&threshold);
     }
 }

@@ -1,20 +1,42 @@
+use crate::error::AppError;
+use crate::network::interface::{list_interfaces, NetworkInfo, NetworkInterfaceInfo};
+use crate::platform::adb;
+use crate::server::state::ServerState;
 use tauri::State;
-use crate::server::{ServerState, NetworkInfo, NetworkInterfaceInfo, query_network_interfaces};
-use crate::adb_manager;
 
+#[cfg(feature = "adb")]
 #[tauri::command]
-pub fn enable_usb_mode(port: u16, device_serial: Option<String>) -> Result<adb_manager::UsbModeResult, String> {
-    adb_manager::enable_usb_mode(port, device_serial.as_deref())
+pub fn enable_usb_mode(
+    port: u16,
+    device_serial: Option<String>,
+) -> Result<adb::UsbModeResult, AppError> {
+    adb::enable_usb_mode(port, device_serial.as_deref()).map_err(AppError::adb)
 }
 
+#[cfg(not(feature = "adb"))]
 #[tauri::command]
-pub fn list_adb_devices() -> Result<Vec<adb_manager::AdbDevice>, String> {
-    adb_manager::list_adb_devices()
+pub fn enable_usb_mode(
+    _port: u16,
+    _device_serial: Option<String>,
+) -> Result<adb::UsbModeResult, AppError> {
+    Err(AppError::platform("ADB feature not enabled"))
+}
+
+#[cfg(feature = "adb")]
+#[tauri::command]
+pub fn list_adb_devices() -> Result<Vec<adb::AdbDevice>, AppError> {
+    adb::list_adb_devices().map_err(AppError::adb)
+}
+
+#[cfg(not(feature = "adb"))]
+#[tauri::command]
+pub fn list_adb_devices() -> Result<Vec<adb::AdbDevice>, AppError> {
+    Err(AppError::platform("ADB feature not enabled"))
 }
 
 #[tauri::command]
 pub fn get_network_info() -> NetworkInfo {
-    let interfaces = query_network_interfaces();
+    let interfaces = list_interfaces();
     let ips: Vec<String> = interfaces.iter().map(|i| i.ip.clone()).collect();
     NetworkInfo {
         ips,
@@ -24,7 +46,7 @@ pub fn get_network_info() -> NetworkInfo {
 
 #[tauri::command]
 pub fn get_network_interfaces() -> Vec<NetworkInterfaceInfo> {
-    query_network_interfaces()
+    list_interfaces()
 }
 
 #[derive(serde::Serialize)]
@@ -35,24 +57,21 @@ pub struct WebStatus {
 
 #[cfg(feature = "web-server")]
 #[tauri::command]
-pub async fn get_web_status(state: State<'_, ServerState>) -> Result<WebStatus, String> {
-    let lock = state.web_server.lock().await;
-    if let Some(web) = lock.as_ref() {
-        Ok(WebStatus {
-            running: web.is_running(),
-            client_count: web.client_count() as u32,
-        })
-    } else {
-        Ok(WebStatus {
-            running: false,
-            client_count: 0,
-        })
-    }
+pub async fn get_web_status(state: State<'_, ServerState>) -> Result<WebStatus, AppError> {
+    let handle_lock = state.server_handle.lock().await;
+    let (running, client_count) = handle_lock
+        .as_ref()
+        .map(|h| h.web_status())
+        .unwrap_or((false, 0));
+    Ok(WebStatus {
+        running,
+        client_count,
+    })
 }
 
 #[cfg(not(feature = "web-server"))]
 #[tauri::command]
-pub async fn get_web_status(_state: State<'_, ServerState>) -> Result<WebStatus, String> {
+pub async fn get_web_status(_state: State<'_, ServerState>) -> Result<WebStatus, AppError> {
     Ok(WebStatus {
         running: false,
         client_count: 0,

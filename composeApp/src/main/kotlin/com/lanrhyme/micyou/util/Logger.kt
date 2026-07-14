@@ -7,7 +7,6 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.lanrhyme.micyou.util.Logger
 
 object Logger {
     private var context: Context? = null
@@ -39,13 +38,24 @@ object Logger {
         // File
         try {
             val timestamp = dateFormat.format(Date())
-            val logEntry = "$timestamp [${priorityToTag(priority)}][$tag] $message${throwable?.let { "\n${Log.getStackTraceString(it)}" } ?: ""}\n"
+            val logEntry = "$timestamp [${priorityToTag(priority)}][$tag] $message${
+                throwable?.let {
+                    "\n${
+                        Log.getStackTraceString(it)
+                    }"
+                } ?: ""
+            }\n"
             FileOutputStream(logFile, true).use { it.write(logEntry.toByteArray()) }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
     fun getLogFilePath(): String? {
-        return try { logFile.absolutePath } catch (_: Exception) { null }
+        return try {
+            logFile.absolutePath
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun priorityToTag(priority: Int): String = when (priority) {

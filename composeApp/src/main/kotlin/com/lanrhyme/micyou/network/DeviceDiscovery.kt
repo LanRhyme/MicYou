@@ -8,8 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import java.util.Collections
-import com.lanrhyme.micyou.network.DeviceDiscoveryManager
-import com.lanrhyme.micyou.network.DiscoveredDevice
 import com.lanrhyme.micyou.util.ContextHelper
 import com.lanrhyme.micyou.util.Logger
 

@@ -19,7 +19,6 @@ import androidx.compose.ui.unit.dp
 import com.lanrhyme.micyou.animation.EasingFunctions
 import kotlinx.coroutines.launch
 import kotlin.math.min
-import com.lanrhyme.micyou.ui.WaterRippleEffect
 
 @Composable
 fun WaterRippleEffect(
@@ -70,7 +69,7 @@ fun AdvancedRippleEffect(
     durationMillis: Int = 800
 ) {
     val progress = remember { Animatable(0f) }
-    
+
     LaunchedEffect(trigger) {
         if (trigger > 0) {
             progress.animateTo(
@@ -80,20 +79,20 @@ fun AdvancedRippleEffect(
             progress.snapTo(0f)
         }
     }
-    
+
     if (progress.value > 0f) {
         Canvas(modifier = modifier) {
             val center = Offset(size.width / 2, size.height / 2)
-    val baseRadius = min(size.width, size.height) / 2
+            val baseRadius = min(size.width, size.height) / 2
             val currentRadius = baseRadius * (1f + (maxScale - 1f) * progress.value)
-    val currentAlpha = 1f - progress.value
-            
+            val currentAlpha = 1f - progress.value
+
             for (i in 0..2) {
                 val ringProgress = (progress.value - i * 0.1f).coerceIn(0f, 1f)
                 if (ringProgress > 0f) {
                     val ringRadius = baseRadius * (1f + (maxScale - 1f) * ringProgress)
-    val ringAlpha = currentAlpha * (1f - i * 0.3f)
-                    
+                    val ringAlpha = currentAlpha * (1f - i * 0.3f)
+
                     drawCircle(
                         color = color.copy(alpha = ringAlpha.coerceIn(0f, 1f) * 0.5f),
                         radius = ringRadius,
@@ -115,7 +114,7 @@ fun PulsingRingEffect(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "PulsingRing")
     val progressValues = remember { mutableStateListOf<Float>().apply { repeat(ringCount) { add(0f) } } }
-    
+
     for (i in 0 until ringCount) {
         progressValues[i] = infiniteTransition.animateFloat(
             initialValue = 0f,
@@ -131,16 +130,16 @@ fun PulsingRingEffect(
             label = "Ring$i"
         ).value
     }
-    
+
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-    val baseRadius = min(size.width, size.height) / 2
-        
+        val baseRadius = min(size.width, size.height) / 2
+
         for (i in 0 until ringCount) {
             val progress = progressValues[i]
             val ringRadius = baseRadius * (0.5f + progress * 0.5f)
-    val ringAlpha = (1f - progress) * 0.3f
-            
+            val ringAlpha = (1f - progress) * 0.3f
+
             drawCircle(
                 color = color.copy(alpha = ringAlpha),
                 radius = ringRadius,
@@ -173,14 +172,14 @@ fun GlowingBorderEffect(
     } else {
         0.5f
     }
-    
+
     Canvas(modifier = modifier) {
         val glowSteps = 5
         for (i in 0 until glowSteps) {
             val progress = i.toFloat() / glowSteps
             val currentGlowRadius = glowRadius.toPx() * (1f - progress)
-    val currentAlpha = glowAlpha * (1f - progress * 0.8f)
-            
+            val currentAlpha = glowAlpha * (1f - progress * 0.8f)
+
             drawCircle(
                 color = color.copy(alpha = currentAlpha.coerceIn(0f, 1f) * 0.3f),
                 radius = (min(size.width, size.height) / 2) + currentGlowRadius,
@@ -208,19 +207,19 @@ fun OrbitingDotsEffect(
             ),
             label = "OrbitRotation"
         ).value
-    
+
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-    val orbitRadius = min(size.width, size.height) / 2 * 0.8f
-        
+        val orbitRadius = min(size.width, size.height) / 2 * 0.8f
+
         for (i in 0 until dotCount) {
             val angle = rotation + (i * 360f / dotCount)
-    val radians = Math.toRadians(angle.toDouble()).toFloat()
-    val x = center.x + orbitRadius * kotlin.math.cos(radians)
-    val y = center.y + orbitRadius * kotlin.math.sin(radians)
-    val dotAlpha = 0.3f + 0.7f * (1f - kotlin.math.abs(angle % 360f - 180f) / 180f)
-    val dotSize = 3.dp.toPx() + 2.dp.toPx() * (1f - kotlin.math.abs(angle % 360f - 180f) / 180f)
-            
+            val radians = Math.toRadians(angle.toDouble()).toFloat()
+            val x = center.x + orbitRadius * kotlin.math.cos(radians)
+            val y = center.y + orbitRadius * kotlin.math.sin(radians)
+            val dotAlpha = 0.3f + 0.7f * (1f - kotlin.math.abs(angle % 360f - 180f) / 180f)
+            val dotSize = 3.dp.toPx() + 2.dp.toPx() * (1f - kotlin.math.abs(angle % 360f - 180f) / 180f)
+
             drawCircle(
                 color = color.copy(alpha = dotAlpha),
                 radius = dotSize,
@@ -251,13 +250,13 @@ fun BreathingGlowEffect(
 
     Canvas(modifier = modifier) {
         val center = Offset(size.width / 2, size.height / 2)
-    val baseRadius = min(size.width, size.height) / 2
+        val baseRadius = min(size.width, size.height) / 2
 
         val glowSteps = 10
         for (i in 0 until glowSteps) {
             val progress = i.toFloat() / glowSteps
             val currentRadius = baseRadius * (0.3f + progress * 0.7f)
-    val currentAlpha = glowAlpha * (1f - progress)
+            val currentAlpha = glowAlpha * (1f - progress)
 
             drawCircle(
                 color = color.copy(alpha = currentAlpha.coerceIn(0f, 1f)),
@@ -295,13 +294,13 @@ fun ExpressiveRippleEffect(
     if (progress.value > 0f) {
         Canvas(modifier = modifier) {
             val center = Offset(size.width / 2, size.height / 2)
-    val baseRadius = min(size.width, size.height) / 2
+            val baseRadius = min(size.width, size.height) / 2
 
             for (i in 0..4) {
                 val ringProgress = (progress.value - i * 0.08f).coerceIn(0f, 1f)
                 if (ringProgress > 0f) {
                     val ringRadius = baseRadius * (1f + (maxScale - 1f) * ringProgress)
-    val ringAlpha = (1f - ringProgress) * (1f - i * 0.2f)
+                    val ringAlpha = (1f - ringProgress) * (1f - i * 0.2f)
 
                     drawCircle(
                         color = color.copy(alpha = ringAlpha.coerceIn(0f, 1f) * 0.4f),
@@ -347,7 +346,7 @@ fun ExpressiveGlowingBorderEffect(
         for (i in 0 until glowSteps) {
             val progress = i.toFloat() / glowSteps
             val currentGlowRadius = glowRadius.toPx() * (1f - progress)
-    val currentAlpha = glowAlpha * (1f - progress * 0.7f)
+            val currentAlpha = glowAlpha * (1f - progress * 0.7f)
 
             drawCircle(
                 color = color.copy(alpha = currentAlpha.coerceIn(0f, 1f) * 0.35f),

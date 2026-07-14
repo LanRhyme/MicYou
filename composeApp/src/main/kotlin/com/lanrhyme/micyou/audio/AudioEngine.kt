@@ -1,4 +1,5 @@
 package com.lanrhyme.micyou.audio
+
 import com.lanrhyme.micyou.R
 
 import android.content.Intent
@@ -64,6 +65,7 @@ import com.lanrhyme.micyou.viewmodel.TransportProtocol
 import com.lanrhyme.micyou.network.hasControlMessage
 import com.lanrhyme.micyou.network.MuteMessage
 import com.lanrhyme.micyou.network.PongMessage
+
 /**
  * Converts OutputStream to ByteWriteChannel using the current coroutine context.
  */
@@ -120,6 +122,7 @@ class AudioEngine constructor() {
             activeEngine = null
         }
     }
+
     private val _state = MutableStateFlow(StreamState.Idle)
     val streamState: Flow<StreamState> = _state
 
@@ -145,10 +148,10 @@ class AudioEngine constructor() {
     private var job: Job? = null
     private val startStopMutex = Mutex()
     private val proto = ProtoBuf { }
-    
+
     private var connectionComplete: CompletableDeferred<Unit>? = null
     private var sendChannel: Channel<MessageWrapper>? = null
-    
+
     private var udpSocket: DatagramSocket? = null
     private var udpServerAddress: InetSocketAddress? = null
     private var udpConsecutiveFailures: Int = 0
@@ -159,8 +162,10 @@ class AudioEngine constructor() {
 
     @Volatile
     private var enableNS: Boolean = false
+
     @Volatile
     private var enableAGC: Boolean = false
+
     @Volatile
     private var audioSource: AndroidAudioSource = AndroidAudioSource.Mic
 
@@ -184,17 +189,18 @@ class AudioEngine constructor() {
     private val CHECK_2 = "MicYouCheck2"
 
     suspend fun start(
-        ip: String, 
-        port: Int, 
-        mode: ConnectionMode, 
-        isClient: Boolean,
+        ip: String,
+        port: Int,
+        mode: ConnectionMode,
         sampleRate: SampleRate,
         channelCount: ChannelCount,
         audioFormat: AudioFormat,
         transportProtocol: TransportProtocol
     ) {
-        if (!isClient) return
-        Logger.i("AudioEngine", "Starting Android AudioEngine: mode=$mode, protocol=$transportProtocol, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}")
+        Logger.i(
+            "AudioEngine",
+            "Starting Android AudioEngine: mode=$mode, protocol=$transportProtocol, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}"
+        )
         _lastError.value = null
 
         savedIp = ip
@@ -207,7 +213,7 @@ class AudioEngine constructor() {
         isRunning = true
 
         connectionComplete = CompletableDeferred()
-    val jobToJoin = startStopMutex.withLock {
+        val jobToJoin = startStopMutex.withLock {
             val currentJob = job
             if (currentJob != null && !currentJob.isCompleted) {
                 Logger.w("AudioEngine", "AudioEngine already running, ignoring start request")
@@ -220,28 +226,34 @@ class AudioEngine constructor() {
                     var recorder: AudioRecord? = null
                     val channel = Channel<MessageWrapper>(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
                     sendChannel = channel
-                    
+
                     var input: ByteReadChannel? = null
                     var output: ByteWriteChannel? = null
                     var closeConnection: () -> Unit = {}
-                    
+
                     try {
                         val androidSampleRate = sampleRate.value
-                        val androidChannelConfig = if (channelCount == ChannelCount.Stereo) 
-                            android.media.AudioFormat.CHANNEL_IN_STEREO 
-                        else 
+                        val androidChannelConfig = if (channelCount == ChannelCount.Stereo)
+                            android.media.AudioFormat.CHANNEL_IN_STEREO
+                        else
                             android.media.AudioFormat.CHANNEL_IN_MONO
-                            
-                        val androidAudioFormat = when(audioFormat) {
+
+                        val androidAudioFormat = when (audioFormat) {
                             AudioFormat.PCM_8BIT -> android.media.AudioFormat.ENCODING_PCM_8BIT
                             AudioFormat.PCM_16BIT -> android.media.AudioFormat.ENCODING_PCM_16BIT
                             AudioFormat.PCM_FLOAT -> android.media.AudioFormat.ENCODING_PCM_FLOAT
                             else -> android.media.AudioFormat.ENCODING_PCM_16BIT
                         }
-    val minBufSize = AudioRecord.getMinBufferSize(androidSampleRate, androidChannelConfig, androidAudioFormat)
+                        val minBufSize =
+                            AudioRecord.getMinBufferSize(androidSampleRate, androidChannelConfig, androidAudioFormat)
 
                         if (minBufSize <= 0 || minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
-                            val msg = String.format(getString(R.string.errorAudioFormatNotSupported), audioFormat.label, androidAudioFormat.toString(), androidSampleRate)
+                            val msg = String.format(
+                                getString(R.string.errorAudioFormatNotSupported),
+                                audioFormat.label,
+                                androidAudioFormat.toString(),
+                                androidSampleRate
+                            )
                             Logger.e("AudioEngine", msg + ", minBufSize=$minBufSize")
                             _state.value = StreamState.Error
                             _lastError.value = msg
@@ -250,7 +262,10 @@ class AudioEngine constructor() {
 
                         try {
                             val sourceId = audioSource.sourceId
-                            Logger.d("AudioEngine", "Initializing AudioRecord with source ${audioSource.name} (id=$sourceId)")
+                            Logger.d(
+                                "AudioEngine",
+                                "Initializing AudioRecord with source ${audioSource.name} (id=$sourceId)"
+                            )
                             recorder = try {
                                 AudioRecord(
                                     sourceId,
@@ -275,7 +290,7 @@ class AudioEngine constructor() {
                             _lastError.value = getString(R.string.errorRecordingPermissionDenied)
                             return@launch
                         }
-                        
+
                         if (recorder.state != AudioRecord.STATE_INITIALIZED) {
                             val msg = getString(R.string.errorAudioRecordInitFailed)
                             Logger.e("AudioEngine", msg)
@@ -292,7 +307,7 @@ class AudioEngine constructor() {
                             } else {
                                 Logger.d("AudioEngine", "NoiseSuppressor not available")
                             }
-                            
+
                             if (AutomaticGainControl.isAvailable()) {
                                 automaticGainControl = AutomaticGainControl.create(recorder.audioSessionId)
                                 automaticGainControl?.enabled = enableAGC
@@ -301,11 +316,11 @@ class AudioEngine constructor() {
                                 Logger.d("AudioEngine", "AutomaticGainControl not available")
                             }
                         } catch (e: Exception) {
-                             Logger.w("AudioEngine", "Failed to initialize audio effects: ${e.message}")
+                            Logger.w("AudioEngine", "Failed to initialize audio effects: ${e.message}")
                         }
-                        
+
                         val selectorManager = SelectorManager(Dispatchers.IO)
-    var tcpSocket: Socket? = null
+                        var tcpSocket: Socket? = null
 
                         val targetIp = if (mode == ConnectionMode.Usb) "127.0.0.1" else ip
                         Logger.i("AudioEngine", "Connecting with protocol $transportProtocol to $targetIp:$port")
@@ -375,7 +390,10 @@ class AudioEngine constructor() {
                         if (enableStreamingNotification) {
                             val context = ContextHelper.getContext()
                             if (context != null) {
-                                val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_START }
+                                val intent =
+                                    Intent(context, AudioService::class.java).apply {
+                                        action = AudioService.ACTION_START
+                                    }
                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                                     context.startForegroundService(intent)
                                 } else {
@@ -426,8 +444,14 @@ class AudioEngine constructor() {
                                         val magic = try {
                                             inChannel.readInt()
                                         } catch (e: Exception) {
-                                            if (isActive && _state.value == StreamState.Streaming && !isNormalDisconnect(e)) {
-                                                Logger.d("AudioEngine", "Reader loop: socket closed or EOF: ${e.message}")
+                                            if (isActive && _state.value == StreamState.Streaming && !isNormalDisconnect(
+                                                    e
+                                                )
+                                            ) {
+                                                Logger.d(
+                                                    "AudioEngine",
+                                                    "Reader loop: socket closed or EOF: ${e.message}"
+                                                )
                                             }
                                             break
                                         }
@@ -442,10 +466,14 @@ class AudioEngine constructor() {
                                             val packetBytes = ByteArray(length)
                                             inChannel.readFully(packetBytes)
                                             try {
-                                                val wrapper = proto.decodeFromByteArray(MessageWrapper.serializer(), packetBytes)
+                                                val wrapper =
+                                                    proto.decodeFromByteArray(MessageWrapper.serializer(), packetBytes)
                                                 if (wrapper.mute != null) {
                                                     _isMuted.value = wrapper.mute.isMuted
-                                                    Logger.i("AudioEngine", "Received Mute Command: ${wrapper.mute.isMuted}")
+                                                    Logger.i(
+                                                        "AudioEngine",
+                                                        "Received Mute Command: ${wrapper.mute.isMuted}"
+                                                    )
                                                 }
 
                                                 if (wrapper.ping != null) {
@@ -473,7 +501,7 @@ class AudioEngine constructor() {
                         sendChannel?.send(MessageWrapper(mute = MuteMessage(_isMuted.value)))
                         // Use read buffer sized to avoid IP fragmentation on WiFi
                         // Path MTU = 1500, minus IP(20)+UDP(8)+header(8)+ProtoBuf(~30) ≈ 1434 safe payload
-    val udpSafePayloadSize = 1400
+                        val udpSafePayloadSize = 1400
                         val bytesPerSample = when (androidAudioFormat) {
                             android.media.AudioFormat.ENCODING_PCM_8BIT -> 1
                             android.media.AudioFormat.ENCODING_PCM_16BIT -> 2
@@ -484,7 +512,10 @@ class AudioEngine constructor() {
                         val alignedPayloadSize = (udpSafePayloadSize / frameAlignBytes) * frameAlignBytes
                         val readBufSize = minOf(minBufSize, alignedPayloadSize).coerceAtLeast(frameAlignBytes)
                         val buffer = ByteArray(readBufSize)
-                        val floatBuffer = if (androidAudioFormat == android.media.AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
+                        val floatBuffer =
+                            if (androidAudioFormat == android.media.AudioFormat.ENCODING_PCM_FLOAT) FloatArray(
+                                readBufSize / 4
+                            ) else null
                         var sequenceNumber = 0
                         var lastAudioData: ByteArray? = null
                         fecGroupBuffer = mutableListOf()
@@ -503,11 +534,13 @@ class AudioEngine constructor() {
                             val audioData: ByteArray
 
                             if (androidAudioFormat == android.media.AudioFormat.ENCODING_PCM_FLOAT && floatBuffer != null) {
-                                val readFloats = recorder.read(floatBuffer, 0, floatBuffer.size, AudioRecord.READ_BLOCKING)
+                                val readFloats =
+                                    recorder.read(floatBuffer, 0, floatBuffer.size, AudioRecord.READ_BLOCKING)
                                 if (readFloats > 0) {
                                     readBytes = readFloats * 4
                                     audioData = ByteArray(readBytes)
-                                    ByteBuffer.wrap(audioData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().put(floatBuffer, 0, readFloats)
+                                    ByteBuffer.wrap(audioData).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+                                        .put(floatBuffer, 0, readFloats)
                                 } else {
                                     audioData = ByteArray(0)
                                 }
@@ -528,8 +561,12 @@ class AudioEngine constructor() {
                                         channelCount = if (channelCount == ChannelCount.Stereo) 2 else 1,
                                         audioFormat = audioFormat.value
                                     )
-    val wrapper = MessageWrapper(
-                                        audioPacket = AudioPacketMessageOrdered(sequenceNumber++, packet, System.currentTimeMillis())
+                                    val wrapper = MessageWrapper(
+                                        audioPacket = AudioPacketMessageOrdered(
+                                            sequenceNumber++,
+                                            packet,
+                                            System.currentTimeMillis()
+                                        )
                                     )
 
                                     if (udpSocket != null && udpServerAddress != null) {
@@ -563,26 +600,36 @@ class AudioEngine constructor() {
                                 }
                             }
                         }
-} catch (e: kotlinx.coroutines.CancellationException) {
+                    } catch (e: kotlinx.coroutines.CancellationException) {
                         connectionComplete?.completeExceptionally(e)
                         throw e
                     } catch (e: Exception) {
                         if (isActive && !isNormalDisconnect(e)) {
                             Logger.e("AudioEngine", "Connection lost", e)
                             _state.value = StreamState.Error
-                            
+
                             val errorMsg = when {
-                                e is UdpCircuitBreakerException -> e.message ?: getString(R.string.connectionDisconnected)
-                                e is java.net.ConnectException && e.message?.contains("Connection refused", ignoreCase = true) == true ->
+                                e is UdpCircuitBreakerException -> e.message
+                                    ?: getString(R.string.connectionDisconnected)
+
+                                e is java.net.ConnectException && e.message?.contains(
+                                    "Connection refused",
+                                    ignoreCase = true
+                                ) == true ->
                                     String.format(getString(R.string.connectionRejected), port)
+
                                 e is java.net.SocketTimeoutException ->
                                     getString(R.string.connectionTimeout)
+
                                 e is java.net.NoRouteToHostException ->
                                     getString(R.string.connectionUnreachable)
+
                                 e.message?.contains("Heartbeat timeout", ignoreCase = true) == true ->
                                     e.message ?: getString(R.string.connectionUnreachable)
+
                                 e.message?.contains("Reader job failed", ignoreCase = true) == true ->
                                     getString(R.string.connectionDisconnected)
+
                                 else -> getString(R.string.connectionDisconnected)
                             }
                             _lastError.value = errorMsg
@@ -598,16 +645,19 @@ class AudioEngine constructor() {
                             automaticGainControl = null
                             localNs?.release()
                             localAgc?.release()
-                            
+
                             channel.close()
                             sendChannel = null
                             recorder?.stop()
                             recorder?.release()
                             closeConnection()
-                            
+
                             val context = ContextHelper.getContext()
                             if (context != null) {
-                                val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
+                                val intent =
+                                    Intent(context, AudioService::class.java).apply {
+                                        action = AudioService.ACTION_STOP
+                                    }
                                 context.startService(intent)
                             }
                         } catch (e: Exception) {
@@ -619,7 +669,7 @@ class AudioEngine constructor() {
                 }.also { job = it }
             }
         }
-        
+
         try {
             connectionComplete?.await()
         } catch (e: Exception) {
@@ -627,7 +677,7 @@ class AudioEngine constructor() {
             throw e
         }
     }
-    
+
     /**
      * XOR 多个 buffer（处理不同长度：以最长的为准，短的用 0 填充）
      */
@@ -646,7 +696,7 @@ class AudioEngine constructor() {
     private fun sendAudioPacketViaUdp(wrapper: MessageWrapper) {
         try {
             val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), wrapper)
-    val length = packetBytes.size
+            val length = packetBytes.size
             val header = ByteArray(8).apply {
                 this[0] = (UDP_PACKET_MAGIC shr 24).toByte()
                 this[1] = (UDP_PACKET_MAGIC shr 16).toByte()
@@ -657,20 +707,21 @@ class AudioEngine constructor() {
                 this[6] = (length shr 8).toByte()
                 this[7] = length.toByte()
             }
-    val udpPacket = DatagramPacket(header + packetBytes, 8 + length, udpServerAddress)
+            val udpPacket = DatagramPacket(header + packetBytes, 8 + length, udpServerAddress)
             udpSocket?.send(udpPacket)
             udpConsecutiveFailures = 0
         } catch (e: Exception) {
             Logger.w("AudioEngine", "UDP send failed: ${e.message}")
             udpConsecutiveFailures++
             if (udpConsecutiveFailures >= MAX_UDP_CONSECUTIVE_FAILURES) {
-                val err = UdpCircuitBreakerException("UDP send failed $udpConsecutiveFailures consecutive times, triggering disconnect")
+                val err =
+                    UdpCircuitBreakerException("UDP send failed $udpConsecutiveFailures consecutive times, triggering disconnect")
                 Logger.e("AudioEngine", err.message!!)
                 throw err
             }
         }
     }
-    
+
     fun stop() {
         job?.cancel()
         job = null
@@ -678,7 +729,7 @@ class AudioEngine constructor() {
         isRunning = false
 
         clearActiveEngine()
-    val context = ContextHelper.getContext()
+        val context = ContextHelper.getContext()
         if (context != null) {
             val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
             context.startService(intent)
@@ -690,21 +741,21 @@ class AudioEngine constructor() {
         stop()
         currentJob?.join()
     }
-    
-    fun setMonitoring(enabled: Boolean) { }
+
+    fun setMonitoring(enabled: Boolean) {}
 
     val installProgress: Flow<String?> = MutableStateFlow(null)
-    
-    suspend fun installDriver() { }
+
+    suspend fun installDriver() {}
 
     suspend fun setMute(muted: Boolean) {
         _isMuted.value = muted
         if (_state.value == StreamState.Streaming || _state.value == StreamState.Connecting) {
-             try {
-                 sendChannel?.send(MessageWrapper(mute = MuteMessage(muted)))
-             } catch (e: Exception) {
-                 Logger.e("AudioEngine", "Failed to send mute message: ${e.message}")
-             }
+            try {
+                sendChannel?.send(MessageWrapper(mute = MuteMessage(muted)))
+            } catch (e: Exception) {
+                Logger.e("AudioEngine", "Failed to send mute message: ${e.message}")
+            }
         }
     }
 
@@ -745,7 +796,15 @@ class AudioEngine constructor() {
             CoroutineScope(Dispatchers.IO).launch {
                 stop()
                 delay(500)
-                start(savedIp, savedPort, savedMode, true, savedSampleRate, savedChannelCount, savedAudioFormat, savedTransportProtocol)
+                start(
+                    savedIp,
+                    savedPort,
+                    savedMode,
+                    savedSampleRate,
+                    savedChannelCount,
+                    savedAudioFormat,
+                    savedTransportProtocol
+                )
             }
         }
     }
@@ -766,7 +825,15 @@ class AudioEngine constructor() {
                 CoroutineScope(Dispatchers.IO).launch {
                     stop()
                     delay(500)
-                    start(savedIp, savedPort, savedMode, true, savedSampleRate, savedChannelCount, savedAudioFormat, savedTransportProtocol)
+                    start(
+                        savedIp,
+                        savedPort,
+                        savedMode,
+                        savedSampleRate,
+                        savedChannelCount,
+                        savedAudioFormat,
+                        savedTransportProtocol
+                    )
                 }
             }
         }
@@ -816,14 +883,15 @@ class AudioEngine constructor() {
                 for (i in 0 until sampleCount) {
                     val byteIndex = i * 4
                     val bits = (buffer[byteIndex].toInt() and 0xFF) or
-                               ((buffer[byteIndex + 1].toInt() and 0xFF) shl 8) or
-                               ((buffer[byteIndex + 2].toInt() and 0xFF) shl 16) or
-                               ((buffer[byteIndex + 3].toInt() and 0xFF) shl 24)
-    val sample = Float.fromBits(bits)
+                            ((buffer[byteIndex + 1].toInt() and 0xFF) shl 8) or
+                            ((buffer[byteIndex + 2].toInt() and 0xFF) shl 16) or
+                            ((buffer[byteIndex + 3].toInt() and 0xFF) shl 24)
+                    val sample = Float.fromBits(bits)
                     sum += sample * sample
                     maxSample = maxOf(maxSample, kotlin.math.abs(sample.toDouble()))
                 }
             }
+
             AudioFormat.PCM_8BIT -> {
                 sampleCount = buffer.size
                 for (i in 0 until sampleCount) {
@@ -833,13 +901,14 @@ class AudioEngine constructor() {
                     maxSample = maxOf(maxSample, kotlin.math.abs(normalized))
                 }
             }
+
             else -> {
                 sampleCount = buffer.size / 2
                 for (i in 0 until sampleCount) {
                     val byteIndex = i * 2
                     val sample = (buffer[byteIndex].toInt() and 0xFF) or
-                                 ((buffer[byteIndex + 1].toInt()) shl 8)
-    val normalized = sample / 32768.0
+                            ((buffer[byteIndex + 1].toInt()) shl 8)
+                    val normalized = sample / 32768.0
                     sum += normalized * normalized
                     maxSample = maxOf(maxSample, kotlin.math.abs(normalized))
                 }
@@ -847,7 +916,7 @@ class AudioEngine constructor() {
         }
         if (sampleCount == 0) return AudioLevelData.SILENT
         val rms = Math.sqrt(sum / sampleCount).toFloat().coerceIn(0f, 1f)
-    val peak = maxSample.toFloat().coerceIn(0f, 1f)
+        val peak = maxSample.toFloat().coerceIn(0f, 1f)
         return AudioLevelData.fromRmsAndPeak(rms, peak)
     }
 
