@@ -1,11 +1,12 @@
 package com.lanrhyme.micyou.util
+import com.lanrhyme.micyou.util.PerformanceConfig
 
 /**
  * 性能配置参数
  * 用于调整音频处理管道的缓冲区和内存分配策略
  */
 data class PerformanceConfig(
-    // ==================== 缓冲区配置 ====================
+    // ==================== AudioProcessorPipeline 缓冲区配置 ====================
     /** Short 数组缓冲区初始容量 */
     val initialShortsCapacity: Int = 16384,
     /** Byte 数组缓冲区初始容量 */
@@ -13,7 +14,7 @@ data class PerformanceConfig(
     /** 缓冲区增长因子 */
     val bufferGrowthFactor: Float = 1.5f,
 
-    // ==================== 输出缓冲区配置 ====================
+    // ==================== AudioOutputManager 缓冲区配置 ====================
     /** 输出缓冲时长（秒） */
     val outputBufferSeconds: Float = 0.25f,
     /** 最小输出缓冲区大小（字节） */

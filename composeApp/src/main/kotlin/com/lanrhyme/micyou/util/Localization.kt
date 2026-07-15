@@ -3,6 +3,11 @@ package com.lanrhyme.micyou.util
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.Locale as JavaLocale
+import com.lanrhyme.micyou.util.AppLanguage
+import com.lanrhyme.micyou.util.ContextHelper
+import com.lanrhyme.micyou.util.Logger
+import com.lanrhyme.micyou.util.PermissionState
+import com.lanrhyme.micyou.util.PermissionType
 
 enum class AppLanguage(val label: String, val code: String) {
     System("跟随系统", "system"),

@@ -21,7 +21,7 @@ pub fn find_adb() -> Option<PathBuf> {
     if let Ok(path) = env::var("PATH") {
         let separator = if cfg!(windows) { ";" } else { ":" };
         let executable = if cfg!(windows) { "adb.exe" } else { "adb" };
-
+        
         for dir in path.split(separator) {
             let mut adb_path = PathBuf::from(dir);
             adb_path.push(executable);
@@ -33,22 +33,13 @@ pub fn find_adb() -> Option<PathBuf> {
 
     let common_paths = if cfg!(windows) {
         vec![
-            format!(
-                "{}\\Android\\Sdk\\platform-tools\\adb.exe",
-                env::var("LOCALAPPDATA").unwrap_or_default()
-            ),
-            format!(
-                "{}\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe",
-                env::var("USERPROFILE").unwrap_or_default()
-            ),
+            format!("{}\\Android\\Sdk\\platform-tools\\adb.exe", env::var("LOCALAPPDATA").unwrap_or_default()),
+            format!("{}\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe", env::var("USERPROFILE").unwrap_or_default()),
             "C:\\Android\\sdk\\platform-tools\\adb.exe".to_string(),
         ]
     } else {
         vec![
-            format!(
-                "{}/Android/Sdk/platform-tools/adb",
-                env::var("HOME").unwrap_or_default()
-            ),
+            format!("{}/Android/Sdk/platform-tools/adb", env::var("HOME").unwrap_or_default()),
             "/usr/bin/adb".to_string(),
             "/usr/local/bin/adb".to_string(),
             "/opt/android-sdk/platform-tools/adb".to_string(),
@@ -69,22 +60,22 @@ pub fn find_adb() -> Option<PathBuf> {
 
 fn parse_adb_devices(output: &str) -> Vec<AdbDevice> {
     let mut devices = Vec::new();
-
+    
     for line in output.lines() {
         let line = line.trim().trim_end_matches('\r');
         if line.is_empty() || line.starts_with("List of") || line.starts_with("*") {
             continue;
         }
-
+        
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 2 {
             let serial = parts[0].to_string();
             let state = parts[1].to_string();
-
+            
             if state == "offline" {
                 continue;
             }
-
+            
             let mut description = serial.clone();
             for part in &parts[2..] {
                 if let Some(val) = part.strip_prefix("model:") {
@@ -92,7 +83,7 @@ fn parse_adb_devices(output: &str) -> Vec<AdbDevice> {
                     break;
                 }
             }
-
+            
             devices.push(AdbDevice {
                 serial,
                 state,
@@ -100,13 +91,13 @@ fn parse_adb_devices(output: &str) -> Vec<AdbDevice> {
             });
         }
     }
-
+    
     devices
 }
 
 pub fn list_adb_devices() -> Result<Vec<AdbDevice>, String> {
     let adb = find_adb().ok_or("ADB not found in PATH or common locations")?;
-
+    
     let output = Command::new(adb)
         .arg("devices")
         .arg("-l")
@@ -115,7 +106,7 @@ pub fn list_adb_devices() -> Result<Vec<AdbDevice>, String> {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-
+    
     if !output.status.success() && stdout.trim().is_empty() {
         return Err(format!("ADB devices command failed: {}", stderr));
     }
@@ -126,21 +117,21 @@ pub fn list_adb_devices() -> Result<Vec<AdbDevice>, String> {
 
 pub fn enable_usb_mode(port: u16, device_serial: Option<&str>) -> Result<UsbModeResult, String> {
     let adb = find_adb().ok_or("ADB not found in PATH or common locations")?;
-
+    
     if let Some(serial) = device_serial {
         run_adb_reverse(&adb, port, Some(serial))?;
         return Ok(UsbModeResult::Success);
     }
-
+    
     let output = Command::new(&adb)
         .arg("devices")
         .arg("-l")
         .output()
         .map_err(|e| format!("Failed to execute adb command: {}", e))?;
-
+    
     let stdout = String::from_utf8_lossy(&output.stdout);
     let devices = parse_adb_devices(&stdout);
-
+    
     match devices.len() {
         0 => Ok(UsbModeResult::NoDevices),
         1 => {
@@ -153,11 +144,11 @@ pub fn enable_usb_mode(port: u16, device_serial: Option<&str>) -> Result<UsbMode
 
 fn run_adb_reverse(adb: &PathBuf, port: u16, serial: Option<&str>) -> Result<(), String> {
     let mut cmd = Command::new(adb);
-
+    
     if let Some(s) = serial {
         cmd.arg("-s").arg(s);
     }
-
+    
     let output = cmd
         .arg("reverse")
         .arg(format!("tcp:{}", port))

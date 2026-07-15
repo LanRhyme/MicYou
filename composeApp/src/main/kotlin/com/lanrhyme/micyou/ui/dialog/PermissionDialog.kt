@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.stringResource
+import com.lanrhyme.micyou.settings.Settings
 import com.lanrhyme.micyou.util.PermissionState
 import com.lanrhyme.micyou.util.PermissionType
 
@@ -61,10 +62,7 @@ fun getRequiredPermissions(activity: ComponentActivity): List<PermissionState> {
         PermissionState(
             type = PermissionType.RECORD_AUDIO,
             manifestPermission = Manifest.permission.RECORD_AUDIO,
-            isGranted = ContextCompat.checkSelfPermission(
-                activity,
-                Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED,
+            isGranted = ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED,
             minSdkVersion = 0
         )
     )
@@ -75,10 +73,7 @@ fun getRequiredPermissions(activity: ComponentActivity): List<PermissionState> {
             PermissionState(
                 type = PermissionType.POST_NOTIFICATIONS,
                 manifestPermission = Manifest.permission.POST_NOTIFICATIONS,
-                isGranted = ContextCompat.checkSelfPermission(
-                    activity,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED,
+                isGranted = ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED,
                 minSdkVersion = Build.VERSION_CODES.TIRAMISU
             )
         )
@@ -173,8 +168,8 @@ fun PermissionDialog(
     onRequestPermissions: (List<String>) -> Unit
 ) {
     val realActivity = activity ?: LocalActivity.current as? ComponentActivity
-    ?: (LocalContext.current as? ComponentActivity)
-    ?: return
+        ?: (LocalContext.current as? ComponentActivity)
+        ?: return
     var currentPermissions by remember { mutableStateOf(permissions) }
     var refreshKey by remember { mutableStateOf(0) }
 

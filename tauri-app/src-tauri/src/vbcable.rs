@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[cfg(feature = "vbcable")]
 use std::sync::atomic::{AtomicBool, Ordering};
 
-pub struct VbCablePlatform;
+
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VBCableResult {
@@ -48,7 +48,9 @@ pub fn is_installed() -> bool {
     registry_paths.iter().any(|path| {
         use winreg::enums::HKEY_LOCAL_MACHINE;
         use winreg::RegKey;
-        RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey(path).is_ok()
+        RegKey::predef(HKEY_LOCAL_MACHINE)
+            .open_subkey(path)
+            .is_ok()
     })
 }
 
@@ -57,36 +59,11 @@ pub fn is_installed() -> bool {
     false
 }
 
-/// Find the name of the VB-CABLE device via cpal
-#[cfg(target_os = "windows")]
-#[allow(dead_code)]
-fn find_vbcable_device_name() -> Option<String> {
-    use cpal::traits::{DeviceTrait, HostTrait};
-
-    let host = cpal::default_host();
-    if let Ok(mut devices) = host.output_devices() {
-        devices.find_map(|dev| {
-            dev.name().ok().filter(|name| {
-                name.to_lowercase().contains("cable output")
-                    || name.to_lowercase().contains("cable input")
-            })
-        })
-    } else {
-        None
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn find_vbcable_device_name() -> Option<String> {
-    None
-}
-
 #[cfg(feature = "vbcable")]
 static IS_INSTALLING: AtomicBool = AtomicBool::new(false);
 
 #[cfg(feature = "vbcable")]
-const INSTALLER_URL: &str =
-    "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip";
+const INSTALLER_URL: &str = "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip";
 #[cfg(feature = "vbcable")]
 const INSTALLER_NAME: &str = "VBCABLE_Setup_x64.exe";
 #[cfg(feature = "vbcable")]
@@ -98,13 +75,14 @@ fn temp_dir() -> PathBuf {
 }
 
 #[cfg(feature = "vbcable")]
+
+
+#[cfg(feature = "vbcable")]
 async fn download_installer(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     use tauri::Emitter;
 
     let dir = temp_dir();
-    tokio::fs::create_dir_all(&dir)
-        .await
-        .map_err(|e| format!("create temp dir: {e}"))?;
+    tokio::fs::create_dir_all(&dir).await.map_err(|e| format!("create temp dir: {e}"))?;
 
     let zip_path = dir.join("vbcable_pack.zip");
 
@@ -133,8 +111,10 @@ async fn download_installer(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let zip_path_clone = zip_path.clone();
     let extract_dir_clone = extract_dir.clone();
     tokio::task::spawn_blocking(move || {
-        let file = std::fs::File::open(&zip_path_clone).map_err(|e| format!("open zip: {e}"))?;
-        let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("read zip: {e}"))?;
+        let file = std::fs::File::open(&zip_path_clone)
+            .map_err(|e| format!("open zip: {e}"))?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|e| format!("read zip: {e}"))?;
         archive
             .extract(&extract_dir_clone)
             .map_err(|e| format!("extract zip: {e}"))
@@ -220,10 +200,7 @@ async fn configure_devices(app: &tauri::AppHandle) -> Result<(), String> {
 pub async fn install(app: tauri::AppHandle) -> VBCableResult {
     use tauri::Emitter;
 
-    if IS_INSTALLING
-        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        .is_err()
-    {
+    if IS_INSTALLING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
         return VBCableResult {
             success: false,
             error_type: Some("already_installing".to_string()),
@@ -236,15 +213,10 @@ pub async fn install(app: tauri::AppHandle) -> VBCableResult {
 
     match &result {
         VBCableResult { success: true, .. } => {
-            app.emit("vbcable-install-progress", "Installation complete")
-                .ok();
+            app.emit("vbcable-install-progress", "Installation complete").ok();
         }
-        VBCableResult {
-            error_type: Some(et),
-            ..
-        } => {
-            app.emit("vbcable-install-progress", format!("Failed: {et}"))
-                .ok();
+        VBCableResult { error_type: Some(et), .. } => {
+            app.emit("vbcable-install-progress", format!("Failed: {et}")).ok();
         }
         _ => {}
     }
@@ -258,8 +230,7 @@ async fn install_inner(app: &tauri::AppHandle) -> VBCableResult {
     use tauri::Emitter;
 
     if is_installed() {
-        app.emit("vbcable-install-progress", "Configuring devices...")
-            .ok();
+        app.emit("vbcable-install-progress", "Configuring devices...").ok();
         if let Err(e) = configure_devices(app).await {
             return VBCableResult {
                 success: true,
@@ -285,18 +256,10 @@ async fn install_inner(app: &tauri::AppHandle) -> VBCableResult {
         }
     };
 
-    app.emit(
-        "vbcable-install-progress",
-        "Installing (requires admin approval)...",
-    )
-    .ok();
+    app.emit("vbcable-install-progress", "Installing (requires admin approval)...").ok();
 
     if let Err(e) = run_installer(&installer_path).await {
-        let error_type = if e == "uac_denied" {
-            "uac_denied"
-        } else {
-            "install_failed"
-        };
+        let error_type = if e == "uac_denied" { "uac_denied" } else { "install_failed" };
         return VBCableResult {
             success: false,
             error_type: Some(error_type.to_string()),
@@ -304,11 +267,7 @@ async fn install_inner(app: &tauri::AppHandle) -> VBCableResult {
         };
     }
 
-    app.emit(
-        "vbcable-install-progress",
-        "Waiting for device initialization...",
-    )
-    .ok();
+    app.emit("vbcable-install-progress", "Waiting for device initialization...").ok();
 
     if !wait_for_device(30).await {
         return VBCableResult {
@@ -332,3 +291,5 @@ async fn install_inner(app: &tauri::AppHandle) -> VBCableResult {
         message: Some("Installation and configuration complete".to_string()),
     }
 }
+
+

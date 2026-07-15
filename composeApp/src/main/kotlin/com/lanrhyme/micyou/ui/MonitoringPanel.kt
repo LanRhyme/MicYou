@@ -1,5 +1,4 @@
 package com.lanrhyme.micyou.ui
-
 import com.lanrhyme.micyou.R
 
 import androidx.compose.foundation.Canvas
@@ -46,6 +45,7 @@ import dev.chrisbanes.haze.HazeState
 import androidx.compose.ui.res.stringResource
 import com.lanrhyme.micyou.audio.AudioMetrics
 import com.lanrhyme.micyou.ui.background.HazeSurface
+import com.lanrhyme.micyou.ui.MonitoringPanel
 
 @Composable
 fun MonitoringPanel(
@@ -61,7 +61,7 @@ fun MonitoringPanel(
     // 持续滚动的波形数据
     val waveformSamples = remember { mutableStateListOf<Float>() }
     val maxSamples = 60 // 约 3 秒的数据（每 50ms 采样一次）
-
+    
     LaunchedEffect(audioLevel, isRunning) {
         if (isRunning) {
             waveformSamples.add(audioLevel)
@@ -161,7 +161,7 @@ fun MonitoringPanel(
                 LabelWithIcon(Icons.Rounded.SettingsInputComponent, stringResource(R.string.monitoringSpecs))
                 AudioSpecsContent(metrics, isRunning)
             }
-
+            
             Text(
                 stringResource(R.string.monitoringHint),
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
@@ -180,7 +180,7 @@ private fun StatusIndicator(metrics: AudioMetrics) {
         metrics.packetLossRate > 1.0 || metrics.latencyMs > 200 -> Color(0xFFFF9800)
         else -> Color(0xFF4CAF50)
     }
-
+    
     Box(
         modifier = Modifier
             .size(8.dp)
@@ -254,22 +254,10 @@ private fun AudioSpecsContent(metrics: AudioMetrics?, isRunning: Boolean) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SpecItem(
-            stringResource(R.string.monitoringSampleRate),
-            if (isRunning) "${metrics?.sampleRate ?: 0} Hz" else "--"
-        )
-        SpecItem(
-            stringResource(R.string.monitoringBitrate),
-            if (isRunning) "${(metrics?.bitrate ?: 0) / 1000} kbps" else "--"
-        )
-        SpecItem(
-            stringResource(R.string.monitoringTotalLatency),
-            if (isRunning) "${metrics?.latencyMs ?: 0} ms" else "--"
-        )
-        SpecItem(
-            stringResource(R.string.monitoringBuffer),
-            if (isRunning) "${metrics?.bufferDurationMs ?: 0} ms" else "--"
-        )
+        SpecItem(stringResource(R.string.monitoringSampleRate), if (isRunning) "${metrics?.sampleRate ?: 0} Hz" else "--")
+        SpecItem(stringResource(R.string.monitoringBitrate), if (isRunning) "${(metrics?.bitrate ?: 0) / 1000} kbps" else "--")
+        SpecItem(stringResource(R.string.monitoringTotalLatency), if (isRunning) "${metrics?.latencyMs ?: 0} ms" else "--")
+        SpecItem(stringResource(R.string.monitoringBuffer), if (isRunning) "${metrics?.bufferDurationMs ?: 0} ms" else "--")
     }
 }
 
@@ -279,17 +267,8 @@ private fun SpecItem(label: String, value: String) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+        Text(value, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -307,7 +286,7 @@ private fun LatencyTrendChart(
         val width = size.width
         val height = size.height
         val maxLatency = history.maxOf { it.latencyMs }.coerceAtLeast(100L).toFloat() * 1.4f
-
+        
         val stepX = width / (history.size - 1)
 
         // Path for Network Latency (RTT) - Area fill
@@ -370,7 +349,7 @@ private fun ContinuousWaveform(
         samples.forEachIndexed { index, level ->
             val x = index * stepX
             val amplitude = (height * 0.4f) * level.coerceIn(0f, 1f)
-
+            
             // Draw symmetric waveform bars
             drawLine(
                 color = color.copy(alpha = 0.8f),

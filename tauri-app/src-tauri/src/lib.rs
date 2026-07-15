@@ -1,33 +1,81 @@
 #![allow(unexpected_cfgs)]
 
-pub mod app;
-pub mod commands;
-pub mod error;
 pub mod network;
-pub mod platform;
-pub mod server;
+pub mod tcp_server;
+pub mod udp_server;
+#[cfg(feature = "web-server")]
+pub mod web_server;
+pub mod commands;
+pub mod adb_manager;
+pub mod stats;
 pub mod tray;
-pub mod util;
+pub mod vbcable;
+pub mod blackhole;
+pub mod jitter_buffer;
+#[cfg(target_os = "linux")]
+pub mod pipewire;
+pub mod server;
 
-use crate::app::vibrancy::apply_macos_vibrancy;
-use crate::tray::TrayContext;
 use tauri::Manager;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use std::sync::RwLock;
+
+use micyou_audio::dsp::AudioDspSettings;
+use stats::NetworkStats;
+use crate::tray::TrayContext;
+
+#[cfg(target_os = "macos")]
+#[allow(unexpected_cfgs)]
+fn apply_macos_vibrancy(win: &tauri::WebviewWindow) {
+    use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
+
+    // Apply native NSVisualEffectView frosted glass effect (Sidebar material)
+    let _ = apply_vibrancy(
+        win,
+        NSVisualEffectMaterial::Sidebar,
+        Some(NSVisualEffectState::Active),
+        None,
+    );
+
+    // Make NSWindow fully transparent so the vibrancy shows through
+    use objc::runtime::{Class, Object, NO};
+    use objc::{msg_send, sel, sel_impl};
+
+    if let Ok(ptr) = win.ns_window() {
+        #[allow(unexpected_cfgs)]
+        unsafe {
+            let ns_window = ptr as *mut Object;
+            if let Some(ns_color) = Class::get("NSColor") {
+                let clear: *mut Object = msg_send![ns_color, clearColor];
+                let _: () = msg_send![ns_window, setOpaque: NO];
+                let _: () = msg_send![ns_window, setBackgroundColor: clear];
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn apply_macos_vibrancy(_: &tauri::WebviewWindow) {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(crate::server::state::ServerState {
-            dsp_settings: std::sync::Arc::new(std::sync::RwLock::new(
-                micyou_audio::dsp::AudioDspSettings::default(),
-            )),
-            network_stats: std::sync::Arc::new(crate::network::stats::NetworkStats::default()),
-            server_handle: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+        .manage(server::ServerState {
+            cancel_token: Arc::new(Mutex::new(None)),
+            mdns_manager: Arc::new(Mutex::new(None)),
+            dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
+            network_stats: Arc::new(NetworkStats::default()),
+            connection_tx: Arc::new(Mutex::new(None)),
+            active_socket_handle: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "web-server")]
+            web_server: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "web-server")]
+            web_mdns: Arc::new(Mutex::new(None)),
         })
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Info)
-                .build(),
-        )
+        .plugin(tauri_plugin_log::Builder::new()
+            .level(log::LevelFilter::Info)
+            .build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
@@ -41,6 +89,7 @@ pub fn run() {
                 log::warn!(target: "tray", "failed to build tray: {e}");
             }
 
+            // Apply native macOS frosted glass vibrancy
             if let Some(win) = app.get_webview_window("main") {
                 apply_macos_vibrancy(&win);
             }
@@ -78,3 +127,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+

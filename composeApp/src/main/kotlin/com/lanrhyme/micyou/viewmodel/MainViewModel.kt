@@ -17,6 +17,8 @@ import com.lanrhyme.micyou.audio.ChannelCount
 import com.lanrhyme.micyou.audio.SampleRate
 import com.lanrhyme.micyou.network.ConnectionErrorDetails
 import com.lanrhyme.micyou.network.DiscoveredDevice
+import com.lanrhyme.micyou.settings.Settings
+import com.lanrhyme.micyou.settings.SettingsFactory
 import com.lanrhyme.micyou.settings.SettingsViewModel
 import com.lanrhyme.micyou.theme.ThemeMode
 import com.lanrhyme.micyou.ui.background.BackgroundSettings
@@ -30,7 +32,8 @@ import com.lanrhyme.micyou.audio.AudioEffectType
 import com.lanrhyme.micyou.audio.EqualizerConfig
 
 import com.lanrhyme.micyou.R
-
+import com.lanrhyme.micyou.viewmodel.ConnectionMode
+import com.lanrhyme.micyou.viewmodel.UpdateDownloadState
 enum class ConnectionMode(val label: String) {
     Wifi("Wi-Fi"),
     Usb("USB (ADB)")
@@ -81,14 +84,14 @@ data class AppUiState(
     val audioFormat: AudioFormat = AudioFormat.PCM_FLOAT,
     val isMuted: Boolean = false,
     val isAutoConfig: Boolean = true,
-
+    
     // Error Dialog State
     val showErrorDialog: Boolean = false,
     val errorDetails: ConnectionErrorDetails? = null,
-
+    
     // UDP Warning Dialog State
     val showUdpWarningDialog: Boolean = false,
-
+    
     // Audio Processing Settings
     val enableNS: Boolean = false,
     val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
@@ -113,10 +116,10 @@ data class AppUiState(
     ),
     val androidAudioSourceName: String = "Mic",
     val audioConfigRevision: Int = 0,
-
+    
     // Settings State
     val themeMode: ThemeMode = ThemeMode.System,
-    val seedColor: Long = 0xFF4A672D,
+    val seedColor: Long = 0xFF1565C0,
     val useDynamicColor: Boolean = false,
     val oledPureBlack: Boolean = false,
     val paletteStyle: PaletteStyle = PaletteStyle.TonalSpot,
@@ -132,8 +135,8 @@ data class AppUiState(
     val visualizerStyle: VisualizerStyle = VisualizerStyle.VolumeRing,
     val backgroundSettings: BackgroundSettings = BackgroundSettings(),
     val showFirstLaunchDialog: Boolean = false,
-
-
+    
+    
     // Update State
     val updateInfo: UpdateInfo? = null,
     val updateDownloadState: UpdateDownloadState = UpdateDownloadState.Idle,
@@ -168,10 +171,10 @@ class MainViewModel : ViewModel() {
     private val settingsViewModel = SettingsViewModel()
 
     private val updateViewModel = UpdateViewModel()
-
+    
     private val _uiState = MutableStateFlow(AppUiState())
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
-
+    
     // Expose audio levels from AudioStreamViewModel
     val audioLevels = audioStreamViewModel.audioLevels
     val rawSpectrum = audioStreamViewModel.rawSpectrum
@@ -179,13 +182,17 @@ class MainViewModel : ViewModel() {
     val audioLevelData = audioStreamViewModel.audioLevelData
     val audioMetricsFlow = audioStreamViewModel.audioMetrics
     val levelHistory = audioStreamViewModel.levelHistory
-
-    private val repo = com.lanrhyme.micyou.settings.SettingsRepository
-
+    
+    private val settings = SettingsFactory.getSettings()
+    
     init {
         // Initialize from settings
-        val initialLanguage = repo.getLanguage()
-
+        val initialLanguage = try { 
+            AppLanguage.valueOf(settings.getString("language", AppLanguage.System.name)) 
+        } catch(e: Exception) { 
+            AppLanguage.System 
+        }
+        
         // Observe and merge states from all ViewModels
         setupStateObservers()
 
@@ -200,22 +207,17 @@ class MainViewModel : ViewModel() {
                 _uiState.update { it.copy(isDiscovering = discovering) }
             }
         }
-
+        
         // Auto-check for updates
-        if (repo.getAutoCheckUpdate()) {
+        if (settings.getBoolean("auto_check_update", true)) {
             updateViewModel.checkUpdateAuto()
         }
 
         // Observe update check results for user feedback
         viewModelScope.launch {
             updateViewModel.checkResultFlow.collect { result ->
-                result?.let {
-                    val message = when (it) {
-                        is UpdateCheckResult.UpdateAvailable -> String.format(
-                            getString(R.string.updateAvailableMsg),
-                            it.info.versionName
-                        )
-
+                result?.let {                    val message = when (it) {
+                        is UpdateCheckResult.UpdateAvailable -> String.format(getString(R.string.updateAvailableMsg), it.info.versionName)
                         is UpdateCheckResult.NoUpdate -> getString(R.string.isLatestVersion)
                         is UpdateCheckResult.Error -> String.format(getString(R.string.updateCheckFailed), it.message)
                     }
@@ -248,7 +250,7 @@ class MainViewModel : ViewModel() {
                 val audioState = audioData.state
                 val currentMetrics = audioData.metrics
                 val history = audioData.history
-
+                
                 _uiState.update { current ->
                     current.copy(
                         mode = audioState.mode,
@@ -336,10 +338,7 @@ class MainViewModel : ViewModel() {
         audioStreamViewModel.setIp(device.hostAddress)
         audioStreamViewModel.setPort(device.port.toString())
     }
-
-    fun setIp(ip: String, isAutoSelect: Boolean = false, restartStream: Boolean = false) =
-        audioStreamViewModel.setIp(ip, isAutoSelect, restartStream)
-
+    fun setIp(ip: String, isAutoSelect: Boolean = false, restartStream: Boolean = false) = audioStreamViewModel.setIp(ip, isAutoSelect, restartStream)
     fun setPort(port: String) = audioStreamViewModel.setPort(port)
     fun setMonitoringEnabled(enabled: Boolean) = audioStreamViewModel.setMonitoringEnabled(enabled)
     fun setSampleRate(rate: SampleRate) = audioStreamViewModel.setSampleRate(rate)
@@ -366,7 +365,7 @@ class MainViewModel : ViewModel() {
     fun dismissErrorDialog() = audioStreamViewModel.dismissErrorDialog()
     fun dismissUdpWarningDialog() = audioStreamViewModel.dismissUdpWarningDialog()
     fun retryAfterError() = audioStreamViewModel.retryAfterError()
-
+    
     // Settings methods
     fun setThemeMode(mode: ThemeMode) = settingsViewModel.setThemeMode(mode)
     fun setSeedColor(color: Long) = settingsViewModel.setSeedColor(color)
@@ -380,7 +379,6 @@ class MainViewModel : ViewModel() {
         settingsViewModel.setEnableStreamingNotification(enabled)
         audioStreamViewModel.audioEngine.setStreamingNotificationEnabled(enabled)
     }
-
     fun setKeepScreenOn(enabled: Boolean) = settingsViewModel.setKeepScreenOn(enabled)
     fun setVisualizerStyle(style: VisualizerStyle) = settingsViewModel.setVisualizerStyle(style)
     fun setAutoCheckUpdate(enabled: Boolean) = settingsViewModel.setAutoCheckUpdate(enabled)
@@ -399,19 +397,16 @@ class MainViewModel : ViewModel() {
     fun clearSnackbar() = settingsViewModel.clearSnackbar()
     fun dismissFirstLaunchDialog() = settingsViewModel.dismissFirstLaunchDialog()
     fun exportLog(onResult: (String?) -> Unit) = settingsViewModel.exportLog(onResult)
+    
 
-
+    
     // Update methods
     fun checkUpdateManual() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(snackbarMessage = getString(R.string.checkingUpdate)) }
+        viewModelScope.launch {            _uiState.update { it.copy(snackbarMessage = getString(R.string.checkingUpdate)) }
             updateViewModel.checkUpdateManual()
         }
     }
-
-    fun downloadAndInstallUpdate(useMirror: Boolean = _uiState.value.useMirrorDownload) =
-        updateViewModel.downloadAndInstallUpdate(useMirror)
-
+    fun downloadAndInstallUpdate(useMirror: Boolean = _uiState.value.useMirrorDownload) = updateViewModel.downloadAndInstallUpdate(useMirror)
     fun dismissUpdateDialog() = updateViewModel.dismissUpdateDialog()
     fun openGitHubRelease() = updateViewModel.openGitHubRelease()
 
