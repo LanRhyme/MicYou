@@ -82,7 +82,7 @@ class JitterBuffer(
         // 若不处理，新会话的小序列号会一直被下面的 "< currentExpected" 判定为
         // 过期乱序包而全部丢弃，导致重连后有连接、有 UDP 包却完全没有声音。
         // 此处重置缓冲状态，以新序列号为基准重新开始播放。
-        if (packet.sequenceNumber < currentExpected - SESSION_RESET_BACKWARD_GAP) {
+        if (currentExpected - packet.sequenceNumber > SESSION_RESET_BACKWARD_GAP) {
             Logger.i(
                 "JitterBuffer",
                 "检测到序列号大幅倒退 (期待 $currentExpected, 收到 ${packet.sequenceNumber})，" +
