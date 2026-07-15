@@ -1,7 +1,7 @@
 use std::process::Command;
 use std::sync::Mutex;
 
-use super::PlatformAudio;
+
 
 const SINK_NAME: &str = "MicYouVirtualSink";
 const SOURCE_NAME: &str = "MicYouVirtualMic";
@@ -563,7 +563,7 @@ use std::sync::LazyLock;
 static INSTANCE: LazyLock<PipeWirePlatform> = LazyLock::new(PipeWirePlatform::new);
 
 pub fn is_setup() -> bool {
-    INSTANCE.is_setup()
+    INSTANCE.is_setup_state()
 }
 
 pub fn setup() -> bool {
