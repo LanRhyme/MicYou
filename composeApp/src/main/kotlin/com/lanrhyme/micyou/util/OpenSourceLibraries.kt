@@ -29,15 +29,13 @@ val OpenSourceLibraries = listOf(
     OpenSourceLibrary("Material 3 Components", "Apache License 2.0"),
     OpenSourceLibrary("MaterialKolor", "MIT License"),
     OpenSourceLibrary("ONNX Runtime", "MIT License"),
-    OpenSourceLibrary("JTransforms", "BSD 3-Clause License"),
-    OpenSourceLibrary("composeNativeTray", "MIT License"),
     OpenSourceLibrary("FileKit", "MIT License"),
     OpenSourceLibrary("kotlinx-datetime", "Apache License 2.0"),
     OpenSourceLibrary("kotlinx-serialization", "Apache License 2.0")
 )
 
 /**
- * 开源库列表组件 - 可在桌面端和移动端复用
+ * 开源库列表组件
  */
 @Composable
 fun OpenSourceLibrariesList(

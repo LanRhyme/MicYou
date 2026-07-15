@@ -1,17 +1,16 @@
 package com.lanrhyme.micyou.audio
+
 import com.lanrhyme.micyou.R
 
 import android.media.MediaRecorder
 import android.os.Build
 import androidx.annotation.StringRes
-import com.lanrhyme.micyou.audio.AndroidAudioSource
-import com.lanrhyme.micyou.audio.AudioSourceOption
-import com.lanrhyme.micyou.audio.getAudioSourceOptions
 
 enum class AndroidAudioSource(@StringRes val labelRes: Int, val sourceId: Int) {
     Mic(R.string.audioSourceMic, MediaRecorder.AudioSource.MIC),
     VoiceCommunication(R.string.audioSourceVoiceCommunication, MediaRecorder.AudioSource.VOICE_COMMUNICATION),
     VoiceRecognition(R.string.audioSourceVoiceRecognition, MediaRecorder.AudioSource.VOICE_RECOGNITION),
+
     // Use raw integer 9 for VOICE_PERFORMANCE to avoid NoClassDefFoundError on API < 29
     VoicePerformance(R.string.audioSourceVoicePerformance, 9),
     Camcorder(R.string.audioSourceCamcorder, MediaRecorder.AudioSource.CAMCORDER),

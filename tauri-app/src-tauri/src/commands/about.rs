@@ -1,7 +1,7 @@
-use reqwest::Client;
+use crate::error::AppError;
 use md5::Digest;
+use reqwest::Client;
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 fn read_property_from_file(file_path: &str, key: &str) -> Option<String> {
     if let Ok(content) = fs::read_to_string(file_path) {
@@ -18,36 +18,39 @@ fn read_property_from_file(file_path: &str, key: &str) -> Option<String> {
 }
 
 fn get_local_property(key: &str) -> String {
+    // In development, try reading from local.properties
     if let Some(val) = read_property_from_file("../../local.properties", key) {
         return val;
     }
+    // In production, read from environment variable
     std::env::var(key).unwrap_or_default()
 }
 
 #[tauri::command]
-pub fn get_app_version() -> String {
-    if let Some(val) = read_property_from_file("../../gradle.properties", "project.version") {
-        return val;
-    }
-    "0.1.0".to_string()
+pub fn get_app_version(app: tauri::AppHandle) -> String {
+    // Use the version from Tauri's package info (embedded at compile time)
+    app.package_info().version.to_string()
 }
 
 #[tauri::command]
-pub async fn get_sponsors() -> Result<String, String> {
+pub async fn get_sponsors() -> Result<String, AppError> {
     let api_token = get_local_property("AIFADIAN_API_TOKEN");
     let user_id = get_local_property("AIFADIAN_USER_ID");
 
     if api_token.is_empty() || user_id.is_empty() {
-        return Err("API not configured".to_string());
+        return Err(AppError::other("API not configured"));
     }
 
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let ts = crate::util::now_millis() as u64 / 1000;
     let params = r#"{"page":"1","per_page":"100"}"#;
     let sign_str = format!("{}params{}ts{}user_id{}", api_token, params, ts, user_id);
     let mut hasher = md5::Md5::new();
     md5::Digest::update(&mut hasher, sign_str.as_bytes());
     let digest = hasher.finalize();
-    let sign = digest.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    let sign = digest
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
 
     let client = Client::new();
     let req_body = serde_json::json!({
@@ -62,23 +65,29 @@ pub async fn get_sponsors() -> Result<String, String> {
         .json(&req_body)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| AppError::network(e.to_string()))?;
 
-    let text = res.text().await.map_err(|e| e.to_string())?;
+    let text = res
+        .text()
+        .await
+        .map_err(|e| AppError::network(e.to_string()))?;
     Ok(text)
 }
 
 #[tauri::command]
-pub fn export_log(app: tauri::AppHandle) -> Result<(), String> {
-    use tauri_plugin_dialog::DialogExt;
-    use tauri::Manager;
+pub fn export_log(app: tauri::AppHandle) -> Result<(), AppError> {
     use std::fs;
+    use tauri::Manager;
+    use tauri_plugin_dialog::DialogExt;
 
-    let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    let log_dir = app
+        .path()
+        .app_log_dir()
+        .map_err(|e| AppError::io(e.to_string()))?;
     let log_file = log_dir.join("micyou.log");
 
     if !log_file.exists() {
-        return Err("Log file not found".to_string());
+        return Err(AppError::io("Log file not found"));
     }
 
     app.dialog().file().save_file(move |file_path| {

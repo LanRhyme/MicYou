@@ -414,4 +414,6 @@
     <string name="qs_toast_stopped">Streaming stopped</string>
     <string name="firstLaunchDownloadPc">Download PC App</string>
     <string name="errorSuggestionCheckSettings">Check app permissions in system settings</string>
+    <string name="errorIpAddressEmpty">IP address cannot be empty</string>
+    <string name="notification_disconnect">Tap to disconnect</string>
 </resources>

@@ -104,13 +104,10 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 import androidx.compose.ui.res.stringResource
-import com.lanrhyme.micyou.settings.Settings
 import com.lanrhyme.micyou.theme.isDarkThemeActive
 import com.lanrhyme.micyou.ui.visualizer.AudioVisualizer
 import com.lanrhyme.micyou.ui.background.CustomBackground
 import com.lanrhyme.micyou.ui.background.HazeSurface
-import com.lanrhyme.micyou.ui.MobileHome
-import com.lanrhyme.micyou.ui.ShardTextField
 import com.lanrhyme.micyou.ui.visualizer.ConnectingAnimation
 import com.lanrhyme.micyou.viewmodel.AppUiState
 import com.lanrhyme.micyou.viewmodel.ConnectionMode
@@ -123,22 +120,22 @@ import com.lanrhyme.micyou.viewmodel.VisualizerStyle
 fun MobileHome(viewModel: MainViewModel) {
     val state by viewModel.uiState.collectAsState()
     val audioLevel by viewModel.audioLevels.collectAsState(initial = 0f)
-    
+
     val snackbarHostState = remember { SnackbarHostState() }
     val isDarkTheme = isDarkThemeActive(state.themeMode)
     val forcePureBlackBackground = state.oledPureBlack && isDarkTheme
-    
+
     var showSettings by remember { mutableStateOf(false) }
     var contentVisible by remember { mutableStateOf(false) }
 
-    // Handle Android system back gesture to close settings page (no-op on desktop)
+    // Handle Android system back gesture to close settings page
     BackHandler(enabled = showSettings) {
         showSettings = false
     }
     val hazeState = if (state.backgroundSettings.enableHazeEffect && state.backgroundSettings.hasCustomBackground) {
         rememberHazeState()
     } else null
-    
+
     LaunchedEffect(Unit) {
         delay(100)
         contentVisible = true
@@ -162,7 +159,8 @@ fun MobileHome(viewModel: MainViewModel) {
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.surfaceContainer) { padding ->
+        containerColor = MaterialTheme.colorScheme.surfaceContainer
+    ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             CustomBackground(
                 settings = state.backgroundSettings,
@@ -170,7 +168,7 @@ fun MobileHome(viewModel: MainViewModel) {
                 hazeState = hazeState,
                 forcePureBlackBackground = forcePureBlackBackground
             )
-            
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -184,9 +182,9 @@ fun MobileHome(viewModel: MainViewModel) {
                     delayMillis = 50
                 ) {
                     MobileHeaderSection(
-                                                state = state,
+                        state = state,
                         onOpenSettings = { showSettings = true },
-                                                cardOpacity = state.backgroundSettings.cardOpacity,
+                        cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState
                     )
                 }
@@ -199,7 +197,7 @@ fun MobileHome(viewModel: MainViewModel) {
                     ConnectionConfigCard(
                         state = state,
                         viewModel = viewModel,
-                                                cardOpacity = state.backgroundSettings.cardOpacity,
+                        cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState
                     )
                 }
@@ -214,7 +212,7 @@ fun MobileHome(viewModel: MainViewModel) {
                         state = state,
                         viewModel = viewModel,
                         audioLevel = audioLevel,
-                                                cardOpacity = state.backgroundSettings.cardOpacity,
+                        cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState
                     )
                 }
@@ -227,7 +225,7 @@ fun MobileHome(viewModel: MainViewModel) {
                     MobileBottomBar(
                         state = state,
                         viewModel = viewModel,
-                                                cardOpacity = state.backgroundSettings.cardOpacity,
+                        cardOpacity = state.backgroundSettings.cardOpacity,
                         hazeState = hazeState
                     )
                 }
@@ -323,13 +321,13 @@ private fun MobileHeaderSection(
                         )
                     }
                 }
-                
+
                 Column {
                     // Animated gradient title
                     val color1 = MaterialTheme.colorScheme.primary
                     val color2 = MaterialTheme.colorScheme.tertiary
                     val infiniteTransition = rememberInfiniteTransition(label = "MobileTitleColor")
-    val animatedColor by infiniteTransition.animateColor(
+                    val animatedColor by infiniteTransition.animateColor(
                         initialValue = color1,
                         targetValue = color2,
                         animationSpec = infiniteRepeatable(
@@ -338,7 +336,7 @@ private fun MobileHeaderSection(
                         ),
                         label = "Color"
                     )
-                    
+
                     Text(
                         stringResource(R.string.appName),
                         style = MaterialTheme.typography.titleSmall,
@@ -352,13 +350,13 @@ private fun MobileHeaderSection(
                     )
                 }
             }
-    val settingsInteractionSource = remember { MutableInteractionSource() }
-    val isSettingsPressed by settingsInteractionSource.collectIsPressedAsState()
-    val settingsScale by animateFloatAsState(
+            val settingsInteractionSource = remember { MutableInteractionSource() }
+            val isSettingsPressed by settingsInteractionSource.collectIsPressedAsState()
+            val settingsScale by animateFloatAsState(
                 targetValue = if (isSettingsPressed) 0.85f else 1f,
                 animationSpec = spring(dampingRatio = Spring.DampingRatioHighBouncy)
             )
-            
+
             IconButton(
                 onClick = onOpenSettings,
                 interactionSource = settingsInteractionSource,
@@ -420,7 +418,7 @@ private fun ConnectionConfigCard(
                         else MaterialTheme.colorScheme.surfaceContainerHighest,
                         animationSpec = tween(200)
                     )
-    val contentColor by animateColorAsState(
+                    val contentColor by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                         animationSpec = tween(200)
@@ -452,7 +450,6 @@ private fun ConnectionConfigCard(
                     }
                 }
             }
-
 
 
             // Discovered devices list (WiFi mode only, always visible during connection)
@@ -635,7 +632,7 @@ private fun MainControlCard(
                         )
                     }
                 }
-                
+
                 // Status text
                 val statusText = when (state.streamState) {
                     StreamState.Idle -> stringResource(R.string.clickToStart)
@@ -643,7 +640,7 @@ private fun MainControlCard(
                     StreamState.Streaming -> stringResource(R.string.statusStreaming)
                     StreamState.Error -> state.errorMessage ?: stringResource(R.string.statusError)
                 }
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -669,7 +666,7 @@ private fun MainControlCard(
                         }
                     }
                 }
-                
+
                 // Error message
                 AnimatedVisibility(
                     visible = state.streamState == StreamState.Error && state.errorMessage != null,
@@ -704,7 +701,7 @@ private fun MainControlCard(
                     style = state.visualizerStyle
                 )
             }
-            
+
             // Connecting animation
             if (isConnecting) {
                 ConnectingAnimation(
@@ -712,12 +709,13 @@ private fun MainControlCard(
                     color = MaterialTheme.colorScheme.secondary
                 )
             }
-            
+
             // Main button
             MobileMainButton(
                 isRunning = isRunning,
                 isConnecting = isConnecting,
-                viewModel = viewModel)
+                viewModel = viewModel
+            )
         }
     }
 }
@@ -750,7 +748,7 @@ private fun MobileBottomBar(
                     onToggle = { viewModel.toggleMute() }
                 )
             }
-            
+
             val dotColor by animateColorAsState(
                 targetValue = when (state.streamState) {
                     StreamState.Idle -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
@@ -762,7 +760,7 @@ private fun MobileBottomBar(
             )
             val dotPulse = if (state.streamState == StreamState.Streaming)
                 rememberPulseAnimation(0.8f, 1.2f, 1200) else 1f
-            
+
             Surface(
                 shape = CircleShape,
                 color = dotColor,
@@ -793,7 +791,7 @@ private fun MobileMuteButton(
         else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = tween(200)
     )
-    
+
     Surface(
         shape = MaterialTheme.shapes.small,
         color = bgColor,
@@ -839,17 +837,6 @@ private fun MobileAudioVisualizer(
 // Visualizer implementations moved to AudioVisualizers.kt
 
 
-
-
-
-
-
-
-
-
-
-
-
 // ==================== Main Button ====================
 
 @Composable
@@ -892,7 +879,7 @@ private fun MobileMainButton(
         label = "BtnGlow"
     )
     val pulseScale = if (isRunning) rememberPulseAnimation(0.96f, 1.04f, 900) else 1f
-    
+
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
@@ -902,7 +889,7 @@ private fun MobileMainButton(
             stiffness = Spring.StiffnessMedium
         )
     )
-    
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -918,7 +905,7 @@ private fun MobileMainButton(
                 drawCircle(buttonColor.copy(alpha = glowAlpha * 0.35f), size.width / 2)
             }
         }
-        
+
         if (isRunning || isConnecting) {
             Box(
                 modifier = Modifier
@@ -938,7 +925,7 @@ private fun MobileMainButton(
                     }
             )
         }
-        
+
         FloatingActionButton(
             onClick = {
                 if (isRunning || isConnecting) {

@@ -786,7 +786,7 @@ const settings = reactive({
   equalizer: {
     enabled: false,
     preAmp: 0,
-    gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   }
 });
 

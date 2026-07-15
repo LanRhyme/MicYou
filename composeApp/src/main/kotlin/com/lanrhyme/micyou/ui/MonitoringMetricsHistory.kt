@@ -3,12 +3,11 @@ package com.lanrhyme.micyou.ui
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.lanrhyme.micyou.audio.AudioMetrics
-import com.lanrhyme.micyou.ui.MonitoringMetricsHistory
 
 /**
  * 监控指标历史记录
  * 用于绘制延迟趋势图等
- * 
+ *
  * 注意：此类是线程安全的。
  */
 class MonitoringMetricsHistory(

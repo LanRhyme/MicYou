@@ -9,8 +9,6 @@ import io.github.vinceglb.filekit.dialogs.openFilePicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
-import com.lanrhyme.micyou.ui.background.BackgroundImagePicker
-import com.lanrhyme.micyou.ui.background.BackgroundSettings
 import com.lanrhyme.micyou.util.ContextHelper
 import com.lanrhyme.micyou.util.Logger
 
@@ -30,7 +28,7 @@ object BackgroundImagePicker {
         scope.launch {
             try {
                 val file = FileKit.openFilePicker(type = FileKitType.Image)
-    val savedPath = file?.let { copyToInternalStorage(it) }
+                val savedPath = file?.let { copyToInternalStorage(it) }
                 onResult(savedPath)
             } catch (e: Exception) {
                 Logger.e("BackgroundImagePicker", "Failed to pick image", e)
@@ -43,11 +41,11 @@ object BackgroundImagePicker {
         return try {
             val context = ContextHelper.getContext() ?: return null
             val bytes = file.readBytes()
-    val backgroundDir = File(context.filesDir, "backgrounds")
+            val backgroundDir = File(context.filesDir, "backgrounds")
             if (!backgroundDir.exists()) {
                 backgroundDir.mkdirs()
             }
-    val extension = file.extension
+            val extension = file.extension
             val fileName = "custom_background.$extension"
             val outputFile = File(backgroundDir, fileName)
             outputFile.writeBytes(bytes)

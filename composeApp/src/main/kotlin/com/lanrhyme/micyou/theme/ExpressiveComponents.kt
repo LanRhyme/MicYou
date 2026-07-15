@@ -34,7 +34,6 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
-import com.lanrhyme.micyou.settings.Settings
 
 /**
  * Material 3 Expressive 组件样式

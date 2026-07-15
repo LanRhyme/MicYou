@@ -41,6 +41,6 @@ enum class AudioEffectType(val label: String) {
  */
 data class EqualizerConfig(
     val enabled: Boolean = false,
-    val gains: List<Float> = List(10) { 0f }, // 10 bands, 0dB each
+    val gains: List<Float> = List(11) { 0f }, // 11 bands, 0dB each
     val preAmp: Float = 0f // Pre-amp gain in dB
 )

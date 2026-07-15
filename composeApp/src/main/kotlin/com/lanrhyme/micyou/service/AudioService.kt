@@ -1,4 +1,5 @@
 package com.lanrhyme.micyou.service
+
 import com.lanrhyme.micyou.R
 
 import android.app.Notification
@@ -12,11 +13,11 @@ import android.os.Build
 import android.os.IBinder
 import android.app.PendingIntent
 import androidx.core.app.NotificationCompat
-import kotlinx.coroutines.runBlocking
 import com.lanrhyme.micyou.audio.AudioEngine
 import com.lanrhyme.micyou.service.AudioService
 import com.lanrhyme.micyou.util.AppLanguage
 import com.lanrhyme.micyou.util.getString
+
 class AudioService : Service() {
 
     companion object {
@@ -46,11 +47,11 @@ class AudioService : Service() {
 
     private fun startForegroundService() {
         val notification = createNotification()
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
-                NOTIFICATION_ID, 
-                notification, 
+                NOTIFICATION_ID,
+                notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
             )
         } else {
@@ -65,13 +66,13 @@ class AudioService : Service() {
 
     private fun createNotification(): Notification {
         val disconnectIntent = Intent(this, AudioService::class.java).apply { action = ACTION_DISCONNECT }
-    val disconnectPendingIntent = PendingIntent.getService(
+        val disconnectPendingIntent = PendingIntent.getService(
             this,
             0,
             disconnectIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-    val (title, text) = resolveNotificationText()
+        val (title, text) = resolveNotificationText()
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
@@ -98,7 +99,7 @@ class AudioService : Service() {
 
     private fun readSelectedLanguage(): AppLanguage {
         val prefs = getSharedPreferences("android_mic_prefs", Context.MODE_PRIVATE)
-    val saved = prefs.getString("language", AppLanguage.System.name)
+        val saved = prefs.getString("language", AppLanguage.System.name)
         return try {
             AppLanguage.valueOf(saved ?: AppLanguage.System.name)
         } catch (_: Exception) {
@@ -108,7 +109,7 @@ class AudioService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelName = runBlocking { getString(R.string.audioStreamingService) }
+            val channelName = getString(R.string.audioStreamingService)
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 channelName,

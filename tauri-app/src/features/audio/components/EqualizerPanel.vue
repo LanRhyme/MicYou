@@ -64,7 +64,7 @@
       
     </div>
 
-    <!-- 10-Band EQ Panel -->
+    <!-- 11-Band EQ Panel -->
     <div class="bg-surface-bright rounded-3xl p-6 shadow-sm flex-1 flex flex-col min-h-[320px] relative overflow-hidden" :class="{ 'opacity-50 pointer-events-none': !config.enabled }">
       
       <!-- Y-Axis Labels -->
@@ -81,7 +81,7 @@
         <div class="w-full h-px bg-surface-variant/10"></div>
       </div>
 
-      <!-- 10 Vertical Sliders Area -->
+      <!-- 11 Vertical Sliders Area -->
       <div class="flex-1 flex flex-col ml-8 mr-2 relative z-10 py-6">
         
         <!-- Sliders and Curve Container -->
@@ -93,7 +93,7 @@
             </svg>
           </div>
 
-          <!-- 10 Slider Tracks -->
+          <!-- 11 Slider Tracks -->
           <div v-for="(band, index) in bands" :key="index" class="flex-1 flex justify-center group z-10 relative">
             <div class="relative w-full h-full flex items-center justify-center">
               <input 
@@ -148,19 +148,19 @@ const props = defineProps<{
   }
 }>();
 
-const bands = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+const bands = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000, 20000];
 
 const formatBand = (freq: number) => {
   return freq >= 1000 ? `${freq / 1000}k` : `${freq}`;
 };
 
 const presets = {
-  Normal: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  BrightVocal: [-2, -1, 0, 1, 2, 3, 4, 4, 3, 2],
-  DeepVoice: [3, 4, 4, 3, 1, 0, -1, -2, -2, -1],
-  Podcast: [2, 3, 2, 0, -1, -1, 1, 2, 3, 2],
-  VocalClarity: [-1, -1, 0, 1, 2, 3, 4, 3, 2, 1],
-  WarmVocal: [1, 2, 3, 2, 1, 0, -1, -1, 0, 1]
+  Normal: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  BrightVocal: [-2, -1, 0, 1, 2, 3, 4, 4, 3, 2, 0],
+  DeepVoice: [3, 4, 4, 3, 1, 0, -1, -2, -2, -1, -1],
+  Podcast: [2, 3, 2, 0, -1, -1, 1, 2, 3, 2, 1],
+  VocalClarity: [-1, -1, 0, 1, 2, 3, 4, 3, 2, 1, 0],
+  WarmVocal: [1, 2, 3, 2, 1, 0, -1, -1, 0, 1, 0]
 };
 
 const selectedPreset = ref('Normal');
@@ -204,9 +204,9 @@ const createSpline = (points: {x: number, y: number}[]) => {
 
 const svgPaths = computed(() => {
   const points = props.config.gains.map((gain, index) => {
-    // x varies from 5% to 95% because there are 10 items taking 10% width each.
-    // The center of item `i` is at (i + 0.5) * 10%
-    const x = (index + 0.5) * 10;
+    // x varies with 11 items taking (100/11)% width each.
+    // The center of item `i` is at (i + 0.5) * (100/11)%
+    const x = (index + 0.5) * (100 / 11);
     // y varies from 100% to 0% depending on gain (-15 to +15)
     // +15 = 0% (top), 0 = 50% (middle), -15 = 100% (bottom)
     const y = 50 - (gain / 15) * 50;
