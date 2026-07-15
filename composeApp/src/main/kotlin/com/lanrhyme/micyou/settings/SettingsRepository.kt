@@ -27,6 +27,7 @@ object SettingsRepository {
     // ---- Connection settings ----
     fun getConnectionMode(): ConnectionMode {
         val name = settings.getString("connection_mode", ConnectionMode.Wifi.name)
+
         return when (name) {
             "WifiUdp" -> ConnectionMode.Wifi
             else -> try {
@@ -164,8 +165,8 @@ object SettingsRepository {
         val enabled = settings.getBoolean("equalizer_enabled", false)
         val preAmp = settings.getFloat("equalizer_preamp", 0f)
         val gainsStr = settings.getString("equalizer_gains", "")
-        val gains = if (gainsStr.isEmpty()) List(10) { 0f }
-        else gainsStr.split(",").mapNotNull { it.toFloatOrNull() }.takeIf { it.size == 10 } ?: List(10) { 0f }
+        val gains = if (gainsStr.isEmpty()) List(11) { 0f }
+        else gainsStr.split(",").mapNotNull { it.toFloatOrNull() }.takeIf { it.size == 11 } ?: List(11) { 0f }
         return EqualizerConfig(enabled, gains, preAmp)
     }
 
