@@ -50,7 +50,7 @@ data class AudioStreamUiState(
 
     // Audio Processing Settings
     val enableNS: Boolean = false,
-    val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
+    val nsType: NoiseReductionType = NoiseReductionType.PureVox,
     val enableAGC: Boolean = false,
     val agcTargetLevel: Int = 32000,
     val agcAttackRate: Float = 0.01f,

@@ -24,7 +24,7 @@ impl Default for AudioDspSettings {
         Self {
             gain: 0.0,
             ns_enabled: false,
-            ns_type: "RNNoise".to_string(),
+            ns_type: "PureVox".to_string(),
             ns_intensity: 50.0,
             dereverb_enabled: false,
             dereverb_level: 30.0,

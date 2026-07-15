@@ -8,11 +8,8 @@ import com.lanrhyme.micyou.network.UDP_PORT_OFFSET
  */
 object Constants {
     // ==================== 音频处理常量 ====================
-    /** RNNoise/Ulunas 噪声处理的帧大小 (10ms at 48kHz) */
+    /** RNNoise/PureVox 噪声处理的帧大小 (10ms at 48kHz) */
     const val AUDIO_FRAME_SIZE = 480
-
-    /** Ulunas 模型的 FFT 窗口大小 */
-    const val ULUNAS_WINDOW_SIZE = 960
 
     // ==================== 网络传输常量 ====================
     /** 最大数据包大小限制 (2MB)，防止恶意数据包攻击 */

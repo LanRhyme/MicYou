@@ -50,15 +50,15 @@ impl AudioPipeline {
                     .ok()
                     .and_then(|p| p.parent().map(|d| d.to_path_buf()));
                 exe_dir.as_ref().and_then(|d| {
-                    if d.join("ulunas.onnx").exists() {
+                    if d.join("purevox6.onnx").exists() {
                         return Some(d.clone());
                     }
                     let res = d.join("resources");
-                    if res.join("ulunas.onnx").exists() {
+                    if res.join("purevox6.onnx").exists() {
                         return Some(res);
                     }
                     let dev = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
-                    if dev.join("ulunas.onnx").exists() {
+                    if dev.join("purevox6.onnx").exists() {
                         return Some(dev);
                     }
                     None

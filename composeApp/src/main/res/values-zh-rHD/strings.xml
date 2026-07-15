@@ -185,8 +185,8 @@
     <string name="nsAlgorithmRecommended">被推荐的项</string>
     <string name="nsAlgorithmSpeexdspDesc">传统数字的信号加工算法， 轻量的并且需要不额外的模型。 基本的噪音减少效果， 适合为了低性能设备或者对延迟敏感的场景们。</string>
     <string name="nsAlgorithmSpeexdspTitle">斯皮克斯数字信号处理器标题</string>
-    <string name="nsAlgorithmUlnasDesc">奥恩恩埃克斯基于运行时噪音减少模型提供好的噪音减少效果。 更好的比 RN 噪音 在一些案例， 但是可能不是工作在一些设备或着系统里。</string>
-    <string name="nsAlgorithmUlnasTitle">乌卢纳斯 (奥恩恩埃克斯) 标题</string>
+    <string name="nsAlgorithmPureVoxDesc">基于 ONNX Runtime 的降噪模型，提供优秀的降噪效果。</string>
+    <string name="nsAlgorithmPureVoxTitle">PureVox (ONNX)</string>
     <string name="nsTypeLabel">算法种类项</string>
     <string name="ok">确定</string>
     <string name="oledPureBlackDesc">在深色模式下使用纯黑背景</string>

@@ -191,8 +191,8 @@
     <string name="nsAlgorithmRecommended">推荐喵~ ✨</string>
     <string name="nsAlgorithmSpeexdspDesc">传统数字信号处理算法，轻量级且无需额外模型喵~基础降噪效果，适合低性能设备或对延迟敏感的场景喵~</string>
     <string name="nsAlgorithmSpeexdspTitle">Speexdsp 喵~</string>
-    <string name="nsAlgorithmUlnasDesc">基于 ONNX Runtime 的降噪模型，提供良好的降噪效果喵~某些情况下比 RNNoise 更好，但可能在某些设备或系统上无法工作喵 (・_・;)</string>
-    <string name="nsAlgorithmUlnasTitle">Ulunas (ONNX) 喵~</string>
+    <string name="nsAlgorithmPureVoxDesc">基于 ONNX Runtime 的降噪模型，提供优秀的降噪效果喵~</string>
+    <string name="nsAlgorithmPureVoxTitle">PureVox (ONNX) 喵~</string>
     <string name="nsTypeLabel">算法选择喵~</string>
     <string name="ok">确定喵~</string>
     <string name="oledPureBlackDesc">在深色模式下使用纯黑背景喵~</string>

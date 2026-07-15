@@ -1,15 +1,23 @@
 #[cfg(feature = "noise-suppression")]
 use rustfft::{num_complex::Complex, FftPlanner};
 
+/// PureVox ONNX noise reduction processor.
+///
+/// Model spec:
+/// - Input:  spec [1, 481, 1, 2] + 4 state vectors (enc_c, dec_c, tfa_c, inter_c)
+/// - Output: enhanced_spec [1, 481, 1, 2] + 4 updated state vectors
+/// - Frame size: 960, Hop: 480, Spec bins: 481
 #[cfg(feature = "noise-suppression")]
-pub struct UlunasProcessor {
+pub struct PureVoxProcessor {
     session: ort::session::Session,
     frame_size: usize, // 960
     hop_length: usize, // 480
+    spec_size: usize,  // 481
     window: Vec<f32>,
     ola_gain: f32,
     previous: Vec<f32>,
     ola_accumulator: Vec<f32>,
+    /// State vectors: [enc_c, dec_c, tfa_c, inter_c]
     state_data: Vec<Vec<f32>>,
     state_shapes: Vec<Vec<usize>>,
     fft_forward: std::sync::Arc<dyn rustfft::Fft<f32>>,
@@ -17,10 +25,11 @@ pub struct UlunasProcessor {
 }
 
 #[cfg(feature = "noise-suppression")]
-impl UlunasProcessor {
+impl PureVoxProcessor {
     pub fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let frame_size = 960;
         let hop_length = 480;
+        let spec_size = frame_size / 2 + 1; // 481
 
         let session = ort::session::Session::builder()?
             .with_intra_threads(1)?
@@ -34,26 +43,12 @@ impl UlunasProcessor {
         let fft_forward = planner.plan_fft_forward(frame_size);
         let fft_inverse = planner.plan_fft_inverse(frame_size);
 
-        // State shapes
+        // State shapes from model: [enc_c, dec_c, tfa_c, inter_c]
         let state_shapes: Vec<Vec<usize>> = vec![
-            vec![1, 1, 2, 121],
-            vec![1, 24, 1, 61],
-            vec![1, 24, 1, 31],
-            vec![1, 1, 24],
-            vec![1, 1, 48],
-            vec![1, 1, 48],
-            vec![1, 1, 64],
-            vec![1, 1, 32],
-            vec![1, 31, 16],
-            vec![1, 31, 16],
-            vec![1, 24, 1, 31],
-            vec![1, 12, 1, 31],
-            vec![1, 12, 2, 61],
-            vec![1, 1, 64],
-            vec![1, 1, 48],
-            vec![1, 1, 48],
-            vec![1, 1, 24],
-            vec![1, 1, 2],
+            vec![1, 7368], // enc_c
+            vec![1, 1440], // dec_c
+            vec![1, 800],  // tfa_c
+            vec![1, 4608], // inter_c
         ];
 
         let state_data: Vec<Vec<f32>> = state_shapes
@@ -65,6 +60,7 @@ impl UlunasProcessor {
             session,
             frame_size,
             hop_length,
+            spec_size,
             window,
             ola_gain,
             previous: vec![0.0; hop_length],
@@ -108,7 +104,7 @@ impl UlunasProcessor {
 
         let frame_size = self.frame_size;
         let hop_length = self.hop_length;
-        let spec_size = frame_size / 2 + 1;
+        let spec_size = self.spec_size;
 
         // Build frame: previous + current
         let mut fft_buffer = vec![0.0_f32; frame_size];
@@ -121,7 +117,7 @@ impl UlunasProcessor {
             fft_buffer[i] *= self.window[i];
         }
 
-        // FFT using cached planner
+        // FFT
         let mut complex_buf: Vec<Complex<f32>> =
             fft_buffer.iter().map(|&v| Complex::new(v, 0.0)).collect();
         self.fft_forward.process(&mut complex_buf);
@@ -133,7 +129,7 @@ impl UlunasProcessor {
             spec_flat[i * 2 + 1] = complex_buf[i].im;
         }
 
-        // Convert to ort Values using (shape, data) tuple
+        // Build ONNX inputs
         let spec_shape = vec![1, spec_size, 1, 2];
         let val_spec = ort::value::Value::from_array((spec_shape, spec_flat)).unwrap();
 
@@ -146,38 +142,24 @@ impl UlunasProcessor {
             })
             .collect();
 
-        // Run inference
+        // Run inference: spec + enc_c + dec_c + tfa_c + inter_c
         let outputs = match self.session.run(ort::inputs![
             &val_spec,
             &val_states[0],
             &val_states[1],
             &val_states[2],
-            &val_states[3],
-            &val_states[4],
-            &val_states[5],
-            &val_states[6],
-            &val_states[7],
-            &val_states[8],
-            &val_states[9],
-            &val_states[10],
-            &val_states[11],
-            &val_states[12],
-            &val_states[13],
-            &val_states[14],
-            &val_states[15],
-            &val_states[16],
-            &val_states[17]
+            &val_states[3]
         ]) {
             Ok(o) => o,
             Err(e) => {
-                log::error!(target: "dsp", "ONNX inference failed: {}", e);
+                log::error!(target: "dsp", "PureVox ONNX inference failed: {}", e);
                 return input.to_vec();
             }
         };
 
-        // Extract output spectrum
+        // Extract enhanced spectrum (output[0])
         if let Ok(output_tensor) = outputs[0].try_extract_tensor::<f32>() {
-            let output_data = output_tensor.1; // (Shape, slice)
+            let output_data = output_tensor.1;
             for i in 0..spec_size {
                 complex_buf[i] = Complex::new(output_data[i * 2], output_data[i * 2 + 1]);
             }
@@ -186,13 +168,14 @@ impl UlunasProcessor {
             }
         }
 
-        // Update states from outputs 1..18
-        for i in 1..outputs.len().min(19) {
+        // Update state vectors from outputs[1..5]
+        for i in 1..outputs.len().min(5) {
             if let Ok(state_tensor) = outputs[i].try_extract_tensor::<f32>() {
-                let state_data = state_tensor.1;
-                if i - 1 < self.state_data.len() && state_data.len() == self.state_data[i - 1].len()
+                let state_slice = state_tensor.1;
+                if i - 1 < self.state_data.len()
+                    && state_slice.len() == self.state_data[i - 1].len()
                 {
-                    self.state_data[i - 1].copy_from_slice(state_data);
+                    self.state_data[i - 1].copy_from_slice(state_slice);
                 }
             }
         }

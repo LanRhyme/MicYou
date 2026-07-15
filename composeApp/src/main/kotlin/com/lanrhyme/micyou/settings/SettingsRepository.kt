@@ -96,11 +96,11 @@ object SettingsRepository {
     fun putEnableNS(enabled: Boolean) = settings.putBoolean("enable_ns", enabled)
 
     fun getNsType(): NoiseReductionType {
-        val name = settings.getString("ns_type", NoiseReductionType.Ulunas.name)
+        val name = settings.getString("ns_type", NoiseReductionType.PureVox.name)
         return try {
             NoiseReductionType.valueOf(name)
         } catch (_: Exception) {
-            NoiseReductionType.Ulunas
+            NoiseReductionType.PureVox
         }
     }
 

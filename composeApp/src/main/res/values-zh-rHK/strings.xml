@@ -185,8 +185,8 @@
     <string name="nsAlgorithmRecommended">推薦</string>
     <string name="nsAlgorithmSpeexdspDesc">傳統嘅數碼訊號處理演算法，好輕量，唔使額外模型。降噪效果基本，適合低效能裝置或者對延遲好敏感嘅情況。</string>
     <string name="nsAlgorithmSpeexdspTitle">Speexdsp</string>
-    <string name="nsAlgorithmUlnasDesc">基於 ONNX Runtime 嘅降噪模型，降噪效果唔錯。比起RNNoise更加好，但係喺某啲裝置或者系統入面可能用唔到。</string>
-    <string name="nsAlgorithmUlnasTitle">Ulunas (ONNX)</string>
+    <string name="nsAlgorithmPureVoxDesc">基於 ONNX Runtime 嘅降噪模型，降噪效果優秀。</string>
+    <string name="nsAlgorithmPureVoxTitle">PureVox (ONNX)</string>
     <string name="nsTypeLabel">降噪演算法</string>
     <string name="ok">確定</string>
     <string name="oledPureBlackDesc">喺深色模式用純黑背景</string>

@@ -226,8 +226,8 @@
     <string name="nsAlgorithmRecommended">Recommended</string>
     <string name="nsAlgorithmSpeexdspDesc">Traditional digital signal processing algorithm, lightweight and requires no additional models. Basic noise reduction effect, suitable for low-performance devices or latency-sensitive scenarios.</string>
     <string name="nsAlgorithmSpeexdspTitle">Speexdsp</string>
-    <string name="nsAlgorithmUlnasDesc">ONNX Runtime-based noise reduction model providing good noise reduction effects. Better than RNNoise in some cases, but may not work on some devices or systems.</string>
-    <string name="nsAlgorithmUlnasTitle">Ulnas (ONNX)</string>
+    <string name="nsAlgorithmPureVoxDesc">ONNX Runtime-based noise reduction model providing excellent noise reduction effects.</string>
+    <string name="nsAlgorithmPureVoxTitle">PureVox (ONNX)</string>
     <string name="nsTypeLabel">Algorithm</string>
     <string name="ok">OK</string>
     <string name="oledPureBlackDesc">Use a pure black background in dark mode</string>
