@@ -6,6 +6,13 @@ import kotlinx.serialization.protobuf.ProtoNumber
 import com.lanrhyme.micyou.audio.AudioFormat
 import com.lanrhyme.micyou.audio.ChannelCount
 import com.lanrhyme.micyou.audio.SampleRate
+import com.lanrhyme.micyou.network.AudioPacketMessage
+import com.lanrhyme.micyou.network.AudioPacketMessageOrdered
+import com.lanrhyme.micyou.network.calculateUdpPort
+import com.lanrhyme.micyou.network.MessageWrapper
+import com.lanrhyme.micyou.network.PACKET_MAGIC
+import com.lanrhyme.micyou.network.UDP_PACKET_MAGIC
+import com.lanrhyme.micyou.network.UDP_PORT_OFFSET
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
@@ -65,7 +72,7 @@ data class MuteMessage(
 )
 
 @Serializable
-object ConnectMessage
+class ConnectMessage
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable

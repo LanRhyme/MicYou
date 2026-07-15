@@ -3,6 +3,7 @@ package com.lanrhyme.micyou.util
 import android.content.Context
 import android.content.res.Configuration
 import java.util.Locale as JavaLocale
+import com.lanrhyme.micyou.util.ContextHelper
 
 /**
  * Android 应用上下文助手类。

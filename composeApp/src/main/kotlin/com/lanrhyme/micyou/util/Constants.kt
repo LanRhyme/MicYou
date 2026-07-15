@@ -1,7 +1,7 @@
 package com.lanrhyme.micyou.util
-
 import com.lanrhyme.micyou.network.PACKET_MAGIC
 import com.lanrhyme.micyou.network.UDP_PORT_OFFSET
+import com.lanrhyme.micyou.util.Constants
 
 /**
  * 应用全局常量定义
@@ -29,7 +29,7 @@ object Constants {
 
     // ==================== Channel 容量配置 ====================
     /** 音频包处理通道容量。需容纳 ~500ms+ 缓冲以应对 WiFi 抖动；
-    小包模式 (1.4KB ≈ 7.3ms/pkt) 需要更多槽位：128 × 7.3ms ≈ 934ms */
+        小包模式 (1.4KB ≈ 7.3ms/pkt) 需要更多槽位：128 × 7.3ms ≈ 934ms */
     const val AUDIO_PACKET_CHANNEL_CAPACITY = 128
 
     /** 控制消息发送通道容量 */
