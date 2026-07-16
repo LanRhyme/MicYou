@@ -425,7 +425,7 @@
               </div>
               <div v-if="settings.nsEnabled" class="space-y-4 pt-2 border-t border-surface-variant/20">
                 <div class="flex gap-2 mt-4">
-                  <button v-for="type in [{id: 'DPDFNet', label: 'DPDFNet (ONNX)'}, {id: 'Ulunas', label: 'Ulunas (ONNX)'}, {id: 'RNNoise', label: 'RNNoise'}, {id: 'Speexdsp', label: 'Speexdsp'}, {id: 'Lightweight', label: 'Lightweight'}]" :key="type.id"
+                  <button v-for="type in [{id: 'PureVox', label: 'PureVox (ONNX)'}, {id: 'Ulunas', label: 'Ulunas (ONNX)'}, {id: 'RNNoise', label: 'RNNoise'}, {id: 'Speexdsp', label: 'Speexdsp'}]" :key="type.id"
                           @click="settings.nsType = type.id"
                           class="px-3 py-1 rounded-full text-xs font-medium transition-colors"
                           :class="settings.nsType === type.id ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface'">
@@ -772,7 +772,7 @@ const settings = reactive({
   audioDevice: 'auto',
   gain: 0,
   nsEnabled: false,
-  nsType: 'RNNoise',
+  nsType: 'PureVox',
   nsIntensity: 100,
   dereverbEnabled: false,
   dereverbLevel: 50,

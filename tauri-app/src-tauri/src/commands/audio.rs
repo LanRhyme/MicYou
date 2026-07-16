@@ -1,7 +1,7 @@
-use tauri::{AppHandle, State};
-use cpal::traits::{DeviceTrait, HostTrait};
 use crate::server::ServerState;
+use cpal::traits::{DeviceTrait, HostTrait};
 use micyou_audio::dsp::AudioDspSettings;
+use tauri::{AppHandle, State};
 
 #[derive(serde::Serialize)]
 pub struct PipeWireStatus {
@@ -47,7 +47,10 @@ pub fn get_audio_devices() -> Vec<String> {
 }
 
 #[tauri::command]
-pub fn update_audio_settings(state: State<'_, ServerState>, settings: AudioDspSettings) -> Result<String, String> {
+pub fn update_audio_settings(
+    state: State<'_, ServerState>,
+    settings: AudioDspSettings,
+) -> Result<String, String> {
     match state.dsp_settings.write() {
         Ok(mut current) => {
             *current = settings;
@@ -58,7 +61,11 @@ pub fn update_audio_settings(state: State<'_, ServerState>, settings: AudioDspSe
 }
 
 #[tauri::command]
-pub async fn set_mute_state(_app: AppHandle, state: State<'_, ServerState>, is_muted: bool) -> Result<(), String> {
+pub async fn set_mute_state(
+    _app: AppHandle,
+    state: State<'_, ServerState>,
+    is_muted: bool,
+) -> Result<(), String> {
     let mute_msg = micyou_protocol::micyou::MessageWrapper {
         audio_packet: None,
         connect: None,
@@ -102,7 +109,9 @@ pub async fn check_vbcable() -> Result<bool, String> {
 
 #[cfg(feature = "vbcable")]
 #[tauri::command]
-pub async fn install_vbcable(app: tauri::AppHandle) -> Result<crate::vbcable::VBCableResult, String> {
+pub async fn install_vbcable(
+    app: tauri::AppHandle,
+) -> Result<crate::vbcable::VBCableResult, String> {
     Ok(crate::vbcable::install(app).await)
 }
 

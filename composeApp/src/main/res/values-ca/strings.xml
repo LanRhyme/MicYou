@@ -185,7 +185,7 @@
     <string name="nsAlgorithmAlternative">备选喵~</string>
     <string name="nsAlgorithmCloseButton">知道了喵~</string>
     <string name="nsAlgorithmHelpTitle">降噪算法说明喵~ (・∀・)</string>
-    <string name="nsAlgorithmLightweight">轻量级喵~</string>
+
     <string name="nsAlgorithmRNNoiseDesc">基于深度学习的降噪算法，效果最好喵！智能识别并消除各种背景噪音，同时保持语音清晰喵~适合大多数场景 (๑˃̵ᴗ˂̵)</string>
     <string name="nsAlgorithmRNNoiseTitle">RNNoise 喵~</string>
     <string name="nsAlgorithmRecommended">推荐喵~ ✨</string>

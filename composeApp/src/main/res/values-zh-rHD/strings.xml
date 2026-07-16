@@ -179,7 +179,7 @@
     <string name="nsAlgorithmAlternative">可替代的项</string>
     <string name="nsAlgorithmCloseButton">得到它按钮</string>
     <string name="nsAlgorithmHelpTitle">噪音减少算法标题</string>
-    <string name="nsAlgorithmLightweight">轻量级的项</string>
+
     <string name="nsAlgorithmRNNoiseDesc">深度的基于学习噪音减少算法并且这是最好的结果。 聪明地识别并消除各种各样的背景噪音同时保持嗓音明晰。 合适的为了最多的场景。</string>
     <string name="nsAlgorithmRNNoiseTitle">RN 噪音标题</string>
     <string name="nsAlgorithmRecommended">被推荐的项</string>
