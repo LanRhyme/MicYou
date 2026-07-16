@@ -179,7 +179,7 @@
     <string name="nsAlgorithmAlternative">備選</string>
     <string name="nsAlgorithmCloseButton">知道了</string>
     <string name="nsAlgorithmHelpTitle">降噪演算法說明</string>
-    <string name="nsAlgorithmLightweight">輕量</string>
+
     <string name="nsAlgorithmRNNoiseDesc">基於深度學習的降噪演算法，效果最佳。能夠智慧識別並消除各種背景噪音，同時保持語音清晰度。適合大多數使用場景。</string>
     <string name="nsAlgorithmRNNoiseTitle">RNNoise</string>
     <string name="nsAlgorithmRecommended">推薦</string>
