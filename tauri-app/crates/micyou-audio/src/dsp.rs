@@ -502,22 +502,47 @@ const AEC_HOP_LEN: usize = 480;
 const AEC_NFFT: usize = 960;
 const AEC_N_BINS: usize = AEC_NFFT / 2 + 1; // 481
 
+/// Hardcoded aec7 cache state configuration.
+/// Shapes and output indices are written explicitly rather than read from
+/// the ONNX model, because some ONNX runtimes may not report static shapes
+/// reliably.  This matches the C++ reference implementation.
+///
+/// `deep_enc_conv` (shape [1,0]) is excluded — the ONNX optimizer folds it
+/// away, so it is neither an input nor a meaningful output.
+/// Its output `deep_enc_conv_o` still appears at output index 5 and is skipped.
+#[cfg(feature = "noise-suppression")]
+const AEC_CACHE_CONFIGS: &[(&str, &[usize], usize)] = &[
+    ("res_enc_conv", &[1, 135680], 1),
+    ("res_enc_tfa", &[1, 248], 2),
+    ("mic_enc_conv", &[1, 135680], 3),
+    ("mic_enc_tfa", &[1, 248], 4),
+    // output[5] = deep_enc_conv_o → skipped
+    ("deep_enc_tfa", &[1, 336], 6),
+    ("dec_conv", &[1, 13440], 7),
+    ("dec_tfa", &[1, 496], 8),
+    ("inter", &[1, 7680], 9),
+    ("res_prev1", &[1, 1, 1, 320], 10),
+    ("res_prev2", &[1, 1, 1, 320], 11),
+    ("mic_prev1", &[1, 1, 1, 320], 12),
+    ("mic_prev2", &[1, 1, 1, 320], 13),
+];
+
 /// ONNX-based AEC7 acoustic echo cancellation.
 /// Takes both mic (near-end) and far-end (speaker) audio and cancels echo.
 /// Based on the aec7_ep0185.onnx model.
 #[cfg(feature = "noise-suppression")]
 struct AecProcessor {
     session: ort::session::Session,
-    /// Dynamic cache state tensors discovered from model inputs
+    /// Cache state tensors with hardcoded shapes (see AEC_CACHE_CONFIGS).
     cache_tensors: Vec<ArrayD<f32>>,
+    /// Input names matching the ONNX model — used for HashMap feed lookups.
     cache_names: Vec<String>,
-    cache_shapes: Vec<Vec<usize>>,
-    /// Index where output offset begins (+2 instead of +1)
-    /// to skip `deep_enc_conv_o` (shape [1,0]) not exposed by session.inputs()
-    skip_offset_at: usize,
+    /// Hardcoded output index for each cache tensor (see AEC_CACHE_CONFIGS).
+    cache_output_indices: Vec<usize>,
     // STFT / iSTFT / OLA
     window: Vec<f32>,
-    ola_gain: f32,
+    /// Running per-sample accumulation of window² for correct COLA normalization.
+    window_sum: Vec<f32>,
     mic_previous: Vec<f32>,    // last 480 mic samples for overlapping frames
     far_previous: Vec<f32>,    // last 480 far-end samples for overlapping frames
     ola_accumulator: Vec<f32>, // 960 samples
@@ -546,57 +571,33 @@ impl AecProcessor {
 
         // Sine window (sqrt of Hann). Applied once during analysis
         // (forward_stft) and once during synthesis (iSTFT in process),
-        // giving total window effect = Hann (sin²).
-        // For 50% overlap-add, sin²(θ) + sin²(θ + π/2) = 1.0 — perfect reconstruction.
+        // giving total window effect = Hann (sin^2).
         let window = UlunasProcessor::hanning_window(AEC_WIN_LEN);
-
-        // OLA gain: 1 / sqrt(avg(window^2 + window_shifted^2))
-        let ola_gain = UlunasProcessor::calc_ola_gain(&window, AEC_HOP_LEN);
 
         let mut planner = FftPlanner::new();
         let fft_forward = planner.plan_fft_forward(AEC_NFFT);
         let fft_inverse = planner.plan_fft_inverse(AEC_NFFT);
 
-        // Discover cache state tensors from model inputs
-        let inputs = session.inputs();
-        let mut cache_names = Vec::new();
-        let mut cache_shapes = Vec::new();
-        let mut cache_tensors = Vec::new();
+        // Cache state tensors use hardcoded shapes and output indices
+        // (matching the C++ reference).  This avoids relying on the ONNX
+        // runtime to report static shapes reliably.
+        let mut cache_names = Vec::with_capacity(AEC_CACHE_CONFIGS.len());
+        let mut cache_tensors = Vec::with_capacity(AEC_CACHE_CONFIGS.len());
+        let mut cache_output_indices = Vec::with_capacity(AEC_CACHE_CONFIGS.len());
 
-        for input in inputs {
-            let name = input.name();
-            if name == "mic_frame" || name == "far_frame" {
-                continue;
-            }
-            let shape: Vec<usize> = input
-                .dtype()
-                .tensor_shape()
-                .ok_or_else(|| format!("failed to get tensor shape for '{}'", name))?
-                .iter()
-                .map(|d| *d as usize)
-                .collect();
+        for &(name, shape, output_idx) in AEC_CACHE_CONFIGS {
             cache_names.push(name.to_string());
-            cache_shapes.push(shape.clone());
-            cache_tensors.push(ArrayD::zeros(IxDyn(&shape)));
+            cache_tensors.push(ArrayD::zeros(IxDyn(shape)));
+            cache_output_indices.push(output_idx);
         }
-
-        // `deep_enc_conv` (shape [1,0]) exists in the ONNX model but is
-        // not exposed by session.inputs(). Its output `deep_enc_conv_o`
-        // still appears at output index 5. Caches at/after `deep_enc_tfa`
-        // need to read from outputs[i+2] instead of outputs[i+1].
-        let skip_offset_at = cache_names
-            .iter()
-            .position(|n| n == "deep_enc_tfa")
-            .unwrap_or(0);
 
         Ok(Self {
             session,
             cache_tensors,
             cache_names,
-            cache_shapes,
-            skip_offset_at,
+            cache_output_indices,
             window,
-            ola_gain,
+            window_sum: vec![0.0; AEC_WIN_LEN],
             mic_previous: vec![0.0; AEC_HOP_LEN],
             far_previous: vec![0.0; AEC_HOP_LEN],
             ola_accumulator: vec![0.0; AEC_WIN_LEN],
@@ -685,22 +686,30 @@ impl AecProcessor {
             }
         }
 
-        // ── OLA ──
+        // ── OLA with per-sample window-sum normalization ──
         for i in 0..AEC_WIN_LEN {
             self.ola_accumulator[i] += self.scratch_time_frame[i];
+            self.window_sum[i] += self.window[i] * self.window[i];
         }
 
         let mut output = vec![0.0f32; AEC_HOP_LEN];
         for i in 0..AEC_HOP_LEN {
-            output[i] = self.ola_accumulator[i] * self.ola_gain;
+            let norm = self.window_sum[i];
+            output[i] = if norm > 1e-6 {
+                self.ola_accumulator[i] / norm
+            } else {
+                self.ola_accumulator[i]
+            };
         }
 
-        // Shift accumulator
+        // Shift OLA accumulators
         for i in 0..AEC_WIN_LEN - AEC_HOP_LEN {
             self.ola_accumulator[i] = self.ola_accumulator[i + AEC_HOP_LEN];
+            self.window_sum[i] = self.window_sum[i + AEC_HOP_LEN];
         }
         for i in AEC_WIN_LEN - AEC_HOP_LEN..AEC_WIN_LEN {
             self.ola_accumulator[i] = 0.0;
+            self.window_sum[i] = 0.0;
         }
 
         output
@@ -741,24 +750,188 @@ impl AecProcessor {
         let enhanced = Array3::from_shape_vec((1, 2, AEC_N_BINS), enhanced_data.to_vec())
             .map_err(|e| format!("enhanced_frame reshape failed: {}", e))?;
 
-        // Update cache states from outputs
-        for (i, (shape, tensor)) in self
-            .cache_shapes
-            .iter()
-            .zip(self.cache_tensors.iter_mut())
-            .enumerate()
+        // Update cache states from outputs using hardcoded output indices.
+        // This avoids relying on session.inputs() order and the skip_offset_at
+        // heuristic.  deep_enc_conv_o at index 5 is simply not mapped.
+        for (tensor, &output_idx) in self
+            .cache_tensors
+            .iter_mut()
+            .zip(self.cache_output_indices.iter())
         {
-            let output_idx = if i < self.skip_offset_at {
-                i + 1
-            } else {
-                i + 2 // skip deep_enc_conv_o at index 5
-            };
             if let Ok((_shape, data)) = outputs[output_idx].try_extract_tensor::<f32>() {
-                *tensor = ArrayD::from_shape_vec(IxDyn(shape), data.to_vec())?;
+                let shape = tensor.shape().to_vec();
+                *tensor = ArrayD::from_shape_vec(IxDyn(&shape), data.to_vec())?;
             }
         }
 
         Ok(enhanced)
+    }
+}
+
+// ─── AEC Delay Estimation and Alignment ───────────────────────────────
+
+/// Delay estimator for far-end/mic time alignment.
+///
+/// Maintains a circular buffer of far-end (speaker) audio history and
+/// periodically cross-correlates it with the mic signal to estimate the
+/// acoustic delay.  Uses coarse-to-fine search for efficiency:
+/// 1. Downsamples both signals by 8x for a fast coarse search
+/// 2. Refines around the coarse peak at full resolution
+/// 3. Applies EMA smoothing to avoid jitter
+#[cfg(feature = "noise-suppression")]
+struct DelayEstimator {
+    far_history: Vec<f32>,
+    write_pos: usize,
+    total_written: usize,
+    smoothed_delay: f32,
+    max_delay: usize,
+    alpha: f32,
+    estimate_interval: usize,
+    frame_count: usize,
+    ds_factor: usize,
+    ds_mic: Vec<f32>,
+    ds_far: Vec<f32>,
+    fine_far: Vec<f32>,
+}
+
+#[cfg(feature = "noise-suppression")]
+impl DelayEstimator {
+    fn new(max_delay_ms: f32, sample_rate: usize) -> Self {
+        let max_delay = (max_delay_ms / 1000.0 * sample_rate as f32).ceil() as usize;
+        let history_len = max_delay + AEC_HOP_LEN;
+        let ds_factor = 8;
+        Self {
+            far_history: vec![0.0; history_len],
+            write_pos: 0,
+            total_written: 0,
+            smoothed_delay: 0.0,
+            max_delay,
+            alpha: 0.92,
+            estimate_interval: 5,
+            frame_count: 0,
+            ds_factor,
+            ds_mic: vec![0.0; AEC_HOP_LEN / ds_factor],
+            ds_far: vec![0.0; (max_delay + AEC_HOP_LEN) / ds_factor],
+            fine_far: vec![0.0; AEC_HOP_LEN + 64],
+        }
+    }
+
+    fn feed_far(&mut self, far_audio: &[f32]) {
+        for &sample in far_audio {
+            self.far_history[self.write_pos] = sample;
+            self.write_pos = (self.write_pos + 1) % self.far_history.len();
+        }
+        self.total_written += far_audio.len();
+    }
+
+    fn is_ready(&self) -> bool {
+        self.total_written >= self.max_delay + AEC_HOP_LEN
+    }
+
+    fn aligned_far(&mut self, mic_chunk: &[f32]) -> Vec<f32> {
+        debug_assert_eq!(mic_chunk.len(), AEC_HOP_LEN);
+        if !self.is_ready() {
+            return vec![0.0; AEC_HOP_LEN];
+        }
+        self.frame_count += 1;
+        if self.frame_count % self.estimate_interval == 0 {
+            self.estimate(mic_chunk);
+        }
+        self.read_at_delay(self.smoothed_delay.round() as usize)
+    }
+
+    fn read_at_delay(&self, delay: usize) -> Vec<f32> {
+        let delay = delay.min(self.max_delay);
+        let len = self.far_history.len();
+        let start = (self.write_pos + len - delay) % len;
+        let mut out = vec![0.0; AEC_HOP_LEN];
+        if start + AEC_HOP_LEN <= len {
+            out.copy_from_slice(&self.far_history[start..start + AEC_HOP_LEN]);
+        } else {
+            let first = len - start;
+            out[..first].copy_from_slice(&self.far_history[start..]);
+            out[first..].copy_from_slice(&self.far_history[..AEC_HOP_LEN - first]);
+        }
+        out
+    }
+
+    fn estimate(&mut self, mic_chunk: &[f32]) {
+        let df = self.ds_factor;
+        let ds_mic_len = AEC_HOP_LEN / df;
+        let ds_far_len = (self.max_delay + AEC_HOP_LEN) / df;
+
+        for i in 0..ds_mic_len {
+            self.ds_mic[i] = mic_chunk[i * df];
+        }
+
+        let far_segment_len = self.max_delay + AEC_HOP_LEN;
+        {
+            let len = self.far_history.len();
+            let seg_start = (self.write_pos + len - far_segment_len) % len;
+            for i in 0..ds_far_len {
+                let si = i * df;
+                self.ds_far[i] = if seg_start + si < len {
+                    self.far_history[seg_start + si]
+                } else {
+                    self.far_history[seg_start + si - len]
+                };
+            }
+        }
+
+        let search_range = ds_far_len.saturating_sub(ds_mic_len);
+        if search_range == 0 {
+            return;
+        }
+
+        let mut best_coarse = f32::NEG_INFINITY;
+        let mut best_coarse_lag = 0usize;
+        for lag in 0..=search_range {
+            let mut corr = 0.0f32;
+            for i in 0..ds_mic_len {
+                corr += self.ds_mic[i] * self.ds_far[lag + i];
+            }
+            if corr > best_coarse {
+                best_coarse = corr;
+                best_coarse_lag = lag;
+            }
+        }
+
+        let coarse_samples = best_coarse_lag * df;
+        let fine_window = (df * 2).min(64);
+        let fine_start = coarse_samples.saturating_sub(fine_window);
+        let fine_end = (coarse_samples + fine_window).min(self.max_delay);
+        let fine_search_len = fine_end.saturating_sub(fine_start);
+
+        if fine_search_len == 0 || fine_search_len + AEC_HOP_LEN > self.fine_far.len() {
+            let new_delay = coarse_samples as f32;
+            self.smoothed_delay = self.alpha * self.smoothed_delay + (1.0 - self.alpha) * new_delay;
+            return;
+        }
+
+        let far_start = (self.write_pos + self.far_history.len() - self.max_delay - AEC_HOP_LEN
+            + fine_start)
+            % self.far_history.len();
+        let needed = fine_search_len + AEC_HOP_LEN;
+        let far_len = self.far_history.len();
+        for i in 0..needed {
+            self.fine_far[i] = self.far_history[(far_start + i) % far_len];
+        }
+
+        let mut best_fine = f32::NEG_INFINITY;
+        let mut best_fine_lag = 0usize;
+        for lag in 0..fine_search_len {
+            let mut corr = 0.0f32;
+            for i in 0..AEC_HOP_LEN {
+                corr += mic_chunk[i] * self.fine_far[lag + i];
+            }
+            if corr > best_fine {
+                best_fine = corr;
+                best_fine_lag = lag;
+            }
+        }
+
+        let new_delay = (fine_start + best_fine_lag) as f32;
+        self.smoothed_delay = self.alpha * self.smoothed_delay + (1.0 - self.alpha) * new_delay;
     }
 }
 
@@ -1098,9 +1271,11 @@ pub struct DspProcessor {
     aec_model_path: Option<PathBuf>,
     #[cfg(feature = "noise-suppression")]
     aec_load_failed: bool,
-    /// Far-end (speaker) audio buffer for AEC synchronization.
-    /// Accumulates far-end audio to match mic frame boundaries.
-    far_end_buffer: Vec<f32>,
+    /// Far-end delay estimator + alignment for AEC.
+    /// Cross-correlates mic with far-end history to estimate and compensate
+    /// for speaker-to-mic acoustic delay.
+    #[cfg(feature = "noise-suppression")]
+    delay_estimator: DelayEstimator,
 
     // Speexdsp-style NS
     #[cfg(feature = "dsp")]
@@ -1169,7 +1344,7 @@ impl DspProcessor {
             aec_model_path: _model_dir.as_ref().map(|d| d.join("aec7_ep0185.onnx")),
             #[cfg(feature = "noise-suppression")]
             aec_load_failed: false,
-            far_end_buffer: Vec::new(),
+            delay_estimator: DelayEstimator::new(500.0, 48000),
 
             #[cfg(feature = "dsp")]
             speex_ns: SpeexStyleNS::new(),
@@ -1308,7 +1483,7 @@ impl DspProcessor {
     /// Feed far-end (speaker) audio for AEC synchronization.
     /// The far-end buffer is consumed during `apply_aec` to match mic frame boundaries.
     pub fn set_far_end_audio(&mut self, far_end: &[f32]) {
-        self.far_end_buffer.extend_from_slice(far_end);
+        self.delay_estimator.feed_far(far_end);
     }
 
     // ── AEC Acoustic Echo Cancellation ────────────────────────────────────
@@ -1356,8 +1531,8 @@ impl DspProcessor {
 
         if channels >= 2 {
             // Stereo: process left and right in lockstep.
-            // Each hop iteration drains one far-end chunk and feeds the SAME
-            // mono reference to both aec_left and aec_right instances.
+            // Delay estimator provides time-aligned far-end chunks — no
+            // manual drain needed; alignment is handled internally.
             let frames = data.len() / 2;
             let mut out: Vec<f32> = Vec::with_capacity(data.len());
 
@@ -1365,18 +1540,9 @@ impl DspProcessor {
             let mut right_offset = 0usize;
 
             while left_offset + hop <= frames && right_offset + hop <= frames {
-                if self.far_end_buffer.len() < hop {
-                    // Not enough far-end data — pass through remaining mic unchanged
-                    out.extend_from_slice(&data[left_offset * 2..]);
-                    break;
-                }
-
-                // Consume one far-end chunk for this hop iteration
-                let far_chunk: Vec<f32> = self.far_end_buffer[..hop].to_vec();
-                self.far_end_buffer.drain(..hop);
-
                 // Process left channel hop
                 let mic_left: Vec<f32> = (0..hop).map(|i| data[(left_offset + i) * 2]).collect();
+                let far_chunk = self.delay_estimator.aligned_far(&mic_left);
                 let clean_left = match &mut self.aec_left {
                     Some(proc) => proc.process(&mic_left, &far_chunk),
                     None => mic_left.clone(),
@@ -1407,14 +1573,7 @@ impl DspProcessor {
             let mut output = Vec::with_capacity(data.len());
             for chunk in data.chunks(hop) {
                 if chunk.len() == hop {
-                    let far_chunk = if self.far_end_buffer.len() >= hop {
-                        let far: Vec<f32> = self.far_end_buffer[..hop].to_vec();
-                        self.far_end_buffer.drain(..hop);
-                        far
-                    } else {
-                        output.extend_from_slice(chunk);
-                        continue;
-                    };
+                    let far_chunk = self.delay_estimator.aligned_far(chunk);
                     let clean = match &mut self.aec_left {
                         Some(proc) => proc.process(chunk, &far_chunk),
                         None => chunk.to_vec(),
