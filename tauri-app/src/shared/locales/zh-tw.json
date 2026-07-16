@@ -176,6 +176,8 @@
     },
     "audioParams": {
       "gain": "增益",
+      "aec": "聲學迴聲消除 (AEC)",
+      "aecDesc": "使用 AI 從麥克風中消除揚聲器迴聲",
       "noiseSuppression": "降噪",
       "intensity": "強度",
       "dereverb": "去迴響",
@@ -192,6 +194,7 @@
       "desc": "點擊以設定音訊效果",
       "descPopup": "拖曳以重新排序音訊效果",
       "reset": "重設為預設",
+      "AEC": "迴聲消除 (AEC)",
       "NoiseReduction": "降噪",
       "Dereverb": "去迴響",
       "Amplifier": "增益放大",

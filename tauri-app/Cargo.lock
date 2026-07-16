@@ -3222,6 +3222,7 @@ dependencies = [
  "cpal",
  "log",
  "micyou-protocol",
+ "ndarray",
  "nnnoiseless",
  "ort",
  "ringbuf",

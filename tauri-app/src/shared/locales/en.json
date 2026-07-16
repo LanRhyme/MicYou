@@ -175,8 +175,10 @@
       "processed": "Processed"
     },
     "audioParams": {
-      "gain": "Gain",
-      "noiseSuppression": "Noise Suppression",
+    "gain": "Gain",
+    "aec": "Acoustic Echo Cancellation (AEC)",
+    "aecDesc": "Cancel speaker echo from microphone using AI",
+    "noiseSuppression": "Noise Suppression",
       "intensity": "Intensity",
       "dereverb": "Dereverb",
       "level": "Level",
@@ -192,6 +194,7 @@
       "desc": "Click to configure audio effects",
       "descPopup": "Drag to reorder audio effects",
       "reset": "Reset to Default",
+      "AEC": "Acoustic Echo Cancellation",
       "NoiseReduction": "Noise Reduction",
       "Dereverb": "Dereverb",
       "Amplifier": "Amplifier (Gain)",

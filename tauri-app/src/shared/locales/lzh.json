@@ -176,6 +176,8 @@
     },
     "audioParams": {
       "gain": "增益",
+      "aec": "回音消除 (AEC)",
+      "aecDesc": "以AI消扬声器回音于麦克风中",
       "noiseSuppression": "降噪",
       "intensity": "强度",
       "dereverb": "去混响",
@@ -192,6 +194,7 @@
       "desc": "点以配音频之效",
       "descPopup": "拖以重排音频之效",
       "reset": "复为默认",
+      "AEC": "回音消除",
       "NoiseReduction": "降噪",
       "Dereverb": "去混响",
       "Amplifier": "放大",

@@ -399,6 +399,27 @@
                 <canvas ref="spectrumCanvas" class="w-full h-full"></canvas>
               </div>
             </div>
+            <!-- Acoustic Echo Cancellation (AEC) -->
+            <div class="bg-surface-bright rounded-2xl p-4 shadow-sm">
+              <div class="flex justify-between items-center cursor-pointer" @click="settings.aecEnabled = !settings.aecEnabled">
+                <div>
+                  <span class="font-medium text-on-surface">{{ $t('settings.audioParams.aec') }}</span>
+                  <p class="text-xs text-on-surface-variant mt-0.5">{{ $t('settings.audioParams.aecDesc') }}</p>
+                </div>
+                <button
+                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                  :class="settings.aecEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
+                >
+                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.aecEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+                    <span
+                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                      :class="settings.aecEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
+                    />
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <!-- Amplifier (Gain) -->
             <div class="bg-surface-bright rounded-2xl p-4 shadow-sm flex items-center gap-4">
               <span class="text-sm font-medium text-on-surface whitespace-nowrap">{{ $t('settings.audioParams.gain') }}</span>
@@ -771,6 +792,7 @@ watch(currentLanguage, (newLang) => {
 const settings = reactive({
   audioDevice: 'auto',
   gain: 0,
+  aecEnabled: false,
   nsEnabled: false,
   nsType: 'PureVox',
   nsIntensity: 100,
@@ -782,7 +804,7 @@ const settings = reactive({
   agcDecay: 50,
   vadEnabled: false,
   vadThreshold: -40,
-  processingChain: ['NoiseReduction', 'Dereverb', 'Equalizer', 'Amplifier', 'AGC', 'VAD'],
+  processingChain: ['AEC', 'NoiseReduction', 'Dereverb', 'Equalizer', 'Amplifier', 'AGC', 'VAD'],
   equalizer: {
     enabled: false,
     preAmp: 0,
@@ -1049,6 +1071,7 @@ const syncSettingsToBackend = async () => {
     await invoke('update_audio_settings', {
       settings: {
         gain: settings.gain,
+        aecEnabled: settings.aecEnabled,
         nsEnabled: settings.nsEnabled,
         nsType: settings.nsType,
         nsIntensity: settings.nsIntensity,
