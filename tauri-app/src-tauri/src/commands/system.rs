@@ -207,9 +207,25 @@ pub async fn start_server(
                             let sum: f32 = pcm_f32.iter().map(|x| x * x).sum();
                             (sum / pcm_f32.len() as f32).sqrt()
                         } else {
-                            // Feed previous output as far-end reference for AEC
+                            // Feed previous output as far-end reference for AEC.
+                            // Downmix stereo to mono to avoid interleaved L/R data
+                            // corrupting the AEC mono reference signal.
                             if !previous_output.is_empty() {
-                                dsp_processor.set_far_end_audio(&previous_output);
+                                let far_ref: Vec<f32> = if channels >= 2 {
+                                    // Stereo → mono downmix: average L+R per sample pair
+                                    let frames = previous_output.len() / 2;
+                                    let mut mono = Vec::with_capacity(frames);
+                                    for i in 0..frames {
+                                        mono.push(
+                                            (previous_output[i * 2] + previous_output[i * 2 + 1])
+                                                * 0.5,
+                                        );
+                                    }
+                                    mono
+                                } else {
+                                    previous_output.clone()
+                                };
+                                dsp_processor.set_far_end_audio(&far_ref);
                             }
                             let (_raw, processed) =
                                 dsp_processor.process(&mut pcm_f32, channels.max(1), queued_ms);
