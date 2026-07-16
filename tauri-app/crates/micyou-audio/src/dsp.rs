@@ -28,7 +28,7 @@ impl Default for EqualizerConfig {
 pub struct AudioDspSettings {
     pub gain: f32, // dB, -50 to +50
     pub ns_enabled: bool,
-    pub ns_type: String,   // "RNNoise", "Ulunas", "Speexdsp", "None"
+    pub ns_type: String,   // "PureVox", "RNNoise", "Ulunas", "Speexdsp"
     pub ns_intensity: f32, // 0..100
     pub dereverb_enabled: bool,
     pub dereverb_level: f32, // 0..100
@@ -50,7 +50,7 @@ impl Default for AudioDspSettings {
         Self {
             gain: 0.0,
             ns_enabled: false,
-            ns_type: "RNNoise".to_string(),
+            ns_type: "PureVox".to_string(),
             ns_intensity: 50.0,
             dereverb_enabled: false,
             dereverb_level: 50.0,
