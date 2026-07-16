@@ -784,6 +784,12 @@ pub struct DspProcessor {
 
     #[cfg(feature = "noise-suppression")]
     purevox_model_path: Option<PathBuf>,
+    /// Once a model load fails, stop retrying to avoid expensive reloads
+    /// every frame on the real-time audio thread.
+    #[cfg(feature = "noise-suppression")]
+    ulunas_load_failed: bool,
+    #[cfg(feature = "noise-suppression")]
+    purevox_load_failed: bool,
 
     // Speexdsp-style NS
     #[cfg(feature = "dsp")]
@@ -839,6 +845,10 @@ impl DspProcessor {
             purevox_left: None,
             #[cfg(feature = "noise-suppression")]
             purevox_right: None,
+            #[cfg(feature = "noise-suppression")]
+            ulunas_load_failed: false,
+            #[cfg(feature = "noise-suppression")]
+            purevox_load_failed: false,
 
             #[cfg(feature = "dsp")]
             speex_ns: SpeexStyleNS::new(),
@@ -1078,8 +1088,9 @@ impl DspProcessor {
 
     #[cfg(feature = "noise-suppression")]
     fn apply_ulunas(&mut self, data: &mut Vec<f32>, channels: usize, intensity: f32) {
-        // Lazy init for both channels
-        if self.ulunas_left.is_none() {
+        // Lazy init for both channels — only attempt once; if loading fails,
+        // mark it so we don't retry on every audio frame.
+        if self.ulunas_left.is_none() && !self.ulunas_load_failed {
             if let Some(path) = &self.ulunas_model_path {
                 if path.exists() {
                     match UlunasProcessor::new(path.to_str().unwrap_or("")) {
@@ -1089,6 +1100,7 @@ impl DspProcessor {
                         }
                         Err(e) => {
                             log::error!("[DSP] Failed to load Ulunas model: {}", e);
+                            self.ulunas_load_failed = true;
                             self.apply_rnnoise(data, channels, intensity);
                             return;
                         }
@@ -1098,15 +1110,17 @@ impl DspProcessor {
                         "[DSP] Ulunas model not found at {:?}, falling back to RNNoise",
                         path
                     );
+                    self.ulunas_load_failed = true;
                     self.apply_rnnoise(data, channels, intensity);
                     return;
                 }
             } else {
+                self.ulunas_load_failed = true;
                 self.apply_rnnoise(data, channels, intensity);
                 return;
             }
         }
-        if channels >= 2 && self.ulunas_right.is_none() {
+        if channels >= 2 && self.ulunas_right.is_none() && !self.ulunas_load_failed {
             if let Some(path) = &self.ulunas_model_path {
                 if path.exists() {
                     match UlunasProcessor::new(path.to_str().unwrap_or("")) {
@@ -1167,8 +1181,9 @@ impl DspProcessor {
 
     #[cfg(feature = "noise-suppression")]
     fn apply_purevox(&mut self, data: &mut Vec<f32>, channels: usize, intensity: f32) {
-        // Lazy init for both channels
-        if self.purevox_left.is_none() {
+        // Lazy init for both channels — only attempt once; if loading fails,
+        // mark it so we don't retry on every audio frame.
+        if self.purevox_left.is_none() && !self.purevox_load_failed {
             if let Some(path) = &self.purevox_model_path {
                 if path.exists() {
                     match PureVoxProcessor::new(path.to_str().unwrap_or("")) {
@@ -1178,6 +1193,7 @@ impl DspProcessor {
                         }
                         Err(e) => {
                             log::error!("[DSP] Failed to load PureVox model: {}", e);
+                            self.purevox_load_failed = true;
                             self.apply_rnnoise(data, channels, intensity);
                             return;
                         }
@@ -1187,15 +1203,17 @@ impl DspProcessor {
                         "[DSP] PureVox model not found at {:?}, falling back to RNNoise",
                         path
                     );
+                    self.purevox_load_failed = true;
                     self.apply_rnnoise(data, channels, intensity);
                     return;
                 }
             } else {
+                self.purevox_load_failed = true;
                 self.apply_rnnoise(data, channels, intensity);
                 return;
             }
         }
-        if channels >= 2 && self.purevox_right.is_none() {
+        if channels >= 2 && self.purevox_right.is_none() && !self.purevox_load_failed {
             if let Some(path) = &self.purevox_model_path {
                 if path.exists() {
                     match PureVoxProcessor::new(path.to_str().unwrap_or("")) {

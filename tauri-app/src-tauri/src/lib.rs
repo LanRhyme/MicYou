@@ -1,29 +1,29 @@
 #![allow(unexpected_cfgs)]
 
-pub mod network;
-pub mod tcp_server;
-pub mod udp_server;
-#[cfg(feature = "web-server")]
-pub mod web_server;
-pub mod commands;
 pub mod adb_manager;
-pub mod stats;
-pub mod tray;
-pub mod vbcable;
 pub mod blackhole;
+pub mod commands;
 pub mod jitter_buffer;
+pub mod network;
 #[cfg(target_os = "linux")]
 pub mod pipewire;
 pub mod server;
+pub mod stats;
+pub mod tcp_server;
+pub mod tray;
+pub mod udp_server;
+pub mod vbcable;
+#[cfg(feature = "web-server")]
+pub mod web_server;
 
-use tauri::Manager;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use std::sync::RwLock;
+use tauri::Manager;
+use tokio::sync::Mutex;
 
+use crate::tray::TrayContext;
 use micyou_audio::dsp::AudioDspSettings;
 use stats::NetworkStats;
-use crate::tray::TrayContext;
 
 #[cfg(target_os = "macos")]
 #[allow(unexpected_cfgs)]
@@ -73,9 +73,11 @@ pub fn run() {
             #[cfg(feature = "web-server")]
             web_mdns: Arc::new(Mutex::new(None)),
         })
-        .plugin(tauri_plugin_log::Builder::new()
-            .level(log::LevelFilter::Info)
-            .build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
@@ -127,4 +129,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
