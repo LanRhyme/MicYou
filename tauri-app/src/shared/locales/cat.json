@@ -176,6 +176,8 @@
     },
     "audioParams": {
       "gain": "增益喵~",
+      "aec": "声学回声消除喵~ (AEC)",
+      "aecDesc": "用 AI 从麦克风消除扬声器回声喵~ 🎤",
       "noiseSuppression": "降噪喵~ 🔇",
       "intensity": "强度喵~",
       "dereverb": "去混响喵~",
@@ -192,6 +194,7 @@
       "desc": "点击配置音频效果喵~",
       "descPopup": "拖拽重新排序音频效果喵~",
       "reset": "重置为默认喵~",
+      "AEC": "回声消除喵~ (AEC)",
       "NoiseReduction": "降噪喵~ 🔇",
       "Dereverb": "去混响喵~",
       "Amplifier": "放大器（增益）喵~",

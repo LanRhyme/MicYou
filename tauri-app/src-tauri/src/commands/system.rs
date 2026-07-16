@@ -1,10 +1,10 @@
-use tauri::{Emitter, AppHandle, Manager, State};
 use tauri::window::Effect;
+use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
 
-use micyou_audio::dsp::DspProcessor;
 use crate::server::ServerState;
 use crate::tray::{TrayContext, TrayMenuStrings, TrayState};
+use micyou_audio::dsp::DspProcessor;
 
 #[derive(serde::Serialize, Clone)]
 pub struct SpectrumPayload {
@@ -13,7 +13,14 @@ pub struct SpectrumPayload {
 }
 
 #[tauri::command]
-pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, port: u16, mode: String, bind_address: Option<String>, output_device: Option<String>) -> Result<String, String> {
+pub async fn start_server(
+    app_handle: AppHandle,
+    state: State<'_, ServerState>,
+    port: u16,
+    mode: String,
+    bind_address: Option<String>,
+    output_device: Option<String>,
+) -> Result<String, String> {
     let bind_addr = bind_address.unwrap_or_else(|| "0.0.0.0".to_string());
     let cancel_token = {
         let mut token_lock = state.cancel_token.lock().await;
@@ -86,7 +93,8 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
                 if res_dir.join("ulunas.onnx").exists() {
                     return Some(res_dir);
                 }
-                let dev_res = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
+                let dev_res =
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
                 if dev_res.join("ulunas.onnx").exists() {
                     return Some(dev_res);
                 }
@@ -96,6 +104,7 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
         };
         let mut jb = crate::jitter_buffer::JitterBuffer::new(12);
         let mut frame_counter = 0;
+        let mut previous_output: Vec<f32> = Vec::new(); // far-end reference for AEC
         let mut input_resampler: Option<micyou_audio::RubatoResampler> = None;
         let mut current_input_sample_rate: u32 = 0;
         let mut resample_out_buf = Vec::new();
@@ -131,13 +140,16 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
                         }
                         4 => {
                             for chunk in audio_data.buffer.chunks_exact(4) {
-                                let sample_f32 = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+                                let sample_f32 =
+                                    f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
                                 pcm_f32.push(sample_f32);
                             }
                         }
                         6 => {
                             for chunk in audio_data.buffer.chunks_exact(3) {
-                                let sample24 = (chunk[0] as i32) | ((chunk[1] as i32) << 8) | ((chunk[2] as i8 as i32) << 16);
+                                let sample24 = (chunk[0] as i32)
+                                    | ((chunk[1] as i32) << 8)
+                                    | ((chunk[2] as i8 as i32) << 16);
                                 let sample_f32 = (sample24 as f32) / 8388608.0;
                                 pcm_f32.push(sample_f32);
                             }
@@ -154,7 +166,9 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
                         if sample_rate > 0 && sample_rate != 48000 {
                             if current_input_sample_rate != sample_rate {
                                 match micyou_audio::RubatoResampler::new(
-                                    sample_rate, 48000, channels.max(1)
+                                    sample_rate,
+                                    48000,
+                                    channels.max(1),
                                 ) {
                                     Ok(res) => {
                                         input_resampler = Some(res);
@@ -168,7 +182,11 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
                                 }
                             }
                             if let Some(ref mut resampler) = input_resampler {
-                                resampler.resample(&pcm_f32, channels.max(1), &mut resample_out_buf);
+                                resampler.resample(
+                                    &pcm_f32,
+                                    channels.max(1),
+                                    &mut resample_out_buf,
+                                );
                                 pcm_f32.clear();
                                 pcm_f32.extend_from_slice(&resample_out_buf);
                             }
@@ -189,7 +207,14 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
                             let sum: f32 = pcm_f32.iter().map(|x| x * x).sum();
                             (sum / pcm_f32.len() as f32).sqrt()
                         } else {
-                            let (_raw, processed) = dsp_processor.process(&mut pcm_f32, channels.max(1), queued_ms);
+                            // Feed previous output as far-end reference for AEC
+                            if !previous_output.is_empty() {
+                                dsp_processor.set_far_end_audio(&previous_output);
+                            }
+                            let (_raw, processed) =
+                                dsp_processor.process(&mut pcm_f32, channels.max(1), queued_ms);
+                            // Store output as far-end reference for next frame
+                            previous_output = pcm_f32.clone();
                             processed
                         };
 
@@ -201,10 +226,13 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
                             let _ = app_handle_audio.emit("audio-level", level);
 
                             let (raw_spec, proc_spec) = dsp_processor.get_spectrums();
-                            let _ = app_handle_audio.emit("audio-spectrum", SpectrumPayload {
-                                raw: raw_spec,
-                                processed: proc_spec,
-                            });
+                            let _ = app_handle_audio.emit(
+                                "audio-spectrum",
+                                SpectrumPayload {
+                                    raw: raw_spec,
+                                    processed: proc_spec,
+                                },
+                            );
                         }
                     }
                 }
@@ -212,7 +240,8 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
         }
     });
 
-    ready_rx.await
+    ready_rx
+        .await
         .map_err(|_| "Audio thread panicked during startup".to_string())?
         .map_err(|e| format!("Failed to start audio output: {}", e))?;
 
@@ -222,9 +251,12 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
         let web_port = port;
         let web_server_instance = crate::web_server::WebServer::new();
 
-        let (web_audio_tx, mut web_audio_rx) = tokio::sync::mpsc::channel::<micyou_protocol::micyou::AudioPacketMessage>(1024);
+        let (web_audio_tx, mut web_audio_rx) =
+            tokio::sync::mpsc::channel::<micyou_protocol::micyou::AudioPacketMessage>(1024);
 
-        web_server_instance.start(web_port, app_handle.clone(), web_audio_tx).await
+        web_server_instance
+            .start(web_port, app_handle.clone(), web_audio_tx)
+            .await
             .map_err(|e| format!("Failed to start web server: {}", e))?;
 
         let mut web_mdns_lock = state.web_mdns.lock().await;
@@ -271,7 +303,19 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
     let connection_tx_tcp = state.connection_tx.clone();
     let active_socket_handle_tcp = state.active_socket_handle.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = crate::tcp_server::start_tcp_server(app_handle_tcp, port_tcp, bind_addr_tcp, token_tcp, audio_tx_tcp, stats_tcp, mode_tcp, connection_tx_tcp, active_socket_handle_tcp).await {
+        if let Err(e) = crate::tcp_server::start_tcp_server(
+            app_handle_tcp,
+            port_tcp,
+            bind_addr_tcp,
+            token_tcp,
+            audio_tx_tcp,
+            stats_tcp,
+            mode_tcp,
+            connection_tx_tcp,
+            active_socket_handle_tcp,
+        )
+        .await
+        {
             eprintln!("TCP Server error: {}", e);
         }
     });
@@ -281,7 +325,15 @@ pub async fn start_server(app_handle: AppHandle, state: State<'_, ServerState>, 
     let stats_udp = state.network_stats.clone();
     let bind_addr_udp = bind_addr.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = crate::udp_server::start_udp_server(audio_tx, port_udp, bind_addr_udp, token_udp, stats_udp).await {
+        if let Err(e) = crate::udp_server::start_udp_server(
+            audio_tx,
+            port_udp,
+            bind_addr_udp,
+            token_udp,
+            stats_udp,
+        )
+        .await
+        {
             eprintln!("UDP Server error: {}", e);
         }
     });
@@ -370,17 +422,18 @@ fn main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<tauri::WebviewWi
 pub fn set_window_effects(app: AppHandle, enabled: bool) -> Result<(), String> {
     use tauri::window::EffectsBuilder;
 
-    let window = app.get_webview_window("main")
+    let window = app
+        .get_webview_window("main")
         .ok_or_else(|| "Main window not found".to_string())?;
 
     if enabled {
-        window.set_effects(
-            EffectsBuilder::new()
-                .effect(Effect::Acrylic)
-                .build()
-        ).map_err(|e| e.to_string())?;
+        window
+            .set_effects(EffectsBuilder::new().effect(Effect::Acrylic).build())
+            .map_err(|e| e.to_string())?;
     } else {
-        window.set_effects(None::<tauri::utils::config::WindowEffectsConfig>).map_err(|e| e.to_string())?;
+        window
+            .set_effects(None::<tauri::utils::config::WindowEffectsConfig>)
+            .map_err(|e| e.to_string())?;
     }
 
     Ok(())
@@ -390,11 +443,11 @@ pub fn set_window_effects(app: AppHandle, enabled: bool) -> Result<(), String> {
 #[cfg(windows)]
 #[tauri::command]
 pub async fn start_window_drag(app: AppHandle) -> Result<(), String> {
-    use winapi::um::winuser::{
-        GetCursorPos, GetAsyncKeyState, SetWindowPos, FindWindowA,
-        VK_LBUTTON, SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE,
-    };
     use std::ffi::CString;
+    use winapi::um::winuser::{
+        FindWindowA, GetAsyncKeyState, GetCursorPos, SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE,
+        SWP_NOZORDER, VK_LBUTTON,
+    };
 
     let mut cursor_pos: winapi::shared::windef::POINT = unsafe { std::mem::zeroed() };
     if unsafe { GetCursorPos(&mut cursor_pos as *mut _) } == 0 {
@@ -402,7 +455,8 @@ pub async fn start_window_drag(app: AppHandle) -> Result<(), String> {
     }
     let start_cursor = (cursor_pos.x, cursor_pos.y);
 
-    let window = app.get_webview_window("main")
+    let window = app
+        .get_webview_window("main")
         .ok_or_else(|| "Main window not found".to_string())?;
     let pos = window.outer_position().map_err(|e| e.to_string())?;
     let start_win = (pos.x, pos.y);
@@ -436,7 +490,8 @@ pub async fn start_window_drag(app: AppHandle) -> Result<(), String> {
                     std::ptr::null_mut(),
                     start_win.0 + dx as i32,
                     start_win.1 + dy as i32,
-                    0, 0,
+                    0,
+                    0,
                     flags,
                 );
             }
@@ -460,11 +515,9 @@ pub async fn start_window_drag(_app: AppHandle) -> Result<(), String> {
 #[cfg(windows)]
 fn restore_acrylic(window: &tauri::WebviewWindow) -> Result<(), String> {
     use tauri::window::EffectsBuilder;
-    window.set_effects(
-        EffectsBuilder::new()
-            .effect(Effect::Acrylic)
-            .build()
-    ).map_err(|e| e.to_string())
+    window
+        .set_effects(EffectsBuilder::new().effect(Effect::Acrylic).build())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

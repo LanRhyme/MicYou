@@ -119,7 +119,7 @@ const close = () => {
 };
 
 const resetChain = () => {
-  const defaultChain = ['NoiseReduction', 'Dereverb', 'Equalizer', 'Amplifier', 'AGC', 'VAD'];
+  const defaultChain = ['AEC', 'NoiseReduction', 'Dereverb', 'Equalizer', 'Amplifier', 'AGC', 'VAD'];
   localChain.value = [...defaultChain];
   emit('update:chain', localChain.value);
 };

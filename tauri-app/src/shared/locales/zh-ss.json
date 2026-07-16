@@ -176,6 +176,8 @@
     },
     "audioParams": {
       "gain": "增益",
+      "aec": "声学回声消除项 (AEC)",
+      "aecDesc": "使用人工智能从麦克风中消除扬声器回声项",
       "noiseSuppression": "降噪",
       "intensity": "降噪强度项",
       "dereverb": "去混响",
@@ -192,6 +194,7 @@
       "desc": "点击箭头重新排序音频效果项",
       "descPopup": "拖动以重新排序音频效果",
       "reset": "重置为默认",
+      "AEC": "启用回声消除项",
       "NoiseReduction": "开启噪音压制项",
       "Dereverb": "启用去混响项",
       "Amplifier": "放大倍增项",

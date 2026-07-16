@@ -6,7 +6,7 @@ edition.workspace = true
 
 [features]
 default = ["dsp"]
-dsp = ["dep:nnnoiseless", "dep:ort", "dep:rustfft"]
+dsp = ["dep:nnnoiseless", "dep:ort", "dep:rustfft", "dep:ndarray"]
 noise-suppression = ["dsp"]
 
 [dependencies]
@@ -21,6 +21,7 @@ ringbuf = "0.3.3"
 nnnoiseless = { version = "0.5.2", optional = true }
 ort = { version = "=2.0.0-rc.12", features = ["download-binaries", "coreml", "tls-rustls", "std", "ndarray", "api-17"], optional = true }
 rustfft = { version = "6.4.1", optional = true }
+ndarray = { version = "0.16", optional = true }
 
 # [[bin]]
 # name = "test_onnx"

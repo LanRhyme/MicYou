@@ -1,6 +1,9 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
+#[cfg(feature = "dsp")]
+use ndarray::{Array3, ArrayD, IxDyn};
 #[cfg(feature = "dsp")]
 use nnnoiseless::DenoiseState;
 
@@ -38,6 +41,7 @@ pub struct AudioDspSettings {
     pub agc_decay: f32,  // raw slider value 1..100, maps to 0.0001..0.01
     pub vad_enabled: bool,
     pub vad_threshold: f32, // dB, -100..0
+    pub aec_enabled: bool,
 
     #[serde(default)]
     pub processing_chain: Vec<String>,
@@ -60,7 +64,9 @@ impl Default for AudioDspSettings {
             agc_decay: 50.0,
             vad_enabled: false,
             vad_threshold: -40.0,
+            aec_enabled: false,
             processing_chain: vec![
+                "AEC".to_string(),
                 "NoiseReduction".to_string(),
                 "Dereverb".to_string(),
                 "Equalizer".to_string(),
@@ -487,6 +493,279 @@ impl PureVoxProcessor {
     }
 }
 
+// ─── AEC7 ONNX acoustic echo cancellation ────────────────────────────────
+
+const AEC_WIN_LEN: usize = 960;
+const AEC_HOP_LEN: usize = 480;
+const AEC_NFFT: usize = 960;
+const AEC_N_BINS: usize = AEC_NFFT / 2 + 1; // 481
+
+/// ONNX-based AEC7 acoustic echo cancellation.
+/// Takes both mic (near-end) and far-end (speaker) audio and cancels echo.
+/// Based on the aec7_ep0185.onnx model.
+#[cfg(feature = "noise-suppression")]
+struct AecProcessor {
+    session: ort::session::Session,
+    /// Dynamic cache state tensors discovered from model inputs
+    cache_tensors: Vec<ArrayD<f32>>,
+    cache_names: Vec<String>,
+    cache_shapes: Vec<Vec<usize>>,
+    /// Index where output offset begins (+2 instead of +1)
+    /// to skip `deep_enc_conv_o` (shape [1,0]) not exposed by session.inputs()
+    skip_offset_at: usize,
+    // STFT / iSTFT / OLA
+    window: Vec<f32>,
+    ola_gain: f32,
+    mic_previous: Vec<f32>,    // last 480 mic samples for overlapping frames
+    far_previous: Vec<f32>,    // last 480 far-end samples for overlapping frames
+    ola_accumulator: Vec<f32>, // 960 samples
+    fft_forward: std::sync::Arc<dyn rustfft::Fft<f32>>,
+    fft_inverse: std::sync::Arc<dyn rustfft::Fft<f32>>,
+}
+
+#[cfg(feature = "noise-suppression")]
+impl AecProcessor {
+    fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        use rustfft::FftPlanner;
+
+        let session = ort::session::Session::builder()?
+            .with_intra_threads(1)?
+            .with_inter_threads(1)?
+            .commit_from_file(model_path)?;
+
+        // Hann^2 window matching main.rs AEC implementation
+        let window: Vec<f32> = (0..AEC_WIN_LEN)
+            .map(|i| {
+                let x = (std::f32::consts::PI * i as f32 / (AEC_WIN_LEN - 1) as f32).sin();
+                x * x
+            })
+            .collect();
+
+        // OLA gain: 1 / sqrt(avg(window^2 + window_shifted^2))
+        let ola_gain = {
+            let mut sum_sq = 0.0f32;
+            for i in 0..AEC_HOP_LEN {
+                sum_sq += window[i] * window[i] + window[i + AEC_HOP_LEN] * window[i + AEC_HOP_LEN];
+            }
+            let avg = sum_sq / AEC_HOP_LEN as f32;
+            if avg > 0.001 {
+                1.0 / avg.sqrt()
+            } else {
+                1.0
+            }
+        };
+
+        let mut planner = FftPlanner::new();
+        let fft_forward = planner.plan_fft_forward(AEC_NFFT);
+        let fft_inverse = planner.plan_fft_inverse(AEC_NFFT);
+
+        // Discover cache state tensors from model inputs
+        let inputs = session.inputs();
+        let mut cache_names = Vec::new();
+        let mut cache_shapes = Vec::new();
+        let mut cache_tensors = Vec::new();
+
+        for input in inputs {
+            let name = input.name();
+            if name == "mic_frame" || name == "far_frame" {
+                continue;
+            }
+            let shape: Vec<usize> = input
+                .dtype()
+                .tensor_shape()
+                .ok_or_else(|| format!("failed to get tensor shape for '{}'", name))?
+                .iter()
+                .map(|d| *d as usize)
+                .collect();
+            cache_names.push(name.to_string());
+            cache_shapes.push(shape.clone());
+            cache_tensors.push(ArrayD::zeros(IxDyn(&shape)));
+        }
+
+        // `deep_enc_conv` (shape [1,0]) exists in the ONNX model but is
+        // not exposed by session.inputs(). Its output `deep_enc_conv_o`
+        // still appears at output index 5. Caches at/after `deep_enc_tfa`
+        // need to read from outputs[i+2] instead of outputs[i+1].
+        let skip_offset_at = cache_names
+            .iter()
+            .position(|n| n == "deep_enc_tfa")
+            .unwrap_or(0);
+
+        Ok(Self {
+            session,
+            cache_tensors,
+            cache_names,
+            cache_shapes,
+            skip_offset_at,
+            window,
+            ola_gain,
+            mic_previous: vec![0.0; AEC_HOP_LEN],
+            far_previous: vec![0.0; AEC_HOP_LEN],
+            ola_accumulator: vec![0.0; AEC_WIN_LEN],
+            fft_forward,
+            fft_inverse,
+        })
+    }
+
+    /// Process one frame (480 samples each of mic and far-end).
+    /// Returns 480 samples of echo-cancelled audio.
+    fn process(&mut self, mic_chunk: &[f32], far_chunk: &[f32]) -> Vec<f32> {
+        if mic_chunk.len() != AEC_HOP_LEN || far_chunk.len() != AEC_HOP_LEN {
+            // Return unchanged mic if sizes don't match
+            return mic_chunk.to_vec();
+        }
+
+        use rustfft::num_complex::Complex;
+
+        // ── Build overlapping frames ──
+        let mut mic_frame = vec![0.0f32; AEC_WIN_LEN];
+        mic_frame[..AEC_HOP_LEN].copy_from_slice(&self.mic_previous);
+        mic_frame[AEC_HOP_LEN..].copy_from_slice(mic_chunk);
+        self.mic_previous.copy_from_slice(mic_chunk);
+
+        let mut far_frame = vec![0.0f32; AEC_WIN_LEN];
+        far_frame[..AEC_HOP_LEN].copy_from_slice(&self.far_previous);
+        far_frame[AEC_HOP_LEN..].copy_from_slice(far_chunk);
+        self.far_previous.copy_from_slice(far_chunk);
+
+        // ── Apply window + FFT → STFT frames ──
+        let mic_stft = self.forward_stft(&mic_frame);
+        let far_stft = self.forward_stft(&far_frame);
+
+        // ── ONNX inference ──
+        let enhanced_stft = match self.infer_step(&mic_stft, &far_stft) {
+            Ok(frame) => frame,
+            Err(e) => {
+                log::error!("[DSP] AEC ONNX inference failed: {}", e);
+                return mic_chunk.to_vec();
+            }
+        };
+
+        // ── iSTFT + OLA → time domain ──
+        let mut time_frame = vec![0.0f32; AEC_WIN_LEN];
+        {
+            // Convert enhanced_stft [1, 2, 481] → complex spectrum → iFFT
+            let mut complex_buf: Vec<Complex<f32>> = Vec::with_capacity(AEC_NFFT);
+            for bin in 0..AEC_NFFT {
+                if bin < AEC_N_BINS {
+                    complex_buf.push(Complex::new(
+                        enhanced_stft[[0, 0, bin]],
+                        enhanced_stft[[0, 1, bin]],
+                    ));
+                } else {
+                    let mirror = AEC_NFFT - bin;
+                    complex_buf.push(Complex::new(
+                        enhanced_stft[[0, 0, mirror]],
+                        -enhanced_stft[[0, 1, mirror]],
+                    ));
+                }
+            }
+            self.fft_inverse.process(&mut complex_buf);
+            let scale = 1.0 / AEC_NFFT as f32;
+            for i in 0..AEC_WIN_LEN {
+                time_frame[i] = complex_buf[i].re * scale * self.window[i];
+            }
+        }
+
+        // ── OLA ──
+        for i in 0..AEC_WIN_LEN {
+            self.ola_accumulator[i] += time_frame[i];
+        }
+
+        let mut output = vec![0.0f32; AEC_HOP_LEN];
+        for i in 0..AEC_HOP_LEN {
+            output[i] = self.ola_accumulator[i] * self.ola_gain;
+        }
+
+        // Shift accumulator
+        for i in 0..AEC_WIN_LEN - AEC_HOP_LEN {
+            self.ola_accumulator[i] = self.ola_accumulator[i + AEC_HOP_LEN];
+        }
+        for i in AEC_WIN_LEN - AEC_HOP_LEN..AEC_WIN_LEN {
+            self.ola_accumulator[i] = 0.0;
+        }
+
+        output
+    }
+
+    /// Compute STFT of a windowed frame, returning Array3 [1, 2, 481]
+    fn forward_stft(&self, windowed_frame: &[f32]) -> Array3<f32> {
+        use rustfft::num_complex::Complex;
+
+        let mut complex_buf: Vec<Complex<f32>> = windowed_frame
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| Complex::new(v * self.window[i], 0.0))
+            .collect();
+        self.fft_forward.process(&mut complex_buf);
+
+        let mut frame = Array3::zeros((1, 2, AEC_N_BINS));
+        for bin in 0..AEC_N_BINS {
+            frame[[0, 0, bin]] = complex_buf[bin].re;
+            frame[[0, 1, bin]] = complex_buf[bin].im;
+        }
+        frame
+    }
+
+    /// Run one ONNX inference step with mic and far STFT frames
+    fn infer_step(
+        &mut self,
+        mic_frame: &Array3<f32>,
+        far_frame: &Array3<f32>,
+    ) -> Result<Array3<f32>, Box<dyn std::error::Error>> {
+        use ort::value::Tensor;
+
+        let mf_slice = mic_frame.as_slice().ok_or("mic_frame not contiguous")?;
+        let ff_slice = far_frame.as_slice().ok_or("far_frame not contiguous")?;
+
+        let mut feed: HashMap<String, ort::value::DynValue> = HashMap::new();
+        feed.insert(
+            "mic_frame".into(),
+            Tensor::from_array((vec![1_i64, 2, AEC_N_BINS as i64], mf_slice.to_vec()))?.into_dyn(),
+        );
+        feed.insert(
+            "far_frame".into(),
+            Tensor::from_array((vec![1_i64, 2, AEC_N_BINS as i64], ff_slice.to_vec()))?.into_dyn(),
+        );
+
+        for (name, tensor) in self.cache_names.iter().zip(self.cache_tensors.iter()) {
+            let flat = tensor.as_slice().ok_or("cache not contiguous")?;
+            let shape_i64: Vec<i64> = tensor.shape().iter().map(|&d| d as i64).collect();
+            feed.insert(
+                name.clone(),
+                Tensor::from_array((shape_i64, flat.to_vec()))?.into_dyn(),
+            );
+        }
+
+        let outputs = self.session.run(feed)?;
+
+        let (_shape, enhanced_data) = outputs[0]
+            .try_extract_tensor::<f32>()
+            .map_err(|e| format!("failed to extract enhanced_frame: {}", e))?;
+        let enhanced = Array3::from_shape_vec((1, 2, AEC_N_BINS), enhanced_data.to_vec())
+            .map_err(|e| format!("enhanced_frame reshape failed: {}", e))?;
+
+        // Update cache states from outputs
+        for (i, (shape, tensor)) in self
+            .cache_shapes
+            .iter()
+            .zip(self.cache_tensors.iter_mut())
+            .enumerate()
+        {
+            let output_idx = if i < self.skip_offset_at {
+                i + 1
+            } else {
+                i + 2 // skip deep_enc_conv_o at index 5
+            };
+            if let Ok((_shape, data)) = outputs[output_idx].try_extract_tensor::<f32>() {
+                *tensor = ArrayD::from_shape_vec(IxDyn(shape), data.to_vec())?;
+            }
+        }
+
+        Ok(enhanced)
+    }
+}
+
 // ─── Speexdsp-style spectral subtraction noise suppression ──────────────────
 
 /// A simple spectral subtraction noise suppressor inspired by Speex's approach.
@@ -791,6 +1070,17 @@ pub struct DspProcessor {
     #[cfg(feature = "noise-suppression")]
     purevox_load_failed: bool,
 
+    // AEC7 ONNX acoustic echo cancellation
+    #[cfg(feature = "noise-suppression")]
+    aec_processor: Option<AecProcessor>,
+    #[cfg(feature = "noise-suppression")]
+    aec_model_path: Option<PathBuf>,
+    #[cfg(feature = "noise-suppression")]
+    aec_load_failed: bool,
+    /// Far-end (speaker) audio buffer for AEC synchronization.
+    /// Accumulates far-end audio to match mic frame boundaries.
+    far_end_buffer: Vec<f32>,
+
     // Speexdsp-style NS
     #[cfg(feature = "dsp")]
     speex_ns: SpeexStyleNS,
@@ -850,6 +1140,14 @@ impl DspProcessor {
             #[cfg(feature = "noise-suppression")]
             purevox_load_failed: false,
 
+            #[cfg(feature = "noise-suppression")]
+            aec_processor: None,
+            #[cfg(feature = "noise-suppression")]
+            aec_model_path: _model_dir.as_ref().map(|d| d.join("aec7_ep0185.onnx")),
+            #[cfg(feature = "noise-suppression")]
+            aec_load_failed: false,
+            far_end_buffer: Vec::new(),
+
             #[cfg(feature = "dsp")]
             speex_ns: SpeexStyleNS::new(),
             equalizer: EqualizerEffect::new(),
@@ -906,6 +1204,13 @@ impl DspProcessor {
 
         for effect in &settings.processing_chain {
             match effect.as_str() {
+                "AEC" =>
+                {
+                    #[cfg(feature = "noise-suppression")]
+                    if settings.aec_enabled {
+                        self.apply_aec(&mut to_process, channels.max(1));
+                    }
+                }
                 "NoiseReduction" => {
                     if settings.ns_enabled {
                         self.apply_noise_reduction(&mut to_process, channels.max(1), &settings);
@@ -975,6 +1280,128 @@ impl DspProcessor {
 
     pub fn get_spectrums(&self) -> (Vec<f32>, Vec<f32>) {
         (self.raw_spectrum.clone(), self.processed_spectrum.clone())
+    }
+
+    /// Feed far-end (speaker) audio for AEC synchronization.
+    /// The far-end buffer is consumed during `apply_aec` to match mic frame boundaries.
+    pub fn set_far_end_audio(&mut self, far_end: &[f32]) {
+        self.far_end_buffer.extend_from_slice(far_end);
+    }
+
+    // ── AEC Acoustic Echo Cancellation ────────────────────────────────────
+
+    #[cfg(feature = "noise-suppression")]
+    fn apply_aec(&mut self, data: &mut Vec<f32>, channels: usize) {
+        // Lazy init — only attempt once; mark failed to avoid retries
+        if self.aec_processor.is_none() && !self.aec_load_failed {
+            if let Some(path) = &self.aec_model_path {
+                if path.exists() {
+                    match AecProcessor::new(path.to_str().unwrap_or("")) {
+                        Ok(proc) => {
+                            log::info!("[DSP] AEC7 ONNX model loaded: {:?}", path);
+                            self.aec_processor = Some(proc);
+                        }
+                        Err(e) => {
+                            log::error!("[DSP] Failed to load AEC7 model: {}", e);
+                            self.aec_load_failed = true;
+                            return;
+                        }
+                    }
+                } else {
+                    log::warn!("[DSP] AEC7 model not found at {:?}, disabling AEC", path);
+                    self.aec_load_failed = true;
+                    return;
+                }
+            } else {
+                self.aec_load_failed = true;
+                return;
+            }
+        }
+
+        let aec = match &mut self.aec_processor {
+            Some(p) => p,
+            None => return,
+        };
+
+        let hop = AEC_HOP_LEN; // 480
+
+        if channels >= 2 {
+            // Stereo: process left and right with same far-end signal
+            let frames = data.len() / 2;
+            let mut left: Vec<f32> = Vec::with_capacity(frames);
+            let mut right: Vec<f32> = Vec::with_capacity(frames);
+            for i in 0..frames {
+                left.push(data[i * 2]);
+                right.push(data[i * 2 + 1]);
+            }
+
+            // Process left channel
+            let mut out_left = Vec::with_capacity(left.len());
+            for chunk in left.chunks(hop) {
+                if chunk.len() == hop {
+                    // Consume matching far-end chunk
+                    let far_chunk = if self.far_end_buffer.len() >= hop {
+                        let far: Vec<f32> = self.far_end_buffer[..hop].to_vec();
+                        self.far_end_buffer.drain(..hop);
+                        far
+                    } else {
+                        // Not enough far-end data — pass through mic unchanged
+                        out_left.extend_from_slice(chunk);
+                        continue;
+                    };
+                    let clean = aec.process(chunk, &far_chunk);
+                    out_left.extend_from_slice(&clean);
+                } else {
+                    out_left.extend_from_slice(chunk);
+                }
+            }
+
+            // Process right channel (reuses same far-end — AEC model is mono)
+            let mut out_right = Vec::with_capacity(right.len());
+            for chunk in right.chunks(hop) {
+                if chunk.len() == hop {
+                    // Need far-end for right channel too — use zeros if exhausted
+                    let far_chunk = if self.far_end_buffer.len() >= hop {
+                        let far: Vec<f32> = self.far_end_buffer[..hop].to_vec();
+                        self.far_end_buffer.drain(..hop);
+                        far
+                    } else {
+                        out_right.extend_from_slice(chunk);
+                        continue;
+                    };
+                    let clean = aec.process(chunk, &far_chunk);
+                    out_right.extend_from_slice(&clean);
+                } else {
+                    out_right.extend_from_slice(chunk);
+                }
+            }
+
+            data.clear();
+            for i in 0..frames.min(out_left.len()).min(out_right.len()) {
+                data.push(out_left[i]);
+                data.push(out_right[i]);
+            }
+        } else {
+            // Mono
+            let mut output = Vec::with_capacity(data.len());
+            for chunk in data.chunks(hop) {
+                if chunk.len() == hop {
+                    let far_chunk = if self.far_end_buffer.len() >= hop {
+                        let far: Vec<f32> = self.far_end_buffer[..hop].to_vec();
+                        self.far_end_buffer.drain(..hop);
+                        far
+                    } else {
+                        output.extend_from_slice(chunk);
+                        continue;
+                    };
+                    let clean = aec.process(chunk, &far_chunk);
+                    output.extend_from_slice(&clean);
+                } else {
+                    output.extend_from_slice(chunk);
+                }
+            }
+            data.copy_from_slice(&output);
+        }
     }
 
     // ── Noise Reduction Dispatcher ──────────────────────────────────────────
