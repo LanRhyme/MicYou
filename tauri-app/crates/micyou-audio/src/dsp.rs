@@ -772,166 +772,42 @@ impl AecProcessor {
 
 /// Delay estimator for far-end/mic time alignment.
 ///
-/// Maintains a circular buffer of far-end (speaker) audio history and
-/// periodically cross-correlates it with the mic signal to estimate the
-/// acoustic delay.  Uses coarse-to-fine search for efficiency:
-/// 1. Downsamples both signals by 8x for a fast coarse search
-/// 2. Refines around the coarse peak at full resolution
-/// 3. Applies EMA smoothing to avoid jitter
+/// Simple ring buffer for far-end audio fed to AEC.
 #[cfg(feature = "noise-suppression")]
-struct DelayEstimator {
-    far_history: Vec<f32>,
+struct FarEndBuffer {
+    buffer: Vec<f32>,
     write_pos: usize,
-    total_written: usize,
-    smoothed_delay: f32,
-    max_delay: usize,
-    alpha: f32,
-    estimate_interval: usize,
-    frame_count: usize,
-    ds_factor: usize,
-    ds_mic: Vec<f32>,
-    ds_far: Vec<f32>,
-    fine_far: Vec<f32>,
 }
 
 #[cfg(feature = "noise-suppression")]
-impl DelayEstimator {
-    fn new(max_delay_ms: f32, sample_rate: usize) -> Self {
-        let max_delay = (max_delay_ms / 1000.0 * sample_rate as f32).ceil() as usize;
-        let history_len = max_delay + AEC_HOP_LEN;
-        let ds_factor = 8;
+impl FarEndBuffer {
+    fn new() -> Self {
         Self {
-            far_history: vec![0.0; history_len],
+            buffer: vec![0.0; 480 * 2],
             write_pos: 0,
-            total_written: 0,
-            smoothed_delay: 0.0,
-            max_delay,
-            alpha: 0.92,
-            estimate_interval: 5,
-            frame_count: 0,
-            ds_factor,
-            ds_mic: vec![0.0; AEC_HOP_LEN / ds_factor],
-            ds_far: vec![0.0; (max_delay + AEC_HOP_LEN) / ds_factor],
-            fine_far: vec![0.0; AEC_HOP_LEN + 64],
         }
     }
 
-    fn feed_far(&mut self, far_audio: &[f32]) {
-        for &sample in far_audio {
-            self.far_history[self.write_pos] = sample;
-            self.write_pos = (self.write_pos + 1) % self.far_history.len();
+    fn feed(&mut self, data: &[f32]) {
+        for &sample in data {
+            self.buffer[self.write_pos] = sample;
+            self.write_pos = (self.write_pos + 1) % self.buffer.len();
         }
-        self.total_written += far_audio.len();
     }
 
-    fn is_ready(&self) -> bool {
-        self.total_written >= self.max_delay + AEC_HOP_LEN
-    }
-
-    fn aligned_far(&mut self, mic_chunk: &[f32]) -> Vec<f32> {
-        debug_assert_eq!(mic_chunk.len(), AEC_HOP_LEN);
-        if !self.is_ready() {
-            return vec![0.0; AEC_HOP_LEN];
-        }
-        self.frame_count += 1;
-        if self.frame_count % self.estimate_interval == 0 {
-            self.estimate(mic_chunk);
-        }
-        self.read_at_delay(self.smoothed_delay.round() as usize)
-    }
-
-    fn read_at_delay(&self, delay: usize) -> Vec<f32> {
-        let delay = delay.min(self.max_delay);
-        let len = self.far_history.len();
-        let start = (self.write_pos + len - delay) % len;
-        let mut out = vec![0.0; AEC_HOP_LEN];
-        if start + AEC_HOP_LEN <= len {
-            out.copy_from_slice(&self.far_history[start..start + AEC_HOP_LEN]);
+    fn read_last_hop(&self) -> Vec<f32> {
+        let hop = AEC_HOP_LEN;
+        let len = self.buffer.len();
+        let start = (self.write_pos + len - hop) % len;
+        let mut out = vec![0.0; hop];
+        if start + hop <= len {
+            out.copy_from_slice(&self.buffer[start..start + hop]);
         } else {
             let first = len - start;
-            out[..first].copy_from_slice(&self.far_history[start..]);
-            out[first..].copy_from_slice(&self.far_history[..AEC_HOP_LEN - first]);
+            out[..first].copy_from_slice(&self.buffer[start..]);
+            out[first..].copy_from_slice(&self.buffer[..hop - first]);
         }
         out
-    }
-
-    fn estimate(&mut self, mic_chunk: &[f32]) {
-        let df = self.ds_factor;
-        let ds_mic_len = AEC_HOP_LEN / df;
-        let ds_far_len = (self.max_delay + AEC_HOP_LEN) / df;
-
-        for i in 0..ds_mic_len {
-            self.ds_mic[i] = mic_chunk[i * df];
-        }
-
-        let far_segment_len = self.max_delay + AEC_HOP_LEN;
-        {
-            let len = self.far_history.len();
-            let seg_start = (self.write_pos + len - far_segment_len) % len;
-            for i in 0..ds_far_len {
-                let si = i * df;
-                self.ds_far[i] = if seg_start + si < len {
-                    self.far_history[seg_start + si]
-                } else {
-                    self.far_history[seg_start + si - len]
-                };
-            }
-        }
-
-        let search_range = ds_far_len.saturating_sub(ds_mic_len);
-        if search_range == 0 {
-            return;
-        }
-
-        let mut best_coarse = f32::NEG_INFINITY;
-        let mut best_coarse_lag = 0usize;
-        for lag in 0..=search_range {
-            let mut corr = 0.0f32;
-            for i in 0..ds_mic_len {
-                corr += self.ds_mic[i] * self.ds_far[lag + i];
-            }
-            if corr > best_coarse {
-                best_coarse = corr;
-                best_coarse_lag = lag;
-            }
-        }
-
-        let coarse_samples = best_coarse_lag * df;
-        let fine_window = (df * 2).min(64);
-        let fine_start = coarse_samples.saturating_sub(fine_window);
-        let fine_end = (coarse_samples + fine_window).min(self.max_delay);
-        let fine_search_len = fine_end.saturating_sub(fine_start);
-
-        if fine_search_len == 0 || fine_search_len + AEC_HOP_LEN > self.fine_far.len() {
-            let new_delay = coarse_samples as f32;
-            self.smoothed_delay = self.alpha * self.smoothed_delay + (1.0 - self.alpha) * new_delay;
-            return;
-        }
-
-        let far_start = (self.write_pos + self.far_history.len() - self.max_delay - AEC_HOP_LEN
-            + fine_start)
-            % self.far_history.len();
-        let needed = fine_search_len + AEC_HOP_LEN;
-        let far_len = self.far_history.len();
-        for i in 0..needed {
-            self.fine_far[i] = self.far_history[(far_start + i) % far_len];
-        }
-
-        let mut best_fine = f32::NEG_INFINITY;
-        let mut best_fine_lag = 0usize;
-        for lag in 0..fine_search_len {
-            let mut corr = 0.0f32;
-            for i in 0..AEC_HOP_LEN {
-                corr += mic_chunk[i] * self.fine_far[lag + i];
-            }
-            if corr > best_fine {
-                best_fine = corr;
-                best_fine_lag = lag;
-            }
-        }
-
-        let new_delay = (fine_start + best_fine_lag) as f32;
-        self.smoothed_delay = self.alpha * self.smoothed_delay + (1.0 - self.alpha) * new_delay;
     }
 }
 
@@ -1261,21 +1137,17 @@ pub struct DspProcessor {
     #[cfg(feature = "noise-suppression")]
     purevox_load_failed: bool,
 
-    // AEC7 ONNX acoustic echo cancellation - separate per channel
-    // to avoid state cross-contamination (cache tensors, OLAs, histories).
+    // AEC7 ONNX acoustic echo cancellation.
+    // Stereo is downmixed to mono before AEC, then upmixed back (reference pattern).
     #[cfg(feature = "noise-suppression")]
-    aec_left: Option<AecProcessor>,
-    #[cfg(feature = "noise-suppression")]
-    aec_right: Option<AecProcessor>,
+    aec: Option<AecProcessor>,
     #[cfg(feature = "noise-suppression")]
     aec_model_path: Option<PathBuf>,
     #[cfg(feature = "noise-suppression")]
     aec_load_failed: bool,
-    /// Far-end delay estimator + alignment for AEC.
-    /// Cross-correlates mic with far-end history to estimate and compensate
-    /// for speaker-to-mic acoustic delay.
+    /// Far-end buffer for AEC.
     #[cfg(feature = "noise-suppression")]
-    delay_estimator: DelayEstimator,
+    far_end: FarEndBuffer,
 
     // Speexdsp-style NS
     #[cfg(feature = "dsp")]
@@ -1337,14 +1209,13 @@ impl DspProcessor {
             purevox_load_failed: false,
 
             #[cfg(feature = "noise-suppression")]
-            aec_left: None,
-            #[cfg(feature = "noise-suppression")]
-            aec_right: None,
+            aec: None,
             #[cfg(feature = "noise-suppression")]
             aec_model_path: _model_dir.as_ref().map(|d| d.join("aec7_ep0185.onnx")),
             #[cfg(feature = "noise-suppression")]
             aec_load_failed: false,
-            delay_estimator: DelayEstimator::new(500.0, 48000),
+            #[cfg(feature = "noise-suppression")]
+            far_end: FarEndBuffer::new(),
 
             #[cfg(feature = "dsp")]
             speex_ns: SpeexStyleNS::new(),
@@ -1480,101 +1351,93 @@ impl DspProcessor {
         (self.raw_spectrum.clone(), self.processed_spectrum.clone())
     }
 
-    /// Feed far-end (speaker) audio for AEC synchronization.
-    /// The far-end buffer is consumed during `apply_aec` to match mic frame boundaries.
+    /// Feed far-end (speaker) audio for AEC.
     pub fn set_far_end_audio(&mut self, far_end: &[f32]) {
-        self.delay_estimator.feed_far(far_end);
+        self.far_end.feed(far_end);
     }
 
     // ── AEC Acoustic Echo Cancellation ────────────────────────────────────
 
     #[cfg(feature = "noise-suppression")]
     fn apply_aec(&mut self, data: &mut Vec<f32>, channels: usize) {
-        // Lazy init — only attempt once per channel; mark failed to avoid retries
-        let mut init = |slot: &mut Option<AecProcessor>, label: &str| -> bool {
-            if slot.is_some() || self.aec_load_failed {
-                return slot.is_some();
-            }
+        // Lazy init — only load model once; mark failed to avoid retries
+        if self.aec.is_none() && !self.aec_load_failed {
             if let Some(path) = &self.aec_model_path {
                 if path.exists() {
                     match AecProcessor::new(path.to_str().unwrap_or("")) {
                         Ok(proc) => {
-                            log::info!("[DSP] AEC7 ONNX model loaded ({}): {:?}", label, path);
-                            *slot = Some(proc);
-                            return true;
+                            log::info!("[DSP] AEC7 ONNX model loaded: {:?}", path);
+                            self.aec = Some(proc);
                         }
                         Err(e) => {
-                            log::error!("[DSP] Failed to load AEC7 model ({}): {}", label, e);
+                            log::error!("[DSP] Failed to load AEC7 model: {}", e);
                             self.aec_load_failed = true;
-                            return false;
+                            return;
                         }
                     }
                 } else {
                     log::warn!("[DSP] AEC7 model not found at {:?}, disabling AEC", path);
                     self.aec_load_failed = true;
-                    return false;
+                    return;
                 }
             } else {
                 self.aec_load_failed = true;
-                return false;
+                return;
             }
-        };
-
-        if !init(&mut self.aec_left, "L") {
-            return;
         }
-        if channels >= 2 {
-            init(&mut self.aec_right, "R");
+
+        if self.aec.is_none() {
+            return;
         }
 
         let hop = AEC_HOP_LEN; // 480
 
+        // Reference pattern: stereo → mono downmix → AEC → mono → stereo upmix.
+        // The AEC model operates on mono signals only. For stereo input, we
+        // downmix to mono, process echo cancellation, then upmix the result
+        // back to the original channel count by duplicating the mono output.
         if channels >= 2 {
-            // Stereo: process left and right in lockstep.
-            // Delay estimator provides time-aligned far-end chunks — no
-            // manual drain needed; alignment is handled internally.
-            let frames = data.len() / 2;
-            let mut out: Vec<f32> = Vec::with_capacity(data.len());
-
-            let mut left_offset = 0usize;
-            let mut right_offset = 0usize;
-
-            while left_offset + hop <= frames && right_offset + hop <= frames {
-                // Process left channel hop
-                let mic_left: Vec<f32> = (0..hop).map(|i| data[(left_offset + i) * 2]).collect();
-                let far_chunk = self.delay_estimator.aligned_far(&mic_left);
-                let clean_left = match &mut self.aec_left {
-                    Some(proc) => proc.process(&mic_left, &far_chunk),
-                    None => mic_left.clone(),
-                };
-
-                // Process right channel hop (same far-end reference)
-                let mic_right: Vec<f32> =
-                    (0..hop).map(|i| data[(right_offset + i) * 2 + 1]).collect();
-                let clean_right = match &mut self.aec_right {
-                    Some(proc) => proc.process(&mic_right, &far_chunk),
-                    None => mic_right.clone(),
-                };
-
-                // Interleave back
-                for i in 0..hop {
-                    out.push(clean_left[i]);
-                    out.push(clean_right[i]);
+            // ── Stereo → mono downmix ──
+            let frames = data.len() / channels;
+            let mut mono_data: Vec<f32> = Vec::with_capacity(frames);
+            for i in 0..frames {
+                let mut sum = 0.0f32;
+                for ch in 0..channels {
+                    sum += data[i * channels + ch];
                 }
-
-                left_offset += hop;
-                right_offset += hop;
+                mono_data.push(sum / channels as f32);
             }
 
+            // ── AEC on mono signal ──
+            let mut mono_output = Vec::with_capacity(mono_data.len());
+            for chunk in mono_data.chunks(hop) {
+                if chunk.len() == hop {
+                    let far_chunk = self.far_end.read_last_hop();
+                    let clean = match &mut self.aec {
+                        Some(proc) => proc.process(chunk, &far_chunk),
+                        None => chunk.to_vec(),
+                    };
+                    mono_output.extend_from_slice(&clean);
+                } else {
+                    mono_output.extend_from_slice(chunk);
+                }
+            }
+
+            // ── Mono → stereo upmix (duplicate mono to all channels) ──
             data.clear();
-            data.extend_from_slice(&out);
+            data.reserve(mono_output.len() * channels);
+            for &sample in &mono_output {
+                for _ in 0..channels {
+                    data.push(sample);
+                }
+            }
         } else {
-            // Mono: single channel through left AEC instance
+            // ── Mono: single channel through AEC ──
             let mut output = Vec::with_capacity(data.len());
             for chunk in data.chunks(hop) {
                 if chunk.len() == hop {
-                    let far_chunk = self.delay_estimator.aligned_far(chunk);
-                    let clean = match &mut self.aec_left {
+                    let far_chunk = self.far_end.read_last_hop();
+                    let clean = match &mut self.aec {
                         Some(proc) => proc.process(chunk, &far_chunk),
                         None => chunk.to_vec(),
                     };
