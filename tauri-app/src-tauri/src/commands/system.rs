@@ -104,11 +104,19 @@ pub async fn start_server(
         };
         let mut jb = crate::jitter_buffer::JitterBuffer::new(12);
         let mut frame_counter = 0;
-        let mut previous_output: Vec<f32> = Vec::new(); // far-end reference for AEC
         let mut input_resampler: Option<micyou_audio::RubatoResampler> = None;
         let mut current_input_sample_rate: u32 = 0;
         let mut resample_out_buf = Vec::new();
         let mut pcm_f32 = Vec::new();
+
+        // Start speaker loopback capture for AEC far-end reference.
+        // Captures actual speaker output via WASAPI (Windows) / BlackHole (macOS) / PipeWire (Linux).
+        let loopback = micyou_audio::LoopbackCapture::new();
+        if loopback.start() {
+            log::info!("[Audio] Speaker loopback capture started for AEC");
+        } else {
+            log::warn!("[Audio] Failed to start speaker loopback, AEC far-end will be unavailable");
+        }
 
         while let Some(packet) = audio_rx.blocking_recv() {
             jb.push(packet);
@@ -207,30 +215,17 @@ pub async fn start_server(
                             let sum: f32 = pcm_f32.iter().map(|x| x * x).sum();
                             (sum / pcm_f32.len() as f32).sqrt()
                         } else {
-                            // Feed previous output as far-end reference for AEC.
-                            // Downmix stereo to mono to avoid interleaved L/R data
-                            // corrupting the AEC mono reference signal.
-                            if !previous_output.is_empty() {
-                                let far_ref: Vec<f32> = if channels >= 2 {
-                                    // Stereo → mono downmix: average L+R per sample pair
-                                    let frames = previous_output.len() / 2;
-                                    let mut mono = Vec::with_capacity(frames);
-                                    for i in 0..frames {
-                                        mono.push(
-                                            (previous_output[i * 2] + previous_output[i * 2 + 1])
-                                                * 0.5,
-                                        );
-                                    }
-                                    mono
-                                } else {
-                                    previous_output.clone()
-                                };
-                                dsp_processor.set_far_end_audio(&far_ref);
+                            // Read speaker loopback for AEC far-end reference.
+                            // This captures the ACTUAL speaker output (WASAPI/BlackHole/PipeWire),
+                            // which is the true echo source the phone mic picks up.
+                            if loopback.is_active() {
+                                let hop = 480usize;
+                                if let Some(far_data) = loopback.read(hop) {
+                                    dsp_processor.set_far_end_audio(&far_data);
+                                }
                             }
                             let (_raw, processed) =
                                 dsp_processor.process(&mut pcm_f32, channels.max(1), queued_ms);
-                            // Store output as far-end reference for next frame
-                            previous_output = pcm_f32.clone();
                             processed
                         };
 
@@ -254,6 +249,9 @@ pub async fn start_server(
                 }
             }
         }
+
+        loopback.stop();
+        log::info!("[Audio] Speaker loopback stopped");
     });
 
     ready_rx
