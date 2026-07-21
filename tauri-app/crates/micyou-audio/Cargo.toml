@@ -17,11 +17,11 @@ cpal = "0.15.3"
 rubato = "3.0.0"
 ringbuf = "0.3.3"
 
-[target.'cfg(windows)'.dependencies]
-wasapi = "0.16"
-
 # DSP dependencies (optional)
 nnnoiseless = { version = "0.5.2", optional = true }
 ort = { version = "=2.0.0-rc.12", features = ["download-binaries", "coreml", "tls-rustls", "std", "ndarray", "api-17"], optional = true }
 rustfft = { version = "6.4.1", optional = true }
 ndarray = { version = "0.17", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+wasapi = "0.16"
