@@ -301,7 +301,7 @@ onUnmounted(() => {
     <!-- Full Mode -->
     <div v-else class="absolute inset-0 flex flex-col p-3 gap-3">
       <!-- Header Section -->
-      <div class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0 cursor-grab active:cursor-grabbing" @mousedown="startDrag">
+      <div class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0 cursor-grab active:cursor-grabbing relative z-30" @mousedown="startDrag">
         <div class="flex items-center gap-3">
           <!-- Window Controls (macOS: left) -->
           <div v-if="isMacOS" class="flex items-center gap-1 mr-1">
