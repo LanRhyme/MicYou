@@ -80,7 +80,7 @@ jobs:
       run: npm ci
       working-directory: tauri-app
     - name: Build Tauri App (Windows)
-      run: npx tauri build --bundles none
+      run: npx tauri build --no-bundle
       working-directory: tauri-app
     - name: Build Inno Setup Installer
       shell: pwsh
@@ -143,8 +143,12 @@ jobs:
       if: matrix.arch == 'x64'
       run: |
         brew install onnxruntime
+        PREFIX=$(brew --prefix onnxruntime)
         echo "ORT_STRATEGY=system" >> $GITHUB_ENV
-        echo "ORT_LIB_LOCATION=$(brew --prefix onnxruntime)/lib" >> $GITHUB_ENV
+        echo "ORT_LIB_LOCATION=$PREFIX" >> $GITHUB_ENV
+        echo "ORT_DYLIB_PATH=$PREFIX/lib/libonnxruntime.dylib" >> $GITHUB_ENV
+        echo "LIBRARY_PATH=$PREFIX/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+        echo "DYLD_LIBRARY_PATH=$PREFIX/lib:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
     - name: Build Tauri App (macOS)
       run: npx tauri build --bundles dmg --target ${{ matrix.target }}
       working-directory: tauri-app
