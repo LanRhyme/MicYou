@@ -87,6 +87,12 @@ jobs:
       working-directory: tauri-app
       run: |
         $version = '${{ steps.version.outputs.version }}'
+        New-Item -ItemType Directory -Force -Path "src-tauri/target/release" | Out-Null
+        $bin = Get-ChildItem -Path . -Recurse -Filter "*.exe" | Where-Object { $_.Name -match "(micyou|MicYou)" -and $_.FullName -notmatch "bundle" } | Select-Object -First 1
+        if ($bin) {
+          Copy-Item $bin.FullName "src-tauri/target/release/micyou-app.exe" -Force
+          Copy-Item $bin.FullName "src-tauri/target/release/MicYou.exe" -Force
+        }
         iscc /DMyAppVersion="$version" src-tauri/installer.iss
     - name: Prepare Artifact
       shell: pwsh
