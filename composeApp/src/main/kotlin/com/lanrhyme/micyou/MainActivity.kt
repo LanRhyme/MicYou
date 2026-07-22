@@ -1,16 +1,11 @@
 package com.lanrhyme.micyou
-import com.lanrhyme.micyou.R
 
-import android.Manifest
 import android.content.Context
-import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.content.pm.PackageManager
 import android.view.WindowManager
 import android.widget.Toast
-import java.util.Locale
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -19,29 +14,26 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import io.github.vinceglb.filekit.FileKit
-import io.github.vinceglb.filekit.dialogs.init
-import com.lanrhyme.micyou.settings.Settings
 import com.lanrhyme.micyou.theme.isDarkThemeActive
-import com.lanrhyme.micyou.theme.ThemeMode
+import com.lanrhyme.micyou.ui.dialog.getRequiredPermissions
+import com.lanrhyme.micyou.ui.dialog.hasAllRequiredPermissions
 import com.lanrhyme.micyou.util.AppLanguage
 import com.lanrhyme.micyou.util.ContextHelper
 import com.lanrhyme.micyou.util.Logger
 import com.lanrhyme.micyou.util.PermissionState
-import com.lanrhyme.micyou.ui.dialog.getRequiredPermissions
-import com.lanrhyme.micyou.ui.dialog.hasAllRequiredPermissions
 import com.lanrhyme.micyou.util.setAppLocale
 import com.lanrhyme.micyou.viewmodel.MainViewModel
 import com.lanrhyme.micyou.viewmodel.StreamState
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.dialogs.init
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -51,7 +43,7 @@ class MainActivity : ComponentActivity() {
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
+    ) { _ ->
         // Update permission states after request
         currentPermissionsState.value = getRequiredPermissions(this)
 
@@ -97,7 +89,7 @@ class MainActivity : ComponentActivity() {
             } else {
                 "system"
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "system"
         }
         val wrappedContext = if (savedLanguage != "system") {
@@ -119,17 +111,15 @@ class MainActivity : ComponentActivity() {
             val prefs = getSharedPreferences("android_mic_prefs", MODE_PRIVATE)
             val raw = prefs.getString("language", null)
             if (raw != null) {
-                // Saved value is AppLanguage.name, convert to AppLanguage.code
                 try {
                     AppLanguage.valueOf(raw).code
                 } catch (_: Exception) {
-                    // Fallback: if the raw value looks like a code already, use it
                     raw
                 }
             } else {
                 "system"
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             "system"
         }
         setAppLocale(savedLanguage)
@@ -138,13 +128,13 @@ class MainActivity : ComponentActivity() {
         Logger.i("MainActivity", "App started")
 
         FileKit.init(this)
-    val shouldQuickStart = intent?.action == ACTION_QUICK_START
+        val shouldQuickStart = intent?.action == ACTION_QUICK_START
 
         // Initialize permission state
         currentPermissionsState.value = getRequiredPermissions(this)
 
         // Show permission dialog first if needed (before first launch dialog)
-    val needsPermissions = shouldShowPermissionDialog()
+        val needsPermissions = shouldShowPermissionDialog()
         if (needsPermissions) {
             permissionDialogState.value = true
         } else {
@@ -154,15 +144,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val appViewModel: MainViewModel = viewModel()
-    val keepScreenOn by appViewModel.uiState.collectAsState().let { state ->
-                derivedStateOf { state.value.keepScreenOn }
-            }
-    val streamState by appViewModel.uiState.collectAsState().let { state ->
-                derivedStateOf { state.value.streamState }
-            }
+            val uiState by appViewModel.uiState.collectAsState()
+
+            val keepScreenOn by remember { derivedStateOf { uiState.keepScreenOn } }
+            val streamState by remember { derivedStateOf { uiState.streamState } }
+            val themeMode by remember { derivedStateOf { uiState.themeMode } }
 
             LaunchedEffect(shouldQuickStart) {
-                if (shouldQuickStart && appViewModel.uiState.value.streamState == StreamState.Idle) {
+                if (shouldQuickStart && uiState.streamState == StreamState.Idle) {
                     // Don't auto-start if permissions are missing
                     if (!needsPermissions) {
                         appViewModel.startStream()
@@ -184,10 +173,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-    val themeMode by appViewModel.uiState.collectAsState().let { state ->
-                derivedStateOf { state.value.themeMode }
-            }
-    val isDark = isDarkThemeActive(themeMode)
+
+            val isDark = isDarkThemeActive(themeMode)
 
             DisposableEffect(isDark) {
                 this@MainActivity.enableEdgeToEdge(
@@ -271,7 +258,7 @@ class MainActivity : ComponentActivity() {
                         Locale(languageCode)
                     }
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 Locale.getDefault()
             }
             val config = Configuration(context.resources.configuration)

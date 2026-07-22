@@ -28,7 +28,12 @@ fun copyToClipboard(text: String) {
 }
 
 fun getString(@androidx.annotation.StringRes resId: Int, vararg formatArgs: Any): String {
-    return ContextHelper.getContext()?.getString(resId, *formatArgs) ?: ""
+    val context = ContextHelper.getContext() ?: return ""
+    return if (formatArgs.isEmpty()) {
+        context.getString(resId)
+    } else {
+        context.getString(resId, *formatArgs)
+    }
 }
 
 fun formatBytes(bytes: Long): String {

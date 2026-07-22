@@ -516,28 +516,22 @@ class AudioStreamViewModel : ViewModel() {
     }
 
     fun setPort(port: String) {
-        // 验证端口输入
-        val portInt = port.toIntOrNull()
-        val validatedPort = when {
-            port.isBlank() -> {
-                // 空白输入时保持当前有效值，避免误重置为默认端口
-                Logger.d("AudioStreamViewModel", "Port input is blank, keeping current value: ${_uiState.value.port}")
-                _uiState.value.port
-            }
-            portInt == null -> {
-                Logger.w("AudioStreamViewModel", "Invalid port format: $port, keeping current value")
-                _uiState.value.port // 保持当前值
-            }
-            portInt <= 0 || portInt > 65535 -> {
-                Logger.w("AudioStreamViewModel", "Port out of valid range (1-65535): $portInt, keeping current value")
-                _uiState.value.port // 保持当前值
-            }
-            else -> port
+        // 允许空字符串，以便用户重新输入
+        if (port.isBlank()) {
+            _uiState.update { it.copy(port = "") }
+            return
         }
 
-        Logger.d("AudioStreamViewModel", "Setting port to $validatedPort")
-        _uiState.update { it.copy(port = validatedPort) }
-        settings.putString("port", validatedPort)
+        // 验证端口输入是否为数字且在有效范围内
+        val portInt = port.toIntOrNull()
+        if (portInt != null && portInt in 1..65535) {
+            Logger.d("AudioStreamViewModel", "Setting port to $port")
+            _uiState.update { it.copy(port = port) }
+            settings.putString("port", port)
+        } else {
+            Logger.d("AudioStreamViewModel", "Invalid port input ignored: $port")
+            // 如果是非数字字符，我们不更新状态，保持原样
+        }
     }
 
     fun setMonitoringEnabled(enabled: Boolean) {
