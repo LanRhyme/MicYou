@@ -139,6 +139,12 @@ jobs:
     - name: Install Frontend Dependencies
       run: npm ci
       working-directory: tauri-app
+    - name: Install ONNX Runtime (macOS x64)
+      if: matrix.arch == 'x64'
+      run: |
+        brew install onnxruntime
+        echo "ORT_STRATEGY=system" >> $GITHUB_ENV
+        echo "ORT_LIB_LOCATION=$(brew --prefix onnxruntime)/lib" >> $GITHUB_ENV
     - name: Build Tauri App (macOS)
       run: npx tauri build --bundles dmg --target ${{ matrix.target }}
       working-directory: tauri-app
