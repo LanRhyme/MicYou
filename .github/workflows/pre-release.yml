@@ -168,11 +168,17 @@ jobs:
       run: |
         brew install onnxruntime
         PREFIX=$(brew --prefix onnxruntime)
+        mkdir -p /tmp/onnxruntime_sys/lib /tmp/onnxruntime_sys/include
+        cp -R $PREFIX/lib/* /tmp/onnxruntime_sys/lib/
+        if [ -d "$PREFIX/include/onnxruntime" ]; then
+          cp -R $PREFIX/include/onnxruntime/* /tmp/onnxruntime_sys/include/
+        fi
+        cp -R $PREFIX/include/* /tmp/onnxruntime_sys/include/ 2>/dev/null || true
         echo "ORT_STRATEGY=system" >> $GITHUB_ENV
-        echo "ORT_LIB_LOCATION=$PREFIX" >> $GITHUB_ENV
-        echo "ORT_DYLIB_PATH=$PREFIX/lib/libonnxruntime.dylib" >> $GITHUB_ENV
-        echo "LIBRARY_PATH=$PREFIX/lib:$LIBRARY_PATH" >> $GITHUB_ENV
-        echo "DYLD_LIBRARY_PATH=$PREFIX/lib:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "ORT_LIB_LOCATION=/tmp/onnxruntime_sys" >> $GITHUB_ENV
+        echo "ORT_DYLIB_PATH=/tmp/onnxruntime_sys/lib/libonnxruntime.dylib" >> $GITHUB_ENV
+        echo "LIBRARY_PATH=/tmp/onnxruntime_sys/lib:$LIBRARY_PATH" >> $GITHUB_ENV
+        echo "DYLD_LIBRARY_PATH=/tmp/onnxruntime_sys/lib:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
     - name: Build Tauri App (macOS)
       run: npx tauri build --bundles dmg --target ${{ matrix.target }}
       working-directory: tauri-app

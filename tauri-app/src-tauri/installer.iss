@@ -4,7 +4,7 @@
 #endif
 #define MyAppPublisher "LanRhyme"
 #define MyAppURL "https://github.com/LanRhyme/MicYou"
-#define MyAppExeName "micyou-app.exe"
+#define MyAppExeName "MicYou.exe"
 
 [Setup]
 AppId={{C8E6D8A6-3A1B-4E38-B76B-C9DB2A0058C0}
@@ -36,7 +36,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "target\release\micyou-app.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "target\release\MicYou.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
