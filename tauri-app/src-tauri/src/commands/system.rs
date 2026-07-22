@@ -72,6 +72,8 @@ pub async fn start_server(
     let is_web_mode = mode == "web";
     let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
 
+    let is_monitoring_flag = state.is_monitoring.clone();
+
     std::thread::spawn(move || {
         let mut audio_manager = micyou_audio::AudioOutputManager::new();
         if let Err(e) = audio_manager.start(resolved_output_device) {
@@ -119,6 +121,7 @@ pub async fn start_server(
         }
 
         while let Some(packet) = audio_rx.blocking_recv() {
+            audio_manager.set_monitoring(is_monitoring_flag.load(std::sync::atomic::Ordering::Relaxed));
             jb.push(packet);
             let packets: Vec<_> = std::iter::from_fn(|| jb.pop()).collect();
 

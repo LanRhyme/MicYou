@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n';
 import { 
   Mic, Wifi, RadioTower, Globe, ChevronDown, CheckCircle2, Settings, 
   Link, Unlink, RefreshCw, ActivitySquare as MonitoringIcon, X, Minus, 
-  VolumeX, Volume2, QrCode as QrCodeIcon, Loader2 
+  VolumeX, Volume2, Headphones, QrCode as QrCodeIcon, Loader2 
 } from '@lucide/vue';
 
 // Composables managing server connection, audio, theme, window, and system tray
@@ -280,6 +280,7 @@ onUnmounted(() => {
         :selectedIp="server.selectedIp.value"
         :networkInterfaces="server.networkInterfaces.value"
         :isMuted="audio.isMuted.value"
+        :isMonitoringEnabled="audio.isMonitoringEnabled.value"
         :showMonitoringPanel="audio.showMonitoringPanel.value"
         :audioLevel="audio.audioLevel.value"
         :outputDevice="server.outputDevice.value"
@@ -290,6 +291,7 @@ onUnmounted(() => {
         @updateMode="m => server.connectionMode.value = m"
         @updatePort="p => server.serverPort.value = p"
         @toggleMute="audio.toggleMute"
+        @toggleMonitoringEnabled="audio.toggleMonitoringEnabled"
         @toggleMonitoring="audio.toggleMonitoring"
         @openSettings="isSettingsOpen = true"
         @update:popupOpen="v => pocketPopupOpen = v"
@@ -512,7 +514,16 @@ onUnmounted(() => {
             <Volume2 v-else class="w-4 h-4" />
           </button>
 
-          <button @click="audio.showMonitoringPanel.value = !audio.showMonitoringPanel.value" class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90" :class="audio.showMonitoringPanel.value ? 'bg-primary/20 text-primary hover:bg-primary/30' : 'bg-surface-variant/40 hover:bg-surface-variant text-on-surface-variant'">
+          <button
+            @click="audio.toggleMonitoringEnabled()"
+            class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90"
+            :class="audio.isMonitoringEnabled.value ? 'bg-primary/20 text-primary hover:bg-primary/30 ring-2 ring-primary/40' : 'bg-surface-variant/40 hover:bg-surface-variant text-on-surface-variant'"
+            :title="audio.isMonitoringEnabled.value ? $t('app.status.disableEarback') : $t('app.status.enableEarback')"
+          >
+            <Headphones class="w-4 h-4" />
+          </button>
+
+          <button @click="audio.showMonitoringPanel.value = !audio.showMonitoringPanel.value" class="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90" :class="audio.showMonitoringPanel.value ? 'bg-primary/20 text-primary hover:bg-primary/30' : 'bg-surface-variant/40 hover:bg-surface-variant text-on-surface-variant'" :title="$t('app.monitoring.title')">
             <MonitoringIcon class="w-4 h-4" />
           </button>
 

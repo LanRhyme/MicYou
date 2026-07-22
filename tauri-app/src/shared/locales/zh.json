@@ -20,6 +20,8 @@
       "stateIdle": "空闲",
       "mute": "静音",
       "unmute": "取消静音",
+      "enableEarback": "开启耳返/监听",
+      "disableEarback": "关闭耳返/监听",
       "wifi": "已通过 Wi-Fi 连接",
       "usb": "已通过 USB 连接",
       "disconnected": "未连接",

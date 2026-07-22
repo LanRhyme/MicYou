@@ -88,6 +88,18 @@ pub async fn set_mute_state(
 }
 
 #[tauri::command]
+pub async fn set_monitoring(
+    app: AppHandle,
+    state: State<'_, ServerState>,
+    enabled: bool,
+) -> Result<(), String> {
+    use tauri::Emitter;
+    state.is_monitoring.store(enabled, std::sync::atomic::Ordering::Relaxed);
+    let _ = app.emit("monitoring-enabled-changed", enabled);
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn check_blackhole() -> Result<crate::blackhole::BlackHoleStatus, String> {
     crate::blackhole::check_blackhole().await
 }

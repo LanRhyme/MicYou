@@ -5,7 +5,7 @@ import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
   Link, Unlink, RefreshCw, Minus, X,
   Globe, ChevronDown, MoreHorizontal,
-  VolumeX, Volume2, Loader2
+  VolumeX, Volume2, Headphones, Loader2
 } from '@lucide/vue';
 
 interface NetworkInterface {
@@ -22,6 +22,7 @@ const props = defineProps<{
   selectedIp: string;
   networkInterfaces: NetworkInterface[];
   isMuted: boolean;
+  isMonitoringEnabled: boolean;
   showMonitoringPanel: boolean;
   audioLevel: number;
   outputDevice: string;
@@ -35,6 +36,7 @@ const emit = defineEmits([
   'updateMode',
   'updatePort',
   'toggleMute',
+  'toggleMonitoringEnabled',
   'toggleMonitoring',
   'openSettings',
   'update:popupOpen',
@@ -306,9 +308,23 @@ defineExpose({ closePopup });
     <button
       @click="emit('toggleMute')"
       class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-variant/60 transition-all duration-300 hover:scale-110 active:scale-90 flex-shrink-0"
+      :title="isMuted ? $t('app.status.unmute') : $t('app.status.mute')"
     >
-      <VolumeX v-if="isMuted" class="w-4 h-4" />
+      <VolumeX v-if="isMuted" class="w-4 h-4 text-error" />
       <Volume2 v-else class="w-4 h-4 text-on-surface-variant" />
+    </button>
+
+    <!-- Separator -->
+    <div class="w-px h-4 bg-outline/20 flex-shrink-0 pointer-events-none" />
+
+    <!-- Earback / Monitoring -->
+    <button
+      @click="emit('toggleMonitoringEnabled')"
+      class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90 flex-shrink-0"
+      :class="isMonitoringEnabled ? 'bg-primary/20 text-primary' : 'hover:bg-surface-variant/60 text-on-surface-variant'"
+      :title="isMonitoringEnabled ? $t('app.status.disableEarback') : $t('app.status.enableEarback')"
+    >
+      <Headphones class="w-4 h-4" />
     </button>
 
     <!-- Separator -->

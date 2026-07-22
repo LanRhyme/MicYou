@@ -128,6 +128,24 @@ pub struct AudioOutputManager {
     device_channels: usize,
     channel_map_buffer: Vec<f32>,
     resample_buffer: Vec<f32>,
+
+    #[allow(dead_code)]
+    monitor_stream: Option<cpal::Stream>,
+    #[allow(dead_code)]
+    monitor_producer: Option<Producer<f32, Arc<HeapRb<f32>>>>,
+    #[allow(dead_code)]
+    monitor_resampler: Option<RubatoResampler>,
+    #[allow(dead_code)]
+    monitor_device_sample_rate: u32,
+    #[allow(dead_code)]
+    monitor_device_channels: usize,
+    #[allow(dead_code)]
+    monitor_channel_map_buffer: Vec<f32>,
+    #[allow(dead_code)]
+    monitor_resample_buffer: Vec<f32>,
+    is_monitoring: bool,
+    #[cfg(target_os = "linux")]
+    pw_loopback_child: Option<std::process::Child>,
 }
 
 impl AudioOutputManager {
@@ -140,6 +158,171 @@ impl AudioOutputManager {
             device_channels: 2,
             channel_map_buffer: Vec::new(),
             resample_buffer: Vec::new(),
+
+            monitor_stream: None,
+            monitor_producer: None,
+            monitor_resampler: None,
+            monitor_device_sample_rate: 48000,
+            monitor_device_channels: 2,
+            monitor_channel_map_buffer: Vec::new(),
+            monitor_resample_buffer: Vec::new(),
+            is_monitoring: false,
+            #[cfg(target_os = "linux")]
+            pw_loopback_child: None,
+        }
+    }
+
+    pub fn set_monitoring(&mut self, enabled: bool) {
+        if self.is_monitoring == enabled {
+            return;
+        }
+        self.is_monitoring = enabled;
+        if enabled {
+            self.start_monitor_loopback();
+        } else {
+            self.stop_monitor_loopback();
+        }
+    }
+
+    fn start_monitor_loopback(&mut self) {
+        #[cfg(target_os = "linux")]
+        {
+            if self.pw_loopback_child.is_some() {
+                return;
+            }
+            if let Ok(child) = std::process::Command::new("pw-loopback")
+                .arg("--capture-props={\"node.target\": \"MicYouVirtualSink\", \"media.class\": \"Stream/Input/Audio\", \"stream.capture.sink\": true}")
+                .arg("--playback-props={\"media.class\": \"Stream/Output/Audio\"}")
+                .spawn()
+            {
+                log::info!("[Audio] PipeWire monitor loopback started (pid: {})", child.id());
+                self.pw_loopback_child = Some(child);
+            } else {
+                log::warn!("[Audio] Failed to start PipeWire monitor loopback");
+            }
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        {
+            if self.monitor_stream.is_some() {
+                return;
+            }
+            let host = cpal::default_host();
+            let device = match host.default_output_device() {
+                Some(dev) => dev,
+                None => {
+                    log::warn!("[Audio] No default output device available for monitoring");
+                    return;
+                }
+            };
+
+            let config = match device.default_output_config() {
+                Ok(c) => c,
+                Err(e) => {
+                    log::error!("[Audio] Failed to get monitor output config: {}", e);
+                    return;
+                }
+            };
+
+            self.monitor_device_sample_rate = config.sample_rate().0;
+            self.monitor_device_channels = config.channels() as usize;
+
+            if self.monitor_device_sample_rate != 48000 {
+                self.monitor_resampler = RubatoResampler::new(48000, self.monitor_device_sample_rate, self.monitor_device_channels).ok();
+            } else {
+                self.monitor_resampler = None;
+            }
+
+            let buffer_size = (self.monitor_device_sample_rate as usize * self.monitor_device_channels * BUFFER_HEADROOM_MS) / MS_PER_SECOND;
+            let ring_buffer = HeapRb::<f32>::new(buffer_size.max(MIN_BUFFER_SIZE));
+            let (producer, mut consumer) = ring_buffer.split();
+
+            self.monitor_producer = Some(producer);
+
+            let stream_config: StreamConfig = config.clone().into();
+            let err_fn = |err| log::error!("[Audio] Error on monitor stream: {}", err);
+
+            let stream = match config.sample_format() {
+                SampleFormat::F32 => {
+                    let underrun_counter = Arc::new(AtomicU32::new(0));
+                    let mut last_sample = 0.0f32;
+                    device.build_output_stream(
+                        &stream_config,
+                        move |data: &mut [f32], _: &OutputCallbackInfo| {
+                            for sample in data.iter_mut() {
+                                match consumer.pop() {
+                                    Some(s) => {
+                                        *sample = s;
+                                        last_sample = s;
+                                        underrun_counter.store(0, Ordering::Relaxed);
+                                    }
+                                    None => {
+                                        let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
+                                        let fade = (1.0 - count as f32 * 0.01).max(0.0);
+                                        *sample = last_sample * fade;
+                                    }
+                                }
+                            }
+                        },
+                        err_fn,
+                        None,
+                    )
+                }
+                SampleFormat::I16 => {
+                    let underrun_counter = Arc::new(AtomicU32::new(0));
+                    let mut last_sample = 0.0f32;
+                    device.build_output_stream(
+                        &stream_config,
+                        move |data: &mut [i16], _: &OutputCallbackInfo| {
+                            for sample in data.iter_mut() {
+                                let f_sample = match consumer.pop() {
+                                    Some(s) => {
+                                        underrun_counter.store(0, Ordering::Relaxed);
+                                        last_sample = s;
+                                        s
+                                    }
+                                    None => {
+                                        let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
+                                        let fade = (1.0 - count as f32 * 0.01).max(0.0);
+                                        last_sample * fade
+                                    }
+                                };
+                                let dither: f32 = (rand_f32() - 0.5 + rand_f32() - 0.5) * (1.0 / 32768.0);
+                                let dithered = f_sample + dither;
+                                *sample = (dithered * 32768.0).clamp(-32768.0, 32767.0) as i16;
+                            }
+                        },
+                        err_fn,
+                        None,
+                    )
+                }
+                _ => return,
+            };
+
+            if let Ok(st) = stream {
+                if st.play().is_ok() {
+                    self.monitor_stream = Some(st);
+                    log::info!("[Audio] Audio monitor stream started successfully");
+                }
+            }
+        }
+    }
+
+    fn stop_monitor_loopback(&mut self) {
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(mut child) = self.pw_loopback_child.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+                log::info!("[Audio] PipeWire monitor loopback stopped");
+            }
+        }
+
+        #[cfg(not(target_os = "linux"))]
+        {
+            self.monitor_stream = None;
+            self.monitor_producer = None;
+            self.monitor_resampler = None;
         }
     }
 
@@ -282,6 +465,11 @@ impl AudioOutputManager {
         stream.play()?;
         self.stream = Some(stream);
 
+        // If monitoring was enabled prior to start, start monitor stream
+        if self.is_monitoring {
+            self.start_monitor_loopback();
+        }
+
         Ok(())
     }
 
@@ -298,6 +486,21 @@ impl AudioOutputManager {
                 producer.push_slice(&self.channel_map_buffer);
             }
         }
+
+        if self.is_monitoring {
+            #[cfg(not(target_os = "linux"))]
+            {
+                if let Some(producer) = &mut self.monitor_producer {
+                    map_channels(data, input_channels, self.monitor_device_channels, &mut self.monitor_channel_map_buffer);
+                    if let Some(resampler) = &mut self.monitor_resampler {
+                        resampler.resample(&self.monitor_channel_map_buffer, self.monitor_device_channels, &mut self.monitor_resample_buffer);
+                        producer.push_slice(&self.monitor_resample_buffer);
+                    } else {
+                        producer.push_slice(&self.monitor_channel_map_buffer);
+                    }
+                }
+            }
+        }
     }
 
     pub fn queued_samples(&self) -> usize {
@@ -306,5 +509,11 @@ impl AudioOutputManager {
         } else {
             0
         }
+    }
+}
+
+impl Drop for AudioOutputManager {
+    fn drop(&mut self) {
+        self.stop_monitor_loopback();
     }
 }

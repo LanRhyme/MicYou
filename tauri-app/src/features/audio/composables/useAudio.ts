@@ -28,6 +28,9 @@ export function useAudio() {
   // Real-time audio performance and network statistics
   const audioMetrics = ref<AudioMetrics | null>(null);
   
+  // Real-time audio earback / monitoring status (listening to own voice via speaker)
+  const isMonitoringEnabled = ref(false);
+  
   // Flag showing/hiding the monitoring panel
   const showMonitoringPanel = ref(false);
   
@@ -37,6 +40,7 @@ export function useAudio() {
   let unlistenAudioLevel: UnlistenFn | null = null;
   let unlistenAudioMetrics: UnlistenFn | null = null;
   let unlistenMuteState: UnlistenFn | null = null;
+  let unlistenMonitoringState: UnlistenFn | null = null;
   let unlistenUdpWarning: UnlistenFn | null = null;
 
   /**
@@ -50,6 +54,20 @@ export function useAudio() {
     } catch (e) {
       console.error('set_mute_state failed:', e);
       isMuted.value = !newVal;
+    }
+  }
+
+  /**
+   * Toggles real-time audio monitoring / earback
+   */
+  async function toggleMonitoringEnabled() {
+    const newVal = !isMonitoringEnabled.value;
+    isMonitoringEnabled.value = newVal;
+    try {
+      await invoke('set_monitoring', { enabled: newVal });
+    } catch (e) {
+      console.error('set_monitoring failed:', e);
+      isMonitoringEnabled.value = !newVal;
     }
   }
 
@@ -76,6 +94,11 @@ export function useAudio() {
       isMuted.value = event.payload;
     });
     
+    // Listen for audio monitoring state synchronizations
+    unlistenMonitoringState = await listen<boolean>('monitoring-enabled-changed', (event) => {
+      isMonitoringEnabled.value = event.payload;
+    });
+
     // Listen for warnings if UDP traffic is blocked and falls back to TCP
     unlistenUdpWarning = await listen('udp_audio_warning', () => {
       showUdpWarning.value = true;
@@ -86,16 +109,19 @@ export function useAudio() {
     if (unlistenAudioLevel) unlistenAudioLevel();
     if (unlistenAudioMetrics) unlistenAudioMetrics();
     if (unlistenMuteState) unlistenMuteState();
+    if (unlistenMonitoringState) unlistenMonitoringState();
     if (unlistenUdpWarning) unlistenUdpWarning();
   });
 
   return {
     audioLevel,
     isMuted,
+    isMonitoringEnabled,
     audioMetrics,
     showMonitoringPanel,
     showUdpWarning,
     toggleMute,
+    toggleMonitoringEnabled,
     toggleMonitoring,
   };
 }

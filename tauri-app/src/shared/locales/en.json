@@ -20,6 +20,8 @@
       "stateIdle": "IDLE",
       "mute": "Mute",
       "unmute": "Unmute",
+      "enableEarback": "Enable Audio Monitoring",
+      "disableEarback": "Disable Audio Monitoring",
       "wifi": "Connected via Wi-Fi",
       "usb": "Connected via USB",
       "disconnected": "Not Connected",

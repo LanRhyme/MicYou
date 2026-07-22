@@ -9,6 +9,7 @@ pub struct ServerState {
     pub cancel_token: Arc<Mutex<Option<CancellationToken>>>,
     pub mdns_manager: Arc<Mutex<Option<crate::network::NetworkManager>>>,
     pub dsp_settings: Arc<RwLock<AudioDspSettings>>,
+    pub is_monitoring: Arc<std::sync::atomic::AtomicBool>,
     pub network_stats: Arc<NetworkStats>,
     pub connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<micyou_protocol::micyou::MessageWrapper>>>>,
     #[cfg(windows)]
