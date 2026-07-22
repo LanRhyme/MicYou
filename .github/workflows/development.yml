@@ -80,28 +80,30 @@ jobs:
       run: npm ci
       working-directory: tauri-app
     - name: Build Tauri App (Windows)
-      run: npx tauri build --bundles msi
+      run: npx tauri build --bundles none
       working-directory: tauri-app
+    - name: Build Inno Setup Installer
+      shell: pwsh
+      working-directory: tauri-app
+      run: |
+        $version = '${{ steps.version.outputs.version }}'
+        iscc /DMyAppVersion="$version" src-tauri/installer.iss
     - name: Prepare Artifact
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path ci-artifacts | Out-Null
         $version = '${{ steps.version.outputs.version }}'
-        $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/msi -Filter *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
-        if (-not $installer) {
-          Write-Warning "No MSI installer found, trying exe..."
-          $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/nsis -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-        }
+        $installer = Get-ChildItem -Path tauri-app/src-tauri/target/release/bundle/inno -Filter *.exe -ErrorAction SilentlyContinue | Select-Object -First 1
         if (-not $installer) {
           Write-Warning "No installer found, skipping artifact upload"
           exit 0
         }
-        Copy-Item $installer.FullName "ci-artifacts/MicYou-Win-$version-installer.msi" -Force
+        Copy-Item $installer.FullName "ci-artifacts/MicYou-Win-$version-installer.exe" -Force
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: MicYou-Win-${{ steps.version.outputs.version }}
-        path: ci-artifacts/MicYou-Win-${{ steps.version.outputs.version }}-installer.msi
+        path: ci-artifacts/MicYou-Win-${{ steps.version.outputs.version }}-installer.exe
         if-no-files-found: ignore
 
   # ----------------- Tauri macOS 构建 (x64 + arm64) -----------------
