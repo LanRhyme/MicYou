@@ -186,6 +186,7 @@ jobs:
         echo "ORT_DYLIB_PATH=$PREFIX/lib/libonnxruntime.dylib" >> $GITHUB_ENV
         echo "LIBRARY_PATH=$PREFIX/lib:$LIBRARY_PATH" >> $GITHUB_ENV
         echo "DYLD_LIBRARY_PATH=$PREFIX/lib:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
+        echo "RUSTFLAGS=-C link-arg=-Wl,-rpath,$PREFIX/lib -L$PREFIX/lib" >> $GITHUB_ENV
     - name: Build Tauri App (macOS)
       run: npx tauri build --bundles dmg --target ${{ matrix.target }}
       working-directory: tauri-app
