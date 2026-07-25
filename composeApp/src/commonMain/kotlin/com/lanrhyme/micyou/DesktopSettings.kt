@@ -84,6 +84,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -104,8 +105,10 @@ import androidx.compose.ui.window.Dialog
 import com.lanrhyme.micyou.animation.EasingFunctions
 import com.lanrhyme.micyou.theme.ExpressiveCard
 import dev.chrisbanes.haze.HazeState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.round
 import micyou.composeapp.generated.resources.Res
 import micyou.composeapp.generated.resources.aboutSection
@@ -646,9 +649,14 @@ fun VBCableManagementSection(
     cardOpacity: Float,
     viewModel: MainViewModel
 ) {    val state by viewModel.uiState.collectAsState()
-    val isInstalled = isVirtualDeviceInstalled()
     val installProgress = state.vbcableInstallProgress
     val isInstalling = installProgress != null
+    // isVirtualDeviceInstalled() 在 Windows 上会枚举音频设备并启动 reg query 子进程，
+    // 属于阻塞式 IO。放到后台线程执行并缓存，避免每次重组都卡住 UI 线程。
+    // 仅在进入界面及安装状态变化时重新查询。
+    val isInstalled by produceState(initialValue = false, isInstalling) {
+        value = withContext(Dispatchers.IO) { isVirtualDeviceInstalled() }
+    }
     
     Box(
         modifier = Modifier
@@ -832,7 +840,11 @@ fun SettingsContent(section: SettingsSection, viewModel: MainViewModel) {
 
                     // Audio Source Selection (Desktop)
                     if (platform.type == PlatformType.Desktop) {
-                        val audioSourceOptions = getAudioSourceOptions()
+                        // getAudioSourceOptions() 会枚举系统混音器，属于阻塞式操作。
+                        // 放到后台线程执行一次并缓存，避免每次重组都卡住 UI 线程。
+                        val audioSourceOptions by produceState(initialValue = emptyList<AudioSourceOption>()) {
+                            value = withContext(Dispatchers.IO) { getAudioSourceOptions() }
+                        }
                         val currentSource = audioSourceOptions.find { it.name == state.androidAudioSourceName } ?: audioSourceOptions.firstOrNull()
                         if (audioSourceOptions.isNotEmpty() && currentSource != null) {
                             val optionsWithLabels = audioSourceOptions.map { source ->
