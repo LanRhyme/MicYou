@@ -19,11 +19,9 @@
         "decorations": false,
         "resizable": false,
         "transparent": true,
+        "shadow": false,
         "windowEffects": {
-          "effects": [
-            "acrylic",
-            "blur"
-          ]
+          "effects": ["acrylic", "blur"]
         }
       }
     ],
@@ -33,15 +31,8 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "dmg",
-      "app",
-      "deb",
-      "appimage"
-    ],
-    "resources": [
-      "resources/*"
-    ],
+    "targets": ["dmg", "app", "deb", "appimage"],
+    "resources": ["resources/*"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
