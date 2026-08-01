@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watchEffect } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watchEffect, watch, nextTick } from 'vue';
 import { useStorage, onClickOutside } from '@vueuse/core';
 import { LogicalSize } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
@@ -148,16 +148,13 @@ onMounted(() => {
   }
 });
 
-// Watch and adjust physical window dimensions when entering or leaving pocket layout mode
+// Watch and adjust physical window dimensions when entering or leaving pocket layout mode.
+// In pocket mode the width is driven by the auto-size logic below (content width);
+// in full mode we always restore the standard 800x600 window.
 watchEffect(async () => {
-  const isPocket = pocketMode.value;
-  if (isPocket && isSettingsOpen.value) return;
+  if (pocketMode.value) return; // 袖珍模式宽度由自适应逻辑控制
   try {
-    if (isPocket) {
-      await win.appWindow.setSize(new LogicalSize(420, 52));
-    } else {
-      await win.appWindow.setSize(new LogicalSize(800, 600));
-    }
+    await win.appWindow.setSize(new LogicalSize(800, 600));
   } catch (e) {
     console.error('Failed to resize window:', e);
   }
@@ -171,6 +168,75 @@ watchEffect(async () => {
     } catch (e) {
       console.error('Failed to resize window for settings:', e);
     }
+  }
+});
+
+// --- 袖珍模式窗口宽度自适应 ---
+// 窗口宽度跟随内容宽度自动伸缩(避免固定 420px 下长文本如猫猫语导致控件溢出)。
+// 防循环关键: PocketLayout 根容器使用 w-max(宽度由内容决定)，窗口 resize 不会改变内容宽度，
+// 因此 ResizeObserver -> setSize 不会再次触发内容宽度变化，不会形成死循环。
+const pocketContentRef = ref<HTMLElement | null>(null);
+let pocketObserver: ResizeObserver | null = null;
+let pocketRaf = 0;
+const POCKET_HEIGHT = 52;
+const POCKET_X_PADDING = 12; // 外层 p-1.5 左右各 6px
+const POCKET_MIN_WIDTH = 240;
+
+async function resizePocketToContent() {
+  const el = pocketContentRef.value;
+  if (!el) return;
+  const targetW = Math.max(
+    Math.ceil(el.getBoundingClientRect().width + POCKET_X_PADDING),
+    POCKET_MIN_WIDTH,
+  );
+  try {
+    await win.appWindow.setSize(new LogicalSize(targetW, POCKET_HEIGHT));
+  } catch (e) {
+    console.error('Failed to resize pocket window:', e);
+  }
+}
+
+function startPocketObserver() {
+  stopPocketObserver();
+  const el = pocketContentRef.value;
+  if (!el) return;
+  pocketObserver = new ResizeObserver((entries) => {
+    if (!pocketMode.value || isSettingsOpen.value) return;
+    const entry = entries[0];
+    if (!entry) return;
+    if (pocketRaf) cancelAnimationFrame(pocketRaf);
+    pocketRaf = requestAnimationFrame(() => void resizePocketToContent());
+  });
+  pocketObserver.observe(el);
+}
+
+function stopPocketObserver() {
+  pocketObserver?.disconnect();
+  pocketObserver = null;
+  if (pocketRaf) cancelAnimationFrame(pocketRaf);
+  pocketRaf = 0;
+}
+
+// 进入/退出袖珍模式时启停自适应
+watch(pocketMode, async (isPocket) => {
+  if (isPocket) {
+    await nextTick();
+    startPocketObserver();
+    if (!isSettingsOpen.value) await resizePocketToContent();
+  } else {
+    stopPocketObserver();
+  }
+}, { immediate: true });
+
+// 设置对话框打开时暂停自适应(由上方 watchEffect 展开到 800)，关闭后恢复自适应宽度
+watch(isSettingsOpen, async (open) => {
+  if (!pocketMode.value) return;
+  if (open) {
+    stopPocketObserver();
+  } else {
+    await nextTick();
+    startPocketObserver();
+    await resizePocketToContent();
   }
 });
 
@@ -251,6 +317,7 @@ watchEffect(() => {
 });
 
 onUnmounted(() => {
+  stopPocketObserver();
   if (breatheAnim) breatheAnim.pause();
   if (dotPulseAnim) dotPulseAnim.pause();
 });
@@ -269,9 +336,11 @@ onUnmounted(() => {
         @click="pocketLayoutRef?.closePopup()"
       />
 
+      <!-- 包裹层: 宽度由内容决定(w-max)，供窗口自适应宽度测量 -->
+      <div ref="pocketContentRef" class="relative z-20 w-max">
       <PocketLayout
         ref="pocketLayoutRef"
-        class="flex-1 relative z-20"
+        class="relative"
         :serverState="server.serverState.value"
         :connectionMode="server.connectionMode.value"
         :serverPort="server.serverPort.value"
@@ -296,6 +365,7 @@ onUnmounted(() => {
         @openSettings="isSettingsOpen = true"
         @update:popupOpen="v => pocketPopupOpen = v"
       />
+      </div>
     </div>
 
     <!-- Full Mode -->

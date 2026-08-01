@@ -264,7 +264,8 @@ defineExpose({ closePopup });
 </script>
 
 <template>
-  <div class="w-full h-full flex items-center haze-surface rounded-2xl px-3 gap-2">
+  <!-- w-max: 宽度由内容决定，窗口 resize 不会改变内容宽度，是自动缩放无循环的关键 -->
+  <div class="w-max h-full flex items-center haze-surface rounded-2xl px-3 gap-2">
     <!-- Window Controls (macOS: left) -->
     <template v-if="isMacOS">
       <button @click="appWindow.minimize()" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors flex-shrink-0">
