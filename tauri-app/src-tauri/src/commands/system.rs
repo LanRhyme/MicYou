@@ -2,6 +2,7 @@ use tauri::window::Effect;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
 
+use crate::audio_stream::AudioStreamEvent;
 use crate::server::ServerState;
 use crate::tray::{TrayContext, TrayMenuStrings, TrayState};
 use micyou_audio::dsp::DspProcessor;
@@ -120,9 +121,16 @@ pub async fn start_server(
             log::warn!("[Audio] Failed to start speaker loopback, AEC far-end will be unavailable");
         }
 
-        while let Some(packet) = audio_rx.blocking_recv() {
-            audio_manager.set_monitoring(is_monitoring_flag.load(std::sync::atomic::Ordering::Relaxed));
-            jb.push(packet);
+        while let Some(event) = audio_rx.blocking_recv() {
+            audio_manager
+                .set_monitoring(is_monitoring_flag.load(std::sync::atomic::Ordering::Relaxed));
+            match event {
+                AudioStreamEvent::SessionStarting => {
+                    jb.prepare_transport_session();
+                    continue;
+                }
+                AudioStreamEvent::Packet(packet) => jb.push(packet),
+            }
             let packets: Vec<_> = std::iter::from_fn(|| jb.pop()).collect();
 
             for ordered_packet in packets {
@@ -285,6 +293,10 @@ pub async fn start_server(
         *state.web_server.lock().await = Some(web_server_instance);
 
         let audio_tx_web = audio_tx;
+        audio_tx_web
+            .send(AudioStreamEvent::SessionStarting)
+            .await
+            .map_err(|_| "Audio pipeline stopped".to_string())?;
         tokio::spawn(async move {
             let mut seq: i32 = 0;
             while let Some(packet) = web_audio_rx.recv().await {
@@ -294,9 +306,14 @@ pub async fn start_server(
                     timestamp: 0,
                     fec_buffer: Vec::new(),
                     fec_sequence_number: -1,
+                    session_id: 0,
                 };
                 seq += 1;
-                if audio_tx_web.send(ordered).await.is_err() {
+                if audio_tx_web
+                    .send(AudioStreamEvent::Packet(ordered))
+                    .await
+                    .is_err()
+                {
                     break;
                 }
             }

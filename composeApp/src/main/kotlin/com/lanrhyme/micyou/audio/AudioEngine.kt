@@ -22,9 +22,12 @@ import io.ktor.utils.io.writeFully
 import io.ktor.utils.io.writeInt
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -42,6 +45,7 @@ import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
 import com.lanrhyme.micyou.audio.AndroidAudioSource
 import com.lanrhyme.micyou.audio.AudioLevelData
@@ -100,7 +104,9 @@ class AudioEngine constructor() {
     companion object {
         private const val MAX_UDP_CONSECUTIVE_FAILURES = 500
         private const val HEARTBEAT_TIMEOUT_MS = 5000L
+        private const val STOP_TIMEOUT_MS = 5000L
         private const val FEC_GROUP_SIZE = 12 // 每 12 个包生成一个 FEC 包（约 87ms @44100Hz）
+        private val sessionCounter = AtomicLong(System.currentTimeMillis().coerceAtLeast(1L))
 
         @Volatile
         private var activeEngine: AudioEngine? = null
@@ -143,16 +149,28 @@ class AudioEngine constructor() {
     val isMuted: Flow<Boolean> = _isMuted
 
     private var job: Job? = null
+    private var stopTimedOutJob: Job? = null
+    private var configRestartJob: Job? = null
+    private var configRestartRequest: Long = 0
     private val startStopMutex = Mutex()
+    private val lifecycleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val proto = ProtoBuf { }
     
-    private var connectionComplete: CompletableDeferred<Unit>? = null
+    @Volatile
     private var sendChannel: Channel<MessageWrapper>? = null
+    @Volatile
+    private var activeRecorder: AudioRecord? = null
+    @Volatile
+    private var activeTcpSocket: Socket? = null
+    @Volatile
+    private var activeInput: ByteReadChannel? = null
+    @Volatile
+    private var activeOutput: ByteWriteChannel? = null
     
+    @Volatile
     private var udpSocket: DatagramSocket? = null
+    @Volatile
     private var udpServerAddress: InetSocketAddress? = null
-    private var udpConsecutiveFailures: Int = 0
-    private var lastPingReceivedTime: Long = System.currentTimeMillis()
 
     @Volatile
     private var enableStreamingNotification: Boolean = true
@@ -174,11 +192,11 @@ class AudioEngine constructor() {
     private var savedChannelCount: ChannelCount = ChannelCount.Mono
     private var savedAudioFormat: AudioFormat = AudioFormat.PCM_16BIT
     private var savedTransportProtocol: TransportProtocol = TransportProtocol.Both
-    private var isRunning: Boolean = false
-
-    // FEC (前向纠错) 相关
-    private var fecGroupBuffer = mutableListOf<ByteArray>()
-    private var fecGroupStartSeq = 0
+    @Volatile
+    private var desiredRunning: Boolean = false
+    @Volatile
+    private var lifecycleGeneration: Long = 0
+    private var startRequestGeneration: Long = 0
 
     private val CHECK_1 = "MicYouCheck1"
     private val CHECK_2 = "MicYouCheck2"
@@ -204,28 +222,74 @@ class AudioEngine constructor() {
         savedChannelCount = channelCount
         savedAudioFormat = audioFormat
         savedTransportProtocol = transportProtocol
-        isRunning = true
 
-        connectionComplete = CompletableDeferred()
-    val jobToJoin = startStopMutex.withLock {
-            val currentJob = job
-            if (currentJob != null && !currentJob.isCompleted) {
-                Logger.w("AudioEngine", "AudioEngine already running, ignoring start request")
-                connectionComplete?.complete(Unit)
-                null
-            } else {
+        val connectionComplete = CompletableDeferred<Unit>()
+        var launchedJob: Job? = null
+        var stoppingJob: Job? = null
+        var requestToken = 0L
+        var firstAttempt = true
+        var startIgnored = false
+        val sessionId = sessionCounter.updateAndGet { current ->
+            if (current == Long.MAX_VALUE) 1L else current + 1L
+        }
+        while (launchedJob == null && !startIgnored) {
+            stoppingJob = null
+            startStopMutex.withLock {
+                if (firstAttempt) {
+                    configRestartJob?.takeIf { it !== coroutineContext[Job] }?.cancel()
+                    val wasDesiredRunning = desiredRunning
+                    val timedOutJob = stopTimedOutJob
+                    if (timedOutJob != null && !timedOutJob.isCompleted) {
+                        throw IllegalStateException("Previous audio session did not stop within $STOP_TIMEOUT_MS ms")
+                    }
+                    if (timedOutJob?.isCompleted == true) stopTimedOutJob = null
+                    if (wasDesiredRunning && job?.isCompleted == false) {
+                        Logger.w("AudioEngine", "AudioEngine already running, ignoring start request")
+                        connectionComplete.complete(Unit)
+                        startIgnored = true
+                        return@withLock
+                    }
+                    desiredRunning = true
+                    startRequestGeneration++
+                    requestToken = startRequestGeneration
+                } else if (!desiredRunning || requestToken != startRequestGeneration) {
+                    throw CancellationException("Audio start request superseded while waiting for previous session")
+                }
+
+                val currentJob = job
+                if (currentJob != null && !currentJob.isCompleted) {
+                    Logger.i("AudioEngine", "Waiting for the previous stopped generation before starting")
+                    stoppingJob = currentJob
+                } else {
+                lifecycleGeneration++
+                val sessionGeneration = lifecycleGeneration
+                activeEngine = this
                 _state.value = StreamState.Connecting
-                CoroutineScope(Dispatchers.IO).launch {
-                    var socket: Socket? = null
+                val sessionJob = lifecycleScope.launch(start = CoroutineStart.LAZY) {
                     var recorder: AudioRecord? = null
+                    var sessionUdpSocket: DatagramSocket? = null
+                    var sessionUdpAddress: InetSocketAddress? = null
+                    var sessionNoiseSuppressor: NoiseSuppressor? = null
+                    var sessionAutomaticGainControl: AutomaticGainControl? = null
+                    var sessionUdpConsecutiveFailures = 0
+                    var sessionLastPingReceivedTime = System.currentTimeMillis()
                     val channel = Channel<MessageWrapper>(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-                    sendChannel = channel
-                    
+                    startStopMutex.withLock {
+                        if (lifecycleGeneration == sessionGeneration && desiredRunning) {
+                            sendChannel = channel
+                        }
+                    }
+
+                    var tcpSocket: Socket? = null
                     var input: ByteReadChannel? = null
                     var output: ByteWriteChannel? = null
+                    var selectorManager: SelectorManager? = null
                     var closeConnection: () -> Unit = {}
                     
                     try {
+                        if (lifecycleGeneration != sessionGeneration || !desiredRunning) {
+                            throw CancellationException("Audio session superseded before initialization")
+                        }
                         val androidSampleRate = sampleRate.value
                         val androidChannelConfig = if (channelCount == ChannelCount.Stereo) 
                             android.media.AudioFormat.CHANNEL_IN_STEREO 
@@ -243,9 +307,7 @@ class AudioEngine constructor() {
                         if (minBufSize <= 0 || minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
                             val msg = String.format(getString(R.string.errorAudioFormatNotSupported), audioFormat.label, androidAudioFormat.toString(), androidSampleRate)
                             Logger.e("AudioEngine", msg + ", minBufSize=$minBufSize")
-                            _state.value = StreamState.Error
-                            _lastError.value = msg
-                            return@launch
+                            throw IllegalStateException(msg)
                         }
 
                         try {
@@ -271,31 +333,36 @@ class AudioEngine constructor() {
                             }
                         } catch (e: SecurityException) {
                             Logger.e("AudioEngine", "Record permission denied", e)
-                            _state.value = StreamState.Error
-                            _lastError.value = getString(R.string.errorRecordingPermissionDenied)
-                            return@launch
+                            throw IllegalStateException(getString(R.string.errorRecordingPermissionDenied), e)
                         }
-                        
-                        if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+
+                        val sessionRecorder = requireNotNull(recorder)
+                        startStopMutex.withLock {
+                            if (lifecycleGeneration != sessionGeneration || !desiredRunning) {
+                                throw CancellationException("Audio session superseded during recorder initialization")
+                            }
+                            activeRecorder = sessionRecorder
+                        }
+                        if (sessionRecorder.state != AudioRecord.STATE_INITIALIZED) {
                             val msg = getString(R.string.errorAudioRecordInitFailed)
                             Logger.e("AudioEngine", msg)
-                            _state.value = StreamState.Error
-                            _lastError.value = msg
-                            return@launch
+                            throw IllegalStateException(msg)
                         }
 
                         try {
                             if (NoiseSuppressor.isAvailable()) {
-                                noiseSuppressor = NoiseSuppressor.create(recorder.audioSessionId)
-                                noiseSuppressor?.enabled = enableNS
+                                sessionNoiseSuppressor = NoiseSuppressor.create(sessionRecorder.audioSessionId)
+                                sessionNoiseSuppressor?.enabled = enableNS
+                                noiseSuppressor = sessionNoiseSuppressor
                                 Logger.d("AudioEngine", "NoiseSuppressor initialized, enabled=$enableNS")
                             } else {
                                 Logger.d("AudioEngine", "NoiseSuppressor not available")
                             }
                             
                             if (AutomaticGainControl.isAvailable()) {
-                                automaticGainControl = AutomaticGainControl.create(recorder.audioSessionId)
-                                automaticGainControl?.enabled = enableAGC
+                                sessionAutomaticGainControl = AutomaticGainControl.create(sessionRecorder.audioSessionId)
+                                sessionAutomaticGainControl?.enabled = enableAGC
+                                automaticGainControl = sessionAutomaticGainControl
                                 Logger.d("AudioEngine", "AutomaticGainControl initialized, enabled=$enableAGC")
                             } else {
                                 Logger.d("AudioEngine", "AutomaticGainControl not available")
@@ -304,8 +371,8 @@ class AudioEngine constructor() {
                              Logger.w("AudioEngine", "Failed to initialize audio effects: ${e.message}")
                         }
                         
-                        val selectorManager = SelectorManager(Dispatchers.IO)
-    var tcpSocket: Socket? = null
+                        val sessionSelectorManager = SelectorManager(Dispatchers.IO)
+                        selectorManager = sessionSelectorManager
 
                         val targetIp = if (mode == ConnectionMode.Usb) "127.0.0.1" else ip
                         Logger.i("AudioEngine", "Connecting with protocol $transportProtocol to $targetIp:$port")
@@ -313,7 +380,7 @@ class AudioEngine constructor() {
                         // TCP-only 模式或 Both 模式：需要 TCP 连接进行握手
                         if (transportProtocol == TransportProtocol.Tcp || transportProtocol == TransportProtocol.Both) {
                             Logger.i("AudioEngine", "Connecting via TCP to $targetIp:$port")
-                            val socketBuilder = aSocket(selectorManager)
+                            val socketBuilder = aSocket(sessionSelectorManager)
                             tcpSocket = socketBuilder.tcp().connect(targetIp, port) {
                                 keepAlive = true
                                 socketTimeout = 10000L
@@ -322,31 +389,44 @@ class AudioEngine constructor() {
                             Logger.i("AudioEngine", "TCP connected to $targetIp:$port")
                             input = tcpSocket.openReadChannel()
                             output = tcpSocket.openWriteChannel(autoFlush = true)
+                            startStopMutex.withLock {
+                                if (lifecycleGeneration != sessionGeneration || !desiredRunning) {
+                                    throw CancellationException("Audio session superseded during TCP connection")
+                                }
+                                activeTcpSocket = tcpSocket
+                                activeInput = input
+                                activeOutput = output
+                            }
                         }
 
                         // UDP 音频传输：WiFi 模式下且协议为 TCP+UDP
                         if (mode == ConnectionMode.Wifi && transportProtocol == TransportProtocol.Both) {
                             val udpPort = calculateUdpPort(port)
                             Logger.i("AudioEngine", "Connecting via UDP to $targetIp:$udpPort")
-                            udpSocket = DatagramSocket().also {
+                            sessionUdpSocket = DatagramSocket().also {
                                 it.sendBufferSize = 256 * 1024 // 256KB send buffer
                                 Logger.d("AudioEngine", "UDP send buffer: ${it.sendBufferSize / 1024}KB")
                             }
-                            udpServerAddress = InetSocketAddress(targetIp, udpPort)
+                            sessionUdpAddress = InetSocketAddress(targetIp, udpPort)
+                            startStopMutex.withLock {
+                                if (lifecycleGeneration != sessionGeneration || !desiredRunning) {
+                                    throw CancellationException("Audio session superseded during UDP setup")
+                                }
+                                udpSocket = sessionUdpSocket
+                                udpServerAddress = sessionUdpAddress
+                            }
                             Logger.i("AudioEngine", "UDP connected to $targetIp:$udpPort")
                         }
 
                         closeConnection = {
                             tcpSocket?.close()
-                            udpSocket?.close()
-                            udpSocket = null
-                            udpServerAddress = null
+                            sessionUdpSocket?.close()
                         }
 
                         // Handshake (always via TCP if available, otherwise skip)
                         if (tcpSocket != null) {
-                            val out = output ?: return@launch
-                            val inChannel = input ?: return@launch
+                            val out = output ?: throw IllegalStateException("TCP output channel unavailable")
+                            val inChannel = input ?: throw IllegalStateException("TCP input channel unavailable")
                             Logger.d("AudioEngine", "Starting handshake")
                             out.writeFully(CHECK_1.encodeToByteArray())
                             out.flush()
@@ -356,10 +436,7 @@ class AudioEngine constructor() {
                             if (!responseBuffer.decodeToString().equals(CHECK_2)) {
                                 val msg = getString(R.string.errorHandshakeFailedDetailed)
                                 Logger.e("AudioEngine", "Handshake failed: received ${responseBuffer.decodeToString()}")
-                                _state.value = StreamState.Error
-                                _lastError.value = msg
-                                closeConnection()
-                                return@launch
+                                throw IllegalStateException(msg)
                             }
                             Logger.i("AudioEngine", "Handshake successful")
                         } else {
@@ -367,10 +444,16 @@ class AudioEngine constructor() {
                             Logger.w("AudioEngine", "UDP-only mode: skipping handshake")
                         }
 
+                        if (lifecycleGeneration != sessionGeneration || !desiredRunning) {
+                            throw CancellationException("Audio session superseded before recording started")
+                        }
                         recorder.startRecording()
+                        if (lifecycleGeneration != sessionGeneration || !desiredRunning) {
+                            throw CancellationException("Audio session superseded while recording started")
+                        }
                         _state.value = StreamState.Streaming
                         _lastError.value = null
-                        connectionComplete?.complete(Unit)
+                        connectionComplete.complete(Unit)
 
                         if (enableStreamingNotification) {
                             val context = ContextHelper.getContext()
@@ -394,9 +477,11 @@ class AudioEngine constructor() {
                                         TransportProtocol.Both -> mode == ConnectionMode.Wifi && !msg.hasControlMessage() // Both 模式下，WiFi 模式下音频走 UDP
                                     }
 
-                                    if (shouldUseUdp && udpSocket != null && udpServerAddress != null) {
+                                    val localUdpSocket = sessionUdpSocket
+                                    val localUdpAddress = sessionUdpAddress
+                                    if (shouldUseUdp && localUdpSocket != null && localUdpAddress != null) {
                                         // 通过 UDP 发送
-                                        sendAudioPacketViaUdp(msg)
+                                        sessionUdpConsecutiveFailures = sendAudioPacketViaUdp(msg, localUdpSocket, localUdpAddress, sessionUdpConsecutiveFailures)
                                     } else {
                                         val out = output
                                         if (out != null && !out.isClosedForWrite) {
@@ -419,7 +504,7 @@ class AudioEngine constructor() {
 
                         val readerJob = if (tcpSocket != null) {
                             launch {
-                                val inChannel = input ?: return@launch
+                                val inChannel = input ?: throw IllegalStateException("TCP input channel unavailable for reader")
                                 Logger.d("AudioEngine", "Reader loop started")
                                 try {
                                     while (isActive) {
@@ -449,8 +534,8 @@ class AudioEngine constructor() {
                                                 }
 
                                                 if (wrapper.ping != null) {
-                                                    lastPingReceivedTime = System.currentTimeMillis()
-                                                    sendChannel?.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
+                                                    sessionLastPingReceivedTime = System.currentTimeMillis()
+                                                    channel.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
                                                 }
                                             } catch (e: Exception) {
                                                 Logger.e("AudioEngine", "Error decoding incoming message", e)
@@ -470,7 +555,7 @@ class AudioEngine constructor() {
                             null
                         }
 
-                        sendChannel?.send(MessageWrapper(mute = MuteMessage(_isMuted.value)))
+                        channel.send(MessageWrapper(mute = MuteMessage(_isMuted.value)))
                         // Use read buffer sized to avoid IP fragmentation on WiFi
                         // Path MTU = 1500, minus IP(20)+UDP(8)+header(8)+ProtoBuf(~30) ≈ 1434 safe payload
     val udpSafePayloadSize = 1400
@@ -487,15 +572,15 @@ class AudioEngine constructor() {
                         val floatBuffer = if (androidAudioFormat == android.media.AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
                         var sequenceNumber = 0
                         var lastAudioData: ByteArray? = null
-                        fecGroupBuffer = mutableListOf()
-                        fecGroupStartSeq = 0
+                        var fecGroupBuffer = mutableListOf<ByteArray>()
+                        var fecGroupStartSeq = 0
                         var lastSequenceNumber = -1
-                        lastPingReceivedTime = System.currentTimeMillis()
+                        sessionLastPingReceivedTime = System.currentTimeMillis()
 
                         while (isActive) {
                             if (writerJob.isCancelled || writerJob.isCompleted) throw Exception("Writer job failed")
                             if (readerJob != null && (readerJob.isCancelled || readerJob.isCompleted)) throw Exception("Reader job failed - connection lost")
-                            if (readerJob != null && System.currentTimeMillis() - lastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
+                            if (readerJob != null && System.currentTimeMillis() - sessionLastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
                                 throw Exception("Heartbeat timeout - server unreachable ($HEARTBEAT_TIMEOUT_MS ms)")
                             }
 
@@ -529,11 +614,18 @@ class AudioEngine constructor() {
                                         audioFormat = audioFormat.value
                                     )
     val wrapper = MessageWrapper(
-                                        audioPacket = AudioPacketMessageOrdered(sequenceNumber++, packet, System.currentTimeMillis())
+                                        audioPacket = AudioPacketMessageOrdered(
+                                            sequenceNumber = sequenceNumber++,
+                                            audioPacket = packet,
+                                            timestamp = System.currentTimeMillis(),
+                                            sessionId = sessionId
+                                        )
                                     )
 
-                                    if (udpSocket != null && udpServerAddress != null) {
-                                        sendAudioPacketViaUdp(wrapper)
+                                    val localUdpSocket = sessionUdpSocket
+                                    val localUdpAddress = sessionUdpAddress
+                                    if (localUdpSocket != null && localUdpAddress != null) {
+                                        sessionUdpConsecutiveFailures = sendAudioPacketViaUdp(wrapper, localUdpSocket, localUdpAddress, sessionUdpConsecutiveFailures)
 
                                         // FEC: 收集音频 buffer，满一组后生成 FEC 包
                                         fecGroupBuffer.add(audioData)
@@ -550,80 +642,140 @@ class AudioEngine constructor() {
                                                     sequenceNumber++,
                                                     fecPacket,
                                                     System.currentTimeMillis(),
-                                                    fecSequenceNumber = fecGroupStartSeq
+                                                    fecSequenceNumber = fecGroupStartSeq,
+                                                    sessionId = sessionId
                                                 )
                                             )
-                                            sendAudioPacketViaUdp(fecWrapper)
+                                            sessionUdpConsecutiveFailures = sendAudioPacketViaUdp(fecWrapper, localUdpSocket, localUdpAddress, sessionUdpConsecutiveFailures)
                                             fecGroupBuffer = mutableListOf()
                                             fecGroupStartSeq = sequenceNumber
                                         }
                                     } else {
-                                        sendChannel?.send(wrapper)
+                                        channel.send(wrapper)
                                     }
                                 }
                             }
                         }
-} catch (e: kotlinx.coroutines.CancellationException) {
-                        connectionComplete?.completeExceptionally(e)
+                    } catch (e: CancellationException) {
+                        connectionComplete.completeExceptionally(e)
                         throw e
                     } catch (e: Exception) {
-                        if (isActive && !isNormalDisconnect(e)) {
-                            Logger.e("AudioEngine", "Connection lost", e)
-                            _state.value = StreamState.Error
-                            
-                            val errorMsg = when {
-                                e is UdpCircuitBreakerException -> e.message ?: getString(R.string.connectionDisconnected)
-                                e is java.net.ConnectException && e.message?.contains("Connection refused", ignoreCase = true) == true ->
-                                    String.format(getString(R.string.connectionRejected), port)
-                                e is java.net.SocketTimeoutException ->
-                                    getString(R.string.connectionTimeout)
-                                e is java.net.NoRouteToHostException ->
-                                    getString(R.string.connectionUnreachable)
-                                e.message?.contains("Heartbeat timeout", ignoreCase = true) == true ->
-                                    e.message ?: getString(R.string.connectionUnreachable)
-                                e.message?.contains("Reader job failed", ignoreCase = true) == true ->
-                                    getString(R.string.connectionDisconnected)
-                                else -> getString(R.string.connectionDisconnected)
-                            }
-                            _lastError.value = errorMsg
-                            connectionComplete?.completeExceptionally(Exception(errorMsg, e))
+                        val errorMsg = when {
+                            e is UdpCircuitBreakerException -> e.message ?: getString(R.string.connectionDisconnected)
+                            e is java.net.ConnectException && e.message?.contains("Connection refused", ignoreCase = true) == true ->
+                                String.format(getString(R.string.connectionRejected), port)
+                            e is java.net.SocketTimeoutException ->
+                                getString(R.string.connectionTimeout)
+                            e is java.net.NoRouteToHostException ->
+                                getString(R.string.connectionUnreachable)
+                            e.message?.contains("Heartbeat timeout", ignoreCase = true) == true ->
+                                e.message ?: getString(R.string.connectionUnreachable)
+                            e.message?.contains("Reader job failed", ignoreCase = true) == true ->
+                                getString(R.string.connectionDisconnected)
+                            else -> e.message ?: getString(R.string.connectionDisconnected)
                         }
+                        Logger.e("AudioEngine", "Connection lost", e)
+                        if (lifecycleGeneration == sessionGeneration) {
+                            _state.value = StreamState.Error
+                            _lastError.value = errorMsg
+                        }
+                        connectionComplete.completeExceptionally(Exception(errorMsg, e))
                     } finally {
-                        Logger.d("AudioEngine", "Cleaning up resources")
+                        connectionComplete.completeExceptionally(CancellationException("Audio session ended before startup completed"))
+                        Logger.d("AudioEngine", "Cleaning up resources for generation $sessionGeneration")
+                        channel.close()
                         try {
-                            // Capture local refs to avoid interfering with a new start
-                            val localNs = noiseSuppressor
-                            val localAgc = automaticGainControl
-                            noiseSuppressor = null
-                            automaticGainControl = null
-                            localNs?.release()
-                            localAgc?.release()
-                            
-                            channel.close()
-                            sendChannel = null
                             recorder?.stop()
+                        } catch (_: Exception) {
+                        }
+                        try {
                             recorder?.release()
+                        } catch (e: Exception) {
+                            Logger.w("AudioEngine", "Failed to release recorder: ${e.message}")
+                        }
+                        try {
                             closeConnection()
-                            
+                        } catch (e: Exception) {
+                            Logger.w("AudioEngine", "Failed to close connection: ${e.message}")
+                        }
+                        try {
+                            selectorManager?.close()
+                        } catch (e: Exception) {
+                            Logger.w("AudioEngine", "Failed to close selector manager: ${e.message}")
+                        }
+                        try {
+                            sessionNoiseSuppressor?.release()
+                            sessionAutomaticGainControl?.release()
+                        } catch (e: Exception) {
+                            Logger.w("AudioEngine", "Failed to release audio effects: ${e.message}")
+                        }
+
+                        startStopMutex.withLock {
+                            if (sendChannel === channel) sendChannel = null
+                            if (activeRecorder === recorder) activeRecorder = null
+                            if (activeTcpSocket === tcpSocket) activeTcpSocket = null
+                            if (activeInput === input) activeInput = null
+                            if (activeOutput === output) activeOutput = null
+                            if (udpSocket === sessionUdpSocket) {
+                                udpSocket = null
+                                udpServerAddress = null
+                            }
+                            if (noiseSuppressor === sessionNoiseSuppressor) noiseSuppressor = null
+                            if (automaticGainControl === sessionAutomaticGainControl) automaticGainControl = null
+                            if (job === coroutineContext[Job]) job = null
+                            if (stopTimedOutJob === coroutineContext[Job]) stopTimedOutJob = null
+                            if (lifecycleGeneration == sessionGeneration) {
+                                if (_state.value != StreamState.Error) _state.value = StreamState.Idle
+                                if (!desiredRunning) clearActiveEngine()
+                            }
+                        }
+
+                        if (lifecycleGeneration == sessionGeneration) {
                             val context = ContextHelper.getContext()
                             if (context != null) {
                                 val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
                                 context.startService(intent)
                             }
-                        } catch (e: Exception) {
-                            Logger.w("AudioEngine", "Error during cleanup: ${e.message}")
+                            Logger.i("AudioEngine", "AudioEngine stopped")
                         }
-                        _state.value = StreamState.Idle
-                        Logger.i("AudioEngine", "AudioEngine stopped")
                     }
-                }.also { job = it }
+                }
+                job = sessionJob
+                launchedJob = sessionJob
+                sessionJob.start()
+                }
+            }
+
+            val previousJob = stoppingJob
+            if (previousJob != null) {
+                val previousStopped = withTimeoutOrNull(STOP_TIMEOUT_MS) {
+                    previousJob.join()
+                    true
+                } == true
+                if (!previousStopped) {
+                    val error = IllegalStateException("Previous audio session did not stop within $STOP_TIMEOUT_MS ms")
+                    startStopMutex.withLock {
+                        if (requestToken == startRequestGeneration) {
+                            desiredRunning = false
+                            startRequestGeneration++
+                            stopTimedOutJob = previousJob
+                            _state.value = StreamState.Error
+                            _lastError.value = error.message
+                        }
+                    }
+                    throw error
+                }
+                firstAttempt = false
             }
         }
-        
+
         try {
-            connectionComplete?.await()
+            connectionComplete.await()
         } catch (e: Exception) {
-            job?.cancel()
+            launchedJob?.cancel()
+            if (launchedJob != null) {
+                withTimeoutOrNull(STOP_TIMEOUT_MS) { launchedJob?.join() }
+            }
             throw e
         }
     }
@@ -643,8 +795,13 @@ class AudioEngine constructor() {
     }
 
     @OptIn(ExperimentalSerializationApi::class)
-    private fun sendAudioPacketViaUdp(wrapper: MessageWrapper) {
-        try {
+    private fun sendAudioPacketViaUdp(
+        wrapper: MessageWrapper,
+        socket: DatagramSocket,
+        serverAddress: InetSocketAddress,
+        consecutiveFailures: Int
+    ): Int {
+        return try {
             val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), wrapper)
     val length = packetBytes.size
             val header = ByteArray(8).apply {
@@ -657,38 +814,145 @@ class AudioEngine constructor() {
                 this[6] = (length shr 8).toByte()
                 this[7] = length.toByte()
             }
-    val udpPacket = DatagramPacket(header + packetBytes, 8 + length, udpServerAddress)
-            udpSocket?.send(udpPacket)
-            udpConsecutiveFailures = 0
+            val udpPacket = DatagramPacket(header + packetBytes, 8 + length, serverAddress)
+            socket.send(udpPacket)
+            0
         } catch (e: Exception) {
             Logger.w("AudioEngine", "UDP send failed: ${e.message}")
-            udpConsecutiveFailures++
-            if (udpConsecutiveFailures >= MAX_UDP_CONSECUTIVE_FAILURES) {
-                val err = UdpCircuitBreakerException("UDP send failed $udpConsecutiveFailures consecutive times, triggering disconnect")
+            val updatedFailures = consecutiveFailures + 1
+            if (updatedFailures >= MAX_UDP_CONSECUTIVE_FAILURES) {
+                val err = UdpCircuitBreakerException("UDP send failed $updatedFailures consecutive times, triggering disconnect")
                 Logger.e("AudioEngine", err.message!!)
                 throw err
             }
+            updatedFailures
         }
     }
     
     fun stop() {
-        job?.cancel()
-        job = null
-        _state.value = StreamState.Idle
-        isRunning = false
-
-        clearActiveEngine()
-    val context = ContextHelper.getContext()
-        if (context != null) {
-            val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
-            context.startService(intent)
+        lifecycleScope.launch {
+            try {
+                stopAndWait()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("AudioEngine", "Failed to stop audio stream", e)
+            }
         }
     }
 
-    suspend fun stopAndWait() {
-        val currentJob = job
-        stop()
-        currentJob?.join()
+    suspend fun stopAndWait(userInitiated: Boolean = true): Boolean {
+        var currentJob: Job? = null
+        var currentRecorder: AudioRecord? = null
+        var currentSocket: Socket? = null
+        var currentInput: ByteReadChannel? = null
+        var currentOutput: ByteWriteChannel? = null
+        var currentUdpSocket: DatagramSocket? = null
+        var currentChannel: Channel<MessageWrapper>? = null
+        var stopGeneration = 0L
+
+        startStopMutex.withLock {
+            if (userInitiated) {
+                desiredRunning = false
+                lifecycleGeneration++
+                startRequestGeneration++
+                configRestartRequest++
+                configRestartJob?.cancel()
+                configRestartJob = null
+            }
+            stopGeneration = lifecycleGeneration
+            currentJob = job
+            currentRecorder = activeRecorder
+            currentSocket = activeTcpSocket
+            currentInput = activeInput
+            currentOutput = activeOutput
+            currentUdpSocket = udpSocket
+            currentChannel = sendChannel
+            currentJob?.cancel(CancellationException("AudioEngine stopping"))
+        }
+
+        // Keep interruption independent from the caller: AudioRecord.stop() may block and
+        // must neither run on Main nor prevent this suspend function's timeout from firing.
+        val interruptJob = lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                currentInput?.cancel(CancellationException("AudioEngine stopping"))
+            } catch (_: Exception) {
+            }
+            try {
+                currentOutput?.close(CancellationException("AudioEngine stopping"))
+            } catch (_: Exception) {
+            }
+            try {
+                currentChannel?.close()
+            } catch (_: Exception) {
+            }
+            try {
+                currentUdpSocket?.close()
+            } catch (_: Exception) {
+            }
+            try {
+                currentSocket?.close()
+            } catch (_: Exception) {
+            }
+            try {
+                currentRecorder?.stop()
+            } catch (_: Exception) {
+            }
+        }
+
+        val stopCompletionJob = lifecycleScope.launch {
+            interruptJob.join()
+            currentJob?.join()
+        }
+        val stopped = withTimeoutOrNull(STOP_TIMEOUT_MS) {
+            stopCompletionJob.join()
+            true
+        } == true
+
+        startStopMutex.withLock {
+            if (!stopped) stopTimedOutJob = stopCompletionJob
+            if (stopped) {
+                if (stopTimedOutJob === currentJob || stopTimedOutJob === stopCompletionJob) stopTimedOutJob = null
+                if (job === currentJob) job = null
+                if (activeRecorder === currentRecorder) activeRecorder = null
+                if (activeTcpSocket === currentSocket) activeTcpSocket = null
+                if (activeInput === currentInput) activeInput = null
+                if (activeOutput === currentOutput) activeOutput = null
+                if (udpSocket === currentUdpSocket) {
+                    udpSocket = null
+                    udpServerAddress = null
+                }
+                if (sendChannel === currentChannel) sendChannel = null
+            }
+
+            if (lifecycleGeneration == stopGeneration && (userInitiated || !desiredRunning)) {
+                if (stopped) {
+                    _state.value = StreamState.Idle
+                } else {
+                    _state.value = StreamState.Error
+                    _lastError.value = "AudioEngine stop timed out after $STOP_TIMEOUT_MS ms"
+                }
+            }
+            if (userInitiated && stopped) clearActiveEngine()
+        }
+
+        if (userInitiated || !stopped) stopStreamingNotification()
+        if (!stopped) {
+            val error = IllegalStateException("AudioEngine stop timed out after $STOP_TIMEOUT_MS ms")
+            Logger.e("AudioEngine", "Timed out waiting $STOP_TIMEOUT_MS ms for audio session to stop")
+            throw error
+        }
+        return true
+    }
+
+    private fun stopStreamingNotification() {
+        val context = ContextHelper.getContext() ?: return
+        try {
+            val intent = Intent(context, AudioService::class.java).apply { action = AudioService.ACTION_STOP }
+            context.startService(intent)
+        } catch (e: Exception) {
+            Logger.w("AudioEngine", "Failed to stop streaming notification: ${e.message}")
+        }
     }
     
     fun setMonitoring(enabled: Boolean) { }
@@ -740,13 +1004,9 @@ class AudioEngine constructor() {
             Logger.e("AudioEngine", "Error updating audio effects: ${e.message}")
         }
 
-        if ((nsChanged || agcChanged) && isRunning && _state.value == StreamState.Streaming) {
+        if ((nsChanged || agcChanged) && desiredRunning && _state.value == StreamState.Streaming) {
             Logger.i("AudioEngine", "Hardware processing changed, restarting audio stream...")
-            CoroutineScope(Dispatchers.IO).launch {
-                stop()
-                delay(500)
-                start(savedIp, savedPort, savedMode, true, savedSampleRate, savedChannelCount, savedAudioFormat, savedTransportProtocol)
-            }
+            scheduleConfigRestart()
         }
     }
 
@@ -761,13 +1021,37 @@ class AudioEngine constructor() {
             this.audioSource = source
             Logger.d("AudioEngine", "Audio source changed to: ${source.name}")
 
-            if (isRunning && _state.value == StreamState.Streaming) {
+            if (desiredRunning && _state.value == StreamState.Streaming) {
                 Logger.i("AudioEngine", "Restarting audio stream with new source...")
-                CoroutineScope(Dispatchers.IO).launch {
-                    stop()
-                    delay(500)
-                    start(savedIp, savedPort, savedMode, true, savedSampleRate, savedChannelCount, savedAudioFormat, savedTransportProtocol)
+                scheduleConfigRestart()
+            }
+        }
+    }
+
+    private fun scheduleConfigRestart() {
+        val request = ++configRestartRequest
+        configRestartJob?.cancel()
+        configRestartJob = lifecycleScope.launch {
+            val capturedGeneration = startStopMutex.withLock {
+                if (!desiredRunning || request != configRestartRequest) return@launch
+                lifecycleGeneration
+            }
+
+            try {
+                stopAndWait(userInitiated = false)
+
+                val shouldRestart = startStopMutex.withLock {
+                    desiredRunning &&
+                        lifecycleGeneration == capturedGeneration &&
+                        request == configRestartRequest
                 }
+                if (!shouldRestart) return@launch
+
+                start(savedIp, savedPort, savedMode, true, savedSampleRate, savedChannelCount, savedAudioFormat, savedTransportProtocol)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("AudioEngine", "Failed to restart audio stream after config change", e)
             }
         }
     }

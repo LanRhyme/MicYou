@@ -1,6 +1,7 @@
 #![allow(unexpected_cfgs)]
 
 pub mod adb_manager;
+pub mod audio_stream;
 pub mod blackhole;
 pub mod commands;
 pub mod jitter_buffer;

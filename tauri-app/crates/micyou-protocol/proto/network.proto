@@ -44,6 +44,7 @@ message AudioPacketMessageOrdered {
     int64 timestamp = 3;
     bytes fecBuffer = 4;
     int32 fecSequenceNumber = 5;
+    int64 sessionId = 6;
 }
 
 message AudioPacketMessage {

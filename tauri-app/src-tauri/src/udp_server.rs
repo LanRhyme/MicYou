@@ -1,17 +1,28 @@
 use tokio::net::UdpSocket;
 
+use micyou_protocol::micyou::MessageWrapper;
+use micyou_protocol::UDP_PACKET_MAGIC;
 use prost::Message;
 use std::error::Error;
-use micyou_protocol::UDP_PACKET_MAGIC;
 use tokio::sync::mpsc::Sender;
-use micyou_protocol::micyou::{AudioPacketMessageOrdered, MessageWrapper};
 use tokio_util::sync::CancellationToken;
 
-pub async fn start_udp_server(tx: Sender<AudioPacketMessageOrdered>, port: u16, bind_address: String, cancel_token: CancellationToken, stats: std::sync::Arc<crate::stats::NetworkStats>) -> Result<(), Box<dyn Error + Send + Sync>> {
+use crate::audio_stream::AudioStreamEvent;
+
+pub async fn start_udp_server(
+    tx: Sender<AudioStreamEvent>,
+    port: u16,
+    bind_address: String,
+    cancel_token: CancellationToken,
+    stats: std::sync::Arc<crate::stats::NetworkStats>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     let addr: std::net::SocketAddr = format!("{}:{}", bind_address, port).parse()?;
     let socket2 = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
     if let Err(e) = socket2.set_recv_buffer_size(2 * 1024 * 1024) {
-        eprintln!("Warning: Failed to set UDP receive buffer size to 2MB: {}", e);
+        eprintln!(
+            "Warning: Failed to set UDP receive buffer size to 2MB: {}",
+            e
+        );
     }
     socket2.bind(&addr.into())?;
     socket2.set_nonblocking(true)?;
@@ -71,7 +82,7 @@ pub async fn start_udp_server(tx: Sender<AudioPacketMessageOrdered>, port: u16, 
                             }
                             last_seq = Some(seq);
                             total_packets += 1;
-                            
+
                             if total_packets > 0 {
                                 stats.set_loss_rate((lost_packets as f64 / total_packets as f64) * 100.0);
                             }
@@ -90,7 +101,7 @@ pub async fn start_udp_server(tx: Sender<AudioPacketMessageOrdered>, port: u16, 
                                 stats.set_audio_info(audio_info.sample_rate as u32, bps);
                             }
 
-                            if let Err(e) = tx.send(audio_packet_ordered).await {
+                            if let Err(e) = tx.send(AudioStreamEvent::Packet(audio_packet_ordered)).await {
                                 eprintln!("Failed to send audio packet to channel: {}", e);
                             }
                         }

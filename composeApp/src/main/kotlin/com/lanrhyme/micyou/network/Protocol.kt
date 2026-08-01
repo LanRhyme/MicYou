@@ -61,7 +61,9 @@ data class AudioPacketMessageOrdered(
     @ProtoNumber(4)
     val fecBuffer: ByteArray? = null,
     @ProtoNumber(5)
-    val fecSequenceNumber: Int = -1
+    val fecSequenceNumber: Int = -1,
+    @ProtoNumber(6)
+    val sessionId: Long = 0
 )
 
 @OptIn(ExperimentalSerializationApi::class)

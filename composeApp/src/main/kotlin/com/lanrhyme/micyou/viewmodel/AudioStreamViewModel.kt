@@ -115,6 +115,7 @@ class AudioStreamViewModel : ViewModel() {
 
     private val settings = SettingsFactory.getSettings()
     private var isStartStreamRequestPending = false
+    private var isStopStreamRequestPending = false
 
     init {
         loadSettings()
@@ -347,6 +348,7 @@ class AudioStreamViewModel : ViewModel() {
 
     fun startStream() {
         if (isStartStreamRequestPending ||
+            isStopStreamRequestPending ||
             _uiState.value.streamState == StreamState.Streaming ||
             _uiState.value.streamState == StreamState.Connecting
         ) {
@@ -415,7 +417,6 @@ class AudioStreamViewModel : ViewModel() {
             Logger.i("AudioStreamViewModel", "Stream started successfully")
         } catch (e: kotlinx.coroutines.CancellationException) {
             Logger.i("AudioStreamViewModel", "Stream start cancelled by user")
-            _uiState.update { it.copy(streamState = StreamState.Idle) }
             return
         } catch (e: Exception) {
             Logger.e("AudioStreamViewModel", "Failed to start stream", e)
@@ -449,8 +450,22 @@ class AudioStreamViewModel : ViewModel() {
 
     fun stopStream() {
         Logger.i("AudioStreamViewModel", "Stopping stream")
-        _uiState.update { it.copy(streamState = StreamState.Idle) }
-        _audioEngine.stop()
+        if (isStopStreamRequestPending) {
+            Logger.d("AudioStreamViewModel", "Stop stream request ignored: stop already pending")
+            return
+        }
+        isStopStreamRequestPending = true
+        viewModelScope.launch {
+            try {
+                _audioEngine.stopAndWait()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e("AudioStreamViewModel", "Failed to stop stream", e)
+            } finally {
+                isStopStreamRequestPending = false
+            }
+        }
     }
 
     fun setMode(mode: ConnectionMode) {
