@@ -879,10 +879,6 @@ class AudioEngine constructor() {
             } catch (_: Exception) {
             }
             try {
-                currentOutput?.close(CancellationException("AudioEngine stopping"))
-            } catch (_: Exception) {
-            }
-            try {
                 currentChannel?.close()
             } catch (_: Exception) {
             }
