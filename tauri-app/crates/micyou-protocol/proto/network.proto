@@ -12,7 +12,8 @@ message MessageWrapper {
 }
 
 message ConnectMessage {
-    // Usually empty but reserved for handshake
+    // Zero identifies legacy clients that predate transport session isolation.
+    int64 sessionId = 1;
 }
 
 message MuteMessage {

@@ -10,6 +10,8 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.net.wifi.WifiManager
 import android.app.PendingIntent
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.runBlocking
@@ -19,12 +21,16 @@ import com.lanrhyme.micyou.util.AppLanguage
 import com.lanrhyme.micyou.util.getString
 class AudioService : Service() {
 
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
+
     companion object {
         private const val CHANNEL_ID = "AudioServiceChannel"
         private const val NOTIFICATION_ID = 1
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_DISCONNECT = "ACTION_DISCONNECT"
+        const val EXTRA_USE_WIFI_LOCK = "EXTRA_USE_WIFI_LOCK"
     }
 
     override fun onCreate() {
@@ -34,7 +40,7 @@ class AudioService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> startForegroundService()
+            ACTION_START -> startForegroundService(intent.getBooleanExtra(EXTRA_USE_WIFI_LOCK, false))
             ACTION_STOP -> stopForegroundService()
             ACTION_DISCONNECT -> {
                 AudioEngine.requestDisconnectFromNotification()
@@ -44,23 +50,62 @@ class AudioService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun startForegroundService() {
+    private fun startForegroundService(useWifiLock: Boolean) {
         val notification = createNotification()
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
-                NOTIFICATION_ID, 
-                notification, 
+                NOTIFICATION_ID,
+                notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+        acquireSessionLocks(useWifiLock)
+    }
+
+    private fun acquireSessionLocks(useWifiLock: Boolean) {
+        if (wakeLock?.isHeld != true) {
+            wakeLock = (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "$packageName:audio-stream"
+            ).apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        }
+        if (useWifiLock && wifiLock?.isHeld != true) {
+            @Suppress("DEPRECATION")
+            wifiLock = (applicationContext.getSystemService(WIFI_SERVICE) as WifiManager).createWifiLock(
+                WifiManager.WIFI_MODE_FULL_HIGH_PERF,
+                "$packageName:audio-stream"
+            ).apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        } else if (!useWifiLock) {
+            wifiLock?.let { if (it.isHeld) it.release() }
+            wifiLock = null
+        }
+    }
+
+    private fun releaseSessionLocks() {
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
+        wifiLock?.let { if (it.isHeld) it.release() }
+        wifiLock = null
     }
 
     private fun stopForegroundService() {
+        releaseSessionLocks()
         stopForeground(true)
         stopSelf()
+    }
+
+    override fun onDestroy() {
+        releaseSessionLocks()
+        super.onDestroy()
     }
 
     private fun createNotification(): Notification {

@@ -147,40 +147,31 @@ const trendPoints = computed(() => {
 const waveformSize = 33
 const waveform = ref<number[]>(Array(waveformSize).fill(0))
 
-let animationFrameId: number
-const updateWaveform = () => {
-  if (props.serverState !== 'streaming') {
-    waveform.value.fill(0)
-    return
+let waveformTimer: ReturnType<typeof setInterval> | null = null
+const stopWaveform = () => {
+  if (waveformTimer !== null) {
+    clearInterval(waveformTimer)
+    waveformTimer = null
   }
-  waveform.value.shift()
-  waveform.value.push(props.audioLevel)
-  animationFrameId = requestAnimationFrame(updateWaveform)
+}
+const startWaveform = () => {
+  stopWaveform()
+  if (props.serverState !== 'streaming') return
+  waveformTimer = setInterval(() => {
+    waveform.value = [...waveform.value.slice(1), props.audioLevel]
+  }, 100)
 }
 
 watch(() => props.serverState, (newVal) => {
   if (newVal === 'streaming') {
-    if (animationFrameId) {
-      cancelAnimationFrame(animationFrameId)
-    }
-    updateWaveform()
+    startWaveform()
   } else {
-    if (animationFrameId) {
-      cancelAnimationFrame(animationFrameId)
-    }
-    waveform.value.fill(0)
+    stopWaveform()
+    waveform.value = Array(waveformSize).fill(0)
   }
 })
 
-onMounted(() => {
-  if (props.serverState === 'streaming') {
-    updateWaveform()
-  }
-})
+onMounted(startWaveform)
 
-onUnmounted(() => {
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId)
-  }
-})
+onUnmounted(stopWaveform)
 </script>

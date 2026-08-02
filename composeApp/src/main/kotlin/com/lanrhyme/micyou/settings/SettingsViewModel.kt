@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
+import java.util.concurrent.atomic.AtomicBoolean
 import com.lanrhyme.micyou.settings.Settings
 import com.lanrhyme.micyou.settings.SettingsFactory
 import com.lanrhyme.micyou.settings.SettingsUiState
@@ -43,6 +45,7 @@ class SettingsViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
     private val settings = SettingsFactory.getSettings()
+    private val closed = AtomicBoolean(false)
 
     init {
         loadSettings()
@@ -261,5 +264,9 @@ class SettingsViewModel : ViewModel() {
     fun exportLog(onResult: (String?) -> Unit) {
         val path = Logger.getLogFilePath()
         onResult(path)
+    }
+
+    fun close() {
+        if (closed.compareAndSet(false, true)) viewModelScope.cancel()
     }
 }

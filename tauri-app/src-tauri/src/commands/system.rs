@@ -2,7 +2,7 @@ use tauri::window::Effect;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio_util::sync::CancellationToken;
 
-use crate::audio_stream::AudioStreamEvent;
+use crate::audio_stream::{AudioStreamEvent, ExpectedAudioSession};
 use crate::server::ServerState;
 use crate::tray::{TrayContext, TrayMenuStrings, TrayState};
 use micyou_audio::dsp::DspProcessor;
@@ -66,7 +66,9 @@ pub async fn start_server(
     }
 
     let resolved_output_device = output_device;
-    let (audio_tx, mut audio_rx) = tokio::sync::mpsc::channel(1024);
+    // Bound queued latency: Android packets are ~7 ms, so 128 slots provide ample
+    // scheduling headroom without retaining seconds of stale audio.
+    let (audio_tx, mut audio_rx) = tokio::sync::mpsc::channel(128);
 
     // Start audio output pipeline (shared by all modes)
     let app_handle_audio = app_handle.clone();
@@ -74,6 +76,7 @@ pub async fn start_server(
     let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
 
     let is_monitoring_flag = state.is_monitoring.clone();
+    let spectrum_streaming_enabled = state.spectrum_streaming_enabled.clone();
 
     std::thread::spawn(move || {
         let mut audio_manager = micyou_audio::AudioOutputManager::new();
@@ -106,7 +109,7 @@ pub async fn start_server(
             DspProcessor::new(dsp_settings, resources_dir)
         };
         let mut jb = crate::jitter_buffer::JitterBuffer::new(12);
-        let mut frame_counter = 0;
+        let mut frame_counter: u32 = 0;
         let mut input_resampler: Option<micyou_audio::RubatoResampler> = None;
         let mut current_input_sample_rate: u32 = 0;
         let mut resample_out_buf = Vec::new();
@@ -125,11 +128,11 @@ pub async fn start_server(
             audio_manager
                 .set_monitoring(is_monitoring_flag.load(std::sync::atomic::Ordering::Relaxed));
             match event {
-                AudioStreamEvent::SessionStarting => {
-                    jb.prepare_transport_session();
+                AudioStreamEvent::SessionStarting { expected, epoch } => {
+                    jb.prepare_transport_session_epoch(expected, epoch);
                     continue;
                 }
-                AudioStreamEvent::Packet(packet) => jb.push(packet),
+                AudioStreamEvent::Packet { packet, epoch } => jb.push_epoch(packet, epoch),
             }
             let packets: Vec<_> = std::iter::from_fn(|| jb.pop()).collect();
 
@@ -242,19 +245,25 @@ pub async fn start_server(
 
                         audio_manager.push_audio_data(&pcm_f32, channels.max(1));
 
-                        frame_counter += 1;
-                        if frame_counter % 3 == 0 {
+                        frame_counter = frame_counter.wrapping_add(1);
+                        if frame_counter % 6 == 0 {
                             let level = (processed_rms * 500.0).min(100.0) as u32;
-                            let _ = app_handle_audio.emit("audio-level", level);
+                            if let Some(main_window) = app_handle_audio.get_webview_window("main") {
+                                let _ = main_window.emit("audio-level", level);
 
-                            let (raw_spec, proc_spec) = dsp_processor.get_spectrums();
-                            let _ = app_handle_audio.emit(
-                                "audio-spectrum",
-                                SpectrumPayload {
-                                    raw: raw_spec,
-                                    processed: proc_spec,
-                                },
-                            );
+                                if spectrum_streaming_enabled
+                                    .load(std::sync::atomic::Ordering::Acquire)
+                                {
+                                    let (raw_spec, proc_spec) = dsp_processor.get_spectrums();
+                                    let _ = main_window.emit(
+                                        "audio-spectrum",
+                                        SpectrumPayload {
+                                            raw: raw_spec,
+                                            processed: proc_spec,
+                                        },
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -277,7 +286,7 @@ pub async fn start_server(
         let web_server_instance = crate::web_server::WebServer::new();
 
         let (web_audio_tx, mut web_audio_rx) =
-            tokio::sync::mpsc::channel::<micyou_protocol::micyou::AudioPacketMessage>(1024);
+            tokio::sync::mpsc::channel::<micyou_protocol::micyou::AudioPacketMessage>(128);
 
         web_server_instance
             .start(web_port, app_handle.clone(), web_audio_tx)
@@ -294,7 +303,10 @@ pub async fn start_server(
 
         let audio_tx_web = audio_tx;
         audio_tx_web
-            .send(AudioStreamEvent::SessionStarting)
+            .send(AudioStreamEvent::SessionStarting {
+                expected: ExpectedAudioSession::Bound(0),
+                epoch: 1,
+            })
             .await
             .map_err(|_| "Audio pipeline stopped".to_string())?;
         tokio::spawn(async move {
@@ -310,7 +322,10 @@ pub async fn start_server(
                 };
                 seq += 1;
                 if audio_tx_web
-                    .send(AudioStreamEvent::Packet(ordered))
+                    .send(AudioStreamEvent::Packet {
+                        packet: ordered,
+                        epoch: 1,
+                    })
                     .await
                     .is_err()
                 {
@@ -334,8 +349,9 @@ pub async fn start_server(
     let stats_tcp = state.network_stats.clone();
     let mode_tcp = mode.clone();
     let bind_addr_tcp = bind_addr.clone();
-    let connection_tx_tcp = state.connection_tx.clone();
-    let active_socket_handle_tcp = state.active_socket_handle.clone();
+    let active_connection_tcp = state.active_connection.clone();
+    let takeover_lock_tcp = state.takeover_lock.clone();
+    let active_audio_session_tcp = state.active_audio_session.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(e) = crate::tcp_server::start_tcp_server(
             app_handle_tcp,
@@ -345,8 +361,9 @@ pub async fn start_server(
             audio_tx_tcp,
             stats_tcp,
             mode_tcp,
-            connection_tx_tcp,
-            active_socket_handle_tcp,
+            active_connection_tcp,
+            takeover_lock_tcp,
+            active_audio_session_tcp,
         )
         .await
         {
@@ -357,6 +374,7 @@ pub async fn start_server(
     let token_udp = cancel_token.clone();
     let port_udp = port + 1;
     let stats_udp = state.network_stats.clone();
+    let active_audio_session_udp = state.active_audio_session.clone();
     let bind_addr_udp = bind_addr.clone();
     tauri::async_runtime::spawn(async move {
         if let Err(e) = crate::udp_server::start_udp_server(
@@ -365,6 +383,7 @@ pub async fn start_server(
             bind_addr_udp,
             token_udp,
             stats_udp,
+            active_audio_session_udp,
         )
         .await
         {
@@ -377,16 +396,16 @@ pub async fn start_server(
 
 #[tauri::command]
 pub async fn stop_server(app: AppHandle, state: State<'_, ServerState>) -> Result<String, String> {
-    {
-        let mut handle_lock = state.active_socket_handle.lock().await;
-        if let Some(raw) = handle_lock.take() {
-            crate::tcp_server::force_close_socket(raw);
-        }
+    state
+        .spectrum_streaming_enabled
+        .store(false, std::sync::atomic::Ordering::Release);
+    let active_connection = state.active_connection.lock().await.take();
+    if let Some(connection) = active_connection {
+        connection.takeover_token.cancel();
+        crate::tcp_server::force_close_socket(connection.raw_socket);
     }
-
-    {
-        let mut conn_tx_lock = state.connection_tx.lock().await;
-        *conn_tx_lock = None;
+    if let Ok(mut active_audio) = state.active_audio_session.write() {
+        *active_audio = Default::default();
     }
 
     #[cfg(feature = "web-server")]

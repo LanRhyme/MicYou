@@ -117,6 +117,7 @@ dependencies {
     implementation(libs.materialKolor)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(kotlin("test-junit"))
 }
 
 tasks.register("prepareKotlinBuildScriptModel") {}

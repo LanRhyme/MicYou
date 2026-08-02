@@ -2,8 +2,10 @@ package com.lanrhyme.micyou.update
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 import com.lanrhyme.micyou.settings.Settings
 import com.lanrhyme.micyou.settings.SettingsFactory
 import com.lanrhyme.micyou.util.openUrl
@@ -28,6 +30,7 @@ class UpdateViewModel : ViewModel() {
     val uiState: StateFlow<UpdateUiState> = _uiState.asStateFlow()
     private val updateChecker = UpdateChecker()
     private val settings = SettingsFactory.getSettings()
+    private val closed = AtomicBoolean(false)
 
     private val _checkResultFlow = MutableStateFlow<UpdateCheckResult?>(null)
     val checkResultFlow: StateFlow<UpdateCheckResult?> = _checkResultFlow.asStateFlow()
@@ -99,5 +102,9 @@ class UpdateViewModel : ViewModel() {
     fun openGitHubRelease() {
         openUrl(_uiState.value.updateInfo?.githubRelease?.htmlUrl ?: "https://github.com/LanRhyme/MicYou/releases/latest")
         dismissUpdateDialog()
+    }
+
+    fun close() {
+        if (closed.compareAndSet(false, true)) viewModelScope.cancel()
     }
 }

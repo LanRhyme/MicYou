@@ -1,23 +1,76 @@
-use bytes::{Buf, BytesMut};
 use micyou_protocol::micyou::MessageWrapper;
 use micyou_protocol::{HANDSHAKE_CLIENT_STR, HANDSHAKE_SERVER_STR, PACKET_MAGIC};
 use prost::Message;
 use serde::Serialize;
 use std::error::Error;
+use std::io::{Error as IoError, ErrorKind};
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
+use tokio::task::{JoinHandle, JoinSet};
+use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 
-use crate::audio_stream::AudioStreamEvent;
+use crate::audio_stream::{validate_audio_packet, AudioStreamEvent, ExpectedAudioSession};
+use crate::udp_server::{
+    try_accept_audio_packet, ActiveAudioSession, AudioPacketAcceptance, SharedActiveAudioSession,
+};
+
+const FRAME_HEADER_LEN: usize = 8;
+// Audio protobuf frames are normally only a few KiB. One MiB leaves ample codec and
+// control-message headroom while bounding allocations from an untrusted peer.
+const MAX_CONTROL_PAYLOAD_LEN: usize = 1024 * 1024;
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+const FRAME_READ_TIMEOUT: Duration = Duration::from_secs(10);
+const FRAME_WRITE_TIMEOUT: Duration = Duration::from_secs(10);
+static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
 
 #[cfg(windows)]
-type RawSocketHandle = std::os::windows::io::RawSocket;
+pub type RawSocketHandle = std::os::windows::io::RawSocket;
 #[cfg(unix)]
-type RawSocketHandle = std::os::unix::io::RawFd;
+pub type RawSocketHandle = std::os::unix::io::RawFd;
+
+pub struct ActiveConnection {
+    pub sender: tokio::sync::mpsc::Sender<MessageWrapper>,
+    pub raw_socket: RawSocketHandle,
+    pub connection_id: u64,
+    pub takeover_token: CancellationToken,
+}
+
+pub type SharedActiveConnection = Arc<Mutex<Option<ActiveConnection>>>;
+pub type SharedTakeoverLock = Arc<Mutex<()>>;
+
+struct TaskGuard {
+    tasks: Vec<JoinHandle<()>>,
+}
+
+impl TaskGuard {
+    fn new(tasks: Vec<JoinHandle<()>>) -> Self {
+        Self { tasks }
+    }
+
+    async fn abort_and_wait(mut self) {
+        for task in &self.tasks {
+            task.abort();
+        }
+        for task in self.tasks.drain(..) {
+            let _ = task.await;
+        }
+    }
+}
+
+impl Drop for TaskGuard {
+    fn drop(&mut self) {
+        for task in &self.tasks {
+            task.abort();
+        }
+    }
+}
 
 #[derive(Serialize, Clone)]
 pub struct DeviceInfo {
@@ -32,47 +85,72 @@ pub async fn start_tcp_server(
     bind_address: String,
     cancel_token: CancellationToken,
     audio_tx: tokio::sync::mpsc::Sender<AudioStreamEvent>,
-    stats: std::sync::Arc<crate::stats::NetworkStats>,
+    stats: Arc<crate::stats::NetworkStats>,
     mode: String,
-    connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>,
-    active_socket_handle: Arc<Mutex<Option<RawSocketHandle>>>,
+    active_connection: SharedActiveConnection,
+    takeover_lock: SharedTakeoverLock,
+    active_audio_session: SharedActiveAudioSession,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let listener = TcpListener::bind(format!("{}:{}", bind_address, port)).await?;
     println!("TCP Control Server listening on {}:{}", bind_address, port);
 
+    let mut clients = JoinSet::new();
     loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
                 println!("TCP Server cancelled");
                 break;
             }
+            Some(result) = clients.join_next(), if !clients.is_empty() => {
+                if let Err(e) = result {
+                    eprintln!("TCP client task failed: {}", e);
+                }
+            }
             accept_result = listener.accept() => {
                 match accept_result {
                     Ok((socket, addr)) => {
                         println!("New client connected: {}", addr);
-                        let app_handle_clone = app_handle.clone();
-                        let audio_tx_clone = audio_tx.clone();
-                        let stats_clone = stats.clone();
-                        let mode_clone = mode.clone();
-                        let connection_tx_clone = connection_tx.clone();
-                        let active_handle_clone = active_socket_handle.clone();
-                        let active_handle_cleanup = active_socket_handle.clone();
-                        tokio::spawn(async move {
-                            if let Err(e) = handle_client(socket, addr, app_handle_clone.clone(), audio_tx_clone, stats_clone, mode_clone, connection_tx_clone, active_handle_clone).await {
+                        let app_handle = app_handle.clone();
+                        let audio_tx = audio_tx.clone();
+                        let stats = stats.clone();
+                        let mode = mode.clone();
+                        let active_connection = active_connection.clone();
+                        let takeover_lock = takeover_lock.clone();
+                        let active_audio_session = active_audio_session.clone();
+                        let client_cancel = cancel_token.clone();
+                        clients.spawn(async move {
+                            if let Err(e) = handle_client(
+                                socket,
+                                addr,
+                                app_handle,
+                                audio_tx,
+                                stats,
+                                mode,
+                                active_connection,
+                                takeover_lock,
+                                active_audio_session,
+                                client_cancel,
+                            ).await {
                                 eprintln!("Client {} error: {}", addr, e);
                             }
-                            // Clear handle on disconnect
-                            active_handle_cleanup.lock().await.take();
                             println!("Client {} disconnected", addr);
-                            let _ = app_handle_clone.emit("device-disconnected", ());
                         });
                     }
-                    Err(e) => {
-                        eprintln!("Failed to accept TCP connection: {}", e);
-                    }
+                    Err(e) => eprintln!("Failed to accept TCP connection: {}", e),
                 }
             }
         }
+    }
+
+    clients.abort_all();
+    while clients.join_next().await.is_some() {}
+    let active = active_connection.lock().await.take();
+    if let Some(connection) = active {
+        connection.takeover_token.cancel();
+        force_close_socket(connection.raw_socket);
+    }
+    if let Ok(mut active) = active_audio_session.write() {
+        *active = ActiveAudioSession::default();
     }
     Ok(())
 }
@@ -102,12 +180,73 @@ fn safe_shutdown_socket(raw: RawSocketHandle) -> std::io::Result<()> {
     }
 }
 
-/// Force-close the active TCP socket from another task.
-/// This calls OS-level shutdown so any pending read/write in handle_client
-/// will immediately fail, causing the task to exit and clean up.
 pub fn force_close_socket(raw: RawSocketHandle) {
     if let Err(e) = safe_shutdown_socket(raw) {
         eprintln!("Force close socket error: {}", e);
+    }
+}
+
+fn parse_frame_header(header: &[u8; FRAME_HEADER_LEN]) -> Result<usize, IoError> {
+    let magic = i32::from_be_bytes(header[0..4].try_into().unwrap());
+    if magic != PACKET_MAGIC {
+        return Err(IoError::new(ErrorKind::InvalidData, "invalid packet magic"));
+    }
+
+    let payload_len_i32 = i32::from_be_bytes(header[4..8].try_into().unwrap());
+    if payload_len_i32 < 0 {
+        return Err(IoError::new(
+            ErrorKind::InvalidData,
+            "negative payload length",
+        ));
+    }
+    let payload_len = usize::try_from(payload_len_i32)
+        .map_err(|_| IoError::new(ErrorKind::InvalidData, "invalid payload length"))?;
+    if payload_len > MAX_CONTROL_PAYLOAD_LEN {
+        return Err(IoError::new(
+            ErrorKind::InvalidData,
+            "payload length exceeds limit",
+        ));
+    }
+    FRAME_HEADER_LEN
+        .checked_add(payload_len)
+        .ok_or_else(|| IoError::new(ErrorKind::InvalidData, "frame length overflow"))?;
+    Ok(payload_len)
+}
+
+async fn run_if_active<F>(
+    active: &SharedActiveConnection,
+    takeover_token: &CancellationToken,
+    connection_id: u64,
+    action: F,
+) -> bool
+where
+    F: FnOnce(),
+{
+    if takeover_token.is_cancelled() {
+        return false;
+    }
+    let active = active.lock().await;
+    if takeover_token.is_cancelled()
+        || !active
+            .as_ref()
+            .is_some_and(|connection| connection.connection_id == connection_id)
+    {
+        return false;
+    }
+    action();
+    true
+}
+
+async fn clear_if_active(active: &SharedActiveConnection, connection_id: u64) -> bool {
+    let mut lock = active.lock().await;
+    if lock
+        .as_ref()
+        .is_some_and(|connection| connection.connection_id == connection_id)
+    {
+        *lock = None;
+        true
+    } else {
+        false
     }
 }
 
@@ -116,85 +255,185 @@ async fn handle_client(
     addr: SocketAddr,
     app_handle: AppHandle,
     audio_tx: tokio::sync::mpsc::Sender<AudioStreamEvent>,
-    stats: std::sync::Arc<crate::stats::NetworkStats>,
+    stats: Arc<crate::stats::NetworkStats>,
     mode: String,
-    connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<MessageWrapper>>>>,
-    active_socket_handle: Arc<Mutex<Option<RawSocketHandle>>>,
+    active_connection: SharedActiveConnection,
+    takeover_lock: SharedTakeoverLock,
+    active_audio_session: SharedActiveAudioSession,
+    cancel_token: CancellationToken,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    // 1. Handshake
     let mut handshake_buf = vec![0u8; HANDSHAKE_CLIENT_STR.len()];
-    socket.read_exact(&mut handshake_buf).await?;
+    tokio::select! {
+        _ = cancel_token.cancelled() => return Ok(()),
+        result = timeout(HANDSHAKE_TIMEOUT, socket.read_exact(&mut handshake_buf)) => {
+            result.map_err(|_| IoError::new(ErrorKind::TimedOut, "handshake read timed out"))??;
+        }
+    }
     if handshake_buf != HANDSHAKE_CLIENT_STR {
-        eprintln!("Invalid handshake from client: {:?}", handshake_buf);
         return Err("Invalid handshake from client".into());
     }
 
-    // Prepare a candidate audio session before acknowledging the handshake. Once the
-    // client sees the response it may immediately send UDP packets on another task.
-    audio_tx.send(AudioStreamEvent::SessionStarting).await?;
-    socket.write_all(HANDSHAKE_SERVER_STR).await?;
-    println!("Handshake successful with {}", addr);
+    // Do not touch global connection/audio state until the complete response is visible
+    // to the peer. A failed or stalled candidate handshake cannot disturb the active device.
+    tokio::select! {
+        _ = cancel_token.cancelled() => return Ok(()),
+        result = timeout(HANDSHAKE_TIMEOUT, async {
+            socket.write_all(HANDSHAKE_SERVER_STR).await?;
+            socket.flush().await
+        }) => {
+            result.map_err(|_| IoError::new(ErrorKind::TimedOut, "handshake write timed out"))??;
+        }
+    }
 
-    let _ = app_handle.emit(
-        "device-connected",
-        DeviceInfo {
-            name: "MicYou Mobile".to_string(),
-            ip: addr.ip().to_string(),
-            latency: 12,
-        },
-    );
+    // The first framed message completes the protocol handshake. Modern clients send Connect with
+    // their audio session ID; legacy clients' first control/audio frame decodes with no Connect.
+    let first_message = tokio::select! {
+        _ = cancel_token.cancelled() => return Ok(()),
+        result = timeout(FRAME_READ_TIMEOUT, async {
+            let mut header = [0u8; FRAME_HEADER_LEN];
+            socket.read_exact(&mut header).await?;
+            let payload_len = parse_frame_header(&header)?;
+            let mut payload = vec![0u8; payload_len];
+            socket.read_exact(&mut payload).await?;
+            MessageWrapper::decode(payload.as_slice())
+                .map_err(|e| IoError::new(ErrorKind::InvalidData, e))
+        }) => result.map_err(|_| IoError::new(ErrorKind::TimedOut, "initial control frame timed out"))??,
+    };
+    let expected_session = match first_message.connect.as_ref() {
+        Some(connect) => ExpectedAudioSession::Bound(connect.session_id),
+        None => ExpectedAudioSession::UnboundLegacy,
+    };
 
-    let current_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
-    stats.mark_tcp_connected(current_time);
-
-    // Extract raw socket handle BEFORE into_split() consumes the stream.
-    // The OS socket stays alive via the split halves; stop_server can call
-    // force_close_socket() on the raw handle to force-close the connection.
     #[cfg(windows)]
     let raw: RawSocketHandle = std::os::windows::io::AsRawSocket::as_raw_socket(&socket);
     #[cfg(unix)]
     let raw: RawSocketHandle = std::os::unix::io::AsRawFd::as_raw_fd(&socket);
-    active_socket_handle.lock().await.replace(raw);
+
+    let connection_id = NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<MessageWrapper>(100);
+    let takeover_token = CancellationToken::new();
+
+    // Serialize reservation and publication so acknowledged candidates cannot reorder
+    // SessionStarting relative to the active connection they publish.
+    let _takeover_guard = takeover_lock.lock().await;
+    let session_start_permit = tokio::select! {
+        _ = cancel_token.cancelled() => return Ok(()),
+        result = timeout(HANDSHAKE_TIMEOUT, audio_tx.clone().reserve_owned()) => {
+            result
+                .map_err(|_| IoError::new(ErrorKind::TimedOut, "audio pipeline reservation timed out"))?
+                .map_err(|_| IoError::new(ErrorKind::BrokenPipe, "audio pipeline stopped"))?
+        }
+    };
+    let old = {
+        let mut active = active_connection.lock().await;
+        let old = active.replace(ActiveConnection {
+            sender: tx.clone(),
+            raw_socket: raw,
+            connection_id,
+            takeover_token: takeover_token.clone(),
+        });
+        if let Some(old) = old.as_ref() {
+            old.takeover_token.cancel();
+            force_close_socket(old.raw_socket);
+        }
+        let epoch = if let Ok(mut active_audio) = active_audio_session.write() {
+            let previous_epoch = match *active_audio {
+                ActiveAudioSession::Inactive => 0,
+                ActiveAudioSession::UnboundLegacy { epoch, .. }
+                | ActiveAudioSession::Bound { epoch, .. } => epoch,
+            };
+            let epoch = previous_epoch.wrapping_add(1).max(1);
+            *active_audio = match expected_session {
+                ExpectedAudioSession::Inactive => ActiveAudioSession::Inactive,
+                ExpectedAudioSession::UnboundLegacy => ActiveAudioSession::UnboundLegacy {
+                    peer_ip: addr.ip(),
+                    epoch,
+                },
+                ExpectedAudioSession::Bound(session_id) => ActiveAudioSession::Bound {
+                    peer_ip: addr.ip(),
+                    session_id,
+                    epoch,
+                },
+            };
+            epoch
+        } else {
+            return Err(IoError::new(ErrorKind::Other, "audio session lock poisoned").into());
+        };
+        session_start_permit.send(AudioStreamEvent::SessionStarting {
+            expected: expected_session,
+            epoch,
+        });
+        old
+    };
+    drop(old);
+    drop(_takeover_guard);
+
+    println!("Handshake successful with {}", addr);
+    let device_info = DeviceInfo {
+        name: "MicYou Mobile".to_string(),
+        ip: addr.ip().to_string(),
+        latency: 12,
+    };
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    run_if_active(&active_connection, &takeover_token, connection_id, || {
+        let _ = app_handle.emit("device-connected", device_info);
+        stats.mark_tcp_connected(current_time);
+    })
+    .await;
+
+    handle_message(
+        first_message,
+        &tx,
+        &audio_tx,
+        &stats,
+        &app_handle,
+        &takeover_token,
+        connection_id,
+        &active_connection,
+        &active_audio_session,
+        addr.ip(),
+    )
+    .await?;
 
     let (mut read_half, mut write_half) = socket.into_split();
-
-    let mut buffer = BytesMut::with_capacity(8192);
-
-    // 2. Channel for writing
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<MessageWrapper>(100);
-    {
-        let mut lock = connection_tx.lock().await;
-        *lock = Some(tx.clone());
-    }
-
-    // 3. Writer loop
     let writer_task = tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
-            let mut payload = BytesMut::new();
-            if let Err(e) = msg.encode(&mut payload) {
-                eprintln!("Failed to encode message: {}", e);
+            let payload = msg.encode_to_vec();
+            if payload.len() > MAX_CONTROL_PAYLOAD_LEN {
+                eprintln!("Outgoing control payload exceeds protocol limit");
                 break;
             }
-
-            let mut frame = BytesMut::with_capacity(8 + payload.len());
-            frame.extend_from_slice(&PACKET_MAGIC.to_be_bytes());
-            frame.extend_from_slice(&(payload.len() as i32).to_be_bytes());
-            frame.extend_from_slice(&payload);
-
-            if let Err(e) = write_half.write_all(&frame).await {
-                eprintln!("Write failed: {}", e);
+            let Ok(payload_len) = i32::try_from(payload.len()) else {
                 break;
+            };
+            let frame_len = match FRAME_HEADER_LEN.checked_add(payload.len()) {
+                Some(len) => len,
+                None => break,
+            };
+            let mut frame = Vec::with_capacity(frame_len);
+            frame.extend_from_slice(&PACKET_MAGIC.to_be_bytes());
+            frame.extend_from_slice(&payload_len.to_be_bytes());
+            frame.extend_from_slice(&payload);
+            match timeout(FRAME_WRITE_TIMEOUT, write_half.write_all(&frame)).await {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => {
+                    eprintln!("Write failed: {}", e);
+                    break;
+                }
+                Err(_) => {
+                    eprintln!("Control frame write timed out");
+                    break;
+                }
             }
         }
     });
 
-    // 4. Ping loop
     let tx_ping = tx.clone();
     let ping_task = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_millis(500));
+        let mut interval = tokio::time::interval(Duration::from_millis(500));
         loop {
             interval.tick().await;
             let ping_msg = MessageWrapper {
@@ -216,21 +455,15 @@ async fn handle_client(
         }
     });
 
-    // Stats emission and UDP warning loop
     let stats_emit = stats.clone();
     let app_handle_emit = app_handle.clone();
     let monitor_task = tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_millis(1000));
+        let mut interval = tokio::time::interval(Duration::from_millis(1000));
         let mut warning_fired = false;
         loop {
             interval.tick().await;
-
-            // Emulate realistic buffer duration: TCP/USB doesn't need a jitter buffer, so it's ~0-10ms. WiFi might use 30-50ms.
             let buffer_duration = if mode == "usb" { 5 } else { 30 };
-            let metrics = stats_emit.to_metrics(buffer_duration);
-            let _ = app_handle_emit.emit("audio-metrics", metrics);
-
-            // Check UDP timeout only for Wi-Fi mode
+            let _ = app_handle_emit.emit("audio-metrics", stats_emit.to_metrics(buffer_duration));
             if mode == "wifi" {
                 let now = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -238,14 +471,12 @@ async fn handle_client(
                     .as_millis() as u64;
                 let tcp_time = stats_emit.get_tcp_connected_time();
                 let last_udp = stats_emit.get_last_udp_time();
-
-                if tcp_time > 0 && (now.saturating_sub(tcp_time)) > 5000 {
+                if tcp_time > 0 && now.saturating_sub(tcp_time) > 5000 {
                     let time_since_udp = if last_udp == 0 {
                         now.saturating_sub(tcp_time)
                     } else {
                         now.saturating_sub(last_udp)
                     };
-
                     if time_since_udp > 10000 && !warning_fired {
                         let _ = app_handle_emit.emit("udp_audio_warning", ());
                         warning_fired = true;
@@ -256,62 +487,96 @@ async fn handle_client(
             }
         }
     });
+    let task_guard = TaskGuard::new(vec![writer_task, ping_task, monitor_task]);
 
-    // 5. Control Loop (Reader)
-    loop {
-        let bytes_read = read_half.read_buf(&mut buffer).await?;
-        if bytes_read == 0 {
-            break; // connection closed
-        }
+    let reader = async {
+        loop {
+            let mut header = [0u8; FRAME_HEADER_LEN];
+            let frame_result = timeout(FRAME_READ_TIMEOUT, async {
+                read_half.read_exact(&mut header).await?;
+                let payload_len = parse_frame_header(&header)?;
+                // The parser guarantees this allocation never exceeds header + 1 MiB.
+                let mut payload = vec![0u8; payload_len];
+                read_half.read_exact(&mut payload).await?;
+                Ok::<Vec<u8>, IoError>(payload)
+            })
+            .await
+            .map_err(|_| IoError::new(ErrorKind::TimedOut, "control frame read timed out"))??;
 
-        while buffer.len() >= 8 {
-            let magic = i32::from_be_bytes(buffer[0..4].try_into().unwrap());
-            if magic != PACKET_MAGIC {
-                // Abort all on error
-                writer_task.abort();
-                ping_task.abort();
-                eprintln!("Invalid packet magic received: {}", magic);
-                return Err("Invalid packet magic".into());
+            let message = MessageWrapper::decode(frame_result.as_slice())?;
+            if takeover_token.is_cancelled() {
+                break;
             }
-
-            let payload_len = i32::from_be_bytes(buffer[4..8].try_into().unwrap()) as usize;
-
-            if buffer.len() < 8 + payload_len {
-                break; // Need more data
-            }
-
-            buffer.advance(8);
-            let payload = buffer.split_to(payload_len);
-
-            let message = MessageWrapper::decode(payload.freeze())?;
-            handle_message(message, &tx, &audio_tx, &stats, &app_handle).await?;
+            handle_message(
+                message,
+                &tx,
+                &audio_tx,
+                &stats,
+                &app_handle,
+                &takeover_token,
+                connection_id,
+                &active_connection,
+                &active_audio_session,
+                addr.ip(),
+            )
+            .await?;
         }
+        #[allow(unreachable_code)]
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    };
+
+    let reader_result = tokio::select! {
+        _ = cancel_token.cancelled() => Ok(()),
+        result = reader => result,
+    };
+    task_guard.abort_and_wait().await;
+
+    if clear_if_active(&active_connection, connection_id).await {
+        if let Ok(mut active_audio) = active_audio_session.write() {
+            *active_audio = ActiveAudioSession::default();
+        }
+        let _ = app_handle.emit("device-disconnected", ());
     }
-
-    writer_task.abort();
-    ping_task.abort();
-    monitor_task.abort();
-
-    {
-        let mut lock = connection_tx.lock().await;
-        *lock = None;
-    }
-
-    Ok(())
+    reader_result
 }
 
 async fn handle_message(
     msg: MessageWrapper,
     tx: &tokio::sync::mpsc::Sender<MessageWrapper>,
     audio_tx: &tokio::sync::mpsc::Sender<AudioStreamEvent>,
-    stats: &std::sync::Arc<crate::stats::NetworkStats>,
+    stats: &Arc<crate::stats::NetworkStats>,
     app_handle: &AppHandle,
+    takeover_token: &CancellationToken,
+    connection_id: u64,
+    active_connection: &SharedActiveConnection,
+    active_audio_session: &SharedActiveAudioSession,
+    peer_ip: std::net::IpAddr,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(audio) = msg.audio_packet {
-        let _ = audio_tx.send(AudioStreamEvent::Packet(audio)).await;
-        // Don't return here, message might contain ping/mute too, although unlikely
+        if !validate_audio_packet(&audio) {
+            return Ok(());
+        }
+        let AudioPacketAcceptance::Accepted { epoch } =
+            try_accept_audio_packet(active_audio_session, peer_ip, &audio)
+        else {
+            return Ok(());
+        };
+        let permit = tokio::select! {
+            biased;
+            _ = takeover_token.cancelled() => return Ok(()),
+            result = audio_tx.clone().reserve_owned() => match result {
+                Ok(permit) => permit,
+                Err(_) => return Ok(()),
+            },
+        };
+        run_if_active(active_connection, takeover_token, connection_id, || {
+            permit.send(AudioStreamEvent::Packet {
+                packet: audio,
+                epoch,
+            });
+        })
+        .await;
     }
-
     if let Some(ping) = msg.ping {
         let pong_msg = MessageWrapper {
             audio_packet: None,
@@ -323,10 +588,19 @@ async fn handle_message(
                 timestamp: ping.timestamp,
             }),
         };
-
-        let _ = tx.send(pong_msg).await;
+        let permit = tokio::select! {
+            biased;
+            _ = takeover_token.cancelled() => return Ok(()),
+            result = tx.clone().reserve_owned() => match result {
+                Ok(permit) => permit,
+                Err(_) => return Ok(()),
+            },
+        };
+        run_if_active(active_connection, takeover_token, connection_id, || {
+            permit.send(pong_msg);
+        })
+        .await;
     }
-
     if let Some(pong) = msg.pong {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -334,14 +608,79 @@ async fn handle_message(
             .as_millis() as i64;
         let rtt = now - pong.timestamp;
         if rtt >= 0 {
-            stats.set_rtt(rtt);
+            run_if_active(active_connection, takeover_token, connection_id, || {
+                stats.set_rtt(rtt)
+            })
+            .await;
         }
     }
-
     if let Some(mute) = msg.mute {
-        println!("Received mute state: {}", mute.is_muted);
-        let _ = app_handle.emit("mute-state-changed", mute.is_muted);
+        run_if_active(active_connection, takeover_token, connection_id, || {
+            println!("Received mute state: {}", mute.is_muted);
+            let _ = app_handle.emit("mute-state-changed", mute.is_muted);
+        })
+        .await;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn header(payload_len: i32) -> [u8; FRAME_HEADER_LEN] {
+        let mut header = [0; FRAME_HEADER_LEN];
+        header[..4].copy_from_slice(&PACKET_MAGIC.to_be_bytes());
+        header[4..].copy_from_slice(&payload_len.to_be_bytes());
+        header
     }
 
-    Ok(())
+    #[test]
+    fn frame_header_rejects_negative_payload_length() {
+        assert_eq!(
+            parse_frame_header(&header(-1)).unwrap_err().kind(),
+            ErrorKind::InvalidData
+        );
+    }
+
+    #[test]
+    fn frame_header_rejects_payload_over_limit() {
+        assert_eq!(
+            parse_frame_header(&header(MAX_CONTROL_PAYLOAD_LEN as i32 + 1))
+                .unwrap_err()
+                .kind(),
+            ErrorKind::InvalidData
+        );
+    }
+
+    #[test]
+    fn frame_header_accepts_maximum_payload_length() {
+        assert_eq!(
+            parse_frame_header(&header(MAX_CONTROL_PAYLOAD_LEN as i32)).unwrap(),
+            MAX_CONTROL_PAYLOAD_LEN
+        );
+    }
+
+    #[tokio::test]
+    async fn cancelled_takeover_token_rejects_side_effect() {
+        let token = CancellationToken::new();
+        let (sender, _receiver) = tokio::sync::mpsc::channel(1);
+        let active = Arc::new(Mutex::new(Some(ActiveConnection {
+            sender,
+            raw_socket: 0 as RawSocketHandle,
+            connection_id: 1,
+            takeover_token: token.clone(),
+        })));
+        token.cancel();
+        let side_effect_ran = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let side_effect_ran_clone = side_effect_ran.clone();
+
+        assert!(
+            !run_if_active(&active, &token, 1, move || {
+                side_effect_ran_clone.store(true, Ordering::SeqCst);
+            })
+            .await
+        );
+        assert!(!side_effect_ran.load(Ordering::SeqCst));
+    }
 }

@@ -772,6 +772,7 @@ const currentSectionName = computed(() => sections.value.find(s => s.id === curr
 
 watch(currentSection, () => {
   contentRef.value?.scrollTo({ top: 0 });
+  if (isMounted) handleMonitoringState();
 });
 
 let stored = localStorage.getItem('micyou_language') || 'system';
@@ -832,9 +833,10 @@ const blackholeChecking = ref(false);
 const audioLevel = ref(0);
 let unlistenLevel: UnlistenFn | null = null;
 let unlistenSpectrum: UnlistenFn | null = null;
+let monitoringGeneration = 0;
 
 const spectrumCanvas = ref<HTMLCanvasElement | null>(null);
-let animationFrameId: number;
+let animationFrameId: number | null = null;
 
 // Real spectrum data from backend
 const rawSpectrum = ref<number[]>(new Array(64).fill(0));
@@ -845,10 +847,39 @@ interface SpectrumPayload {
   processed: number[];
 }
 
-const drawSpectrum = () => {
-  if (!props.isOpen) return;
+function canDrawSpectrum() {
+  return props.isOpen && currentSection.value === 'audio';
+}
+
+async function setBackendSpectrumStreaming(enabled: boolean) {
+  await invoke('set_spectrum_streaming', { enabled });
+}
+
+function stopSpectrumAnimation() {
+  if (animationFrameId !== null) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+}
+
+function scheduleSpectrumFrame() {
+  if (!canDrawSpectrum() || animationFrameId !== null) return;
+  animationFrameId = requestAnimationFrame(drawSpectrum);
+}
+
+function startSpectrumAnimation() {
+  if (!canDrawSpectrum()) {
+    stopSpectrumAnimation();
+    return;
+  }
+  scheduleSpectrumFrame();
+}
+
+function drawSpectrum() {
+  animationFrameId = null;
+  if (!canDrawSpectrum()) return;
   if (!spectrumCanvas.value) {
-    animationFrameId = requestAnimationFrame(drawSpectrum);
+    scheduleSpectrumFrame();
     return;
   }
   
@@ -858,10 +889,12 @@ const drawSpectrum = () => {
 
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+  const targetWidth = Math.max(1, Math.round(rect.width * dpr));
+  const targetHeight = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   const width = rect.width;
@@ -899,8 +932,8 @@ const drawSpectrum = () => {
     }
   }
 
-  animationFrameId = requestAnimationFrame(drawSpectrum);
-};
+  scheduleSpectrumFrame();
+}
 
 
 
@@ -996,14 +1029,15 @@ async function checkPipeWireStatus() {
 }
 
 // Lifecycle
+let isMounted = false;
+
 onMounted(async () => {
+  isMounted = true;
+  handleOpenState(props.isOpen);
   try {
     appVersion.value = await invoke('get_app_version');
   } catch (e) {
     console.error("Failed to get version", e);
-  }
-  if (props.isOpen) {
-    animationFrameId = requestAnimationFrame(drawSpectrum);
   }
   try {
     autostartEnabled.value = await isAutostartEnabled();
@@ -1031,7 +1065,8 @@ async function toggleAutostart() {
 }
 
 onUnmounted(() => {
-  cancelAnimationFrame(animationFrameId);
+  isMounted = false;
+  stopAudioMonitoring();
   if (unlistenVbcableProgress) unlistenVbcableProgress();
 });
 
@@ -1103,43 +1138,105 @@ watch(settings, () => {
   saveSettings();
 }, { deep: true });
 
-watch(() => props.isOpen, async (newVal) => {
-  if (newVal) {
+function resetMonitoringData() {
+  audioLevel.value = 0;
+  rawSpectrum.value = new Array(64).fill(0);
+  processedSpectrum.value = new Array(64).fill(0);
+}
+
+function stopAudioMonitoring() {
+  monitoringGeneration++;
+  void setBackendSpectrumStreaming(false).catch((e) => {
+    console.error('Failed to stop spectrum streaming:', e);
+  });
+  stopSpectrumAnimation();
+  if (unlistenLevel) {
+    unlistenLevel();
+    unlistenLevel = null;
+  }
+  if (unlistenSpectrum) {
+    unlistenSpectrum();
+    unlistenSpectrum = null;
+  }
+  resetMonitoringData();
+}
+
+function isMonitoringCurrent(token: number) {
+  return token === monitoringGeneration && isMounted && props.isOpen;
+}
+
+async function startAudioMonitoring() {
+  stopAudioMonitoring();
+  if (!canDrawSpectrum()) return;
+  const token = monitoringGeneration;
+  let levelListener: UnlistenFn | null = null;
+  let spectrumListener: UnlistenFn | null = null;
+
+  try {
     await fetchDevices();
+    if (!isMonitoringCurrent(token)) return;
+
     loadSettings();
+    if (!isMonitoringCurrent(token)) return;
+
     // Sync existing settings to backend on open
     await syncSettingsToBackend();
-    const ulLevel = await listen<number>('audio-level', (event) => {
-      audioLevel.value = event.payload;
-    });
-    const ulSpectrum = await listen<SpectrumPayload>('audio-spectrum', (event) => {
-      rawSpectrum.value = event.payload.raw;
-      processedSpectrum.value = event.payload.processed;
-    });
+    if (!isMonitoringCurrent(token)) return;
 
-    if (props.isOpen) {
-      unlistenLevel = ulLevel;
-      unlistenSpectrum = ulSpectrum;
-      animationFrameId = requestAnimationFrame(drawSpectrum);
-    } else {
-      ulLevel();
-      ulSpectrum();
+    levelListener = await listen<number>('audio-level', (event) => {
+      if (isMonitoringCurrent(token)) audioLevel.value = event.payload;
+    });
+    if (!isMonitoringCurrent(token)) return;
+
+    spectrumListener = await listen<SpectrumPayload>('audio-spectrum', (event) => {
+      if (isMonitoringCurrent(token)) {
+        rawSpectrum.value = event.payload.raw;
+        processedSpectrum.value = event.payload.processed;
+      }
+    });
+    if (!isMonitoringCurrent(token)) return;
+
+    await setBackendSpectrumStreaming(true);
+    if (!isMonitoringCurrent(token) || currentSection.value !== 'audio') return;
+
+    if (unlistenLevel) unlistenLevel();
+    if (unlistenSpectrum) unlistenSpectrum();
+    unlistenLevel = levelListener;
+    unlistenSpectrum = spectrumListener;
+    levelListener = null;
+    spectrumListener = null;
+    startSpectrumAnimation();
+  } catch (e) {
+    if (isMonitoringCurrent(token)) {
+      console.error('Failed to start audio monitoring:', e);
+      void setBackendSpectrumStreaming(false).catch((stopError) => {
+        console.error('Failed to roll back spectrum streaming:', stopError);
+      });
     }
-  } else {
-    if (animationFrameId) {
-      cancelAnimationFrame(animationFrameId);
+  } finally {
+    levelListener?.();
+    spectrumListener?.();
+    if (!isMonitoringCurrent(token)) {
+      void setBackendSpectrumStreaming(canDrawSpectrum()).catch((e) => {
+        console.error('Failed to reconcile spectrum streaming state:', e);
+      });
     }
-    if (unlistenLevel) {
-      unlistenLevel();
-      unlistenLevel = null;
-    }
-    if (unlistenSpectrum) {
-      unlistenSpectrum();
-      unlistenSpectrum = null;
-    }
-    audioLevel.value = 0;
-    rawSpectrum.value = new Array(64).fill(0);
-    processedSpectrum.value = new Array(64).fill(0);
   }
+}
+
+function handleMonitoringState() {
+  if (canDrawSpectrum()) {
+    void startAudioMonitoring();
+  } else {
+    stopAudioMonitoring();
+  }
+}
+
+function handleOpenState(_isOpen: boolean) {
+  handleMonitoringState();
+}
+
+watch(() => props.isOpen, () => {
+  if (isMounted) handleMonitoringState();
 });
 </script>

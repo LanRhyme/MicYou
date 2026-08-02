@@ -67,9 +67,11 @@ pub fn run() {
             mdns_manager: Arc::new(Mutex::new(None)),
             dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
             is_monitoring: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            spectrum_streaming_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             network_stats: Arc::new(NetworkStats::default()),
-            connection_tx: Arc::new(Mutex::new(None)),
-            active_socket_handle: Arc::new(Mutex::new(None)),
+            active_connection: Arc::new(Mutex::new(None)),
+            takeover_lock: Arc::new(Mutex::new(())),
+            active_audio_session: Arc::new(RwLock::new(Default::default())),
             #[cfg(feature = "web-server")]
             web_server: Arc::new(Mutex::new(None)),
             #[cfg(feature = "web-server")]
@@ -121,6 +123,7 @@ pub fn run() {
             commands::exit_app,
             commands::set_mute_state,
             commands::set_monitoring,
+            commands::set_spectrum_streaming,
             commands::get_web_status,
             commands::check_vbcable,
             commands::install_vbcable,

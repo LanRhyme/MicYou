@@ -1,8 +1,8 @@
 use rcgen::{CertificateParams, KeyPair, SanType};
 use std::net::IpAddr;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 pub const DEFAULT_WEB_PORT: u16 = 8443;
@@ -47,16 +47,19 @@ pub fn generate_self_signed_cert_pem() -> Result<GeneratedCert, String> {
     let mut params = CertificateParams::new(vec!["localhost".to_string()])
         .map_err(|e| format!("Failed to create cert params: {}", e))?;
 
-    params.subject_alt_names.push(SanType::IpAddress(IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)));
+    params.subject_alt_names.push(SanType::IpAddress(IpAddr::V4(
+        std::net::Ipv4Addr::LOCALHOST,
+    )));
     for ip_str in &lan_ips {
         if let Ok(ip) = ip_str.parse::<IpAddr>() {
             params.subject_alt_names.push(SanType::IpAddress(ip));
         }
     }
 
-    let key_pair = KeyPair::generate()
-        .map_err(|e| format!("Failed to generate key pair: {}", e))?;
-    let cert = params.self_signed(&key_pair)
+    let key_pair =
+        KeyPair::generate().map_err(|e| format!("Failed to generate key pair: {}", e))?;
+    let cert = params
+        .self_signed(&key_pair)
         .map_err(|e| format!("Failed to sign certificate: {}", e))?;
 
     Ok(GeneratedCert {
@@ -71,7 +74,10 @@ pub fn load_or_generate_cert_pem() -> Result<GeneratedCert, String> {
     let key_path = cache_dir.join("key.pem");
 
     if cert_path.exists() && key_path.exists() {
-        if let (Ok(cert_pem), Ok(key_pem)) = (std::fs::read_to_string(&cert_path), std::fs::read_to_string(&key_path)) {
+        if let (Ok(cert_pem), Ok(key_pem)) = (
+            std::fs::read_to_string(&cert_path),
+            std::fs::read_to_string(&key_path),
+        ) {
             if !cert_pem.is_empty() && !key_pem.is_empty() {
                 return Ok(GeneratedCert { cert_pem, key_pem });
             }
@@ -109,7 +115,11 @@ mod tests {
     #[test]
     fn test_generate_self_signed_cert_pem() {
         let cert = generate_self_signed_cert_pem();
-        assert!(cert.is_ok(), "Cert generation should succeed: {:?}", cert.err());
+        assert!(
+            cert.is_ok(),
+            "Cert generation should succeed: {:?}",
+            cert.err()
+        );
         let c = cert.unwrap();
         assert!(c.cert_pem.contains("BEGIN CERTIFICATE"));
         assert!(c.key_pem.contains("PRIVATE KEY"));
@@ -202,18 +212,24 @@ async fn handle_ws_socket(mut socket: WebSocket, state: WebServerState) {
     log::info!("Web client connected (total: {})", count);
 
     if count == 1 {
-        let _ = state.app_handle.emit("device-connected", serde_json::json!({
-            "name": "Web Browser",
-            "ip": "browser",
-            "latency": 0
-        }));
+        let _ = state.app_handle.emit(
+            "device-connected",
+            serde_json::json!({
+                "name": "Web Browser",
+                "ip": "browser",
+                "latency": 0
+            }),
+        );
     }
 
     loop {
         match socket.recv().await {
             Some(Ok(Message::Binary(data))) => {
-                if data.len() > 2 * 1024 * 1024 {
-                    log::warn!("Web audio packet too large ({} bytes), dropping", data.len());
+                if data.len() > 64 * 1024 {
+                    log::warn!(
+                        "Web audio packet too large ({} bytes), dropping",
+                        data.len()
+                    );
                     continue;
                 }
                 if data.len() % 4 != 0 {
@@ -228,8 +244,9 @@ async fn handle_ws_socket(mut socket: WebSocket, state: WebServerState) {
                     channel_count: 1,
                     audio_format: 2,
                 };
-                if state.audio_tx.send(packet).await.is_err() {
-                    log::warn!("Audio channel full, dropping web packet");
+                match state.audio_tx.try_send(packet) {
+                    Ok(()) | Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {}
+                    Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => break,
                 }
             }
             Some(Ok(Message::Close(_))) | None => break,
@@ -277,15 +294,13 @@ impl Listener for TlsListener {
     async fn accept(&mut self) -> (Self::Io, Self::Addr) {
         loop {
             match self.tcp.accept().await {
-                Ok((stream, addr)) => {
-                    match self.acceptor.accept(stream).await {
-                        Ok(tls) => return (tls, addr),
-                        Err(e) => {
-                            log::debug!("TLS handshake failed: {}", e);
-                            continue;
-                        }
+                Ok((stream, addr)) => match self.acceptor.accept(stream).await {
+                    Ok(tls) => return (tls, addr),
+                    Err(e) => {
+                        log::debug!("TLS handshake failed: {}", e);
+                        continue;
                     }
-                }
+                },
                 Err(e) => {
                     log::warn!("TCP accept error: {}", e);
                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -340,10 +355,11 @@ impl WebServer {
 
         // Load TLS certificate
         let cert = load_or_generate_cert_pem()?;
-        let cert_chain: Vec<CertificateDer<'static>> = rustls_pemfile::certs(&mut BufReader::new(cert.cert_pem.as_bytes()))
-            .filter_map(|r| r.ok())
-            .map(CertificateDer::from)
-            .collect();
+        let cert_chain: Vec<CertificateDer<'static>> =
+            rustls_pemfile::certs(&mut BufReader::new(cert.cert_pem.as_bytes()))
+                .filter_map(|r| r.ok())
+                .map(CertificateDer::from)
+                .collect();
 
         let private_key = rustls_pemfile::private_key(&mut BufReader::new(cert.key_pem.as_bytes()))
             .map_err(|e| format!("Failed to read private key: {}", e))?
@@ -358,10 +374,12 @@ impl WebServer {
 
         let acceptor = TlsAcceptor::from(Arc::new(tls_config));
 
-        let addr: SocketAddr = format!("0.0.0.0:{}", port).parse()
+        let addr: SocketAddr = format!("0.0.0.0:{}", port)
+            .parse()
             .map_err(|e| format!("Invalid address: {}", e))?;
 
-        let tcp = TcpListener::bind(addr).await
+        let tcp = TcpListener::bind(addr)
+            .await
             .map_err(|e| format!("Web server bind error: {}", e))?;
 
         let tls_listener = TlsListener { tcp, acceptor };
@@ -381,7 +399,9 @@ impl WebServer {
 
         tokio::spawn(async move {
             axum::serve(tls_listener, app)
-                .with_graceful_shutdown(async move { cancel.cancelled().await; })
+                .with_graceful_shutdown(async move {
+                    cancel.cancelled().await;
+                })
                 .await
                 .ok();
 

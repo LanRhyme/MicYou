@@ -197,11 +197,6 @@ const onCentralBtnLeave = () => {
   }
 };
 
-// Computes visual mic visualizer scale based on real-time audio input level
-const micScale = computed(() => {
-  return 1 + (audio.audioLevel.value / 100) * 0.5;
-});
-
 // Sets up dynamic breathing glow animation during active streams
 watchEffect(() => {
   if (server.serverState.value === 'streaming' && glowRef.value) {
@@ -467,8 +462,7 @@ onUnmounted(() => {
         <!-- Center Panel -->
         <div class="haze-surface rounded-2xl flex flex-col items-center justify-center relative overflow-hidden group transition-all duration-300" :class="audio.showMonitoringPanel.value ? 'w-[44%]' : 'w-[62%]'">
           <!-- Central Visualizer & Action Button -->
-          <div class="relative w-64 h-64 flex items-center justify-center transition-transform duration-200 absolute-center"
-               :style="{ transform: `scale(${server.serverState.value === 'streaming' ? micScale : 1})` }">
+          <div class="relative w-64 h-64 flex items-center justify-center absolute-center">
             <AudioRing v-if="server.serverState.value === 'streaming'" :level="audio.audioLevel.value">
               <!-- Central Button When Streaming -->
               <div class="relative flex items-center justify-center">

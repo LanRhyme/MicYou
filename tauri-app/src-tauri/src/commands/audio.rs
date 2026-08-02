@@ -76,8 +76,8 @@ pub async fn set_mute_state(
     };
 
     let tx = {
-        let lock = state.connection_tx.lock().await;
-        lock.clone()
+        let lock = state.active_connection.lock().await;
+        lock.as_ref().map(|connection| connection.sender.clone())
     };
     if let Some(tx) = tx {
         tx.send(mute_msg).await.map_err(|e| e.to_string())?;
@@ -94,9 +94,18 @@ pub async fn set_monitoring(
     enabled: bool,
 ) -> Result<(), String> {
     use tauri::Emitter;
-    state.is_monitoring.store(enabled, std::sync::atomic::Ordering::Relaxed);
+    state
+        .is_monitoring
+        .store(enabled, std::sync::atomic::Ordering::Relaxed);
     let _ = app.emit("monitoring-enabled-changed", enabled);
     Ok(())
+}
+
+#[tauri::command]
+pub fn set_spectrum_streaming(state: State<'_, ServerState>, enabled: bool) {
+    state
+        .spectrum_streaming_enabled
+        .store(enabled, std::sync::atomic::Ordering::Release);
 }
 
 #[tauri::command]

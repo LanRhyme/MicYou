@@ -73,8 +73,12 @@ data class MuteMessage(
     val isMuted: Boolean
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
-class ConnectMessage
+data class ConnectMessage(
+    @ProtoNumber(1)
+    val sessionId: Long = 0
+)
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable

@@ -55,21 +55,17 @@ const dotY = computed(() => 50 + 35 * Math.sin(smoothedLevel.value * Math.PI * 2
         :cy="dotY" 
         r="1.6" fill="currentColor" class="text-primary" />
 
-      <!-- Ticks -->
-      <g :style="{ '--level': smoothedLevel }">
-        <g v-for="i in 60" :key="i" :transform="`rotate(${90 + (i - 1) * 6} 50 50)`">
-          <line 
-            x1="50" y1="13" 
-            x2="50" :y2="(i - 1) % 5 === 0 ? 9 : 11" 
-            stroke="currentColor" 
-            :stroke-width="(i - 1) % 5 === 0 ? 1 : 0.5"
-            class="text-primary"
-            :style="{
-              '--index': i - 1,
-              opacity: 'clamp(0.1, calc((var(--level) * 60 - var(--index) + 0.001) * 9999), 0.6)'
-            }" />
-        </g>
-      </g>
+        <!-- Static ticks: the arc and endpoint provide the dynamic level feedback. -->
+      <circle
+        cx="50"
+        cy="50"
+        r="39"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-dasharray="0.8 3.28"
+        class="opacity-30 text-primary"
+      />
     </svg>
     
     <!-- Slot for the central element -->

@@ -1,21 +1,20 @@
+use crate::stats::NetworkStats;
+use micyou_audio::dsp::AudioDspSettings;
 use std::sync::Arc;
 use std::sync::RwLock;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
-use micyou_audio::dsp::AudioDspSettings;
-use crate::stats::NetworkStats;
 
 pub struct ServerState {
     pub cancel_token: Arc<Mutex<Option<CancellationToken>>>,
     pub mdns_manager: Arc<Mutex<Option<crate::network::NetworkManager>>>,
     pub dsp_settings: Arc<RwLock<AudioDspSettings>>,
     pub is_monitoring: Arc<std::sync::atomic::AtomicBool>,
+    pub spectrum_streaming_enabled: Arc<std::sync::atomic::AtomicBool>,
     pub network_stats: Arc<NetworkStats>,
-    pub connection_tx: Arc<Mutex<Option<tokio::sync::mpsc::Sender<micyou_protocol::micyou::MessageWrapper>>>>,
-    #[cfg(windows)]
-    pub active_socket_handle: Arc<Mutex<Option<std::os::windows::io::RawSocket>>>,
-    #[cfg(unix)]
-    pub active_socket_handle: Arc<Mutex<Option<std::os::unix::io::RawFd>>>,
+    pub active_connection: crate::tcp_server::SharedActiveConnection,
+    pub takeover_lock: crate::tcp_server::SharedTakeoverLock,
+    pub active_audio_session: crate::udp_server::SharedActiveAudioSession,
     #[cfg(feature = "web-server")]
     pub web_server: Arc<Mutex<Option<crate::web_server::WebServer>>>,
     #[cfg(feature = "web-server")]
@@ -35,8 +34,19 @@ pub struct NetworkInterfaceInfo {
 }
 
 const VIRTUAL_KEYWORDS: &[&str] = &[
-    "vmware", "virtualbox", "hyper-v", "vethernet", "wsl", "docker",
-    "tunnel", "teredo", "isatap", "vpn", "tailscale", "clash", "flclash",
+    "vmware",
+    "virtualbox",
+    "hyper-v",
+    "vethernet",
+    "wsl",
+    "docker",
+    "tunnel",
+    "teredo",
+    "isatap",
+    "vpn",
+    "tailscale",
+    "clash",
+    "flclash",
 ];
 
 pub fn score_ip(ip: &str) -> i32 {
@@ -80,7 +90,8 @@ pub fn query_network_interfaces() -> Vec<NetworkInterfaceInfo> {
     candidates.sort_by(|a, b| {
         let score_a = score_ip(&a.0.to_string());
         let score_b = score_ip(&b.0.to_string());
-        score_b.cmp(&score_a)
+        score_b
+            .cmp(&score_a)
             .then_with(|| a.0.to_string().cmp(&b.0.to_string()))
             .then_with(|| a.1.cmp(&b.1))
     });

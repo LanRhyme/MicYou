@@ -1,8 +1,11 @@
 package com.lanrhyme.micyou.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +33,8 @@ import com.lanrhyme.micyou.util.PerformanceConfig
 import com.lanrhyme.micyou.audio.AudioEffectType
 import com.lanrhyme.micyou.audio.EqualizerConfig
 import com.lanrhyme.micyou.viewmodel.AudioStreamUiState
+import java.util.concurrent.atomic.AtomicBoolean
+
 data class AudioStreamUiState(
     val mode: ConnectionMode = ConnectionMode.Wifi,
     val transportProtocol: TransportProtocol = TransportProtocol.Both,
@@ -88,6 +93,10 @@ data class AudioStreamUiState(
 class AudioStreamViewModel : ViewModel() {
     private val _audioEngine = AudioEngine()
     val audioEngine: AudioEngine get() = _audioEngine
+    private val auxiliaryScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val closed = AtomicBoolean(false)
+    private val closeLock = Any()
+    private var closeJob: Job? = null
     private val _uiState = MutableStateFlow(AudioStreamUiState())
     val uiState: StateFlow<AudioStreamUiState> = _uiState.asStateFlow()
 
@@ -246,7 +255,7 @@ class AudioStreamViewModel : ViewModel() {
     }
 
     private fun setupAudioEngineObservers() {
-        viewModelScope.launch {
+        auxiliaryScope.launch {
             _audioEngine.streamState.collect { state ->
                 _uiState.update { it.copy(streamState = state) }
                 // 当停止时清空历史记录
@@ -259,7 +268,7 @@ class AudioStreamViewModel : ViewModel() {
             }
         }
 
-        viewModelScope.launch {
+        auxiliaryScope.launch {
             _audioEngine.lastError.collect { error ->
                 if (error == "UDP_AUDIO_WARNING") {
                     _uiState.update { it.copy(showUdpWarningDialog = true) }
@@ -269,14 +278,14 @@ class AudioStreamViewModel : ViewModel() {
             }
         }
 
-        viewModelScope.launch {
+        auxiliaryScope.launch {
             _audioEngine.isMuted.collect { muted ->
                 _uiState.update { it.copy(isMuted = muted) }
             }
         }
 
         // 监听音频电平数据并更新历史记录
-        viewModelScope.launch {
+        auxiliaryScope.launch {
             _audioEngine.audioLevelData.collect { levelData ->
                 audioLevelHistory.addSample(levelData)
                 _levelHistory.value = audioLevelHistory.getSamples()
@@ -284,7 +293,7 @@ class AudioStreamViewModel : ViewModel() {
         }
 
         // 监听音频指标数据并更新历史记录
-        viewModelScope.launch {
+        auxiliaryScope.launch {
             _audioEngine.audioMetrics.collect { metrics ->
                 if (metrics != null) {
                     metricsHistory.addSample(metrics)
@@ -341,7 +350,7 @@ class AudioStreamViewModel : ViewModel() {
 
     fun toggleMute() {
         val newMuteState = !_uiState.value.isMuted
-        viewModelScope.launch {
+        auxiliaryScope.launch {
             _audioEngine.setMute(newMuteState)
         }
     }
@@ -357,7 +366,7 @@ class AudioStreamViewModel : ViewModel() {
         }
 
         isStartStreamRequestPending = true
-        viewModelScope.launch {
+        auxiliaryScope.launch {
             try {
                 startStreamInternal()
             } finally {
@@ -455,7 +464,7 @@ class AudioStreamViewModel : ViewModel() {
             return
         }
         isStopStreamRequestPending = true
-        viewModelScope.launch {
+        auxiliaryScope.launch {
             try {
                 _audioEngine.stopAndWait()
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -519,7 +528,7 @@ class AudioStreamViewModel : ViewModel() {
 
         // 如果要求重启流（IP 切换时），先停止再启动
         if (restartStream && wasRunning) {
-            viewModelScope.launch(Dispatchers.IO) {
+            auxiliaryScope.launch(Dispatchers.IO) {
                 try {
                     _audioEngine.stopAndWait()
                     startStreamInternal()
@@ -733,10 +742,19 @@ class AudioStreamViewModel : ViewModel() {
         return audioLevelHistory.getAverageRms(seconds)
     }
 
-    override fun onCleared() {
-        super.onCleared()
+    fun close(): Job = synchronized(closeLock) {
+        closeJob?.let { return@synchronized it }
+        closed.set(true)
         discoveryManager.stopDiscovery()
-        _audioEngine.stop()
+        val engineCloseJob = _audioEngine.close()
+        auxiliaryScope.cancel()
+        closeJob = engineCloseJob
+        engineCloseJob
+    }
+
+    override fun onCleared() {
+        close()
+        super.onCleared()
     }
 
     fun startDiscovery() {

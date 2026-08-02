@@ -420,4 +420,11 @@ class MainViewModel : ViewModel() {
     fun clearInstallMessage() {
         _uiState.update { it.copy(installMessage = null) }
     }
+
+    override fun onCleared() {
+        audioStreamViewModel.close()
+        settingsViewModel.close()
+        updateViewModel.close()
+        super.onCleared()
+    }
 }
