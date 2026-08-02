@@ -26,8 +26,10 @@ const FRAME_HEADER_LEN: usize = 8;
 // control-message headroom while bounding allocations from an untrusted peer.
 const MAX_CONTROL_PAYLOAD_LEN: usize = 1024 * 1024;
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_CONCURRENT_CLIENTS: usize = 64;
 const FRAME_READ_TIMEOUT: Duration = Duration::from_secs(10);
 const FRAME_WRITE_TIMEOUT: Duration = Duration::from_secs(10);
+const CLIENT_SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_millis(250);
 static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
 
 #[cfg(windows)]
@@ -90,11 +92,20 @@ pub async fn start_tcp_server(
     active_connection: SharedActiveConnection,
     takeover_lock: SharedTakeoverLock,
     active_audio_session: SharedActiveAudioSession,
+    ready: tokio::sync::oneshot::Sender<Result<(), String>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let listener = TcpListener::bind(format!("{}:{}", bind_address, port)).await?;
+    let listener = match TcpListener::bind(format!("{}:{}", bind_address, port)).await {
+        Ok(listener) => listener,
+        Err(error) => {
+            let _ = ready.send(Err(error.to_string()));
+            return Err(Box::new(error));
+        }
+    };
+    let _ = ready.send(Ok(()));
     println!("TCP Control Server listening on {}:{}", bind_address, port);
 
     let mut clients = JoinSet::new();
+    let client_slots = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_CLIENTS));
     loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
@@ -109,6 +120,13 @@ pub async fn start_tcp_server(
             accept_result = listener.accept() => {
                 match accept_result {
                     Ok((socket, addr)) => {
+                        let permit = match client_slots.clone().try_acquire_owned() {
+                            Ok(permit) => permit,
+                            Err(_) => {
+                                log::warn!("TCP client limit reached; rejecting {}", addr);
+                                continue;
+                            }
+                        };
                         println!("New client connected: {}", addr);
                         let app_handle = app_handle.clone();
                         let audio_tx = audio_tx.clone();
@@ -119,6 +137,7 @@ pub async fn start_tcp_server(
                         let active_audio_session = active_audio_session.clone();
                         let client_cancel = cancel_token.clone();
                         clients.spawn(async move {
+                            let _permit = permit;
                             if let Err(e) = handle_client(
                                 socket,
                                 addr,
@@ -142,17 +161,55 @@ pub async fn start_tcp_server(
         }
     }
 
-    clients.abort_all();
-    while clients.join_next().await.is_some() {}
-    let active = active_connection.lock().await.take();
-    if let Some(connection) = active {
-        connection.takeover_token.cancel();
-        force_close_socket(connection.raw_socket);
-    }
-    if let Ok(mut active) = active_audio_session.write() {
-        *active = ActiveAudioSession::default();
+    // Take ownership of the published raw socket while handle_client still owns the
+    // corresponding TcpStream, then shut it down so client tasks can exit cooperatively.
+    cleanup_session_state(&active_connection, &active_audio_session).await;
+    if timeout(CLIENT_SHUTDOWN_GRACE_PERIOD, async {
+        while clients.join_next().await.is_some() {}
+    })
+    .await
+    .is_err()
+    {
+        clients.abort_all();
+        while clients.join_next().await.is_some() {}
     }
     Ok(())
+}
+
+pub async fn cleanup_session_state(
+    active_connection: &SharedActiveConnection,
+    active_audio_session: &SharedActiveAudioSession,
+) {
+    cleanup_session_state_with(
+        active_connection,
+        active_audio_session,
+        force_close_socket,
+    )
+    .await;
+}
+
+async fn cleanup_session_state_with<F>(
+    active_connection: &SharedActiveConnection,
+    active_audio_session: &SharedActiveAudioSession,
+    mut shutdown_socket: F,
+) where
+    F: FnMut(RawSocketHandle),
+{
+    // Remove the handle from shared state before cancellation or shutdown. Later cleanup
+    // callers must not be able to act on a descriptor that its TcpStream may have closed.
+    let connection = {
+        let mut active = active_connection.lock().await;
+        active.take()
+    };
+    if let Some(connection) = connection {
+        connection.takeover_token.cancel();
+        shutdown_socket(connection.raw_socket);
+        drop(connection.sender);
+    }
+    match active_audio_session.write() {
+        Ok(mut active) => *active = ActiveAudioSession::default(),
+        Err(poisoned) => *poisoned.into_inner() = ActiveAudioSession::default(),
+    }
 }
 
 #[cfg(windows)]
@@ -682,5 +739,56 @@ mod tests {
             .await
         );
         assert!(!side_effect_ran.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn cleanup_session_state_takes_slot_before_cancel_and_only_uses_handle_once() {
+        let token = CancellationToken::new();
+        let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
+        let raw = 42 as RawSocketHandle;
+        let active_connection = Arc::new(Mutex::new(Some(ActiveConnection {
+            sender,
+            raw_socket: raw,
+            connection_id: 1,
+            takeover_token: token.clone(),
+        })));
+        let active_audio_session = Arc::new(std::sync::RwLock::new(
+            ActiveAudioSession::UnboundLegacy {
+                peer_ip: "127.0.0.1".parse().unwrap(),
+                epoch: 1,
+            },
+        ));
+        let shutdown_handles = Arc::new(std::sync::Mutex::new(Vec::new()));
+
+        let shutdown_handles_first = shutdown_handles.clone();
+        let active_connection_at_shutdown = active_connection.clone();
+        let token_at_shutdown = token.clone();
+        cleanup_session_state_with(
+            &active_connection,
+            &active_audio_session,
+            move |handle| {
+                assert!(active_connection_at_shutdown.try_lock().unwrap().is_none());
+                assert!(token_at_shutdown.is_cancelled());
+                shutdown_handles_first.lock().unwrap().push(handle);
+            },
+        )
+        .await;
+
+        let shutdown_handles_second = shutdown_handles.clone();
+        cleanup_session_state_with(
+            &active_connection,
+            &active_audio_session,
+            move |handle| shutdown_handles_second.lock().unwrap().push(handle),
+        )
+        .await;
+
+        assert_eq!(*shutdown_handles.lock().unwrap(), vec![raw]);
+        assert!(token.is_cancelled());
+        assert!(active_connection.lock().await.is_none());
+        assert!(matches!(
+            *active_audio_session.read().unwrap(),
+            ActiveAudioSession::Inactive
+        ));
+        assert!(receiver.recv().await.is_none());
     }
 }

@@ -215,6 +215,7 @@ onUnmounted(() => {
             :value="serverPort"
             @input="updatePort"
             type="number"
+            max="65534"
             class="w-full bg-surface-variant/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <input

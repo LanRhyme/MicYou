@@ -46,6 +46,8 @@ message AudioPacketMessageOrdered {
     bytes fecBuffer = 4;
     int32 fecSequenceNumber = 5;
     int64 sessionId = 6;
+    // Original byte length of each source packet in the FEC group. Empty for legacy senders.
+    repeated uint32 fecPacketLengths = 7;
 }
 
 message AudioPacketMessage {

@@ -105,19 +105,30 @@ pub async fn start_udp_server(
     cancel_token: CancellationToken,
     stats: std::sync::Arc<crate::stats::NetworkStats>,
     active_audio_session: SharedActiveAudioSession,
+    ready: tokio::sync::oneshot::Sender<Result<(), String>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let addr: std::net::SocketAddr = format!("{}:{}", bind_address, port).parse()?;
-    let socket2 = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
-    if let Err(e) = socket2.set_recv_buffer_size(2 * 1024 * 1024) {
-        eprintln!(
-            "Warning: Failed to set UDP receive buffer size to 2MB: {}",
-            e
-        );
-    }
-    socket2.bind(&addr.into())?;
-    socket2.set_nonblocking(true)?;
-    let std_socket: std::net::UdpSocket = socket2.into();
-    let socket = UdpSocket::from_std(std_socket)?;
+    let result = (|| -> Result<tokio::net::UdpSocket, Box<dyn Error + Send + Sync>> {
+        let addr: std::net::SocketAddr = format!("{}:{}", bind_address, port).parse()?;
+        let socket2 = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
+        if let Err(e) = socket2.set_recv_buffer_size(2 * 1024 * 1024) {
+            eprintln!(
+                "Warning: Failed to set UDP receive buffer size to 2MB: {}",
+                e
+            );
+        }
+        socket2.bind(&addr.into())?;
+        socket2.set_nonblocking(true)?;
+        let std_socket: std::net::UdpSocket = socket2.into();
+        Ok(UdpSocket::from_std(std_socket)?)
+    })();
+    let socket = match result {
+        Ok(socket) => socket,
+        Err(error) => {
+            let _ = ready.send(Err(error.to_string()));
+            return Err(error);
+        }
+    };
+    let _ = ready.send(Ok(()));
     println!("UDP Audio Server listening on {}", port);
 
     let mut buf = vec![0u8; 65535];
@@ -264,6 +275,7 @@ mod tests {
             fec_buffer: Vec::new(),
             fec_sequence_number,
             session_id,
+            fec_packet_lengths: Vec::new(),
         }
     }
 

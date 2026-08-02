@@ -63,7 +63,10 @@ data class AudioPacketMessageOrdered(
     @ProtoNumber(5)
     val fecSequenceNumber: Int = -1,
     @ProtoNumber(6)
-    val sessionId: Long = 0
+    val sessionId: Long = 0,
+    // 原始源包长度；空列表表示旧版发送端，接收端保持旧版恢复行为。
+    @ProtoNumber(7)
+    val fecPacketLengths: List<Int> = emptyList()
 )
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -116,6 +119,10 @@ data class PongMessage(
 
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
 const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII
+const val UDP_CUSTOM_HEADER_SIZE = 8
+const val UDP_MAX_DATAGRAM_SIZE = 1472
+// 为自定义头、嵌套 protobuf、64 位字段及 FEC 长度元数据预留最坏情况预算。
+const val UDP_PCM_PAYLOAD_SIZE = 1320
 
 /** UDP 端口 = TCP 端口 + 1 */
 const val UDP_PORT_OFFSET = 1

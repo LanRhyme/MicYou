@@ -1,7 +1,7 @@
 use rcgen::{CertificateParams, KeyPair, SanType};
 use std::net::IpAddr;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
@@ -11,6 +11,7 @@ pub struct WebServer {
     cancel_token: std::sync::Mutex<CancellationToken>,
     client_count: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
+    task: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 pub struct GeneratedCert {
@@ -163,6 +164,39 @@ mod tests {
         let sample = i16::from_le_bytes([pcm[0], pcm[1]]);
         assert_eq!(sample, 0);
     }
+
+    #[test]
+    fn decrement_client_count_does_not_underflow_after_stop_reset() {
+        let count = AtomicUsize::new(0);
+        assert_eq!(decrement_client_count(&count), 0);
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn new_web_sender_closes_replaced_sender() {
+        let senders = ActiveWebSender::default();
+        let (first_generation, first_cancel, first_replaced) = senders.activate();
+        let (second_generation, second_cancel, second_replaced) = senders.activate();
+
+        assert!(!first_replaced);
+        assert!(second_replaced);
+        assert!(first_cancel.is_cancelled());
+        assert!(!second_cancel.is_cancelled());
+        assert!(!senders.is_current(first_generation));
+        assert!(senders.is_current(second_generation));
+    }
+
+    #[test]
+    fn replacement_disconnect_does_not_restore_old_sender() {
+        let senders = ActiveWebSender::default();
+        let (first_generation, first_cancel, _) = senders.activate();
+        let (second_generation, _, _) = senders.activate();
+
+        assert!(senders.deactivate(second_generation));
+        assert!(!senders.is_current(first_generation));
+        assert!(first_cancel.is_cancelled());
+        assert!(!senders.deactivate(first_generation));
+    }
 }
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -177,7 +211,12 @@ use std::io::BufReader;
 use std::net::SocketAddr;
 use tauri::{AppHandle, Emitter};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_rustls::{server::TlsStream, TlsAcceptor};
+
+const MAX_TLS_HANDSHAKES: usize = 32;
+const MAX_WEBSOCKET_CONNECTIONS: usize = 8;
+const TLS_HANDSHAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 const WEB_CLIENT_HTML: &str = include_str!("../resources/web_client.html");
 const ALPINE_JS: &str = include_str!("../resources/alpine.min.js");
@@ -203,15 +242,34 @@ async fn handle_websocket(
     if !is_valid_origin(origin) {
         return (StatusCode::FORBIDDEN, "Invalid origin").into_response();
     }
-    ws.on_upgrade(move |socket| handle_ws_socket(socket, state))
+    let permit = match state.websocket_slots.clone().try_acquire_owned() {
+        Ok(permit) => permit,
+        Err(_) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Too many WebSocket connections",
+            )
+                .into_response()
+        }
+    };
+    ws.on_upgrade(move |socket| handle_ws_socket(socket, state, permit))
 }
 
-async fn handle_ws_socket(mut socket: WebSocket, state: WebServerState) {
-    let count = state.client_count.fetch_add(1, Ordering::SeqCst) + 1;
+async fn handle_ws_socket(
+    mut socket: WebSocket,
+    state: WebServerState,
+    _permit: OwnedSemaphorePermit,
+) {
+    let (generation, cancel, replaced) = state.active_sender.activate();
+    let count = if replaced {
+        state.client_count.load(Ordering::SeqCst)
+    } else {
+        state.client_count.fetch_add(1, Ordering::SeqCst) + 1
+    };
     let _ = state.app_handle.emit("web-client-count", count as u32);
     log::info!("Web client connected (total: {})", count);
 
-    if count == 1 {
+    if count == 1 && !replaced {
         let _ = state.app_handle.emit(
             "device-connected",
             serde_json::json!({
@@ -223,8 +281,16 @@ async fn handle_ws_socket(mut socket: WebSocket, state: WebServerState) {
     }
 
     loop {
-        match socket.recv().await {
+        tokio::select! {
+            _ = cancel.cancelled() => {
+                let _ = socket.send(Message::Close(None)).await;
+                break;
+            }
+            message = socket.recv() => match message {
             Some(Ok(Message::Binary(data))) => {
+                if !state.active_sender.is_current(generation) {
+                    break;
+                }
                 if data.len() > 64 * 1024 {
                     log::warn!(
                         "Web audio packet too large ({} bytes), dropping",
@@ -244,7 +310,7 @@ async fn handle_ws_socket(mut socket: WebSocket, state: WebServerState) {
                     channel_count: 1,
                     audio_format: 2,
                 };
-                match state.audio_tx.try_send(packet) {
+                match state.audio_tx.try_send((generation, packet)) {
                     Ok(()) | Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {}
                     Err(tokio::sync::mpsc::error::TrySendError::Closed(_)) => break,
                 }
@@ -255,16 +321,30 @@ async fn handle_ws_socket(mut socket: WebSocket, state: WebServerState) {
                 break;
             }
             _ => {}
+            }
         }
     }
 
-    let remaining = state.client_count.fetch_sub(1, Ordering::SeqCst) - 1;
-    let _ = state.app_handle.emit("web-client-count", remaining as u32);
-    log::info!("Web client disconnected (remaining: {})", remaining);
+    if state.active_sender.deactivate(generation) {
+        let remaining = decrement_client_count(&state.client_count);
+        let _ = state.app_handle.emit("web-client-count", remaining as u32);
+        log::info!("Web client disconnected (remaining: {})", remaining);
 
-    if remaining == 0 {
-        let _ = state.app_handle.emit("device-disconnected", ());
+        if remaining == 0 {
+            let _ = state.app_handle.emit("device-disconnected", ());
+        }
+    } else {
+        log::info!("Replaced Web client closed");
     }
+}
+
+fn decrement_client_count(client_count: &AtomicUsize) -> usize {
+    client_count
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
+            count.checked_sub(1)
+        })
+        .map(|previous| previous - 1)
+        .unwrap_or(0)
 }
 
 async fn serve_html() -> impl IntoResponse {
@@ -275,16 +355,64 @@ async fn serve_alpine_js() -> impl IntoResponse {
     ([("Content-Type", "application/javascript")], ALPINE_JS)
 }
 
+#[derive(Default)]
+struct ActiveWebSender {
+    generation: AtomicU64,
+    cancel: std::sync::Mutex<Option<(u64, CancellationToken)>>,
+}
+
+impl ActiveWebSender {
+    fn activate(&self) -> (u64, CancellationToken, bool) {
+        let cancel = CancellationToken::new();
+        let mut active = self.cancel.lock().unwrap();
+        let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let replaced = if let Some((_, previous)) = active.replace((generation, cancel.clone())) {
+            previous.cancel();
+            true
+        } else {
+            false
+        };
+        (generation, cancel, replaced)
+    }
+
+    fn is_current(&self, generation: u64) -> bool {
+        self.generation.load(Ordering::SeqCst) == generation
+    }
+
+    fn deactivate(&self, generation: u64) -> bool {
+        self.cancel
+            .lock()
+            .map(|mut active| {
+                if active
+                    .as_ref()
+                    .map(|(active_generation, _)| *active_generation)
+                    == Some(generation)
+                {
+                    active.take();
+                    true
+                } else {
+                    false
+                }
+            })
+            .unwrap_or(false)
+    }
+}
+
 #[derive(Clone)]
 pub struct WebServerState {
     pub app_handle: AppHandle,
-    pub audio_tx: tokio::sync::mpsc::Sender<micyou_protocol::micyou::AudioPacketMessage>,
+    pub audio_tx: tokio::sync::mpsc::Sender<(u64, micyou_protocol::micyou::AudioPacketMessage)>,
     pub client_count: Arc<AtomicUsize>,
+    active_sender: Arc<ActiveWebSender>,
+    pub websocket_slots: Arc<Semaphore>,
 }
 
 struct TlsListener {
     tcp: TcpListener,
     acceptor: TlsAcceptor,
+    handshake_slots: Arc<Semaphore>,
+    completed: tokio::sync::mpsc::Sender<(TlsStream<TcpStream>, SocketAddr)>,
+    completed_rx: tokio::sync::mpsc::Receiver<(TlsStream<TcpStream>, SocketAddr)>,
 }
 
 impl Listener for TlsListener {
@@ -293,17 +421,31 @@ impl Listener for TlsListener {
 
     async fn accept(&mut self) -> (Self::Io, Self::Addr) {
         loop {
-            match self.tcp.accept().await {
-                Ok((stream, addr)) => match self.acceptor.accept(stream).await {
-                    Ok(tls) => return (tls, addr),
-                    Err(e) => {
-                        log::debug!("TLS handshake failed: {}", e);
-                        continue;
+            tokio::select! {
+                Some(accepted) = self.completed_rx.recv() => return accepted,
+                accept_result = self.tcp.accept() => {
+                    match accept_result {
+                        Ok((stream, addr)) => {
+                            let permit = match self.handshake_slots.clone().try_acquire_owned() {
+                                Ok(permit) => permit,
+                                Err(_) => continue,
+                            };
+                            let acceptor = self.acceptor.clone();
+                            let completed = self.completed.clone();
+                            tokio::spawn(async move {
+                                let _permit = permit;
+                                match tokio::time::timeout(TLS_HANDSHAKE_TIMEOUT, acceptor.accept(stream)).await {
+                                    Ok(Ok(tls)) => { let _ = completed.send((tls, addr)).await; }
+                                    Ok(Err(e)) => log::debug!("TLS handshake failed: {}", e),
+                                    Err(_) => log::debug!("TLS handshake timed out for {}", addr),
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            log::warn!("TCP accept error: {}", e);
+                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                        }
                     }
-                },
-                Err(e) => {
-                    log::warn!("TCP accept error: {}", e);
-                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                 }
             }
         }
@@ -320,6 +462,7 @@ impl WebServer {
             cancel_token: std::sync::Mutex::new(CancellationToken::new()),
             client_count: Arc::new(AtomicUsize::new(0)),
             running: Arc::new(AtomicBool::new(false)),
+            task: std::sync::Mutex::new(None),
         }
     }
 
@@ -335,7 +478,7 @@ impl WebServer {
         &self,
         port: u16,
         app_handle: AppHandle,
-        audio_tx: tokio::sync::mpsc::Sender<micyou_protocol::micyou::AudioPacketMessage>,
+        audio_tx: tokio::sync::mpsc::Sender<(u64, micyou_protocol::micyou::AudioPacketMessage)>,
     ) -> Result<(), String> {
         if self.running.load(Ordering::SeqCst) {
             return Err("Web server is already running".to_string());
@@ -345,6 +488,8 @@ impl WebServer {
             app_handle,
             audio_tx,
             client_count: self.client_count.clone(),
+            active_sender: Arc::new(ActiveWebSender::default()),
+            websocket_slots: Arc::new(Semaphore::new(MAX_WEBSOCKET_CONNECTIONS)),
         };
 
         let app = Router::new()
@@ -382,7 +527,14 @@ impl WebServer {
             .await
             .map_err(|e| format!("Web server bind error: {}", e))?;
 
-        let tls_listener = TlsListener { tcp, acceptor };
+        let (completed, completed_rx) = tokio::sync::mpsc::channel(MAX_TLS_HANDSHAKES);
+        let tls_listener = TlsListener {
+            tcp,
+            acceptor,
+            handshake_slots: Arc::new(Semaphore::new(MAX_TLS_HANDSHAKES)),
+            completed,
+            completed_rx,
+        };
 
         log::info!("Web server listening on https://0.0.0.0:{}", port);
 
@@ -397,7 +549,7 @@ impl WebServer {
 
         running.store(true, Ordering::SeqCst);
 
-        tokio::spawn(async move {
+        let task = tokio::spawn(async move {
             axum::serve(tls_listener, app)
                 .with_graceful_shutdown(async move {
                     cancel.cancelled().await;
@@ -408,13 +560,24 @@ impl WebServer {
             running.store(false, Ordering::SeqCst);
             client_count.store(0, Ordering::SeqCst);
         });
+        *self.task.lock().unwrap() = Some(task);
 
         Ok(())
     }
 
-    pub fn stop(&self) {
+    pub async fn stop(&self) {
         if let Ok(token_guard) = self.cancel_token.lock() {
             token_guard.cancel();
+        }
+        let task = self.task.lock().ok().and_then(|mut task| task.take());
+        if let Some(mut task) = task {
+            if tokio::time::timeout(std::time::Duration::from_secs(3), &mut task)
+                .await
+                .is_err()
+            {
+                task.abort();
+                let _ = task.await;
+            }
         }
         self.running.store(false, Ordering::SeqCst);
         self.client_count.store(0, Ordering::SeqCst);

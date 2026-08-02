@@ -312,8 +312,7 @@ impl JitterBuffer {
     }
 
     fn sequence_in_fec_group(&self, sequence: i32, group_start: i32) -> bool {
-        sequence >= group_start
-            && sequence < group_start.saturating_add(self.fec_group_size)
+        sequence >= group_start && sequence < group_start.saturating_add(self.fec_group_size)
     }
 
     fn add_played_to_group(&mut self, group_start: i32, packet: &AudioPacketMessageOrdered) {
@@ -428,6 +427,22 @@ impl JitterBuffer {
         if received != self.fec_group_size.saturating_sub(1) as usize {
             return None;
         }
+
+        // New senders describe every source packet's pre-padding length. Legacy parity
+        // packets omit this field, in which case preserving the previous max-length result
+        // is the only wire-compatible behavior.
+        if !fec_packet.fec_packet_lengths.is_empty() {
+            let missing_index = missing_seq.checked_sub(group_start)? as usize;
+            if fec_packet.fec_packet_lengths.len() != self.fec_group_size as usize {
+                return None;
+            }
+            let original_len = *fec_packet.fec_packet_lengths.get(missing_index)? as usize;
+            if original_len > recovered_buffer.len() {
+                return None;
+            }
+            recovered_buffer.truncate(original_len);
+        }
+
         let reference = reference?;
         Some(AudioPacketMessageOrdered {
             sequence_number: missing_seq,
@@ -435,6 +450,7 @@ impl JitterBuffer {
             timestamp: reference.timestamp,
             fec_buffer: Vec::new(),
             session_id: reference.session_id,
+            fec_packet_lengths: Vec::new(),
             audio_packet: Some(AudioPacketMessage {
                 buffer: recovered_buffer,
                 sample_rate: reference.sample_rate,
@@ -447,8 +463,7 @@ impl JitterBuffer {
     fn cleanup_played_packets(&mut self, current_seq: i32) {
         let threshold = current_seq.saturating_sub(self.fec_group_size.saturating_mul(2));
         self.played_packets.retain(|seq| *seq >= threshold);
-        self.played_audio_packets
-            .retain(|seq, _| *seq >= threshold);
+        self.played_audio_packets.retain(|seq, _| *seq >= threshold);
         self.played_fec_groups
             .retain(|group, _| group.saturating_add(self.fec_group_size) >= threshold);
         self.trim_played_history();
@@ -473,6 +488,7 @@ mod tests {
             fec_buffer: Vec::new(),
             fec_sequence_number: -1,
             session_id,
+            fec_packet_lengths: Vec::new(),
         }
     }
 
@@ -747,6 +763,86 @@ mod tests {
         let recovered = jitter.pop().unwrap();
         assert_eq!(recovered.sequence_number, missing);
         assert_eq!(recovered.audio_packet.unwrap().buffer, vec![missing as u8]);
+    }
+
+    #[test]
+    fn variable_length_fec_recovery_truncates_to_missing_source_length() {
+        let mut jitter = JitterBuffer::new(3);
+        jitter.prepare_transport_session(ExpectedAudioSession::Bound(101));
+        jitter.prebuffered = true;
+
+        let source_buffers = [vec![1, 2, 3, 4, 5], vec![9, 8, 7], vec![5, 6, 7, 8]];
+        for (sequence, buffer) in source_buffers.iter().enumerate() {
+            if sequence != 1 {
+                let mut source = packet(sequence as i32, 101);
+                let audio = source.audio_packet.as_mut().unwrap();
+                audio.buffer = buffer.clone();
+                audio.audio_format = 3;
+                jitter.push(source);
+            }
+        }
+        // Confirm the missing sequence as a gap without adding another loss to this FEC group.
+        for sequence in 3..=6 {
+            jitter.push(packet(sequence, 101));
+        }
+
+        let mut parity = vec![0; 5];
+        for source in &source_buffers {
+            for (dst, src) in parity.iter_mut().zip(source) {
+                *dst ^= *src;
+            }
+        }
+        let mut fec = fec_packet(3, 0, 0..3, 101);
+        let fec_audio = fec.audio_packet.as_mut().unwrap();
+        fec_audio.buffer = parity;
+        fec_audio.audio_format = 3;
+        fec.fec_packet_lengths = source_buffers
+            .iter()
+            .map(|buffer| buffer.len() as u32)
+            .collect();
+        jitter.push(fec);
+
+        assert_eq!(
+            jitter.pop().unwrap().audio_packet.unwrap().buffer,
+            source_buffers[0]
+        );
+        let recovered = jitter.pop().unwrap();
+        assert_eq!(recovered.sequence_number, 1);
+        assert_eq!(recovered.audio_packet.unwrap().buffer, source_buffers[1]);
+    }
+
+    #[test]
+    fn legacy_variable_length_fec_without_metadata_keeps_max_length_behavior() {
+        let mut jitter = JitterBuffer::new(3);
+        jitter.prepare_transport_session(ExpectedAudioSession::Bound(101));
+        jitter.prebuffered = true;
+
+        let source_buffers = [vec![1, 2, 3, 4], vec![9, 8], vec![5, 6, 7]];
+        for (sequence, buffer) in source_buffers.iter().enumerate() {
+            if sequence != 1 {
+                let mut source = packet(sequence as i32, 101);
+                source.audio_packet.as_mut().unwrap().buffer = buffer.clone();
+                jitter.push(source);
+            }
+        }
+        for sequence in 3..=6 {
+            jitter.push(packet(sequence, 101));
+        }
+        let mut parity = vec![0; 4];
+        for source in &source_buffers {
+            for (dst, src) in parity.iter_mut().zip(source) {
+                *dst ^= *src;
+            }
+        }
+        let mut fec = fec_packet(3, 0, 0..3, 101);
+        fec.audio_packet.as_mut().unwrap().buffer = parity;
+        jitter.push(fec);
+
+        assert!(jitter.pop().is_some());
+        assert_eq!(
+            jitter.pop().unwrap().audio_packet.unwrap().buffer,
+            vec![9, 8, 0, 0]
+        );
     }
 
     #[test]

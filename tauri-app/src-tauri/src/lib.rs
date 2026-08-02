@@ -63,7 +63,10 @@ fn apply_macos_vibrancy(_: &tauri::WebviewWindow) {}
 pub fn run() {
     tauri::Builder::default()
         .manage(server::ServerState {
+            lifecycle_gate: server::ServerLifecycleGate::default(),
+            lifecycle: Arc::new(Mutex::new(server::ServerLifecycleState::default())),
             cancel_token: Arc::new(Mutex::new(None)),
+            background_tasks: Arc::new(Mutex::new(Vec::new())),
             mdns_manager: Arc::new(Mutex::new(None)),
             dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
             is_monitoring: Arc::new(std::sync::atomic::AtomicBool::new(false)),

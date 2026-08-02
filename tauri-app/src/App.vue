@@ -421,6 +421,7 @@ onUnmounted(() => {
             <input
               v-model="server.serverPort.value"
               type="number"
+              max="65534"
               class="w-full bg-surface-variant/40 hover:bg-surface-variant/60 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:bg-surface-variant/60 transition-all duration-300"
             />
           </div>

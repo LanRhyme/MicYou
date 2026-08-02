@@ -60,7 +60,10 @@ import com.lanrhyme.micyou.network.ConnectMessage
 import com.lanrhyme.micyou.network.calculateUdpPort
 import com.lanrhyme.micyou.network.MessageWrapper
 import com.lanrhyme.micyou.network.PACKET_MAGIC
+import com.lanrhyme.micyou.network.UDP_CUSTOM_HEADER_SIZE
+import com.lanrhyme.micyou.network.UDP_MAX_DATAGRAM_SIZE
 import com.lanrhyme.micyou.network.UDP_PACKET_MAGIC
+import com.lanrhyme.micyou.network.UDP_PCM_PAYLOAD_SIZE
 import com.lanrhyme.micyou.service.AudioService
 import com.lanrhyme.micyou.util.ContextHelper
 import com.lanrhyme.micyou.util.getString
@@ -531,13 +534,16 @@ class AudioEngine constructor() {
                             android.media.AudioFormat.CHANNEL_IN_STEREO 
                         else 
                             android.media.AudioFormat.CHANNEL_IN_MONO
-                            
-                        val androidAudioFormat = when(audioFormat) {
-                            AudioFormat.PCM_8BIT -> android.media.AudioFormat.ENCODING_PCM_8BIT
-                            AudioFormat.PCM_16BIT -> android.media.AudioFormat.ENCODING_PCM_16BIT
-                            AudioFormat.PCM_FLOAT -> android.media.AudioFormat.ENCODING_PCM_FLOAT
-                            else -> android.media.AudioFormat.ENCODING_PCM_16BIT
+                        val resolvedAudioFormat = resolveAudioFormat(audioFormat)
+                        if (resolvedAudioFormat.captureFormat != audioFormat) {
+                            Logger.w(
+                                "AudioEngine",
+                                "Requested ${audioFormat.label} is not supported for capture; " +
+                                    "falling back to ${resolvedAudioFormat.captureFormat.label} for capture and wire format"
+                            )
                         }
+                        val androidAudioFormat = resolvedAudioFormat.androidEncoding
+                        val wireAudioFormat = resolvedAudioFormat.wireFormat
                         val minBufSize = AudioRecord.getMinBufferSize(androidSampleRate, androidChannelConfig, androidAudioFormat)
 
                         if (minBufSize <= 0 || minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
@@ -818,15 +824,9 @@ class AudioEngine constructor() {
                         }
 
                         channel.send(MessageWrapper(mute = MuteMessage(_isMuted.value)))
-                        // Use read buffer sized to avoid IP fragmentation on WiFi
-                        // Path MTU = 1500, minus IP(20)+UDP(8)+header(8)+ProtoBuf(~30) ≈ 1434 safe payload
-                        val udpSafePayloadSize = 1400
-                        val bytesPerSample = when (androidAudioFormat) {
-                            android.media.AudioFormat.ENCODING_PCM_8BIT -> 1
-                            android.media.AudioFormat.ENCODING_PCM_16BIT -> 2
-                            android.media.AudioFormat.ENCODING_PCM_FLOAT -> 4
-                            else -> 2
-                        }
+                        // Size raw PCM so the custom header plus worst-case protobuf/FEC metadata stays <= 1472 bytes.
+                        val udpSafePayloadSize = UDP_PCM_PAYLOAD_SIZE
+                        val bytesPerSample = resolvedAudioFormat.bytesPerSample
                         val frameAlignBytes = bytesPerSample * channelCount.value
                         val alignedPayloadSize = (udpSafePayloadSize / frameAlignBytes) * frameAlignBytes
                         val readBufSize = minOf(minBufSize, alignedPayloadSize).coerceAtLeast(frameAlignBytes)
@@ -876,7 +876,7 @@ class AudioEngine constructor() {
                             }
 
                             if (readBytes > 0) {
-                                val levelData = calculateAudioLevelData(audioData, audioFormat)
+                                val levelData = calculateAudioLevelData(audioData, resolvedAudioFormat.captureFormat)
                                 _audioLevels.value = levelData.rms
                                 _audioLevelData.value = levelData
 
@@ -885,7 +885,7 @@ class AudioEngine constructor() {
                                         buffer = audioData,
                                         sampleRate = androidSampleRate,
                                         channelCount = if (channelCount == ChannelCount.Stereo) 2 else 1,
-                                        audioFormat = audioFormat.value
+                                        audioFormat = wireAudioFormat.value
                                     )
                                     val wrapper = MessageWrapper(
                                         audioPacket = AudioPacketMessageOrdered(
@@ -909,7 +909,7 @@ class AudioEngine constructor() {
                                                 buffer = xorResult,
                                                 sampleRate = androidSampleRate,
                                                 channelCount = if (channelCount == ChannelCount.Stereo) 2 else 1,
-                                                audioFormat = audioFormat.value
+                                                audioFormat = wireAudioFormat.value
                                             )
                                             val fecWrapper = MessageWrapper(
                                                 audioPacket = AudioPacketMessageOrdered(
@@ -922,7 +922,10 @@ class AudioEngine constructor() {
                                                     // omitted/default fecSequenceNumber on regular packets.
                                                     fecBuffer = byteArrayOf(1),
                                                     fecSequenceNumber = fecGroupStartSeq,
-                                                    sessionId = sessionId
+                                                    sessionId = sessionId,
+                                                    // AudioRecord.READ_NON_BLOCKING may return short chunks.
+                                                    // Preserve each source length so recovery can remove XOR zero-padding.
+                                                    fecPacketLengths = fecGroupBuffer.map { it.size }
                                                 )
                                             )
                                             sessionUdpConsecutiveFailures = sendAudioPacketViaUdp(fecWrapper, localUdpSocket, localUdpAddress, sessionUdpConsecutiveFailures)
@@ -1082,8 +1085,11 @@ class AudioEngine constructor() {
     ): Int {
         return try {
             val packetBytes = proto.encodeToByteArray(MessageWrapper.serializer(), wrapper)
-    val length = packetBytes.size
-            val header = ByteArray(8).apply {
+            val length = packetBytes.size
+            require(UDP_CUSTOM_HEADER_SIZE + length <= UDP_MAX_DATAGRAM_SIZE) {
+                "UDP datagram exceeds $UDP_MAX_DATAGRAM_SIZE bytes: ${UDP_CUSTOM_HEADER_SIZE + length}"
+            }
+            val header = ByteArray(UDP_CUSTOM_HEADER_SIZE).apply {
                 this[0] = (UDP_PACKET_MAGIC shr 24).toByte()
                 this[1] = (UDP_PACKET_MAGIC shr 16).toByte()
                 this[2] = (UDP_PACKET_MAGIC shr 8).toByte()
@@ -1093,7 +1099,11 @@ class AudioEngine constructor() {
                 this[6] = (length shr 8).toByte()
                 this[7] = length.toByte()
             }
-            val udpPacket = DatagramPacket(header + packetBytes, 8 + length, serverAddress)
+            val udpPacket = DatagramPacket(
+                header + packetBytes,
+                UDP_CUSTOM_HEADER_SIZE + length,
+                serverAddress
+            )
             socket.send(udpPacket)
             0
         } catch (e: Exception) {
