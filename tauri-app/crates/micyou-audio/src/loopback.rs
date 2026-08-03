@@ -15,6 +15,7 @@ pub struct LoopbackCapture {
     active: Arc<AtomicBool>,
     buffer: Arc<Mutex<HeapRb<f32>>>,
     failure: Arc<Mutex<Option<String>>>,
+    thread: Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
 impl LoopbackCapture {
@@ -23,6 +24,7 @@ impl LoopbackCapture {
             active: Arc::new(AtomicBool::new(false)),
             buffer: Arc::new(Mutex::new(HeapRb::new(TARGET_RATE as usize * RING_BUF_SEC))),
             failure: Arc::new(Mutex::new(None)),
+            thread: Mutex::new(None),
         }
     }
 
@@ -30,8 +32,21 @@ impl LoopbackCapture {
         if self.active.load(Ordering::Relaxed) {
             return true;
         }
+
+        // A previous stop may have requested shutdown while the capture
+        // thread is still winding down. Join it before reusing the shared
+        // state; otherwise it can observe the new `true` flag and keep
+        // running alongside the new capture thread.
+        let previous_thread = self.thread.lock().ok().and_then(|mut slot| slot.take());
+        if let Some(thread) = previous_thread {
+            let _ = thread.join();
+        }
+
         if let Ok(mut failure) = self.failure.lock() {
             *failure = None;
+        }
+        if let Ok(mut buffer) = self.buffer.lock() {
+            buffer.clear();
         }
         self.active.store(true, Ordering::Relaxed);
 
@@ -48,15 +63,35 @@ impl LoopbackCapture {
                 cpal_capture_thread(active, buffer, failure);
             });
 
-        if spawned.is_err() {
-            self.active.store(false, Ordering::Relaxed);
-            set_failure(&self.failure, "reference_lost");
+        match spawned {
+            Ok(thread) => {
+                if let Ok(mut slot) = self.thread.lock() {
+                    *slot = Some(thread);
+                    true
+                } else {
+                    self.active.store(false, Ordering::Relaxed);
+                    set_failure(&self.failure, "reference_lost");
+                    false
+                }
+            }
+            Err(_) => {
+                self.active.store(false, Ordering::Relaxed);
+                set_failure(&self.failure, "reference_lost");
+                false
+            }
         }
-        spawned.is_ok()
     }
 
     pub fn stop(&self) {
         self.active.store(false, Ordering::Relaxed);
+
+        // Wait for the capture stream to be dropped before the next start or
+        // before the audio worker exits. This prevents overlapping cpal/WASAPI
+        // streams and makes stop a complete lifecycle transition.
+        let thread = self.thread.lock().ok().and_then(|mut slot| slot.take());
+        if let Some(thread) = thread {
+            let _ = thread.join();
+        }
     }
 
     /// Read n_samples from the loopback buffer, consuming them.
@@ -80,6 +115,12 @@ impl LoopbackCapture {
     /// Returns the stable reason for the most recent capture failure.
     pub fn failure_reason(&self) -> Option<String> {
         self.failure.lock().ok().and_then(|reason| reason.clone())
+    }
+}
+
+impl Default for LoopbackCapture {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
