@@ -48,7 +48,8 @@ pub fn server_prefs_path() -> PathBuf {
 pub fn load_dsp_settings() -> AudioDspSettings {
     let path = settings_path();
     if let Ok(text) = fs::read_to_string(&path) {
-        if let Ok(settings) = serde_json::from_str::<AudioDspSettings>(&text) {
+        if let Ok(mut settings) = serde_json::from_str::<AudioDspSettings>(&text) {
+            settings.normalize();
             return settings;
         }
     }
@@ -59,7 +60,9 @@ pub fn load_dsp_settings() -> AudioDspSettings {
 pub fn save_dsp_settings(settings: &AudioDspSettings) -> Result<(), String> {
     let dir = config_dir();
     fs::create_dir_all(&dir).map_err(|e| format!("create config dir failed: {e}"))?;
-    let json = serde_json::to_string_pretty(settings)
+    let mut normalized = settings.clone();
+    normalized.normalize();
+    let json = serde_json::to_string_pretty(&normalized)
         .map_err(|e| format!("serialize settings failed: {e}"))?;
     fs::write(settings_path(), json).map_err(|e| format!("write settings.json failed: {e}"))
 }

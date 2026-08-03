@@ -49,7 +49,6 @@ enum class StreamState {
 }
 
 enum class NoiseReductionType(val label: String) {
-    Ulunas("Ulunas (ONNX)"),
     RNNoise("RNNoise"),
     Speexdsp("Speexdsp"),
     None("None")
@@ -94,7 +93,7 @@ data class AppUiState(
     
     // Audio Processing Settings
     val enableNS: Boolean = false,
-    val nsType: NoiseReductionType = NoiseReductionType.Ulunas,
+    val nsType: NoiseReductionType = NoiseReductionType.RNNoise,
     val enableAGC: Boolean = false,
     val agcTargetLevel: Int = 32000,
     val agcAttackRate: Float = 0.01f,

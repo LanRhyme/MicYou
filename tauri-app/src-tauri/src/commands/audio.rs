@@ -51,6 +51,7 @@ pub fn update_audio_settings(
     state: State<'_, ServerState>,
     mut settings: AudioDspSettings,
 ) -> Result<String, String> {
+    settings.normalize();
     // AEC must always run first in the processing chain
     if let Some(pos) = settings.processing_chain.iter().position(|s| s == "AEC") {
         if pos != 0 {

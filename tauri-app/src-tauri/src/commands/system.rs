@@ -210,19 +210,21 @@ pub async fn start_server_inner(
                 .ok()
                 .and_then(|p| p.parent().map(|d| d.to_path_buf()));
             let resources_dir = exe_dir.as_ref().and_then(|d| {
-                let model_direct = d.join("ulunas.onnx");
+                let model_direct = d.join("purevox6.onnx");
                 let aec_direct = d.join("aec7_ep0185.onnx");
                 if model_direct.exists() || aec_direct.exists() {
                     return Some(d.clone());
                 }
                 let res_dir = d.join("resources");
-                if res_dir.join("ulunas.onnx").exists() || res_dir.join("aec7_ep0185.onnx").exists()
+                if res_dir.join("purevox6.onnx").exists()
+                    || res_dir.join("aec7_ep0185.onnx").exists()
                 {
                     return Some(res_dir);
                 }
                 let dev_res =
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
-                if dev_res.join("ulunas.onnx").exists() || dev_res.join("aec7_ep0185.onnx").exists()
+                if dev_res.join("purevox6.onnx").exists()
+                    || dev_res.join("aec7_ep0185.onnx").exists()
                 {
                     return Some(dev_res);
                 }
