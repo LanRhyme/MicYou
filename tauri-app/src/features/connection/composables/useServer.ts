@@ -187,62 +187,67 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
           try { await invoke('restore_input_device'); } catch { /* best-effort cleanup, ignore */ }
         }
       }
-    } else {
-      try {
-        serverState.value = 'starting';
-        activeConnectionMode.value = connectionMode.value;
-        activePort.value = connectionMode.value === 'web' ? Number(webPort.value) : Number(serverPort.value);
-        const bindAddress = isAutoBind.value ? null : selectedIp.value;
-        await invoke('start_server', {
-          port: activePort.value,
-          mode: activeConnectionMode.value,
-          bindAddress: bindAddress,
-          outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
-        });
-        // Auto-switch to BlackHole input on macOS for seamless virtual audio loopback
-        if (isMacOS) {
-          try { await invoke('set_blackhole_as_input'); } catch { /* best-effort cleanup, ignore */ }
-        }
-        if (activeConnectionMode.value === 'usb') {
-          const result = await invoke<{ type: string; devices?: AdbDevice[] }>('enable_usb_mode', { port: activePort.value, deviceSerial: null });
-          if (result.type === 'MultipleDevices') {
-            try { await invoke('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-            adbDevices.value = result.devices || [];
-            pendingUsbPort.value = activePort.value || Number(serverPort.value);
-            showDeviceSelector.value = true;
-            serverState.value = 'idle';
-            activeConnectionMode.value = null;
-            activePort.value = null;
-            return;
-          } else if (result.type === 'NoDevices') {
-            try { await invoke('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-            serverState.value = 'idle';
-            activeConnectionMode.value = null;
-            activePort.value = null;
-            const msg = 'No USB devices found. Please connect a device and enable USB debugging.';
-            const type = analyzeError(msg);
-            errorDetails.value = generateErrorDetails(type, msg, activeConnectionMode.value || connectionMode.value, activePort.value || Number(serverPort.value), selectedIp.value, t);
-            showErrorDialog.value = true;
-            return;
-          }
-        }
-        if (activeConnectionMode.value === 'web') {
-          const info = networkInfo.value;
-          const ip = info && info.ips.length > 0 ? info.ips[0] : 'localhost';
-          const url = `https://${ip}:${webPort.value}`;
-          webUrl.value = url;
-          generateQrCode(url);
-        }
-        serverState.value = 'connecting';
-      } catch (e: any) {
-        console.error(e);
-        try { await invoke('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-        const msg = typeof e === 'string' ? e : e?.message ?? String(e);
-        const type = analyzeError(msg);
-        errorDetails.value = generateErrorDetails(type, msg, connectionMode.value, Number(serverPort.value), selectedIp.value, t);
-        showErrorDialog.value = true;
-        serverState.value = 'idle';
+      return;
+    }
+
+    const mode = connectionMode.value;
+    const port = mode === 'web' ? Number(webPort.value) : Number(serverPort.value);
+    try {
+      serverState.value = 'starting';
+      activeConnectionMode.value = mode;
+      activePort.value = port;
+      const bindAddress = isAutoBind.value ? null : selectedIp.value;
+      await invoke('start_server', {
+        port,
+        mode,
+        bindAddress,
+        outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
+      });
+      // Auto-switch to BlackHole input on macOS for seamless virtual audio loopback
+      if (isMacOS) {
+        try { await invoke('set_blackhole_as_input'); } catch { /* best-effort cleanup, ignore */ }
       }
+      if (mode === 'usb') {
+        const result = await invoke<{ type: string; devices?: AdbDevice[] }>('enable_usb_mode', { port, deviceSerial: null });
+        if (result.type === 'MultipleDevices') {
+          try { await invoke('stop_server'); } catch { /* best-effort cleanup, ignore */ }
+          adbDevices.value = result.devices ?? [];
+          pendingUsbPort.value = port;
+          showDeviceSelector.value = true;
+          serverState.value = 'idle';
+          activeConnectionMode.value = null;
+          activePort.value = null;
+          return;
+        }
+        if (result.type === 'NoDevices') {
+          try { await invoke('stop_server'); } catch { /* best-effort cleanup, ignore */ }
+          serverState.value = 'idle';
+          activeConnectionMode.value = null;
+          activePort.value = null;
+          const msg = 'No USB devices found. Please connect a device and enable USB debugging.';
+          const type = analyzeError(msg);
+          errorDetails.value = generateErrorDetails(type, msg, mode, port, selectedIp.value, t);
+          showErrorDialog.value = true;
+          return;
+        }
+      }
+      if (mode === 'web') {
+        const ip = networkInfo.value?.ips[0] ?? 'localhost';
+        const url = `https://${ip}:${webPort.value}`;
+        webUrl.value = url;
+        generateQrCode(url);
+      }
+      serverState.value = 'connecting';
+    } catch (e: any) {
+      console.error(e);
+      try { await invoke('stop_server'); } catch { /* best-effort cleanup, ignore */ }
+      const msg = typeof e === 'string' ? e : e?.message ?? String(e);
+      const type = analyzeError(msg);
+      errorDetails.value = generateErrorDetails(type, msg, mode, port, selectedIp.value, t);
+      showErrorDialog.value = true;
+      serverState.value = 'idle';
+      activeConnectionMode.value = null;
+      activePort.value = null;
     }
   };
 

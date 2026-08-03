@@ -1,5 +1,7 @@
 #[cfg(feature = "noise-suppression")]
 use std::collections::{HashMap, VecDeque};
+#[cfg(feature = "noise-suppression")]
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -9,6 +11,9 @@ use ndarray::{Array3, ArrayD, IxDyn};
 use nnnoiseless::DenoiseState;
 #[cfg(feature = "noise-suppression")]
 use rustfft::num_complex::Complex;
+
+#[cfg(feature = "noise-suppression")]
+use crate::AecFailure;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -170,7 +175,7 @@ struct PureVoxProcessor {
 
 #[cfg(feature = "noise-suppression")]
 impl PureVoxProcessor {
-    fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+    fn new(model_path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let frame_size = 960;
         let hop_length = 480;
 
@@ -405,7 +410,7 @@ struct AecProcessor {
 
 #[cfg(feature = "noise-suppression")]
 impl AecProcessor {
-    fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+    fn new(model_path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         use rustfft::FftPlanner;
 
         configure_onnx_logging()?;
@@ -473,9 +478,8 @@ impl AecProcessor {
     /// Process one frame (480 samples each of mic and far-end).
     /// Returns 480 samples of echo-cancelled audio.
     fn process(&mut self, mic_chunk: &[f32], far_chunk: &[f32]) -> Result<Vec<f32>, String> {
-        if mic_chunk.len() != AEC_HOP_LEN || far_chunk.len() != AEC_HOP_LEN {
-            return Ok(mic_chunk.to_vec());
-        }
+        debug_assert_eq!(mic_chunk.len(), AEC_HOP_LEN);
+        debug_assert_eq!(far_chunk.len(), AEC_HOP_LEN);
 
         // ── Build overlapping frames into scratch buffers ──
         {
@@ -513,12 +517,9 @@ impl AecProcessor {
         // before infer_step needs &mut self.
         let mic_flat = self.scratch_mic_stft.as_slice().unwrap().to_vec();
         let far_flat = self.scratch_far_stft.as_slice().unwrap().to_vec();
-        let enhanced_stft = match self.infer_step(&mic_flat, &far_flat) {
-            Ok(frame) => frame,
-            Err(e) => {
-                return Err(e.to_string());
-            }
-        };
+        let enhanced_stft = self
+            .infer_step(&mic_flat, &far_flat)
+            .map_err(|error| error.to_string())?;
 
         // ── iSTFT + OLA → time domain (reuse scratch buffers) ──
         {
@@ -1012,7 +1013,7 @@ pub struct DspProcessor {
     #[cfg(feature = "noise-suppression")]
     aec_load_failed: bool,
     #[cfg(feature = "noise-suppression")]
-    aec_failure: Option<String>,
+    aec_failure: Option<AecFailure>,
     /// Far-end buffer for AEC.
     #[cfg(feature = "noise-suppression")]
     far_end: FarEndBuffer,
@@ -1222,12 +1223,12 @@ impl DspProcessor {
     pub fn set_far_end_audio(&mut self, _far_end: &[f32]) {}
 
     #[cfg(feature = "noise-suppression")]
-    pub fn take_aec_failure(&mut self) -> Option<String> {
+    pub fn take_aec_failure(&mut self) -> Option<AecFailure> {
         self.aec_failure.take()
     }
 
     #[cfg(not(feature = "noise-suppression"))]
-    pub fn take_aec_failure(&mut self) -> Option<String> {
+    pub fn take_aec_failure(&mut self) -> Option<crate::AecFailure> {
         None
     }
 
@@ -1251,117 +1252,92 @@ impl DspProcessor {
     // ── AEC Acoustic Echo Cancellation ────────────────────────────────────
 
     #[cfg(feature = "noise-suppression")]
-    fn apply_aec(&mut self, data: &mut Vec<f32>, channels: usize) {
-        // Lazy init — only load model once; mark failed to avoid retries
-        if self.aec.is_none() && !self.aec_load_failed {
-            if let Some(path) = &self.aec_model_path {
-                if path.exists() {
-                    match AecProcessor::new(path.to_str().unwrap_or("")) {
-                        Ok(proc) => {
-                            log::info!("[DSP] AEC7 ONNX model loaded: {:?}", path);
-                            self.aec = Some(proc);
-                        }
-                        Err(e) => {
-                            log::error!("[DSP] Failed to load AEC7 model: {}", e);
-                            self.aec_load_failed = true;
-                            self.aec_failure = Some("model_load_failed".to_string());
-                            return;
-                        }
-                    }
-                } else {
-                    log::warn!("[DSP] AEC7 model not found at {:?}, disabling AEC", path);
-                    self.aec_load_failed = true;
-                    self.aec_failure = Some("model_missing".to_string());
-                    return;
-                }
-            } else {
-                self.aec_load_failed = true;
-                self.aec_failure = Some("model_missing".to_string());
-                return;
+    fn ensure_aec_loaded(&mut self) -> bool {
+        if self.aec.is_some() {
+            return true;
+        }
+        if self.aec_load_failed {
+            return false;
+        }
+
+        let Some(path) = self.aec_model_path.as_deref() else {
+            self.fail_aec_load(AecFailure::ModelMissing);
+            return false;
+        };
+        if !path.exists() {
+            log::warn!("[DSP] AEC7 model not found at {:?}, disabling AEC", path);
+            self.fail_aec_load(AecFailure::ModelMissing);
+            return false;
+        }
+
+        match AecProcessor::new(path) {
+            Ok(processor) => {
+                log::info!("[DSP] AEC7 ONNX model loaded: {:?}", path);
+                self.aec = Some(processor);
+                true
+            }
+            Err(error) => {
+                log::error!("[DSP] Failed to load AEC7 model: {error}");
+                self.fail_aec_load(AecFailure::ModelLoadFailed);
+                false
+            }
+        }
+    }
+
+    #[cfg(feature = "noise-suppression")]
+    fn fail_aec_load(&mut self, failure: AecFailure) {
+        self.aec_load_failed = true;
+        self.aec_failure = Some(failure);
+    }
+
+    #[cfg(feature = "noise-suppression")]
+    fn process_aec_mono(&mut self, input: &[f32]) -> Result<Vec<f32>, String> {
+        let processor = self
+            .aec
+            .as_mut()
+            .expect("AEC model must be loaded before processing");
+        let mut output = Vec::with_capacity(input.len());
+
+        for chunk in input.chunks_exact(AEC_HOP_LEN) {
+            match self.far_end.take_hop() {
+                Some(far_chunk) => output.extend(processor.process(chunk, &far_chunk)?),
+                None => output.extend_from_slice(chunk),
             }
         }
 
-        if self.aec.is_none() {
+        debug_assert!(input.chunks_exact(AEC_HOP_LEN).remainder().is_empty());
+        Ok(output)
+    }
+
+    #[cfg(feature = "noise-suppression")]
+    fn apply_aec(&mut self, data: &mut Vec<f32>, channels: usize) {
+        if !self.ensure_aec_loaded() {
             return;
         }
 
-        let hop = AEC_HOP_LEN; // 480
-
-        // Reference pattern: stereo → mono downmix → AEC → mono → stereo upmix.
-        // The AEC model operates on mono signals only. For stereo input, we
-        // downmix to mono, process echo cancellation, then upmix the result
-        // back to the original channel count by duplicating the mono output.
-        if channels >= 2 {
-            // ── Stereo → mono downmix ──
-            let frames = data.len() / channels;
-            let mut mono_data: Vec<f32> = Vec::with_capacity(frames);
-            for i in 0..frames {
-                let mut sum = 0.0f32;
-                for ch in 0..channels {
-                    sum += data[i * channels + ch];
-                }
-                mono_data.push(sum / channels as f32);
+        let mono = (channels > 1).then(|| {
+            data.chunks_exact(channels)
+                .map(|frame| frame.iter().sum::<f32>() / channels as f32)
+                .collect::<Vec<_>>()
+        });
+        let input = mono.as_deref().unwrap_or(data);
+        let clean = match self.process_aec_mono(input) {
+            Ok(clean) => clean,
+            Err(error) => {
+                log::error!("[DSP] AEC ONNX inference failed: {error}");
+                self.aec_failure = Some(AecFailure::InferenceFailed);
+                return;
             }
+        };
 
-            // ── AEC on mono signal ──
-            let mut mono_output = Vec::with_capacity(mono_data.len());
-            for chunk in mono_data.chunks(hop) {
-                if chunk.len() == hop {
-                    let Some(far_chunk) = self.far_end.take_hop() else {
-                        mono_output.extend_from_slice(chunk);
-                        continue;
-                    };
-                    let clean = match &mut self.aec {
-                        Some(proc) => match proc.process(chunk, &far_chunk) {
-                            Ok(clean) => clean,
-                            Err(e) => {
-                                log::error!("[DSP] AEC ONNX inference failed: {}", e);
-                                self.aec_failure = Some("inference_failed".to_string());
-                                return;
-                            }
-                        },
-                        None => chunk.to_vec(),
-                    };
-                    mono_output.extend_from_slice(&clean);
-                } else {
-                    mono_output.extend_from_slice(chunk);
-                }
-            }
-
-            // ── Mono → stereo upmix (duplicate mono to all channels) ──
-            data.clear();
-            data.reserve(mono_output.len() * channels);
-            for &sample in &mono_output {
-                for _ in 0..channels {
-                    data.push(sample);
-                }
-            }
+        if channels == 1 {
+            *data = clean;
         } else {
-            // ── Mono: single channel through AEC ──
-            let mut output = Vec::with_capacity(data.len());
-            for chunk in data.chunks(hop) {
-                if chunk.len() == hop {
-                    let Some(far_chunk) = self.far_end.take_hop() else {
-                        output.extend_from_slice(chunk);
-                        continue;
-                    };
-                    let clean = match &mut self.aec {
-                        Some(proc) => match proc.process(chunk, &far_chunk) {
-                            Ok(clean) => clean,
-                            Err(e) => {
-                                log::error!("[DSP] AEC ONNX inference failed: {}", e);
-                                self.aec_failure = Some("inference_failed".to_string());
-                                return;
-                            }
-                        },
-                        None => chunk.to_vec(),
-                    };
-                    output.extend_from_slice(&clean);
-                } else {
-                    output.extend_from_slice(chunk);
-                }
+            data.clear();
+            data.reserve(clean.len() * channels);
+            for sample in clean {
+                data.extend(std::iter::repeat_n(sample, channels));
             }
-            data.copy_from_slice(&output);
         }
     }
 
@@ -1477,7 +1453,7 @@ impl DspProcessor {
         if self.purevox_left.is_none() && !self.purevox_load_failed {
             if let Some(path) = &self.purevox_model_path {
                 if path.exists() {
-                    match PureVoxProcessor::new(path.to_str().unwrap_or("")) {
+                    match PureVoxProcessor::new(path) {
                         Ok(proc) => {
                             log::info!("[DSP] PureVox ONNX model loaded (L): {:?}", path);
                             self.purevox_left = Some(proc);
@@ -1507,7 +1483,7 @@ impl DspProcessor {
         if channels >= 2 && self.purevox_right.is_none() && !self.purevox_load_failed {
             if let Some(path) = &self.purevox_model_path {
                 if path.exists() {
-                    match PureVoxProcessor::new(path.to_str().unwrap_or("")) {
+                    match PureVoxProcessor::new(path) {
                         Ok(proc) => {
                             log::info!("[DSP] PureVox ONNX model loaded (R): {:?}", path);
                             self.purevox_right = Some(proc);
@@ -1820,7 +1796,7 @@ mod tests {
         let settings = Arc::new(RwLock::new(AudioDspSettings::default()));
         let mut processor = DspProcessor::new(settings, None);
         processor.aec_load_failed = true;
-        processor.aec_failure = Some("model_missing".to_string());
+        processor.aec_failure = Some(AecFailure::ModelMissing);
         processor.far_end.feed(&vec![1.0; AEC_HOP_LEN]);
 
         processor.reset_aec_session();

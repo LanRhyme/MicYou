@@ -46,14 +46,14 @@ pub fn server_prefs_path() -> PathBuf {
 
 /// Load DSP settings from settings.json, falling back to defaults.
 pub fn load_dsp_settings() -> AudioDspSettings {
-    let path = settings_path();
-    if let Ok(text) = fs::read_to_string(&path) {
-        if let Ok(mut settings) = serde_json::from_str::<AudioDspSettings>(&text) {
+    fs::read_to_string(settings_path())
+        .ok()
+        .and_then(|text| serde_json::from_str::<AudioDspSettings>(&text).ok())
+        .map(|mut settings| {
             settings.normalize();
-            return settings;
-        }
-    }
-    AudioDspSettings::default()
+            settings
+        })
+        .unwrap_or_default()
 }
 
 /// Persist DSP settings to settings.json (GUI, CLI and TUI share this file).

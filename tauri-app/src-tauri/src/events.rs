@@ -28,7 +28,7 @@ pub trait ServerEvents: Send + Sync + 'static {
 pub struct AecStatus {
     pub available: bool,
     pub enabled: bool,
-    pub reason: Option<String>,
+    pub reason: Option<micyou_audio::AecFailure>,
 }
 
 pub type SharedEvents = Arc<dyn ServerEvents>;

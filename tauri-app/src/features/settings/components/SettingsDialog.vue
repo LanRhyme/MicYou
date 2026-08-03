@@ -1216,34 +1216,31 @@ const fetchDevices = async () => {
   checkPipeWireStatus();
 };
 
+function loadLocalAudioSettings() {
+  const saved = localStorage.getItem('micyou_audio_settings');
+  if (!saved) return;
+
+  try {
+    Object.assign(settings, JSON.parse(saved));
+  } catch (error) {
+    console.error('Failed to parse settings', error);
+  }
+}
+
 const loadSettings = async () => {
   // Prefer the shared settings.json (written by update_audio_settings, also used
   // by the CLI) so GUI and CLI stay in sync; localStorage stays as a fallback.
   try {
     const backend = await invoke<Record<string, unknown>>('get_audio_settings');
-    if (backend && Object.keys(backend).length > 0) {
+    if (Object.keys(backend).length > 0) {
       Object.assign(settings, backend);
       localStorage.setItem('micyou_audio_settings', JSON.stringify(settings));
     } else {
-      const saved = localStorage.getItem('micyou_audio_settings');
-      if (saved) {
-        try {
-          Object.assign(settings, JSON.parse(saved));
-        } catch (e) {
-          console.error("Failed to parse settings", e);
-        }
-      }
+      loadLocalAudioSettings();
     }
-  } catch (e) {
-    console.error("get_audio_settings failed, using localStorage", e);
-    const saved = localStorage.getItem('micyou_audio_settings');
-    if (saved) {
-      try {
-        Object.assign(settings, JSON.parse(saved));
-      } catch (err) {
-        console.error("Failed to parse settings", err);
-      }
-    }
+  } catch (error) {
+    console.error('get_audio_settings failed, using localStorage', error);
+    loadLocalAudioSettings();
   }
 
   if (!['PureVox', 'RNNoise', 'Speexdsp'].includes(settings.nsType)) {

@@ -5,6 +5,7 @@ use tokio_util::sync::CancellationToken;
 use crate::audio_stream::{validate_audio_packet, AudioStreamEvent, ExpectedAudioSession};
 use crate::server::{await_startup_ready, ServerState, AUDIO_JOIN_TIMEOUT, STARTUP_TIMEOUT};
 use crate::udp_server::ActiveAudioSession;
+use micyou_audio::AecFailure;
 
 const NETWORK_TASK_JOIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
@@ -30,7 +31,7 @@ fn validate_server_port(port: u16, mode: &str) -> Result<Option<u16>, String> {
 fn disable_aec_runtime(
     runtime_available: &mut bool,
     events: &crate::events::SharedEvents,
-    reason: String,
+    reason: AecFailure,
 ) {
     if !std::mem::replace(runtime_available, false) {
         return;
@@ -50,8 +51,8 @@ fn restore_aec_runtime(
     *runtime_available = true;
     let enabled = settings
         .read()
-        .map(|current| current.aec_enabled)
-        .unwrap_or(false);
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .aec_enabled;
     events.aec_status_changed(crate::events::AecStatus {
         available: true,
         enabled,
@@ -66,6 +67,24 @@ fn should_capture_loopback(
     runtime_available: bool,
 ) -> bool {
     transport_active && audio_received && aec_enabled && runtime_available
+}
+
+fn find_model_dir() -> Option<std::path::PathBuf> {
+    const MODELS: [&str; 2] = ["purevox6.onnx", "aec7_ep0185.onnx"];
+
+    let mut candidates = Vec::with_capacity(3);
+    if let Some(executable_dir) = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(std::path::Path::to_path_buf))
+    {
+        candidates.push(executable_dir.clone());
+        candidates.push(executable_dir.join("resources"));
+    }
+    candidates.push(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources"));
+
+    candidates
+        .into_iter()
+        .find(|directory| MODELS.iter().any(|model| directory.join(model).exists()))
 }
 
 async fn join_tasks_bounded(
@@ -216,33 +235,7 @@ pub async fn start_server_inner(
         }
         let _ = ready_tx.send(Ok(()));
 
-        let mut dsp_processor = {
-            let exe_dir = std::env::current_exe()
-                .ok()
-                .and_then(|p| p.parent().map(|d| d.to_path_buf()));
-            let resources_dir = exe_dir.as_ref().and_then(|d| {
-                let model_direct = d.join("purevox6.onnx");
-                let aec_direct = d.join("aec7_ep0185.onnx");
-                if model_direct.exists() || aec_direct.exists() {
-                    return Some(d.clone());
-                }
-                let res_dir = d.join("resources");
-                if res_dir.join("purevox6.onnx").exists()
-                    || res_dir.join("aec7_ep0185.onnx").exists()
-                {
-                    return Some(res_dir);
-                }
-                let dev_res =
-                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
-                if dev_res.join("purevox6.onnx").exists()
-                    || dev_res.join("aec7_ep0185.onnx").exists()
-                {
-                    return Some(dev_res);
-                }
-                None
-            });
-            DspProcessor::new(dsp_settings.clone(), resources_dir)
-        };
+        let mut dsp_processor = DspProcessor::new(dsp_settings.clone(), find_model_dir());
         let mut jb = crate::jitter_buffer::JitterBuffer::new(12);
         let mut frame_counter: u32 = 0;
         let mut input_resampler: Option<micyou_audio::RubatoResampler> = None;
@@ -269,9 +262,7 @@ pub async fn start_server_inner(
         // Sync the AEC far-end capture with actual audio flow. A control session
         // alone is not enough: while waiting for the first valid audio packet,
         // there is no microphone stream that needs an echo reference.
-        let sync_loopback = |loopback: &Option<micyou_audio::LoopbackCapture>,
-                             audio_received: &mut bool,
-                             runtime_available: bool| {
+        let sync_loopback = |audio_received: &mut bool, runtime_available: &mut bool| {
             let transport_active = !matches!(
                 *active_audio_session_audio
                     .read()
@@ -281,33 +272,38 @@ pub async fn start_server_inner(
             if !transport_active {
                 *audio_received = false;
             }
-            let mut failure = None;
-            if let Some(lb) = loopback {
-                let aec_enabled = dsp_settings
-                    .read()
-                    .map(|settings| settings.aec_enabled)
-                    .unwrap_or(false);
-                let should_capture = should_capture_loopback(
-                    transport_active,
-                    *audio_received,
-                    aec_enabled,
-                    runtime_available,
-                );
-                if should_capture && !lb.is_active() {
-                    if let Some(reason) = lb.take_failure_reason() {
-                        failure = Some(reason);
-                    } else if lb.start() {
-                        log::info!("[Audio] Starting speaker loopback capture for AEC");
-                    } else {
-                        failure = lb
-                            .take_failure_reason()
-                            .or_else(|| Some("reference_lost".to_string()));
-                    }
-                } else if !should_capture && lb.is_active() {
+
+            let Some(lb) = &loopback else {
+                return transport_active;
+            };
+            let aec_enabled = dsp_settings
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .aec_enabled;
+            let should_capture = should_capture_loopback(
+                transport_active,
+                *audio_received,
+                aec_enabled,
+                *runtime_available,
+            );
+
+            if !should_capture {
+                if lb.is_active() {
                     lb.stop();
                 }
+                return transport_active;
             }
-            (transport_active, failure)
+            if lb.is_active() {
+                return transport_active;
+            }
+
+            let failure = lb.take_failure_reason().or_else(|| lb.start().err());
+            if let Some(reason) = failure {
+                disable_aec_runtime(runtime_available, &events_audio, reason);
+            } else {
+                log::info!("[Audio] Starting speaker loopback capture for AEC");
+            }
+            transport_active
         };
 
         loop {
@@ -320,14 +316,8 @@ pub async fn start_server_inner(
                     // can arrive after a silence gap and must not sit in the
                     // channel for up to 500ms (that caused audible dropouts at
                     // the start of each utterance). Idle servers sleep 500ms.
-                    let (session_active, failure) = sync_loopback(
-                        &loopback,
-                        &mut audio_received_for_session,
-                        aec_runtime_available,
-                    );
-                    if let Some(reason) = failure {
-                        disable_aec_runtime(&mut aec_runtime_available, &events_audio, reason);
-                    }
+                    let session_active =
+                        sync_loopback(&mut audio_received_for_session, &mut aec_runtime_available);
                     std::thread::sleep(std::time::Duration::from_millis(if session_active {
                         10
                     } else {
@@ -352,35 +342,15 @@ pub async fn start_server_inner(
                                     &events_audio,
                                 );
                             }
-                            let (_, failure) = sync_loopback(
-                                &loopback,
-                                &mut audio_received_for_session,
-                                aec_runtime_available,
-                            );
-                            if let Some(reason) = failure {
-                                disable_aec_runtime(
-                                    &mut aec_runtime_available,
-                                    &events_audio,
-                                    reason,
-                                );
-                            }
                             jb.prepare_transport_session_epoch(expected, epoch);
                             continue;
                         }
                         AudioStreamEvent::Packet { packet, epoch } => {
                             audio_received_for_session = true;
-                            let (_, failure) = sync_loopback(
-                                &loopback,
+                            sync_loopback(
                                 &mut audio_received_for_session,
-                                aec_runtime_available,
+                                &mut aec_runtime_available,
                             );
-                            if let Some(reason) = failure {
-                                disable_aec_runtime(
-                                    &mut aec_runtime_available,
-                                    &events_audio,
-                                    reason,
-                                );
-                            }
                             jb.push_epoch(packet, epoch);
                         }
                     }
@@ -485,17 +455,16 @@ pub async fn start_server_inner(
                                     // Read speaker loopback for AEC far-end reference.
                                     // This captures the ACTUAL speaker output (WASAPI/BlackHole/PipeWire),
                                     // which is the true echo source the phone mic picks up.
-                                    if let Some(lb) = &loopback {
-                                        if lb.is_active() {
-                                            // Feed one mono reference sample for each near-end
-                                            // frame entering the DSP. Packet sizes and input
-                                            // sample rates vary, so consuming a fixed hop per
-                                            // network packet makes the two streams drift.
-                                            let near_frames = pcm_f32.len() / channels.max(1);
-                                            if let Some(far_data) = lb.read(near_frames) {
-                                                dsp_processor.set_far_end_audio(&far_data);
-                                            }
-                                        }
+                                    // Feed one mono reference sample for each near-end frame.
+                                    // Matching the processed frame count prevents drift when
+                                    // packet sizes or input sample rates vary.
+                                    let near_frames = pcm_f32.len() / channels.max(1);
+                                    if let Some(far_data) = loopback
+                                        .as_ref()
+                                        .filter(|capture| capture.is_active())
+                                        .and_then(|capture| capture.read(near_frames))
+                                    {
+                                        dsp_processor.set_far_end_audio(&far_data);
                                     }
                                     let (_raw, processed) = dsp_processor.process(
                                         &mut pcm_f32,

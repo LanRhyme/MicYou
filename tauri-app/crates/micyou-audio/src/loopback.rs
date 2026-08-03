@@ -1,10 +1,13 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use ringbuf::{HeapRb, Rb};
 
+use crate::AecFailure;
+
 const RING_BUF_SEC: usize = 2;
 const TARGET_RATE: u32 = 48000;
+const MAX_REFERENCE_LAG_SAMPLES: usize = TARGET_RATE as usize * 300 / 1000;
 
 /// Cross-platform speaker loopback capture for AEC far-end reference.
 ///
@@ -14,7 +17,7 @@ const TARGET_RATE: u32 = 48000;
 pub struct LoopbackCapture {
     active: Arc<AtomicBool>,
     buffer: Arc<Mutex<HeapRb<f32>>>,
-    failure: Arc<Mutex<Option<String>>>,
+    failure: Arc<Mutex<Option<AecFailure>>>,
     thread: Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
@@ -28,26 +31,22 @@ impl LoopbackCapture {
         }
     }
 
-    pub fn start(&self) -> bool {
+    pub fn start(&self) -> Result<(), AecFailure> {
         if self.active.load(Ordering::Relaxed) {
-            return true;
+            return Ok(());
         }
 
         // A previous stop may have requested shutdown while the capture
         // thread is still winding down. Join it before reusing the shared
         // state; otherwise it can observe the new `true` flag and keep
         // running alongside the new capture thread.
-        let previous_thread = self.thread.lock().ok().and_then(|mut slot| slot.take());
+        let previous_thread = lock(&self.thread).take();
         if let Some(thread) = previous_thread {
             let _ = thread.join();
         }
 
-        if let Ok(mut failure) = self.failure.lock() {
-            *failure = None;
-        }
-        if let Ok(mut buffer) = self.buffer.lock() {
-            buffer.clear();
-        }
+        *lock(&self.failure) = None;
+        lock(&self.buffer).clear();
         self.active.store(true, Ordering::Relaxed);
 
         let active = self.active.clone();
@@ -65,26 +64,21 @@ impl LoopbackCapture {
                 cpal_capture_thread(active, buffer, failure);
                 #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
                 {
-                    set_failure(&failure, "reference_lost");
+                    set_failure(&failure, AecFailure::ReferenceLost);
                     active.store(false, Ordering::Relaxed);
                 }
             });
 
         match spawned {
             Ok(thread) => {
-                if let Ok(mut slot) = self.thread.lock() {
-                    *slot = Some(thread);
-                    true
-                } else {
-                    self.active.store(false, Ordering::Relaxed);
-                    set_failure(&self.failure, "reference_lost");
-                    false
-                }
+                *lock(&self.thread) = Some(thread);
+                Ok(())
             }
-            Err(_) => {
+            Err(error) => {
+                log::error!("[Loopback] Failed to spawn capture thread: {error}");
                 self.active.store(false, Ordering::Relaxed);
-                set_failure(&self.failure, "reference_lost");
-                false
+                set_failure(&self.failure, AecFailure::ReferenceLost);
+                Err(AecFailure::ReferenceLost)
             }
         }
     }
@@ -95,7 +89,7 @@ impl LoopbackCapture {
         // Wait for the capture stream to be dropped before the next start or
         // before the audio worker exits. This prevents overlapping cpal/WASAPI
         // streams and makes stop a complete lifecycle transition.
-        let thread = self.thread.lock().ok().and_then(|mut slot| slot.take());
+        let thread = lock(&self.thread).take();
         if let Some(thread) = thread {
             let _ = thread.join();
         }
@@ -104,21 +98,27 @@ impl LoopbackCapture {
     /// Stop capture and discard stream-local state before a new transport session.
     pub fn reset_session(&self) {
         self.stop();
-        if let Ok(mut failure) = self.failure.lock() {
-            *failure = None;
-        }
-        if let Ok(mut buffer) = self.buffer.lock() {
-            buffer.clear();
-        }
+        *lock(&self.failure) = None;
+        lock(&self.buffer).clear();
     }
 
     /// Read n_samples from the loopback buffer, consuming them.
     /// Returns None if insufficient data.
     pub fn read(&self, n_samples: usize) -> Option<Vec<f32>> {
-        let mut buf = self.buffer.lock().ok()?;
+        let mut buf = lock(&self.buffer);
         if buf.len() < n_samples {
             return None;
         }
+
+        // If the near-end stream paused while playback continued, discard old
+        // reference audio instead of preserving a permanent multi-second lag.
+        let stale_samples = buf
+            .len()
+            .saturating_sub(MAX_REFERENCE_LAG_SAMPLES + n_samples);
+        for _ in 0..stale_samples {
+            buf.pop();
+        }
+
         let mut out = Vec::with_capacity(n_samples);
         for _ in 0..n_samples {
             out.push(buf.pop().unwrap());
@@ -131,11 +131,8 @@ impl LoopbackCapture {
     }
 
     /// Takes the most recent capture failure so one failed attempt is handled once.
-    pub fn take_failure_reason(&self) -> Option<String> {
-        self.failure
-            .lock()
-            .ok()
-            .and_then(|mut reason| reason.take())
+    pub fn take_failure_reason(&self) -> Option<AecFailure> {
+        lock(&self.failure).take()
     }
 }
 
@@ -145,10 +142,14 @@ impl Default for LoopbackCapture {
     }
 }
 
-fn set_failure(failure: &Mutex<Option<String>>, reason: &str) {
-    if let Ok(mut current) = failure.lock() {
-        *current = Some(reason.to_string());
-    }
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn set_failure(failure: &Mutex<Option<AecFailure>>, reason: AecFailure) {
+    *lock(failure) = Some(reason);
 }
 
 // ─── Helper: downmix + resample + push to buffer ─────────────────────────
@@ -201,7 +202,7 @@ fn push_to_buffer(
 fn wasapi_loopback_thread(
     active: Arc<AtomicBool>,
     buffer: Arc<Mutex<HeapRb<f32>>>,
-    failure: Arc<Mutex<Option<String>>>,
+    failure: Arc<Mutex<Option<AecFailure>>>,
 ) {
     use std::collections::VecDeque;
     use wasapi::*;
@@ -294,7 +295,7 @@ fn wasapi_loopback_thread(
 
     if let Err(e) = result {
         log::error!("[Loopback] WASAPI error: {}", e);
-        set_failure(&failure, "reference_lost");
+        set_failure(&failure, AecFailure::ReferenceLost);
     }
     active.store(false, Ordering::Relaxed);
 }
@@ -305,7 +306,7 @@ fn wasapi_loopback_thread(
 fn pipewire_loopback_thread(
     active: Arc<AtomicBool>,
     buffer: Arc<Mutex<HeapRb<f32>>>,
-    failure: Arc<Mutex<Option<String>>>,
+    failure: Arc<Mutex<Option<AecFailure>>>,
 ) {
     use std::io::Read;
     use std::process::{Command, Stdio};
@@ -337,7 +338,7 @@ fn pipewire_loopback_thread(
         Ok(child) => child,
         Err(error) => {
             log::error!("[Loopback] Failed to start pw-record: {}", error);
-            set_failure(&failure, "pipewire_unavailable");
+            set_failure(&failure, AecFailure::PipeWireUnavailable);
             active.store(false, Ordering::Relaxed);
             return;
         }
@@ -347,7 +348,7 @@ fn pipewire_loopback_thread(
         log::error!("[Loopback] pw-record stdout is unavailable");
         let _ = child.kill();
         let _ = child.wait();
-        set_failure(&failure, "reference_lost");
+        set_failure(&failure, AecFailure::ReferenceLost);
         active.store(false, Ordering::Relaxed);
         return;
     };
@@ -365,7 +366,7 @@ fn pipewire_loopback_thread(
                 match stdout.read(&mut read_buffer) {
                     Ok(0) => {
                         if reader_active.load(Ordering::Relaxed) {
-                            set_failure(&reader_failure, "reference_lost");
+                            set_failure(&reader_failure, AecFailure::ReferenceLost);
                             reader_active.store(false, Ordering::Relaxed);
                         }
                         break;
@@ -389,7 +390,7 @@ fn pipewire_loopback_thread(
                     Err(error) => {
                         if reader_active.load(Ordering::Relaxed) {
                             log::error!("[Loopback] Failed to read PipeWire reference: {}", error);
-                            set_failure(&reader_failure, "reference_lost");
+                            set_failure(&reader_failure, AecFailure::ReferenceLost);
                             reader_active.store(false, Ordering::Relaxed);
                         }
                         break;
@@ -404,7 +405,7 @@ fn pipewire_loopback_thread(
             log::error!("[Loopback] Failed to spawn PipeWire reader: {}", error);
             let _ = child.kill();
             let _ = child.wait();
-            set_failure(&failure, "reference_lost");
+            set_failure(&failure, AecFailure::ReferenceLost);
             active.store(false, Ordering::Relaxed);
             return;
         }
@@ -415,14 +416,14 @@ fn pipewire_loopback_thread(
         match child.try_wait() {
             Ok(Some(status)) => {
                 log::error!("[Loopback] pw-record exited unexpectedly: {}", status);
-                set_failure(&failure, "reference_lost");
+                set_failure(&failure, AecFailure::ReferenceLost);
                 active.store(false, Ordering::Relaxed);
                 break;
             }
             Ok(None) => std::thread::sleep(std::time::Duration::from_millis(20)),
             Err(error) => {
                 log::error!("[Loopback] Failed to inspect pw-record: {}", error);
-                set_failure(&failure, "reference_lost");
+                set_failure(&failure, AecFailure::ReferenceLost);
                 active.store(false, Ordering::Relaxed);
                 break;
             }
@@ -444,7 +445,7 @@ fn pipewire_loopback_thread(
 fn cpal_capture_thread(
     active: Arc<AtomicBool>,
     buffer: Arc<Mutex<HeapRb<f32>>>,
-    failure: Arc<Mutex<Option<String>>>,
+    failure: Arc<Mutex<Option<AecFailure>>>,
 ) {
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
@@ -472,7 +473,7 @@ fn cpal_capture_thread(
                     "[Loopback] No virtual audio device found. \
                      Install BlackHole (macOS) or start MicYou PipeWire routing (Linux)."
                 );
-                set_failure(&failure, "virtual_source_missing");
+                set_failure(&failure, AecFailure::VirtualSourceMissing);
                 active.store(false, Ordering::Relaxed);
                 return;
             }
@@ -483,7 +484,7 @@ fn cpal_capture_thread(
         Ok(c) => c,
         Err(e) => {
             log::error!("[Loopback] Failed to get input config: {}", e);
-            set_failure(&failure, "reference_lost");
+            set_failure(&failure, AecFailure::ReferenceLost);
             active.store(false, Ordering::Relaxed);
             return;
         }
@@ -504,7 +505,7 @@ fn cpal_capture_thread(
             Ok(r) => Some(Arc::new(Mutex::new(r))),
             Err(e) => {
                 log::error!("[Loopback] Failed to create resampler: {}", e);
-                set_failure(&failure, "reference_lost");
+                set_failure(&failure, AecFailure::ReferenceLost);
                 None
             }
         }
@@ -516,7 +517,7 @@ fn cpal_capture_thread(
     let stream_failure = failure.clone();
     let err_fn = move |err: cpal::StreamError| {
         log::error!("[Loopback] Stream error: {}", err);
-        set_failure(&stream_failure, "reference_lost");
+        set_failure(&stream_failure, AecFailure::ReferenceLost);
         stream_active.store(false, Ordering::Relaxed);
     };
 
@@ -550,7 +551,7 @@ fn cpal_capture_thread(
         ),
         fmt => {
             log::error!("[Loopback] Unsupported sample format: {:?}", fmt);
-            set_failure(&failure, "reference_lost");
+            set_failure(&failure, AecFailure::ReferenceLost);
             active.store(false, Ordering::Relaxed);
             return;
         }
@@ -560,7 +561,7 @@ fn cpal_capture_thread(
         Ok(stream) => {
             if let Err(e) = stream.play() {
                 log::error!("[Loopback] Failed to start stream: {}", e);
-                set_failure(&failure, "reference_lost");
+                set_failure(&failure, AecFailure::ReferenceLost);
                 active.store(false, Ordering::Relaxed);
                 return;
             }
@@ -574,7 +575,7 @@ fn cpal_capture_thread(
         }
         Err(e) => {
             log::error!("[Loopback] Failed to build stream: {}", e);
-            set_failure(&failure, "reference_lost");
+            set_failure(&failure, AecFailure::ReferenceLost);
             active.store(false, Ordering::Relaxed);
         }
     }
@@ -587,11 +588,11 @@ mod tests {
     #[test]
     fn capture_failure_is_consumed_once() {
         let capture = LoopbackCapture::new();
-        set_failure(&capture.failure, "virtual_source_missing");
+        set_failure(&capture.failure, AecFailure::VirtualSourceMissing);
 
         assert_eq!(
-            capture.take_failure_reason().as_deref(),
-            Some("virtual_source_missing")
+            capture.take_failure_reason(),
+            Some(AecFailure::VirtualSourceMissing)
         );
         assert_eq!(capture.take_failure_reason(), None);
     }
@@ -615,10 +616,31 @@ mod tests {
     }
 
     #[test]
+    fn reference_read_discards_excessive_lag() {
+        let capture = LoopbackCapture::new();
+        let sample_count = MAX_REFERENCE_LAG_SAMPLES + 960;
+        {
+            let mut buffer = capture.buffer.lock().unwrap();
+            for sample in 0..sample_count {
+                buffer.push(sample as f32).unwrap();
+            }
+        }
+
+        let reference = capture.read(480).unwrap();
+
+        assert_eq!(reference.first(), Some(&480.0));
+        assert_eq!(reference.last(), Some(&959.0));
+        assert_eq!(
+            capture.buffer.lock().unwrap().len(),
+            MAX_REFERENCE_LAG_SAMPLES
+        );
+    }
+
+    #[test]
     fn reset_session_clears_buffer_and_stale_failure() {
         let capture = LoopbackCapture::new();
         capture.buffer.lock().unwrap().push(1.0).unwrap();
-        set_failure(&capture.failure, "reference_lost");
+        set_failure(&capture.failure, AecFailure::ReferenceLost);
 
         capture.reset_session();
 
