@@ -173,10 +173,6 @@ fun MobileSettingsPage(
             item { SectionHeader(stringResource(R.string.audioSection)) }
             audioSettingsItems(state, viewModel, containerColor, enableHaze, hazeState)
 
-            // Plugins Section
-            item { SectionHeader(stringResource(R.string.pluginsSection)) }
-            pluginSettingsItems(state, viewModel, containerColor, enableHaze, hazeState)
-
             // About Section
             item { SectionHeader(stringResource(R.string.aboutSection)) }
             aboutSettingsItems(
@@ -906,31 +902,6 @@ private fun ExpressiveAudioSourceItem(
                     }
                 }
             }
-        }
-    }
-}
-
-private fun LazyListScope.pluginSettingsItems(
-    state: AppUiState,
-    viewModel: MainViewModel,
-    containerColor: Color,
-    enableHaze: Boolean,
-    hazeState: HazeState?
-) {
-    item {
-        ExpressiveSettingsBoxItem(
-            isSingle = true,
-            containerColor = containerColor,
-            hazeState = hazeState,
-            enableHaze = enableHaze
-        ) {
-            Text(stringResource(R.string.pluginsSection), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.noPluginsInstalled),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

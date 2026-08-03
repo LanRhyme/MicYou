@@ -65,8 +65,6 @@
     <string name="contributorsPeopleCount">%d contributors</string>
     <string name="delete">Delete</string>
     <string name="done">Done</string>
-    <string name="deletePlugin">Delete Plugin</string>
-    <string name="deletePluginConfirm">Are you sure you want to delete \"%s\"?</string>
     <string name="dereverbLevelLabel">Level</string>
     <string name="developerLabel">Developer</string>
     <string name="discoveredDevicesLabel">Available Servers</string>
@@ -169,7 +167,6 @@
     <string name="githubDownloadLabel">GitHub Download</string>
     <string name="githubRepoLabel">GitHub Repository</string>
     <string name="hexFormatError">Format: #RRGGBB</string>
-    <string name="importPlugin">Import Plugin</string>
     <string name="installCheckingLinux">Checking Linux audio subsystem...</string>
     <string name="installCheckingPackage">Checking package...</string>
     <string name="installConfigComplete">Configuration complete</string>
@@ -216,7 +213,6 @@
     <string name="muteLabel">Mute</string>
     <string name="newVersionReleased">New version released</string>
     <string name="noGeneralSettings">No general settings available</string>
-    <string name="noPluginsInstalled">No plugins installed</string>
     <string name="nsAlgorithmAlternative">Alternative</string>
     <string name="nsAlgorithmCloseButton">Got it</string>
     <string name="nsAlgorithmHelpTitle">Noise Reduction Algorithms</string>
@@ -270,24 +266,6 @@
     <string name="permissionRequired">Required</string>
     <string name="permissionRequiredHint">Required permissions must be granted to use the app.</string>
     <string name="permissionSettingsTitle">App Permissions</string>
-    <string name="pluginDisabled">Plugin disabled</string>
-    <string name="pluginEnabled">Plugin enabled</string>
-    <string name="pluginImportFailed">Failed to import plugin: %s</string>
-    <string name="pluginImportSelectFile">Select Plugin File</string>
-    <string name="pluginImportSuccess">Plugin imported successfully</string>
-    <string name="pluginImportTitle">Import Plugin</string>
-    <string name="pluginImporting">Importing plugin...</string>
-    <string name="pluginOpenWindow">Open Window</string>
-    <string name="pluginPlatformWarning">Plugin \"%1$s\" is designed for %2$s platform and may not work correctly on your current device.</string>
-    <string name="pluginPlatformWarningTitle">Platform Incompatible</string>
-    <string name="pluginSettings">Settings</string>
-    <string name="pluginSettingsTitle">Plugin Settings</string>
-    <string name="pluginConfiguration">Plugin Configuration</string>
-    <string name="pluginNotSupportedAndroid">Plugins are not supported on Android platform.</string>
-    <string name="pluginSyncDismiss">Dismiss</string>
-    <string name="pluginSyncWarningMessage">The following cross-platform plugins are not installed on both devices:</string>
-    <string name="pluginSyncWarningTitle">Plugin Sync Warning</string>
-    <string name="pluginsSection">Plugins</string>
     <string name="pocketModeDesc">Use a compact window layout</string>
     <string name="pocketModeLabel">Compact Mode</string>
     <string name="portLabel">Port</string>
@@ -352,11 +330,8 @@
     <string name="waitAdb">Waiting for ADB connection...</string><string name="contributorsCount">%s contributors</string>
     <string name="updateAvailableMsg">New version available: %s</string>
     <string name="installInstalling">Installing...</string>
-    <string name="reloadPlugins">Reload Plugins</string>
-    <string name="reloadingPlugins">Reloading plugins...</string><string name="noPluginsFound">No plugins installed</string>
     <string name="showMore">Show More</string>
     <string name="showLess">Show Less</string>
-    <string name="removePlugin">Delete Plugin</string>
     <string name="monitoringTitle">Audio Quality Monitoring</string>
     <string name="monitoringRtt">Network Latency (RTT)</string>
     <string name="monitoringJitter">Jitter</string>

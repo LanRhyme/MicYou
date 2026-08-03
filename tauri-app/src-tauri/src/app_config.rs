@@ -23,22 +23,22 @@ pub fn config_dir() -> PathBuf {
         .join("micyou")
 }
 
-/// settings.json: the DSP settings shared by GUI and CLI.
+/// settings.json: the DSP settings shared by GUI, CLI and TUI.
 pub fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }
 
-/// ui.json: GUI UI preferences (language, theme color) that the CLI reads.
+/// ui.json: GUI UI preferences (language, theme color) that the TUI reads.
 pub fn ui_prefs_path() -> PathBuf {
     config_dir().join("ui.json")
 }
 
-/// theme.json: current GUI theme colors exported for the CLI TUI.
+/// theme.json: current GUI theme colors exported for the TUI.
 pub fn theme_path() -> PathBuf {
     config_dir().join("theme.json")
 }
 
-/// server.json: connection-level settings shared by GUI and CLI
+/// server.json: connection-level settings shared by GUI, CLI and TUI
 /// (port, mode, bind address, output device).
 pub fn server_prefs_path() -> PathBuf {
     config_dir().join("server.json")
@@ -55,7 +55,7 @@ pub fn load_dsp_settings() -> AudioDspSettings {
     AudioDspSettings::default()
 }
 
-/// Persist DSP settings to settings.json (GUI and CLI share this file).
+/// Persist DSP settings to settings.json (GUI, CLI and TUI share this file).
 pub fn save_dsp_settings(settings: &AudioDspSettings) -> Result<(), String> {
     let dir = config_dir();
     fs::create_dir_all(&dir).map_err(|e| format!("create config dir failed: {e}"))?;
@@ -95,7 +95,7 @@ pub fn save_ui_prefs(prefs: &UiPrefs) -> Result<(), String> {
     fs::write(ui_prefs_path(), json).map_err(|e| format!("write ui.json failed: {e}"))
 }
 
-/// Theme colors exported from the GUI for the CLI TUI.
+/// Theme colors exported from the GUI for the TUI.
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ThemeColors {
@@ -123,7 +123,7 @@ pub fn save_theme_colors(colors: &ThemeColors) -> Result<(), String> {
     fs::write(theme_path(), json).map_err(|e| format!("write theme.json failed: {e}"))
 }
 
-/// Connection-level settings shared between the GUI and the CLI.
+/// Connection-level settings shared between the GUI, CLI and TUI.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ServerPrefs {
@@ -162,7 +162,7 @@ pub fn load_server_prefs() -> ServerPrefs {
         .unwrap_or_default()
 }
 
-/// Persist connection settings to server.json (GUI and CLI share this file).
+/// Persist connection settings to server.json (GUI, CLI and TUI share this file).
 pub fn save_server_prefs(prefs: &ServerPrefs) -> Result<(), String> {
     let dir = config_dir();
     fs::create_dir_all(&dir).map_err(|e| format!("create config dir failed: {e}"))?;

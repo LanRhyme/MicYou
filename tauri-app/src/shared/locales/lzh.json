@@ -80,7 +80,6 @@
       "appearance": "外观",
       "audio": "音频",
       "network": "网络",
-      "plugins": "插件",
       "about": "关于"
     },
     "language": {
@@ -222,10 +221,6 @@
       "presetVocalClarity": "人声清晰",
       "presetWarmVocal": "温暖人声"
     },
-    "plugins": {
-      "underConstruction": "营造中",
-      "portedDesc": "此部正从旧版移植。"
-    },
     "webPort": {
       "title": "网页端口",
       "desc": "网页连接之端口（默认：8443）",
@@ -248,13 +243,17 @@
     },
     "runMode": {
       "title": "运行模式",
-      "desc": "CLI 模式耗内存寡，运行于终端",
+      "desc": "CLI 与 TUI 模式耗内存寡，运行于终端",
       "switchButton": "切至 CLI 模式",
+      "switchTuiButton": "切至 TUI 模式",
       "confirmSwitch": "欲切至 CLI 模式乎？图形界面将闭，终端将启 micyou serve",
+      "confirmSwitchTui": "欲切至 TUI 模式乎？图形界面将闭，终端将启 micyou-tui",
       "switchFailed": "切换败",
       "guiCurrent": "图形界面 (GUI)",
       "cliRunningShort": "CLI 运行中",
-      "cliRunning": "CLI 模式运行中 (PID {pid})，先于终端止之"
+      "cliRunning": "CLI 模式运行中 (PID {pid})，先于终端止之",
+      "tuiRunningShort": "TUI 运行中",
+      "tuiRunning": "TUI 模式运行中 (PID {pid})，先于终端止之"
     }
   },
   "dialogs": {
@@ -301,7 +300,8 @@
     "start": "启传输",
     "stop": "止传输",
     "exit": "出",
-    "switchCli": "切至 CLI 模式"
+    "switchCli": "切至 CLI 模式",
+    "switchTui": "切至 TUI 模式"
   },
   "closeConfirm": {
     "title": "关闭确认",

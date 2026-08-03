@@ -20,6 +20,7 @@ pub fn cmd_status() {
             let mode = match lock_info.mode {
                 lock::RunMode::Gui => "GUI",
                 lock::RunMode::Cli => "CLI",
+                lock::RunMode::Tui => "TUI",
             };
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -46,6 +47,12 @@ pub fn cmd_stop() {
         Some(lock_info) if lock_info.mode == lock::RunMode::Cli => {
             println!(
                 "the CLI server (pid {}) manages its own lifetime - stop it by pressing Ctrl+C in its terminal",
+                lock_info.pid
+            );
+        }
+        Some(lock_info) if lock_info.mode == lock::RunMode::Tui => {
+            println!(
+                "the TUI server (pid {}) manages its own lifetime - stop it by pressing q or Ctrl+C in its terminal",
                 lock_info.pid
             );
         }

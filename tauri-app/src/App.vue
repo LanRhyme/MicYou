@@ -137,14 +137,25 @@ useTray(
     onToggleStream: () => toggleStreaming(),
     onExit: () => win.exitApp(),
     onSwitchCli: async () => {
-      const confirmSwitch = confirm('切换到 CLI 模式？此操作将关闭图形界面并打开终端运行 CLI');
+      const confirmSwitch = confirm(t('settings.runMode.confirmSwitch'));
       if (!confirmSwitch) return;
       try {
         await invoke('switch_to_cli');
         await win.exitApp();
       } catch (e) {
         console.error('switch_to_cli failed:', e);
-        alert(`切换失败: ${e}`);
+        alert(`${t('settings.runMode.switchFailed')}: ${e}`);
+      }
+    },
+    onSwitchTui: async () => {
+      const confirmSwitch = confirm(t('settings.runMode.confirmSwitchTui'));
+      if (!confirmSwitch) return;
+      try {
+        await invoke('switch_to_tui');
+        await win.exitApp();
+      } catch (e) {
+        console.error('switch_to_tui failed:', e);
+        alert(`${t('settings.runMode.switchFailed')}: ${e}`);
       }
     },
   },

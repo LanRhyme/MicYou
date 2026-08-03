@@ -48,8 +48,6 @@
     <string name="contributorsLoading">正在加载贡献者...</string>
     <string name="contributorsPeopleCount">%d 位贡献者</string>
     <string name="delete">删除</string>
-    <string name="deletePlugin">删除插件</string>
-    <string name="deletePluginConfirm">确定要删除插件 \"%s\" 吗？</string>
     <string name="dereverbLevelLabel">强度</string>
     <string name="developerLabel">开发者</string>
     <string name="discoveredDevicesLabel">可用服务器</string>
@@ -144,7 +142,6 @@
     <string name="githubDownloadLabel">GitHub 下载</string>
     <string name="githubRepoLabel">Github 仓库</string>
     <string name="hexFormatError">格式: #RRGGBB</string>
-    <string name="importPlugin">导入插件</string>
     <string name="introText">MicYou 是一款开源的麦克风工具，可以将您的 Android 设备变成电脑的高质量麦克风，支持 Wi-Fi (TCP) 和 USB 连接，提供低延迟的音频传输体验。</string>
     <string name="ipLabel">IP： </string>
     <string name="ipSwitchConfirmTitle">切换 IP 地址</string>
@@ -182,7 +179,6 @@
     <string name="muteLabel">静音</string>
     <string name="newVersionReleased">发现新版本</string>
     <string name="noGeneralSettings">暂无通用设置</string>
-    <string name="noPluginsInstalled">暂无已安装的插件</string>
     <string name="nsAlgorithmAlternative">备选</string>
     <string name="nsAlgorithmCloseButton">知道了</string>
     <string name="nsAlgorithmHelpTitle">降噪算法说明</string>
@@ -236,21 +232,6 @@
     <string name="permissionRequired">必选</string>
     <string name="permissionRequiredHint">必选权限必须授予才能使用本应用。</string>
     <string name="permissionSettingsTitle">应用权限</string>
-    <string name="pluginDisabled">插件已禁用</string>
-    <string name="pluginEnabled">插件已启用</string>
-    <string name="pluginImportFailed">插件导入失败: %s</string>
-    <string name="pluginImportSelectFile">选择插件文件</string>
-    <string name="pluginImportSuccess">插件导入成功</string>
-    <string name="pluginImportTitle">导入插件</string>
-    <string name="pluginImporting">正在导入插件...</string>
-    <string name="pluginOpenWindow">打开窗口</string>
-    <string name="pluginPlatformWarning">插件 \"%1$s\" 是为 %2$s 平台设计的，可能在当前设备上无法正常工作。</string>
-    <string name="pluginPlatformWarningTitle">平台不兼容</string>
-    <string name="pluginSettings">配置</string>
-    <string name="pluginSyncDismiss">忽略</string>
-    <string name="pluginSyncWarningMessage">以下跨平台插件未在双方设备上安装：</string>
-    <string name="pluginSyncWarningTitle">插件同步警告</string>
-    <string name="pluginsSection">插件</string>
     <string name="pocketModeDesc">使用紧凑的窗口布局</string>
     <string name="pocketModeLabel">袖珍模式</string>
     <string name="portLabel">端口</string>
@@ -315,11 +296,8 @@
     <string name="waitAdb">等待 ADB 连接...</string><string name="contributorsCount">%s contributors</string>
     <string name="updateAvailableMsg">New version available: %s</string>
     <string name="installInstalling">Installing...</string>
-    <string name="reloadPlugins">Reload Plugins</string>
-    <string name="noPluginsFound">No plugins installed</string>
     <string name="showMore">Show More</string>
     <string name="showLess">Show Less</string>
-    <string name="removePlugin">Delete Plugin</string>
     <string name="audioSourceCamcorder">CAMCORDER (摄像机)</string>
     <string name="audioSourceMic">MIC (默认)</string>
     <string name="audioSourceUnprocessed">UNPROCESSED (原始音频)</string>
@@ -345,9 +323,7 @@
     <string name="errorServerGeneric">服务器错误: %s</string>
     <string name="errorSocketError">套接字错误: %s</string>
     <string name="errorIpChangeRestartFailed">IP 切换后重新连接失败: %s</string>
-    <string name="pluginConfiguration">插件配置</string>
-    <string name="pluginNotSupportedAndroid">Android 平台不支持插件。</string>
-    <string name="pluginSettingsTitle">插件设置</string><string name="installCheckingLinux">正在检查 Linux 音频子系统...</string>
+    <string name="installCheckingLinux">正在检查 Linux 音频子系统...</string>
     <string name="installCheckingPackage">正在检查安装包...</string>
     <string name="installConfigComplete">配置完成</string>
     <string name="installConfiguring">正在配置...</string><string name="installDownloadFailed">下载失败</string>
@@ -356,7 +332,7 @@
     <string name="installLinuxExists">PipeWire 虚拟设备已存在</string>
     <string name="installNotCompleted">安装未完成</string>
     <string name="installOsNotSupported">当前操作系统不支持自动安装</string>
-    <string name="reloadingPlugins">正在重新加载插件...</string><string name="monitoringTitle">音频质量实时监测</string>
+    <string name="monitoringTitle">音频质量实时监测</string>
     <string name="monitoringRtt">网络延迟 (RTT)</string>
     <string name="monitoringJitter">抖动 (Jitter)</string>
     <string name="monitoringLoss">丢包率</string>

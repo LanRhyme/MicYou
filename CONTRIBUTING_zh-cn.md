@@ -1,77 +1,90 @@
 # 为 MicYou 做出贡献
 
-感谢您有兴趣为 MicYou 做出贡献！本指南涵盖如何从源代码构建应用、添加翻译和提交更改。
+感谢您有兴趣为 MicYou 做出贡献！本指南涵盖项目结构、如何从源代码构建应用、如何添加翻译以及如何提交更改。
 
 我们欢迎所有类型的贡献，包括错误报告、功能请求、代码贡献以及翻译。
 
+## 项目结构
+
+- `composeApp/` — Android 应用（Kotlin、Jetpack Compose、Material 3）
+- `tauri-app/` — 桌面应用
+  - `src/` — Vue 3 + Vite + Tailwind CSS 前端
+  - `src-tauri/` — Tauri 2 + Rust 后端（GUI 服务器）
+  - `crates/` — 共享 Rust 工作区 crate：
+    - `micyou-protocol` — 网络协议
+    - `micyou-audio` — 音频传输、缓冲与 DSP
+    - `micyou-cli` — 无界面 CLI 服务器（二进制 `micyou`）
+    - `micyou-tui` — 交互式终端仪表盘（二进制 `micyou-tui`）
+- `docs/` — 项目文档（指向 micyou.top 在线文档）
+- `img/` — README 与项目图片
+
+## 环境要求
+
+- Android SDK：compileSdk 36、minSdk 24、targetSdk 36（JDK 21）
+- 桌面前端：Node.js 22（CI 中使用的版本）+ npm
+- 桌面后端：Rust stable + Cargo。在 Linux 上还需安装 Tauri 2 系统依赖：`libwebkit2gtk-4.1-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev`、`patchelf`、`libxdo-dev`、`libssl-dev`、`libasound2-dev`。
+
 ## 从源代码构建
 
-本项目使用 Kotlin Multiplatform 构建。
+### Android 应用（APK）
 
-**Android 应用（APK）：**
 ```bash
 ./gradlew :composeApp:assembleDebug
 ```
 
-**桌面应用（直接运行）：**
+可选（仅维护者需要）：发布签名通过 `ANDROID_KEYSTORE_PATH`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD` 环境变量配置；`local.properties` 中的 `AIFADIAN_API_TOKEN`、`AIFADIAN_USER_ID` 用于 App 内的赞助者列表（爱发电 API）。普通贡献者可忽略两者——未配置时赞助者弹窗只会显示 "API not configured"。
+
+### 桌面前端（类型检查 + 构建）
+
 ```bash
-./gradlew :composeApp:run
+cd tauri-app
+npm install          # 仅在需要恢复或更新依赖时执行
+npm run build        # vue-tsc 类型检查 + vite 构建
 ```
 
-**构建分发包：**
+### 桌面 GUI（Tauri）
 
-**Windows 安装程序（NSIS）：**
 ```bash
-./gradlew :composeApp:packageWindowsNsis
+cd tauri-app
+npm run tauri dev    # 开发模式
+npm run tauri build  # 发布包（Windows 为 NSIS 安装程序，Linux 为 .deb/.rpm/.AppImage，macOS 为 .dmg）
 ```
 
-**Windows ZIP 存档：**
+### CLI 与 TUI 服务器
+
+桌面服务器也可以不启动 GUI 运行：
+
 ```bash
-./gradlew :composeApp:packageWindowsZip
+cd tauri-app
+cargo run -p micyou-cli -- serve    # CLI（无界面；运行 `cargo run -p micyou-cli -- --help` 查看全部命令）
+cargo run -p micyou-tui             # 交互式 TUI 仪表盘
 ```
 
-**Linux DEB 包：**
-```bash
-./gradlew :composeApp:packageDeb
-```
+GUI、CLI 与 TUI 共享同一份服务器配置与 DSP 设置。
 
-**Linux RPM 包：**
-```bash
-./gradlew :composeApp:packageRpm
-```
+### 版本管理
 
-**macOS DMG 包:**
-```bash
-./gradlew :composeApp:packageDmg
-```
+版本号的唯一来源是 `gradle.properties`（`project.version`、`project.version.code`）。修改后请同步桌面端版本文件：
 
-**无 JRE 包:**
 ```bash
-./gradlew :composeApp:packageNoJreAll
+cd tauri-app
+npm run sync-version
 ```
 
 ## 国际化（i18n）
 
-MicYou 使用 Compose Multiplatform Resources 进行本地化。所有用户可见的字符串存储在 `strings.xml` 文件中。我们欢迎贡献者将 MicYou 翻译成您的母语！
+用户可见的字符串存放在 Android 字符串资源与桌面端 locale JSON 文件中。两个平台的语言集合相互独立，各自平台内的键集合需保持一致。
 
-### 添加新语言
+### Android
 
-若要手动添加新语言，请按以下步骤操作：
+- 位置：`composeApp/src/main/res/values*/strings.xml`
+- 母语言（必须保持同步）：英文（`values/`）与简体中文（`values-zh/`）
+- 语言注册：`composeApp/src/main/kotlin/com/lanrhyme/micyou/util/Localization.kt` 中的 `AppLanguage` 枚举
 
-1. 克隆存储库：
-```bash
-git clone https://github.com/LanRhyme/MicYou.git
-cd MicYou
-```
+添加新语言：
 
-2. 创建新的 `strings.xml` 文件：
-```bash
-mkdir -p composeApp/src/commonMain/composeResources/values-xx
-cp composeApp/src/commonMain/composeResources/values/strings.xml composeApp/src/commonMain/composeResources/values-xx/strings.xml
-```
-将 `xx` 替换为您的语言代码（例如，法语为 `fr`，西班牙语为 `es`，基于 ISO 639-1 或其他相关标准，例如 IETF BCP 47）。
-
-3. 编辑新的 `strings.xml` 文件，翻译所有字符串值，同时保持键不变：
+1. 创建 `composeApp/src/main/res/values-xx/strings.xml`（将 `xx` 替换为语言代码，例如法语为 `fr`，基于 ISO 639-1 或 IETF BCP 47）。
+2. 复制 `values/strings.xml` 中的键并翻译所有值，保持键不变：
 ```xml
 <resources>
     <string name="appName">MicYou</string>
@@ -79,10 +92,7 @@ cp composeApp/src/commonMain/composeResources/values/strings.xml composeApp/src/
     <!-- ... -->
 </resources>
 ```
-
-4. 在 [Localization.kt](composeApp/src/commonMain/kotlin/com/lanrhyme/micyou/Localization.kt) 中注册新语言：
-
-查找 `AppLanguage` 枚举并添加您的语言：
+3. 在 `AppLanguage` 中注册新语言：
 ```kotlin
 enum class AppLanguage(val label: String, val code: String) {
     // ... 现有语言 ...
@@ -90,87 +100,42 @@ enum class AppLanguage(val label: String, val code: String) {
 }
 ```
 
-### 在代码中使用字符串
+特殊变体（彩蛋）：
+- `values-zh/` — 简体中文
+- `values-zh-rTW/` — 繁体中文（台湾）
+- `values-zh-rHK/` — 粤语（香港）
+- `values-zh-rHD/` — 中文硬核模式（彩蛋）
+- `values-ca/` — 猫猫语（彩蛋）
 
-```kotlin
-// 在 @Composable 上下文中
-Text(stringResource(Res.string.myKey))
+### 桌面端（Tauri）
 
-// 在 suspend 上下文中
-val text = getString(Res.string.myKey)
+- 位置：`tauri-app/src/shared/locales/*.json`（`en`、`zh`、`zh-hk`、`zh-tw`、`zh-ss`、`cat`、`lzh`）
+- 母语言：英文（`en.json`）与简体中文（`zh.json`）
+- 注册方式：在 `tauri-app/src/main.ts` 中导入 JSON 并加入 i18n `messages` 映射
 
-// 带格式化参数（%s, %d, %1$s 为位置参数）
-Text(stringResource(Res.string.myFormattedKey, arg1))
-```
+添加新语言：
+
+1. 创建 `tauri-app/src/shared/locales/xx.json`，键结构与 `zh.json` 一致。
+2. 在 `tauri-app/src/main.ts` 中导入并注册到 `messages` 映射。
 
 ### 测试翻译
 
-若要在本地测试您的翻译，请按照以下步骤操作：
-
-1. 构建并运行桌面应用：
-```bash
-./gradlew :composeApp:run
-```
-
-2. 转至 **设置 → 外观 → 语言** 并选择您的新语言
-
-3. 检查所有字符串显示正确，布局没有裁剪或溢出
-
-4. 对于 Android 应用，构建 APK：
-```bash
-./gradlew :composeApp:assembleDebug
-```
-
-### 翻译工作流
-
-- **母语言（必须保持同步）**：英文（`values/strings.xml`）和简体中文（`values-zh/strings.xml`）
-- **位置**：`composeApp/src/commonMain/composeResources/values*/strings.xml`
-- **文件格式**：Android strings.xml
-- **目前已支持**：6 种语言，包括中文（简体、繁体、粤语）
-
-### 翻译更新流程（GitHub 工作流）
-
-当你新增或修改翻译时，请按以下顺序操作：
-
-1. 先更新两个母语言文件：
-```
-composeApp/src/commonMain/composeResources/values/strings.xml      (英文)
-composeApp/src/commonMain/composeResources/values-zh/strings.xml   (简体中文)
-```
-
-2. 再更新其他语言文件（`values-*/strings.xml`），确保键集合一致。
-
-3. 本地运行翻译校验：
-```bash
-./gradlew checkLocalization
-```
-
-4. 建议先执行一次钩子安装，让每次提交前自动检查：
-```bash
-./gradlew installGitHooks
-```
-
-5. 仅在 `checkLocalization` 通过后再提交。
-
-预提交钩子会执行 `checkLocalization`，若键不一致或值为空会阻止提交。
-
-### 特殊语言变体
-
-某些语言具有特殊变体：
-- `values-zh/` - 简体中文
-- `values-zh-rTW/` - 繁体中文（台湾）
-- `values-zh-rHK/` - 粤语（香港）
-- `values-zh-rSS/` - 中文硬核模式（彩蛋）
-- `values-ca/` - 猫猫语（彩蛋）
-
-### 贡献翻译
-
-提交包含新增或更新翻译文件的拉取请求。
+- Android：构建 APK（`./gradlew :composeApp:assembleDebug`），然后在 **设置 → 语言** 中检查。
+- 桌面端：运行 `npm run tauri dev`，然后在 **设置 → 语言** 中检查。
+- 确认所有字符串显示正确，布局没有裁剪或溢出。
 
 ## 提交更改
 
-所有 PR 标题使用 [Conventional Commits](https://www.conventionalcommits.org/) 格式：
+所有提交信息与 PR 标题使用 [Conventional Commits](https://www.conventionalcommits.org/) 格式：
 
 - `feat(i18n): add fr (French) localization`
 - `fix: resolve audio crash on Android 14`
 - `docs: update build instructions`
+
+在发起拉取请求前：
+
+- 确保你修改的平台的所有语言文件键集合一致。
+- 确保 Android 调试构建（`./gradlew :composeApp:assembleDebug`）与桌面端构建（`cd tauri-app && npm run build`）通过。
+- CI（`.github/workflows/development.yml`）会在每次推送与拉取请求时构建 Android 调试 APK 以及 Windows、macOS、Linux 的 Tauri 安装包。
+
+参与贡献即表示您同意遵守项目的[行为准则](./CODE_OF_CONDUCT.md)。

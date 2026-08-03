@@ -1506,7 +1506,7 @@ fn handle_key(app: &mut TuiApp, key: KeyEvent, state: &ServerState) -> bool {
     false
 }
 
-/// Persist settings to the CLI config file and apply to the running DSP.
+/// Persist settings to the shared config file and apply to the running DSP.
 fn sync_settings(settings: &AudioDspSettings, state: &ServerState) {
     if let Ok(mut lock) = state.dsp_settings.write() {
         *lock = settings.clone();

@@ -114,7 +114,6 @@ pub async fn set_mute_state(
         audio_packet: None,
         connect: None,
         mute: Some(micyou_protocol::micyou::MuteMessage { is_muted }),
-        plugin_sync: None,
         ping: None,
         pong: None,
     };

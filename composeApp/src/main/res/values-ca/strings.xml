@@ -48,8 +48,6 @@
     <string name="contributorsLoading">正在加载贡献者喵... (・_・)</string>
     <string name="contributorsPeopleCount">我们有 %d 位贡献者喵~</string>
     <string name="delete">删除喵~</string>
-    <string name="deletePlugin">删除插件喵~</string>
-    <string name="deletePluginConfirm">确定要删除插件「%s」吗喵？(・_・;)</string>
     <string name="dereverbLevelLabel">等级喵~</string>
     <string name="developerLabel">开发者喵~ 👨‍💻</string>
     <string name="discoveredDevicesLabel">可用服务器喵~</string>
@@ -144,7 +142,6 @@
     <string name="githubDownloadLabel">GitHub下载喵~</string>
     <string name="githubRepoLabel">GitHub 仓库喵~</string>
     <string name="hexFormatError">格式: #RRGGBB 喵~</string>
-    <string name="importPlugin">导入插件喵~</string>
     <string name="introText">MicYou 是一个开源麦克风工具喵~可以把你的安卓设备变成电脑的高质量麦克风喵！支持 Wi-Fi (TCP) 和 USB 连接，提供低延迟音频传输喵~ (≧∇≦)/</string>
     <string name="ipLabel">IP 喵: </string>
     <string name="ipSwitchConfirmTitle">切换 IP 地址喵~</string>
@@ -181,7 +178,6 @@
     <string name="muteLabel">静音喵 (´-ω-`)</string>
     <string name="newVersionReleased">发现新版本喵~ ✨</string>
     <string name="noGeneralSettings">没有可用的通用设置喵~ (´・ω・`)</string>
-    <string name="noPluginsInstalled">没有安装任何插件喵~ (´・ω・`)</string>
     <string name="nsAlgorithmAlternative">备选喵~</string>
     <string name="nsAlgorithmCloseButton">知道了喵~</string>
     <string name="nsAlgorithmHelpTitle">降噪算法说明喵~ (・∀・)</string>
@@ -235,21 +231,6 @@
     <string name="permissionRequired">必选喵~</string>
     <string name="permissionRequiredHint">必选权限必须授予才能使用本应用喵！(・_・;)</string>
     <string name="permissionSettingsTitle">应用权限喵~</string>
-    <string name="pluginDisabled">插件已禁用喵~</string>
-    <string name="pluginEnabled">插件已启用喵~</string>
-    <string name="pluginImportFailed">插件导入失败喵: %s (ToT)</string>
-    <string name="pluginImportSelectFile">选择插件文件喵~</string>
-    <string name="pluginImportSuccess">插件导入成功喵~ ✓</string>
-    <string name="pluginImportTitle">导入插件喵~</string>
-    <string name="pluginImporting">正在导入插件喵... (・_・)</string>
-    <string name="pluginOpenWindow">打开窗口喵~</string>
-    <string name="pluginPlatformWarning">插件「%1$s」是为 %2$s 平台设计的，可能在当前设备上无法正常工作喵~ (・_・;)</string>
-    <string name="pluginPlatformWarningTitle">平台不兼容喵~</string>
-    <string name="pluginSettings">设置喵~</string>
-    <string name="pluginSyncDismiss">忽略喵~</string>
-    <string name="pluginSyncWarningMessage">以下跨平台插件未在双方设备上安装喵：</string>
-    <string name="pluginSyncWarningTitle">插件同步警告喵~</string>
-    <string name="pluginsSection">插件喵~ 🔌</string>
     <string name="pocketModeDesc">使用紧凑窗口布局喵~</string>
     <string name="pocketModeLabel">袖珍模式喵~</string>
     <string name="portLabel">端口喵~</string>
@@ -314,11 +295,8 @@
     <string name="waitAdb">等待 ADB 连接喵... (・_・)</string><string name="contributorsCount">%s contributors</string>
     <string name="updateAvailableMsg">发现新版本喵~ ✨: %s</string>
     <string name="installInstalling">安装中喵... (・_・)</string>
-    <string name="reloadPlugins">重新加载插件喵~</string>
-    <string name="noPluginsFound">喵喵酱还没有装任何插件喵~</string>
     <string name="showMore">显示更多喵~</string>
     <string name="showLess">显示更少喵~</string>
-    <string name="removePlugin">删除插件喵~</string>
     <string name="audioSourceCamcorder">CAMCORDER (摄像机) 喵~</string>
     <string name="audioSourceMic">MIC (默认) 喵~</string>
     <string name="audioSourceUnprocessed">UNPROCESSED (原始音频) 喵~</string>
@@ -344,9 +322,7 @@
     <string name="errorServerGeneric">服务器错误: %s 喵~</string>
     <string name="errorSocketError">套接字错误: %s 喵~</string>
     <string name="errorIpChangeRestartFailed">IP 切换后重新连接失败喵: %s (ToT)</string>
-    <string name="pluginConfiguration">插件配置喵~</string>
-    <string name="pluginNotSupportedAndroid">Android 平台不支持插件喵~</string>
-    <string name="pluginSettingsTitle">插件设置喵~</string><string name="installCheckingLinux">正在检查 Linux 音频子系统喵...</string>
+    <string name="installCheckingLinux">正在检查 Linux 音频子系统喵...</string>
     <string name="installCheckingPackage">正在检查安装包喵...</string>
     <string name="installConfigComplete">配置完成喵~</string>
     <string name="installConfiguring">正在配置喵...</string><string name="installDownloadFailed">下载失败喵...</string>
@@ -355,7 +331,7 @@
     <string name="installLinuxExists">PipeWire 虚拟设备已存在喵~</string>
     <string name="installNotCompleted">安装未完成喵...</string>
     <string name="installOsNotSupported">当前操作系统不支持自动安装喵~</string>
-    <string name="reloadingPlugins">正在重新加载插件喵...</string><string name="webQrCodeTitle">扫码连接喵~</string>
+    <string name="webQrCodeTitle">扫码连接喵~</string>
     <string name="webScanHint">用手机扫码打开网页喵~允许麦克风权限即可开始传输音频喵~</string>
     <string name="webClientCountLabel">已连接客户端喵~</string>
     <string name="modeWeb">网页喵~</string>

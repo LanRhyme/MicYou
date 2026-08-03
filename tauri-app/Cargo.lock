@@ -3438,16 +3438,10 @@ name = "micyou-cli"
 version = "2.0.0"
 dependencies = [
  "clap 4.6.5",
- "cpal",
- "crossterm",
  "libc",
- "log",
  "micyou-app",
  "micyou-audio",
- "ratatui",
- "serde",
  "serde_json",
- "sysinfo",
  "tokio",
 ]
 
@@ -3460,6 +3454,21 @@ dependencies = [
  "prost-build",
  "protoc-bin-vendored",
  "serde",
+]
+
+[[package]]
+name = "micyou-tui"
+version = "2.0.0"
+dependencies = [
+ "clap 4.6.5",
+ "crossterm",
+ "libc",
+ "micyou-app",
+ "micyou-audio",
+ "ratatui",
+ "serde_json",
+ "sysinfo",
+ "tokio",
 ]
 
 [[package]]

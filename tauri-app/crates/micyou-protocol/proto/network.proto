@@ -6,7 +6,7 @@ message MessageWrapper {
     AudioPacketMessageOrdered audioPacket = 1; // Used in TCP-only mode
     ConnectMessage connect = 2;               // Connection setup
     MuteMessage mute = 3;                     // Mute toggle
-    PluginSyncMessage pluginSync = 4;         // Plugin sync state
+    reserved 4;
     PingMessage ping = 5;                     // Ping for latency
     PongMessage pong = 6;                     // Pong for latency
 }
@@ -18,17 +18,6 @@ message ConnectMessage {
 
 message MuteMessage {
     bool isMuted = 1;
-}
-
-message PluginInfoMessage {
-    string id = 1;
-    string name = 2;
-    string version = 3;
-}
-
-message PluginSyncMessage {
-    repeated PluginInfoMessage plugins = 1;
-    string platform = 2;
 }
 
 message PingMessage {

@@ -80,7 +80,6 @@
       "appearance": "外观设置喵~ ✨",
       "audio": "音频设置喵~ 🎵",
       "network": "网络设置喵~",
-      "plugins": "插件喵~ 🔌",
       "about": "关于喵~ (´,,•ω•,,)"
     },
     "language": {
@@ -222,10 +221,6 @@
       "presetVocalClarity": "人声清晰喵~ (≧∇≦)",
       "presetWarmVocal": "温暖人声喵~ (´,,•ω•,,)"
     },
-    "plugins": {
-      "underConstruction": "建设中喵~",
-      "portedDesc": "此部分正在从 KMP 版本移植喵~"
-    },
     "webPort": {
       "title": "网页端口喵~",
       "desc": "网页连接模式的端口喵~（默认：8443）",
@@ -248,13 +243,17 @@
     },
     "runMode": {
       "title": "运行模式喵~",
-      "desc": "CLI 模式内存占用更少喵，在终端里跑喵~",
+      "desc": "CLI 和 TUI 模式内存占用更少喵，在终端里跑喵~",
       "switchButton": "切换到 CLI 模式喵~",
+      "switchTuiButton": "切换到 TUI 模式喵~",
       "confirmSwitch": "要切换到 CLI 模式喵？图形界面会关闭，终端会打开跑 micyou serve 喵~",
+      "confirmSwitchTui": "要切换到 TUI 模式喵？图形界面会关闭，终端会打开跑 micyou-tui 喵~",
       "switchFailed": "切换失败喵~ (´;ω;`)",
       "guiCurrent": "图形界面 (GUI) 喵~",
       "cliRunningShort": "CLI 运行中喵~",
-      "cliRunning": "CLI 模式正在运行喵 (PID {pid})，请先在终端里停掉喵~"
+      "cliRunning": "CLI 模式正在运行喵 (PID {pid})，请先在终端里停掉喵~",
+      "tuiRunningShort": "TUI 运行中喵~",
+      "tuiRunning": "TUI 模式正在运行喵 (PID {pid})，请先在终端里停掉喵~"
     }
   },
   "dialogs": {
@@ -301,7 +300,8 @@
     "start": "开始传输喵~",
     "stop": "停止传输喵~",
     "exit": "退出喵~ (´;ω;`)",
-    "switchCli": "切换到 CLI 模式喵~"
+    "switchCli": "切换到 CLI 模式喵~",
+    "switchTui": "切换到 TUI 模式喵~"
   },
   "closeConfirm": {
     "title": "关闭确认喵~",

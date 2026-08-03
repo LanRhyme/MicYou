@@ -80,7 +80,6 @@
       "appearance": "外觀",
       "audio": "音訊",
       "network": "網路",
-      "plugins": "插件",
       "about": "關於"
     },
     "language": {
@@ -222,10 +221,6 @@
       "presetVocalClarity": "人聲清晰",
       "presetWarmVocal": "溫暖人聲"
     },
-    "plugins": {
-      "underConstruction": "建構中",
-      "portedDesc": "此部分正在從 KMP 版本移植"
-    },
     "webPort": {
       "title": "Web 連接埠",
       "desc": "Web 連線模式的連接埠（預設：8443）",
@@ -248,13 +243,17 @@
     },
     "runMode": {
       "title": "執行模式",
-      "desc": "CLI 模式使用較少記憶體，在終端機中執行",
+      "desc": "CLI 和 TUI 模式使用較少記憶體，在終端機中執行",
       "switchButton": "切換到 CLI 模式",
+      "switchTuiButton": "切換到 TUI 模式",
       "confirmSwitch": "切換到 CLI 模式？圖形介面將關閉，終端機會開啟並執行 micyou serve",
+      "confirmSwitchTui": "切換到 TUI 模式？圖形介面將關閉，終端機會開啟並執行 micyou-tui",
       "switchFailed": "切換失敗",
       "guiCurrent": "圖形介面 (GUI)",
       "cliRunningShort": "CLI 執行中",
-      "cliRunning": "CLI 模式正在執行 (PID {pid})，請先在終端機中停止"
+      "cliRunning": "CLI 模式正在執行 (PID {pid})，請先在終端機中停止",
+      "tuiRunningShort": "TUI 執行中",
+      "tuiRunning": "TUI 模式正在執行 (PID {pid})，請先在終端機中停止"
     }
   },
   "dialogs": {
@@ -301,7 +300,8 @@
     "start": "開始串流",
     "stop": "停止串流",
     "exit": "退出",
-    "switchCli": "切換到 CLI 模式"
+    "switchCli": "切換到 CLI 模式",
+    "switchTui": "切換到 TUI 模式"
   },
   "closeConfirm": {
     "title": "關閉 MicYou",

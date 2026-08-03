@@ -48,8 +48,6 @@
     <string name="contributorsLoading">載入緊貢獻者...</string>
     <string name="contributorsPeopleCount">%d 位貢獻者</string>
     <string name="delete">刪除</string>
-    <string name="deletePlugin">刪除插件</string>
-    <string name="deletePluginConfirm">確定要刪除插件「%s」嗎？</string>
     <string name="dereverbLevelLabel">強度</string>
     <string name="developerLabel">開發者</string>
     <string name="discoveredDevicesLabel">可用伺服器</string>
@@ -144,7 +142,6 @@
     <string name="githubDownloadLabel">GitHub 下載</string>
     <string name="githubRepoLabel">Github 倉庫</string>
     <string name="hexFormatError">格式: #RRGGBB</string>
-    <string name="importPlugin">匯入插件</string>
     <string name="introText">MicYou 係一個開源嘅咪高峰工具，可以將你嘅 Android 裝置變做電腦嘅高質素咪高峰，支援 Wi-Fi (TCP) 同 USB 連線，畀到低延遲嘅音訊傳輸體驗。</string>
     <string name="ipLabel">IP： </string>
     <string name="isLatestVersion">而家已經係最新版本</string>
@@ -175,7 +172,6 @@
     <string name="muteLabel">靜音</string>
     <string name="newVersionReleased">發現新版本</string>
     <string name="noGeneralSettings">暫冇一般設定</string>
-    <string name="noPluginsInstalled">暫時冇裝任何插件</string>
     <string name="nsAlgorithmAlternative">替代</string>
     <string name="nsAlgorithmCloseButton">明白</string>
     <string name="nsAlgorithmHelpTitle">降噪演算法說明</string>
@@ -229,21 +225,6 @@
     <string name="permissionRequired">必選</string>
     <string name="permissionRequiredHint">必選權限必須授予才能使用呢個應用程式。</string>
     <string name="permissionSettingsTitle">應用程式權限</string>
-    <string name="pluginDisabled">插件已停用</string>
-    <string name="pluginEnabled">插件已啟用</string>
-    <string name="pluginImportFailed">插件匯入失敗: %s</string>
-    <string name="pluginImportSelectFile">揀插件檔案</string>
-    <string name="pluginImportSuccess">插件匯入成功</string>
-    <string name="pluginImportTitle">匯入插件</string>
-    <string name="pluginImporting">匯入緊插件...</string>
-    <string name="pluginOpenWindow">開啟視窗</string>
-    <string name="pluginPlatformWarning">插件「%1$s」係為 %2$s 平台設計嘅，可能喺目前裝置上運作唔正常。</string>
-    <string name="pluginPlatformWarningTitle">平台唔兼容</string>
-    <string name="pluginSettings">設定</string>
-    <string name="pluginSyncDismiss">忽略</string>
-    <string name="pluginSyncWarningMessage">以下跨平台插件未喺雙方裝置上安裝：</string>
-    <string name="pluginSyncWarningTitle">插件同步警告</string>
-    <string name="pluginsSection">插件</string>
     <string name="pocketModeDesc">用返個細啲嘅視窗佈局</string>
     <string name="pocketModeLabel">袋裝模式</string>
     <string name="portLabel">埠口</string>
@@ -308,11 +289,8 @@
     <string name="waitAdb">等緊 ADB 連線...</string><string name="contributorsCount">%s contributors</string>
     <string name="updateAvailableMsg">New version available: %s</string>
     <string name="installInstalling">Installing...</string>
-    <string name="reloadPlugins">Reload Plugins</string>
-    <string name="noPluginsFound">No plugins installed</string>
     <string name="showMore">Show More</string>
     <string name="showLess">Show Less</string>
-    <string name="removePlugin">Delete Plugin</string>
     <string name="audioSourceCamcorder">CAMCORDER (攝錄機)</string>
     <string name="audioSourceMic">MIC (預設)</string>
     <string name="audioSourceUnprocessed">UNPROCESSED (原始音訊)</string>
@@ -337,9 +315,7 @@
     <string name="errorRecordingPermissionDenied">錄音權限不足</string>
     <string name="errorServerGeneric">伺服器錯誤: %s</string>
     <string name="errorSocketError">通訊端錯誤: %s</string>
-    <string name="pluginConfiguration">插件配置</string>
-    <string name="pluginNotSupportedAndroid">Android 平台唔支援插件。</string>
-    <string name="pluginSettingsTitle">插件設定</string><string name="installCheckingLinux">檢查緊 Linux 音訊子系統...</string>
+    <string name="installCheckingLinux">檢查緊 Linux 音訊子系統...</string>
     <string name="installCheckingPackage">檢查緊安裝包...</string>
     <string name="installConfigComplete">配置完成</string>
     <string name="installConfiguring">配置緊...</string><string name="installDownloadFailed">下載失敗</string>
@@ -348,7 +324,7 @@
     <string name="installLinuxExists">PipeWire 虛擬裝置已存在</string>
     <string name="installNotCompleted">安裝未完成</string>
     <string name="installOsNotSupported">目前作業系統唔支援自動安裝</string>
-    <string name="reloadingPlugins">重新載入緊插件...</string><string name="monitoringTitle">音訊品質即時監測</string>
+    <string name="monitoringTitle">音訊品質即時監測</string>
     <string name="monitoringRtt">網路延遲 (RTT)</string>
     <string name="monitoringJitter">抖動 (Jitter)</string>
     <string name="monitoringLoss">丟包率</string>

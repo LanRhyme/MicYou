@@ -85,26 +85,6 @@ data class ConnectMessage(
 
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-data class PluginInfoMessage(
-    @ProtoNumber(1)
-    val id: String,
-    @ProtoNumber(2)
-    val name: String,
-    @ProtoNumber(3)
-    val version: String
-)
-
-@OptIn(ExperimentalSerializationApi::class)
-@Serializable
-data class PluginSyncMessage(
-    @ProtoNumber(1)
-    val plugins: List<PluginInfoMessage> = emptyList(),
-    @ProtoNumber(2)
-    val platform: String = ""
-)
-
-@OptIn(ExperimentalSerializationApi::class)
-@Serializable
 data class PingMessage(
     @ProtoNumber(1)
     val timestamp: Long
@@ -143,7 +123,7 @@ fun calculateUdpPort(tcpPort: Int): Int {
 
 /** 判断 MessageWrapper 是否包含控制消息（应通过 TCP 发送） */
 fun MessageWrapper.hasControlMessage(): Boolean {
-    return connect != null || mute != null || pluginSync != null || ping != null || pong != null
+    return connect != null || mute != null || ping != null || pong != null
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -155,8 +135,6 @@ data class MessageWrapper(
     val connect: ConnectMessage? = null,
     @ProtoNumber(3)
     val mute: MuteMessage? = null,
-    @ProtoNumber(4)
-    val pluginSync: PluginSyncMessage? = null,
     @ProtoNumber(5)
     val ping: PingMessage? = null,
     @ProtoNumber(6)

@@ -100,9 +100,9 @@ pub fn run() {
                 log::warn!(target: "tray", "failed to build tray: {e}");
             }
 
-            // Acquire the GUI mode lock so the CLI knows the GUI is running.
-            // A live CLI lock does not block the GUI; the frontend reads
-            // `get_mode_status` to show the "CLI mode running" notice.
+            // Acquire the GUI mode lock so the CLI/TUI knows the GUI is running.
+            // A live terminal-mode lock does not block the GUI; the frontend
+            // reads `get_mode_status` to show the active mode notice.
             match crate::mode_lock::acquire(crate::mode_lock::RunMode::Gui) {
                 Ok(()) => log::info!(target: "mode", "GUI mode lock acquired"),
                 Err(e) => log::warn!(target: "mode", "GUI mode lock not acquired: {e}"),
@@ -147,6 +147,7 @@ pub fn run() {
             commands::mode::get_mode_status,
             commands::mode::release_gui_lock,
             commands::mode::switch_to_cli,
+            commands::mode::switch_to_tui,
             commands::mode::save_ui_prefs,
             commands::mode::save_theme_colors,
             commands::get_audio_settings,

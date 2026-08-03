@@ -7,7 +7,7 @@ use tauri::{AppHandle, State};
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ModeStatus {
-    /// Lock state on disk: "gui" | "cli" | "none"
+    /// Lock state on disk: "gui" | "cli" | "tui" | "none"
     pub mode: String,
     pub pid: Option<u32>,
     /// Whether a live process owns the lock
@@ -49,6 +49,38 @@ pub fn find_cli_binary() -> Option<std::path::PathBuf> {
     None
 }
 
+/// Resolve the standalone `micyou-tui` binary using the same lookup order as
+/// the CLI binary.
+pub fn find_tui_binary() -> Option<std::path::PathBuf> {
+    let exe_name = if cfg!(target_os = "windows") {
+        "micyou-tui.exe"
+    } else {
+        "micyou-tui"
+    };
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let candidate = dir.join(exe_name);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+            if let Some(grandparent) = dir.parent() {
+                let candidate = grandparent.join(exe_name);
+                if candidate.exists() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+
+    if let Ok(output) = Command::new(exe_name).arg("--version").output() {
+        if output.status.success() {
+            return Some(std::path::PathBuf::from(exe_name));
+        }
+    }
+    None
+}
+
 /// Current lock status for the frontend.
 #[tauri::command]
 pub fn get_mode_status() -> ModeStatus {
@@ -58,6 +90,7 @@ pub fn get_mode_status() -> ModeStatus {
             let mode = match lock_info.mode {
                 RunMode::Gui => "gui",
                 RunMode::Cli => "cli",
+                RunMode::Tui => "tui",
             };
             ModeStatus {
                 mode: mode.to_string(),
@@ -73,7 +106,7 @@ pub fn get_mode_status() -> ModeStatus {
     }
 }
 
-/// Release the GUI lock (called by the frontend right before switching to CLI).
+/// Release the GUI lock before handing off to a terminal mode.
 #[tauri::command]
 pub fn release_gui_lock() -> Result<(), String> {
     if let Some(info) = mode_lock::read_lock() {
@@ -152,6 +185,69 @@ pub fn open_cli_terminal() -> Result<(), String> {
     }
 }
 
+/// Open a terminal window running the standalone TUI.
+pub fn open_tui_terminal() -> Result<(), String> {
+    let binary = find_tui_binary().ok_or_else(|| {
+        "micyou-tui binary not found - install it or add it to PATH".to_string()
+    })?;
+
+    #[cfg(target_os = "linux")]
+    {
+        let candidates: &[(&str, &[&str])] = &[
+            ("kitty", &["--", binary.to_str().unwrap_or("micyou-tui")]),
+            (
+                "alacritty",
+                &["-e", binary.to_str().unwrap_or("micyou-tui")],
+            ),
+            (
+                "gnome-terminal",
+                &["--", binary.to_str().unwrap_or("micyou-tui")],
+            ),
+            (
+                "konsole",
+                &["-e", binary.to_str().unwrap_or("micyou-tui")],
+            ),
+            ("xterm", &["-e", binary.to_str().unwrap_or("micyou-tui")]),
+        ];
+        for (terminal, args) in candidates {
+            if Command::new(terminal).args(*args).spawn().is_ok() {
+                return Ok(());
+            }
+        }
+        Err("no supported terminal emulator found (kitty/alacritty/gnome-terminal/konsole/xterm)".into())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            "tell application \"Terminal\" to do script \"{}\"",
+            binary.to_string_lossy()
+        );
+        Command::new("osascript")
+            .args(["-e", &script])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let bin = binary.to_string_lossy().to_string();
+        Command::new("cmd")
+            .args(["/c", "start", "", "wt", "-d", ".", "cmd", "/k", &bin])
+            .spawn()
+            .or_else(|_| {
+                Command::new("cmd")
+                    .args(["/c", "start", "", &bin])
+                    .spawn()
+            })
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        Err("unsupported platform".into())
+    }
+}
+
 /// Switch from the GUI to CLI mode: release the GUI lock and launch a terminal
 /// running `micyou serve`. The frontend should exit the app after this succeeds.
 #[tauri::command]
@@ -159,12 +255,15 @@ pub async fn switch_to_cli(
     app: AppHandle,
     state: State<'_, ServerState>,
 ) -> Result<(), String> {
-    // Make sure no other CLI instance is currently running
+    // Make sure no CLI or TUI instance is currently running.
     if let Some(info) = mode_lock::read_lock() {
-        if info.mode == RunMode::Cli && mode_lock::pid_alive_public(info.pid) {
+        if matches!(info.mode, RunMode::Cli | RunMode::Tui)
+            && mode_lock::pid_alive_public(info.pid)
+        {
             return Err(format!(
-                "CLI mode is already running (pid {}) - stop it first",
-                info.pid
+                "{} mode is already running (pid {}) - stop it first",
+                if info.mode == RunMode::Cli { "CLI" } else { "TUI" },
+                info.pid,
             ));
         }
     }
@@ -177,8 +276,30 @@ pub async fn switch_to_cli(
     open_cli_terminal()
 }
 
+/// Switch from the GUI to TUI mode and launch `micyou-tui` in a terminal.
+#[tauri::command]
+pub async fn switch_to_tui(
+    app: AppHandle,
+    state: State<'_, ServerState>,
+) -> Result<(), String> {
+    if let Some(info) = mode_lock::read_lock() {
+        if matches!(info.mode, RunMode::Cli | RunMode::Tui)
+            && mode_lock::pid_alive_public(info.pid)
+        {
+            return Err(format!(
+                "{} mode is already running (pid {}) - stop it first",
+                if info.mode == RunMode::Cli { "CLI" } else { "TUI" },
+                info.pid,
+            ));
+        }
+    }
+    let _ = crate::commands::system::stop_server(app.clone(), state).await;
+    mode_lock::release();
+    open_tui_terminal()
+}
+
 /// Persist the current GUI UI preferences (language, theme color) to ui.json so
-/// the CLI can pick the same language and theme.
+/// the TUI can pick the same language and theme.
 #[tauri::command]
 pub fn save_ui_prefs(
     language: String,
@@ -190,7 +311,7 @@ pub fn save_ui_prefs(
     })
 }
 
-/// Export the current GUI theme colors to theme.json for the CLI TUI.
+/// Export the current GUI theme colors to theme.json for the TUI.
 #[tauri::command]
 pub fn save_theme_colors(
     primary: String,

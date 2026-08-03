@@ -27,8 +27,10 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
@@ -942,6 +944,14 @@ class AudioEngine constructor() {
                         connectionComplete.completeExceptionally(e)
                         throw e
                     } catch (e: Exception) {
+                        // Closing the session channel is part of the normal stop path. A send
+                        // racing with that close must not surface "Channel is already closed"
+                        // as a connection error or prevent a subsequent reconnect.
+                        if (!desiredRunning || isChannelClosed(e)) {
+                            val cancellation = CancellationException("Audio session stopped")
+                            connectionComplete.completeExceptionally(cancellation)
+                            throw cancellation
+                        }
                         val errorMsg = when {
                             e is UdpCircuitBreakerException -> e.message ?: getString(R.string.connectionDisconnected)
                             e is java.net.ConnectException && e.message?.contains("Connection refused", ignoreCase = true) == true ->
@@ -967,9 +977,20 @@ class AudioEngine constructor() {
                         Logger.d("AudioEngine", "Cleaning up resources for generation $sessionGeneration")
                         channel.close()
                         val recorderToRelease = recorder
-                        stopAndReleaseRecorderAsync(recorderToRelease)
+                        val recorderStopCompletion = stopAndReleaseRecorderAsync(recorderToRelease)
                         // Do not retain the recorder in this session coroutine while native stop runs.
                         recorder = null
+                        // A new session must not race the native AudioRecord teardown. The stop
+                        // worker still owns the recorder; waiting here only keeps the session
+                        // lifecycle alive until that ownership is released. NonCancellable is
+                        // required because this finally block normally runs after cancellation.
+                        try {
+                            withContext(NonCancellable) {
+                                recorderStopCompletion?.await()
+                            }
+                        } catch (e: Exception) {
+                            Logger.w("AudioEngine", "AudioRecord teardown did not complete cleanly: ${e.message}")
+                        }
                         try {
                             closeConnection()
                         } catch (e: Exception) {
@@ -1484,6 +1505,12 @@ class AudioEngine constructor() {
             if (msg.contains("Broken pipe", ignoreCase = true)) return true
         }
         return false
+    }
+
+    private fun isChannelClosed(e: Throwable): Boolean {
+        val message = e.message ?: return false
+        return message.contains("Channel is already closed", ignoreCase = true) ||
+            message.contains("Channel was closed", ignoreCase = true)
     }
 
     private fun calculateAudioLevelData(buffer: ByteArray, format: AudioFormat): AudioLevelData {

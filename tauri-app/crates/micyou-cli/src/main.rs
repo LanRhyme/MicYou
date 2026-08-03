@@ -1,10 +1,7 @@
 mod commands;
 mod config;
 mod events;
-mod i18n;
 mod serve;
-mod theme;
-mod tui;
 
 use clap::{Parser, Subcommand};
 
@@ -39,20 +36,12 @@ fn install_alsa_stderr_filter() {
                 while let Some(pos) = pending.iter().position(|&b| b == b'\n') {
                     let line: Vec<u8> = pending.drain(..=pos).collect();
                     if !line.starts_with(b"ALSA lib ") {
-                        libc::write(
-                            orig,
-                            line.as_ptr() as *const libc::c_void,
-                            line.len(),
-                        );
+                        libc::write(orig, line.as_ptr() as *const libc::c_void, line.len());
                     }
                 }
             }
             if !pending.is_empty() && !pending.starts_with(b"ALSA lib ") {
-                libc::write(
-                    orig,
-                    pending.as_ptr() as *const libc::c_void,
-                    pending.len(),
-                );
+                libc::write(orig, pending.as_ptr() as *const libc::c_void, pending.len());
             }
             libc::close(orig);
             libc::close(r);
@@ -75,7 +64,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// 启动音频服务（默认 TUI 仪表盘，--no-tui 纯日志）
+    /// 启动音频服务（纯日志模式，适合终端、systemd 和脚本）
     Serve {
         /// 音频服务器端口（UDP 端口自动 +1，默认读共享 server.json）
         #[arg(long)]
@@ -89,9 +78,6 @@ enum Commands {
         /// 绑定地址
         #[arg(long)]
         bind: Option<String>,
-        /// 纯日志模式（无 TUI），适合 systemd / 脚本
-        #[arg(long)]
-        no_tui: bool,
     },
     /// 显示当前服务状态
     Status,
@@ -180,14 +166,12 @@ async fn main() {
             mode,
             device,
             bind,
-            no_tui,
         } => {
             let args = serve::ServeArgs {
                 port,
                 mode,
                 device,
                 bind,
-                no_tui,
             };
             serve::run(args).await
         }

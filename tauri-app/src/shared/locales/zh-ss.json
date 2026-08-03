@@ -80,7 +80,6 @@
       "appearance": "外观性部分",
       "audio": "音频性部分",
       "network": "网络",
-      "plugins": "插件项目部分",
       "about": "关于性部分"
     },
     "language": {
@@ -222,10 +221,6 @@
       "presetVocalClarity": "人声清晰预设项",
       "presetWarmVocal": "温暖人声预设项"
     },
-    "plugins": {
-      "underConstruction": "正在建设中",
-      "portedDesc": "此部分正在从 KMP 版本移植"
-    },
     "webPort": {
       "title": "Web 端口",
       "desc": "Web 连接模式的端口（默认：8443）",
@@ -248,13 +243,17 @@
     },
     "runMode": {
       "title": "运行模式项",
-      "desc": "CLI 模式使用更少内存项，通过终端运行",
+      "desc": "CLI 和 TUI 模式使用更少内存项，通过终端运行",
       "switchButton": "切换到 CLI 模式项",
+      "switchTuiButton": "切换到 TUI 模式项",
       "confirmSwitch": "切换到 CLI 模式？图形界面将关闭项，终端将打开运行 micyou serve",
+      "confirmSwitchTui": "切换到 TUI 模式？图形界面将关闭项，终端将打开运行 micyou-tui",
       "switchFailed": "切换失败项",
       "guiCurrent": "图形界面 (GUI) 项",
       "cliRunningShort": "CLI 运行中项",
-      "cliRunning": "CLI 模式正在运行项 (PID {pid})，请在终端中停止后再切换"
+      "cliRunning": "CLI 模式正在运行项 (PID {pid})，请在终端中停止后再切换",
+      "tuiRunningShort": "TUI 运行中项",
+      "tuiRunning": "TUI 模式正在运行项 (PID {pid})，请在终端中停止后再切换"
     }
   },
   "dialogs": {
@@ -301,7 +300,8 @@
     "start": "开始推流",
     "stop": "停止推流",
     "exit": "出口程序项",
-    "switchCli": "切换到 CLI 模式项"
+    "switchCli": "切换到 CLI 模式项",
+    "switchTui": "切换到 TUI 模式项"
   },
   "closeConfirm": {
     "title": "关闭确认标题项",

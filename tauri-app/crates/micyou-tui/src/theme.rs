@@ -1,4 +1,4 @@
-//! CLI TUI theme: reads the GUI-exported theme.json (written by the frontend via
+//! TUI theme: reads the GUI-exported theme.json (written by the frontend via
 //! save_theme_colors) and falls back to a built-in Morandi-ish palette.
 
 use ratatui::style::Color;

@@ -48,8 +48,6 @@
     <string name="contributorsLoading">正在加载贡献者...</string>
     <string name="contributorsPeopleCount">%d 位贡献者</string>
     <string name="delete">删除</string>
-    <string name="deletePlugin">删除插件项目</string>
-    <string name="deletePluginConfirm">你确定要删除插件「%s」吗？</string>
     <string name="dereverbLevelLabel">等级别数</string>
     <string name="developerLabel">开发者人员者</string>
     <string name="discoveredDevicesLabel">可用服务器</string>
@@ -144,7 +142,6 @@
     <string name="githubDownloadLabel">GitHub下载项目</string>
     <string name="githubRepoLabel">吉特哈布 代码仓库库</string>
     <string name="hexFormatError">格式: #RRGGBB</string>
-    <string name="importPlugin">导入插件项目</string>
     <string name="introText">麦克风你是一个打开来源微型手机工具那转弯你的安卓设备进入一个高质量微型手机为了你的计算机。 基于在安卓麦克风， 它支持 无线保真度 (传输控制协定)， 蓝色牙齿， 和 通用串行总线式 联系, 提供低延迟声音的传播。</string>
     <string name="ipLabel">互联网协议: </string>
     <string name="isLatestVersion">已经是最新的版本</string>
@@ -175,7 +172,6 @@
     <string name="muteLabel">静默化</string>
     <string name="newVersionReleased">新版本发布了</string>
     <string name="noGeneralSettings">没有可用的一般设置项目们</string>
-    <string name="noPluginsInstalled">没有安装任何插件项目</string>
     <string name="nsAlgorithmAlternative">可替代的项</string>
     <string name="nsAlgorithmCloseButton">得到它按钮</string>
     <string name="nsAlgorithmHelpTitle">噪音减少算法标题</string>
@@ -229,21 +225,6 @@
     <string name="permissionRequired">必选项目项</string>
     <string name="permissionRequiredHint">必选权限项目必须授予才能使用本应用程式项目项。</string>
     <string name="permissionSettingsTitle">应用程式权限项目标题项</string>
-    <string name="pluginDisabled">插件项目已禁用</string>
-    <string name="pluginEnabled">插件项目已启用</string>
-    <string name="pluginImportFailed">插件项目导入失败: %s</string>
-    <string name="pluginImportSelectFile">选择插件文件</string>
-    <string name="pluginImportSuccess">插件项目导入成功</string>
-    <string name="pluginImportTitle">导入插件项目</string>
-    <string name="pluginImporting">正在导入插件项目...</string>
-    <string name="pluginOpenWindow">打开窗口</string>
-    <string name="pluginPlatformWarning">插件项目「%1$s」是为 %2$s 平台设计的，可能在当前设备上无法正常工作。</string>
-    <string name="pluginPlatformWarningTitle">平台不兼容</string>
-    <string name="pluginSettings">设置</string>
-    <string name="pluginSyncDismiss">忽略</string>
-    <string name="pluginSyncWarningMessage">以下跨平台插件未在双方设备上安装：</string>
-    <string name="pluginSyncWarningTitle">插件同步警告</string>
-    <string name="pluginsSection">插件项目部分</string>
     <string name="pocketModeDesc">使用紧凑窗口布局项</string>
     <string name="pocketModeLabel">袖珍样式模式项</string>
     <string name="portLabel">港口</string>
@@ -308,11 +289,8 @@
     <string name="waitAdb">等待为了安卓调试桥接联系...</string><string name="contributorsCount">%s contributors</string>
     <string name="updateAvailableMsg">New version available: %s</string>
     <string name="installInstalling">Installing...</string>
-    <string name="reloadPlugins">Reload Plugins</string>
-    <string name="noPluginsFound">No plugins installed</string>
     <string name="showMore">Show More</string>
     <string name="showLess">Show Less</string>
-    <string name="removePlugin">Delete Plugin</string>
     <string name="audioSourceCamcorder">CAMCORDER (摄像机)</string>
     <string name="audioSourceMic">MIC (默认)</string>
     <string name="audioSourceUnprocessed">UNPROCESSED (原始音频)</string>
@@ -337,9 +315,7 @@
     <string name="errorRecordingPermissionDenied">录音权限不足</string>
     <string name="errorServerGeneric">服务器错误: %s</string>
     <string name="errorSocketError">套接字错误: %s</string>
-    <string name="pluginConfiguration">插件配置</string>
-    <string name="pluginNotSupportedAndroid">Android 平台不支持插件。</string>
-    <string name="pluginSettingsTitle">插件设置</string><string name="installCheckingLinux">正在检查 Linux 音频子系统...</string>
+    <string name="installCheckingLinux">正在检查 Linux 音频子系统...</string>
     <string name="installCheckingPackage">正在检查安装包...</string>
     <string name="installConfigComplete">配置完成了呀</string>
     <string name="installConfiguring">正在配置...</string><string name="installDownloadFailed">下载失败了</string>
@@ -348,7 +324,7 @@
     <string name="installLinuxExists">PipeWire 虚拟设备已存在</string>
     <string name="installNotCompleted">安装未完成</string>
     <string name="installOsNotSupported">当前操作系统不支持自动安装</string>
-    <string name="reloadingPlugins">正在重新加载插件...</string><string name="webQrCodeTitle">扫码连接标题项</string>
+    <string name="webQrCodeTitle">扫码连接标题项</string>
     <string name="webScanHint">用手机扫码打开网页项目，允许麦克风权限项目即可开始传输音频项目</string>
     <string name="webClientCountLabel">已连接客户端计数标签项</string>
     <string name="modeWeb">网页式</string>

@@ -82,7 +82,6 @@
       "appearance": "Appearance",
       "audio": "Audio",
       "network": "Network",
-      "plugins": "Plugins",
       "about": "About"
     },
     "language": {
@@ -224,10 +223,6 @@
       "presetVocalClarity": "Vocal Clarity",
       "presetWarmVocal": "Warm Vocal"
     },
-    "plugins": {
-      "underConstruction": "Under Construction",
-      "portedDesc": "This section is being ported from the KMP version."
-    },
     "webPort": {
       "title": "Web Port",
       "desc": "Port for Web connection mode (default: 8443)",
@@ -250,13 +245,17 @@
     },
     "runMode": {
       "title": "Run Mode",
-      "desc": "CLI mode uses less memory and runs in a terminal",
+      "desc": "CLI and TUI modes use less memory and run in a terminal",
       "switchButton": "Switch to CLI Mode",
+      "switchTuiButton": "Switch to TUI Mode",
       "confirmSwitch": "Switch to CLI mode? The GUI will close and a terminal will run micyou serve",
+      "confirmSwitchTui": "Switch to TUI mode? The GUI will close and a terminal will run micyou-tui",
       "switchFailed": "Switch failed",
       "guiCurrent": "GUI",
       "cliRunningShort": "CLI running",
-      "cliRunning": "CLI mode is running (PID {pid}) - stop it in the terminal before switching"
+      "cliRunning": "CLI mode is running (PID {pid}) - stop it in the terminal before switching",
+      "tuiRunningShort": "TUI running",
+      "tuiRunning": "TUI mode is running (PID {pid}) - stop it in the terminal before switching"
     }
   },
   "dialogs": {
@@ -303,7 +302,8 @@
     "start": "Start Streaming",
     "stop": "Stop Streaming",
     "exit": "Exit",
-    "switchCli": "Switch to CLI Mode"
+    "switchCli": "Switch to CLI Mode",
+    "switchTui": "Switch to TUI Mode"
   },
   "closeConfirm": {
     "title": "Close MicYou",

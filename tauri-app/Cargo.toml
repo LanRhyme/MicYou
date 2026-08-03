@@ -5,6 +5,7 @@ members = [
     "crates/micyou-protocol",
     "crates/micyou-audio",
     "crates/micyou-cli",
+    "crates/micyou-tui",
 ]
 
 [workspace.package]

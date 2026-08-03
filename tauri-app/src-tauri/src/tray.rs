@@ -7,6 +7,7 @@ use tauri::{
 };
 
 #[derive(Deserialize, Debug, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct TrayMenuStrings {
     pub tooltip: String,
     pub show: String,
@@ -16,6 +17,8 @@ pub struct TrayMenuStrings {
     pub exit: String,
     #[serde(default)]
     pub switch_cli: String,
+    #[serde(default)]
+    pub switch_tui: String,
 }
 
 impl TrayMenuStrings {
@@ -28,6 +31,7 @@ impl TrayMenuStrings {
             stop: "Stop Streaming".to_string(),
             exit: "Exit".to_string(),
             switch_cli: "Switch to CLI Mode".to_string(),
+            switch_tui: "Switch to TUI Mode".to_string(),
         }
     }
 }
@@ -62,6 +66,7 @@ pub const MENU_ID_SHOW: &str = "show";
 pub const MENU_ID_TOGGLE_STREAM: &str = "toggle_stream";
 pub const MENU_ID_EXIT: &str = "exit";
 pub const MENU_ID_SWITCH_CLI: &str = "switch_cli";
+pub const MENU_ID_SWITCH_TUI: &str = "switch_tui";
 
 pub struct TrayContext {
     pub strings: Mutex<TrayMenuStrings>,
@@ -100,7 +105,11 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             let id = event.id().as_ref();
             log::info!(target: "tray", "menu event: {id}");
             match id {
-                MENU_ID_SHOW | MENU_ID_TOGGLE_STREAM | MENU_ID_EXIT | MENU_ID_SWITCH_CLI => {
+                MENU_ID_SHOW
+                | MENU_ID_TOGGLE_STREAM
+                | MENU_ID_EXIT
+                | MENU_ID_SWITCH_CLI
+                | MENU_ID_SWITCH_TUI => {
                     let _ = app.emit("tray-action", id);
                 }
                 other => {
@@ -166,6 +175,13 @@ fn build_menu<R: Runtime>(
         true,
         None::<&str>,
     )?;
+    let switch_tui = MenuItem::with_id(
+        app,
+        MENU_ID_SWITCH_TUI,
+        &strings.switch_tui,
+        true,
+        None::<&str>,
+    )?;
     let exit = MenuItem::with_id(app, MENU_ID_EXIT, &strings.exit, true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     Menu::with_items(
@@ -175,6 +191,7 @@ fn build_menu<R: Runtime>(
             &toggle_stream,
             &separator,
             &switch_cli,
+            &switch_tui,
             &separator,
             &exit,
         ],
@@ -194,6 +211,7 @@ mod tests {
             stop: "Stop".into(),
             exit: "Exit".into(),
             switch_cli: "Switch".into(),
+            switch_tui: "Switch TUI".into(),
         }
     }
 
@@ -261,5 +279,23 @@ mod tests {
         assert!(!d.start.is_empty() && !d.stop.is_empty());
         assert!(!d.exit.is_empty());
         assert!(!d.switch_cli.is_empty());
+        assert!(!d.switch_tui.is_empty());
+    }
+
+    #[test]
+    fn tray_switch_labels_deserialize_from_frontend_camel_case() {
+        let strings: TrayMenuStrings = serde_json::from_value(serde_json::json!({
+            "tooltip": "tooltip",
+            "show": "show",
+            "hide": "hide",
+            "start": "start",
+            "stop": "stop",
+            "exit": "exit",
+            "switchCli": "CLI label",
+            "switchTui": "TUI label"
+        }))
+        .unwrap();
+        assert_eq!(strings.switch_cli, "CLI label");
+        assert_eq!(strings.switch_tui, "TUI label");
     }
 }

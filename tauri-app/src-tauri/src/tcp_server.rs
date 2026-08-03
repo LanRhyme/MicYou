@@ -503,7 +503,6 @@ async fn handle_client(
                 audio_packet: None,
                 connect: None,
                 mute: None,
-                plugin_sync: None,
                 ping: Some(micyou_protocol::micyou::PingMessage {
                     timestamp: std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
@@ -645,7 +644,6 @@ async fn handle_message(
             audio_packet: None,
             connect: None,
             mute: None,
-            plugin_sync: None,
             ping: None,
             pong: Some(micyou_protocol::micyou::PongMessage {
                 timestamp: ping.timestamp,

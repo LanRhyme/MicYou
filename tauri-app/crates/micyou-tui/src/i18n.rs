@@ -1,4 +1,4 @@
-//! Minimal i18n for the CLI/TUI.
+//! Minimal i18n for the TUI.
 //!
 //! Language resolution order:
 //! 1. `~/.config/micyou/ui.json` `language` field (written by the GUI)
@@ -69,7 +69,7 @@ const ZH: Dict = Dict {
         ("sys_mem", "内存"),
         ("proc_cpu", "本进程CPU"),
         ("proc_mem", "本进程内存"),
-        ("app_title", "CLI 模式"),
+        ("app_title", "TUI 模式"),
         ("tab_dashboard", "仪表盘"),
         ("tab_audio", "音频参数"),
         ("tab_chain", "处理链路"),
@@ -149,7 +149,7 @@ const EN: Dict = Dict {
         ("sys_mem", "MEM"),
         ("proc_cpu", "proc CPU"),
         ("proc_mem", "proc MEM"),
-        ("app_title", "CLI Mode"),
+        ("app_title", "TUI Mode"),
         ("tab_dashboard", "Dashboard"),
         ("tab_audio", "Audio"),
         ("tab_chain", "Chain"),
@@ -229,7 +229,7 @@ const CAT: Dict = Dict {
         ("sys_mem", "内存"),
         ("proc_cpu", "本进程CPU"),
         ("proc_mem", "本进程内存"),
-        ("app_title", "CLI 模式喵~"),
+        ("app_title", "TUI 模式喵~"),
         ("tab_dashboard", "仪表盘喵~"),
         ("tab_audio", "音频参数喵~"),
         ("tab_chain", "处理链路喵~"),
@@ -309,7 +309,7 @@ const LZH: Dict = Dict {
         ("sys_mem", "内存"),
         ("proc_cpu", "本进程CPU"),
         ("proc_mem", "本进程内存"),
-        ("app_title", "CLI 模式"),
+        ("app_title", "TUI 模式"),
         ("tab_dashboard", "仪表盘"),
         ("tab_audio", "音频参数"),
         ("tab_chain", "处理链路"),
@@ -389,7 +389,7 @@ const ZH_HK: Dict = Dict {
         ("sys_mem", "記憶體"),
         ("proc_cpu", "本程序CPU"),
         ("proc_mem", "本程序記憶體"),
-        ("app_title", "CLI 模式"),
+        ("app_title", "TUI 模式"),
         ("tab_dashboard", "儀錶盤"),
         ("tab_audio", "音訊參數"),
         ("tab_chain", "處理鏈路"),
@@ -469,7 +469,7 @@ const ZH_SS: Dict = Dict {
         ("sys_mem", "内存"),
         ("proc_cpu", "本进程CPU"),
         ("proc_mem", "本进程内存"),
-        ("app_title", "CLI 模式"),
+        ("app_title", "TUI 模式"),
         ("tab_dashboard", "仪表盘项"),
         ("tab_audio", "音频参数项"),
         ("tab_chain", "处理链路项"),
@@ -549,7 +549,7 @@ const ZH_TW: Dict = Dict {
         ("sys_mem", "記憶體"),
         ("proc_cpu", "本程序CPU"),
         ("proc_mem", "本程序記憶體"),
-        ("app_title", "CLI 模式"),
+        ("app_title", "TUI 模式"),
         ("tab_dashboard", "儀表板"),
         ("tab_audio", "音訊參數"),
         ("tab_chain", "處理鏈路"),

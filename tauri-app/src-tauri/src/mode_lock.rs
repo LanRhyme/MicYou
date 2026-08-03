@@ -3,7 +3,7 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
-/// Mode lock: guarantees GUI and CLI never run the audio server at the same time.
+/// Mode lock: guarantees GUI, CLI and TUI never run the audio server at the same time.
 /// Stored at the platform data dir as `mode.lock` with JSON `{ mode, pid }`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum RunMode {
@@ -11,6 +11,8 @@ pub enum RunMode {
     Gui,
     #[serde(rename = "cli")]
     Cli,
+    #[serde(rename = "tui")]
+    Tui,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,7 +50,7 @@ pub fn lock_path() -> PathBuf {
     data_dir().join("mode.lock")
 }
 
-/// Public wrapper so the GUI/CLI commands can check liveness.
+/// Public wrapper so GUI/CLI/TUI commands can check liveness.
 pub fn pid_alive_public(pid: u32) -> bool {
     pid_alive(pid)
 }
@@ -102,6 +104,7 @@ pub fn acquire(mode: RunMode) -> Result<(), String> {
             let other = match existing.mode {
                 RunMode::Gui => "MicYou GUI",
                 RunMode::Cli => "MicYou CLI",
+                RunMode::Tui => "MicYou TUI",
             };
             return Err(format!(
                 "{other} is already running (pid {})\n\
@@ -133,5 +136,19 @@ pub fn release() {
         if existing.pid == std::process::id() {
             let _ = fs::remove_file(lock_path());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RunMode;
+
+    #[test]
+    fn tui_mode_has_stable_lock_value() {
+        assert_eq!(serde_json::to_string(&RunMode::Tui).unwrap(), "\"tui\"");
+        assert_eq!(
+            serde_json::from_str::<RunMode>("\"tui\"").unwrap(),
+            RunMode::Tui
+        );
     }
 }

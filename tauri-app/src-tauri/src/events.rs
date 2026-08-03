@@ -7,8 +7,8 @@ use tauri::Manager;
 
 /// Events emitted by the audio server core, decoupled from Tauri.
 ///
-/// The GUI implements this via `TauriEventSink` (wraps `AppHandle.emit`); the CLI
-/// implements it by updating TUI state or writing log lines. This keeps the server
+/// The GUI implements this via `TauriEventSink` (wraps `AppHandle.emit`); CLI/TUI
+/// implement it by updating TUI state or writing log lines. This keeps the server
 /// core callable without a running Tauri runtime.
 pub trait ServerEvents: Send + Sync + 'static {
     fn device_connected(&self, info: DeviceInfo);

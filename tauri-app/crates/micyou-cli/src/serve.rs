@@ -1,9 +1,8 @@
 use crate::config;
-use crate::events::{CliEventSink, Event, TuiEventSink};
-use tauri_app_lib::mode_lock::RunMode;
-use std::sync::mpsc::channel;
+use crate::events::CliEventSink;
 use std::sync::Arc;
 use tauri_app_lib::commands::system::{start_server_inner, stop_server_inner};
+use tauri_app_lib::mode_lock::RunMode;
 use tauri_app_lib::server::ServerState;
 
 pub struct ServeArgs {
@@ -11,7 +10,6 @@ pub struct ServeArgs {
     pub mode: Option<String>,
     pub device: Option<String>,
     pub bind: Option<String>,
-    pub no_tui: bool,
 }
 
 /// Run the audio server in the foreground.
@@ -60,12 +58,7 @@ pub async fn run(args: ServeArgs) -> Result<(), String> {
     }
 
     let state = build_state();
-    let (tx, rx) = channel::<Event>();
-    let events: Arc<dyn tauri_app_lib::events::ServerEvents> = if args.no_tui {
-        Arc::new(CliEventSink)
-    } else {
-        Arc::new(TuiEventSink::new(tx))
-    };
+    let events: Arc<dyn tauri_app_lib::events::ServerEvents> = Arc::new(CliEventSink);
 
     let result = start_server_inner(&state, port, mode.clone(), bind, device, events.clone()).await;
 
@@ -77,21 +70,15 @@ pub async fn run(args: ServeArgs) -> Result<(), String> {
         }
     }
 
-    if args.no_tui {
-        println!("Press Ctrl+C to stop");
-        let _ = tokio::signal::ctrl_c().await;
-        println!("Stopping server...");
-        let _ = stop_server_inner(&state, events).await;
-    } else {
-        let tui_result = crate::tui::run_tui(rx, state.clone(), port, mode);
-        let _ = stop_server_inner(&state, events).await;
-        tui_result?;
-    }
+    println!("Press Ctrl+C to stop");
+    let _ = tokio::signal::ctrl_c().await;
+    println!("Stopping server...");
+    let _ = stop_server_inner(&state, events).await;
     tauri_app_lib::mode_lock::release();
     Ok(())
 }
 
-/// Build a ServerState from the CLI settings file.
+/// Build a ServerState from the shared settings file.
 pub fn build_state() -> Arc<ServerState> {
     let settings = config::load_settings();
     Arc::new(ServerState {
