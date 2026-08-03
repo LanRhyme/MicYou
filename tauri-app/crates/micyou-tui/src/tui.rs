@@ -704,8 +704,6 @@ impl TuiApp {
         frame.render_widget(Paragraph::new(line), area);
     }
 
-    /// Compact status bar: server state, mode/port, device, mute, web clients
-
     /// Two side-by-side sparkline panels: input level and network latency.
     fn render_charts(&self, frame: &mut Frame, area: Rect) {
         let theme = self.theme;
@@ -738,6 +736,7 @@ impl TuiApp {
     }
 
     /// One panel: title, sparkline curve and a readout line.
+    #[allow(clippy::too_many_arguments)]
     fn render_spark_panel(
         &self,
         frame: &mut Frame,
@@ -776,8 +775,6 @@ impl TuiApp {
         frame.render_widget(Paragraph::new(line), parts[1]);
     }
 
-    /// Horizontal metrics row: key/value pairs across the full width
-
     /// Panel block with a colored title and soft border.
     fn panel(&self, title: String) -> Block<'static> {
         Block::default()
@@ -803,7 +800,7 @@ impl TuiApp {
         if width == 0 || height == 0 {
             return;
         }
-        let n_cols = width.min(64).max(4);
+        let n_cols = width.clamp(4, 64);
         let bands: Vec<f32> = (0..n_cols)
             .map(|i| {
                 let src = i * 64 / n_cols;
@@ -873,7 +870,7 @@ impl TuiApp {
             if w < 40 {
                 return String::new();
             }
-            let bw = (w - 34).max(8).min(24);
+            let bw = (w - 34).clamp(8, 24);
             let filled = ((val - min) / (max - min)).clamp(0.0, 1.0) * bw as f32;
             let mut s = String::with_capacity(bw);
             for i in 0..bw {
@@ -1157,7 +1154,7 @@ fn clip_text(s: String, width: usize) -> String {
     for ch in s.chars() {
         let cw = if ch as u32 > 0x2fff { 2 } else { 1 };
         if w + cw > width {
-            if w + 1 <= width {
+            if w < width {
                 out.push('…');
             }
             break;

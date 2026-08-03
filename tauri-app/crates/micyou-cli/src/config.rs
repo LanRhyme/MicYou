@@ -18,4 +18,3 @@ pub fn load_settings() -> AudioDspSettings {
 pub fn save_settings(settings: &AudioDspSettings) -> Result<(), String> {
     tauri_app_lib::app_config::save_dsp_settings(settings)
 }
-

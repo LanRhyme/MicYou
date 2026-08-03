@@ -167,7 +167,10 @@ async fn find_blackhole_input_device() -> Option<AudioDevice> {
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    let content = json_str.trim().trim_start_matches('[').trim_end_matches(']');
+    let content = json_str
+        .trim()
+        .trim_start_matches('[')
+        .trim_end_matches(']');
 
     for obj_str in content.split("},").map(|s| {
         if s.contains('}') {
@@ -255,7 +258,10 @@ pub async fn set_blackhole_as_input() -> Result<BlackHoleResult, String> {
 
     // Save current input device before switching, only if we haven't saved one already
     {
-        let already_saved = ORIGINAL_INPUT_DEVICE.lock().map(|g| g.is_some()).unwrap_or(false);
+        let already_saved = ORIGINAL_INPUT_DEVICE
+            .lock()
+            .map(|g| g.is_some())
+            .unwrap_or(false);
         if !already_saved {
             if let Some(current) = get_current_input_device().await {
                 if let Ok(mut orig) = ORIGINAL_INPUT_DEVICE.lock() {
@@ -320,7 +326,10 @@ pub async fn do_restore_input_device() -> Result<(), String> {
 
 /// Restore the original input device (Tauri command)
 pub async fn restore_input_device() -> Result<BlackHoleResult, String> {
-    let has_saved = ORIGINAL_INPUT_DEVICE.lock().map(|g| g.is_some()).unwrap_or(false);
+    let has_saved = ORIGINAL_INPUT_DEVICE
+        .lock()
+        .map(|g| g.is_some())
+        .unwrap_or(false);
     if !has_saved {
         return Ok(BlackHoleResult {
             success: true,

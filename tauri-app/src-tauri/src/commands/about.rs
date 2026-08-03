@@ -1,5 +1,5 @@
-use reqwest::Client;
 use md5::Digest;
+use reqwest::Client;
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -41,13 +41,19 @@ pub async fn get_sponsors() -> Result<String, String> {
         return Err("API not configured".to_string());
     }
 
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
     let params = r#"{"page":"1","per_page":"100"}"#;
     let sign_str = format!("{}params{}ts{}user_id{}", api_token, params, ts, user_id);
     let mut hasher = md5::Md5::new();
     md5::Digest::update(&mut hasher, sign_str.as_bytes());
     let digest = hasher.finalize();
-    let sign = digest.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    let sign = digest
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
 
     let client = Client::new();
     let req_body = serde_json::json!({
@@ -70,9 +76,9 @@ pub async fn get_sponsors() -> Result<String, String> {
 
 #[tauri::command]
 pub fn export_log(app: tauri::AppHandle) -> Result<(), String> {
-    use tauri_plugin_dialog::DialogExt;
-    use tauri::Manager;
     use std::fs;
+    use tauri::Manager;
+    use tauri_plugin_dialog::DialogExt;
 
     let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
     let log_file = log_dir.join("micyou.log");

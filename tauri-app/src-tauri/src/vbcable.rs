@@ -1,10 +1,8 @@
 use serde::Serialize;
 #[cfg(feature = "vbcable")]
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 #[cfg(feature = "vbcable")]
 use std::sync::atomic::{AtomicBool, Ordering};
-
-
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VBCableResult {
@@ -48,9 +46,7 @@ pub fn is_installed() -> bool {
     registry_paths.iter().any(|path| {
         use winreg::enums::HKEY_LOCAL_MACHINE;
         use winreg::RegKey;
-        RegKey::predef(HKEY_LOCAL_MACHINE)
-            .open_subkey(path)
-            .is_ok()
+        RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey(path).is_ok()
     })
 }
 
@@ -63,7 +59,8 @@ pub fn is_installed() -> bool {
 static IS_INSTALLING: AtomicBool = AtomicBool::new(false);
 
 #[cfg(feature = "vbcable")]
-const INSTALLER_URL: &str = "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip";
+const INSTALLER_URL: &str =
+    "https://download.vb-audio.com/Download_CABLE/VBCABLE_Driver_Pack45.zip";
 #[cfg(feature = "vbcable")]
 const INSTALLER_NAME: &str = "VBCABLE_Setup_x64.exe";
 #[cfg(feature = "vbcable")]
@@ -75,12 +72,11 @@ fn temp_dir() -> PathBuf {
 }
 
 #[cfg(feature = "vbcable")]
-
-
-#[cfg(feature = "vbcable")]
 async fn download_installer(events: &crate::events::SharedEvents) -> Result<PathBuf, String> {
     let dir = temp_dir();
-    tokio::fs::create_dir_all(&dir).await.map_err(|e| format!("create temp dir: {e}"))?;
+    tokio::fs::create_dir_all(&dir)
+        .await
+        .map_err(|e| format!("create temp dir: {e}"))?;
 
     let zip_path = dir.join("vbcable_pack.zip");
 
@@ -107,10 +103,8 @@ async fn download_installer(events: &crate::events::SharedEvents) -> Result<Path
     let zip_path_clone = zip_path.clone();
     let extract_dir_clone = extract_dir.clone();
     tokio::task::spawn_blocking(move || {
-        let file = std::fs::File::open(&zip_path_clone)
-            .map_err(|e| format!("open zip: {e}"))?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| format!("read zip: {e}"))?;
+        let file = std::fs::File::open(&zip_path_clone).map_err(|e| format!("open zip: {e}"))?;
+        let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("read zip: {e}"))?;
         archive
             .extract(&extract_dir_clone)
             .map_err(|e| format!("extract zip: {e}"))
@@ -131,7 +125,7 @@ async fn download_installer(events: &crate::events::SharedEvents) -> Result<Path
 }
 
 #[cfg(feature = "vbcable")]
-async fn run_installer(installer_path: &PathBuf) -> Result<(), String> {
+async fn run_installer(installer_path: &Path) -> Result<(), String> {
     let path_str = installer_path.to_string_lossy().to_string();
     let cmd = format!(
         "Start-Process -FilePath '{}' -ArgumentList '-i','-h' -Verb RunAs -Wait",
@@ -191,7 +185,10 @@ async fn configure_devices(events: &crate::events::SharedEvents) -> Result<(), S
 
 #[cfg(feature = "vbcable")]
 pub async fn install(events: crate::events::SharedEvents) -> VBCableResult {
-    if IS_INSTALLING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+    if IS_INSTALLING
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
         return VBCableResult {
             success: false,
             error_type: Some("already_installing".to_string()),
@@ -206,7 +203,10 @@ pub async fn install(events: crate::events::SharedEvents) -> VBCableResult {
         VBCableResult { success: true, .. } => {
             events.install_progress("Installation complete".to_string());
         }
-        VBCableResult { error_type: Some(et), .. } => {
+        VBCableResult {
+            error_type: Some(et),
+            ..
+        } => {
             events.install_progress(format!("Failed: {et}"));
         }
         _ => {}
@@ -248,7 +248,11 @@ async fn install_inner(events: &crate::events::SharedEvents) -> VBCableResult {
     events.install_progress("Installing (requires admin approval)...".to_string());
 
     if let Err(e) = run_installer(&installer_path).await {
-        let error_type = if e == "uac_denied" { "uac_denied" } else { "install_failed" };
+        let error_type = if e == "uac_denied" {
+            "uac_denied"
+        } else {
+            "install_failed"
+        };
         return VBCableResult {
             success: false,
             error_type: Some(error_type.to_string()),
@@ -280,5 +284,3 @@ async fn install_inner(events: &crate::events::SharedEvents) -> VBCableResult {
         message: Some("Installation and configuration complete".to_string()),
     }
 }
-
-

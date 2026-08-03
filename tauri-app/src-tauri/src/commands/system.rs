@@ -3,8 +3,8 @@ use tauri::{AppHandle, Manager, State};
 use tokio_util::sync::CancellationToken;
 
 use crate::audio_stream::{validate_audio_packet, AudioStreamEvent, ExpectedAudioSession};
-use crate::udp_server::ActiveAudioSession;
 use crate::server::{await_startup_ready, ServerState, AUDIO_JOIN_TIMEOUT, STARTUP_TIMEOUT};
+use crate::udp_server::ActiveAudioSession;
 
 const NETWORK_TASK_JOIN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
@@ -80,11 +80,8 @@ async fn rollback_start(
     tasks: Vec<tokio::task::JoinHandle<()>>,
 ) -> Result<(), String> {
     cancel_token.cancel();
-    crate::tcp_server::cleanup_session_state(
-        &state.active_connection,
-        &state.active_audio_session,
-    )
-    .await;
+    crate::tcp_server::cleanup_session_state(&state.active_connection, &state.active_audio_session)
+        .await;
     join_tasks_bounded(tasks, NETWORK_TASK_JOIN_TIMEOUT).await;
     state.cancel_token.lock().await.take();
     if let Some(mdns) = state.mdns_manager.lock().await.take() {
@@ -216,15 +213,13 @@ pub async fn start_server_inner(
                     return Some(d.clone());
                 }
                 let res_dir = d.join("resources");
-                if res_dir.join("ulunas.onnx").exists()
-                    || res_dir.join("aec7_ep0185.onnx").exists()
+                if res_dir.join("ulunas.onnx").exists() || res_dir.join("aec7_ep0185.onnx").exists()
                 {
                     return Some(res_dir);
                 }
                 let dev_res =
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
-                if dev_res.join("ulunas.onnx").exists()
-                    || dev_res.join("aec7_ep0185.onnx").exists()
+                if dev_res.join("ulunas.onnx").exists() || dev_res.join("aec7_ep0185.onnx").exists()
                 {
                     return Some(dev_res);
                 }
@@ -322,147 +317,151 @@ pub async fn start_server_inner(
                             jb.prepare_transport_session_epoch(expected, epoch);
                             continue;
                         }
-                        AudioStreamEvent::Packet { packet, epoch } => {
-                            jb.push_epoch(packet, epoch)
-                        }
+                        AudioStreamEvent::Packet { packet, epoch } => jb.push_epoch(packet, epoch),
                     }
                     let packets: Vec<_> = std::iter::from_fn(|| jb.pop()).collect();
 
-            for ordered_packet in packets {
-                if let Some(audio_data) = ordered_packet.audio_packet {
-                    let capacity = match audio_data.audio_format {
-                        2 => audio_data.buffer.len() / 2,
-                        3 => audio_data.buffer.len(),
-                        4 => audio_data.buffer.len() / 4,
-                        6 => audio_data.buffer.len() / 3,
-                        _ => 0,
-                    };
-                    pcm_f32.clear();
-                    pcm_f32.reserve(capacity);
-                    match audio_data.audio_format {
-                        2 => {
-                            for chunk in audio_data.buffer.chunks_exact(2) {
-                                let sample_i16 = i16::from_le_bytes([chunk[0], chunk[1]]);
-                                pcm_f32.push(sample_i16 as f32 / 32768.0);
-                            }
-                        }
-                        3 => {
-                            for &byte in &audio_data.buffer {
-                                let sample_f32 = (byte as f32 - 128.0) / 128.0;
-                                pcm_f32.push(sample_f32);
-                            }
-                        }
-                        4 => {
-                            for chunk in audio_data.buffer.chunks_exact(4) {
-                                let sample_f32 =
-                                    f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-                                pcm_f32.push(sample_f32);
-                            }
-                        }
-                        6 => {
-                            for chunk in audio_data.buffer.chunks_exact(3) {
-                                let sample24 = (chunk[0] as i32)
-                                    | ((chunk[1] as i32) << 8)
-                                    | ((chunk[2] as i8 as i32) << 16);
-                                let sample_f32 = (sample24 as f32) / 8388608.0;
-                                pcm_f32.push(sample_f32);
-                            }
-                        }
-                        _ => {
-                            eprintln!("Unsupported audio format: {}", audio_data.audio_format);
-                        }
-                    }
-
-                    if !pcm_f32.is_empty() {
-                        let channels = audio_data.channel_count as usize;
-                        let sample_rate = audio_data.sample_rate as u32;
-
-                        if sample_rate > 0 && sample_rate != 48000 {
-                            if current_input_sample_rate != sample_rate {
-                                match micyou_audio::RubatoResampler::new(
-                                    sample_rate,
-                                    48000,
-                                    channels.max(1),
-                                ) {
-                                    Ok(res) => {
-                                        input_resampler = Some(res);
-                                        current_input_sample_rate = sample_rate;
-                                    }
-                                    Err(e) => {
-                                        eprintln!("Failed to create resampler: {}", e);
-                                        input_resampler = None;
-                                        current_input_sample_rate = 48000;
+                    for ordered_packet in packets {
+                        if let Some(audio_data) = ordered_packet.audio_packet {
+                            let capacity = match audio_data.audio_format {
+                                2 => audio_data.buffer.len() / 2,
+                                3 => audio_data.buffer.len(),
+                                4 => audio_data.buffer.len() / 4,
+                                6 => audio_data.buffer.len() / 3,
+                                _ => 0,
+                            };
+                            pcm_f32.clear();
+                            pcm_f32.reserve(capacity);
+                            match audio_data.audio_format {
+                                2 => {
+                                    for chunk in audio_data.buffer.chunks_exact(2) {
+                                        let sample_i16 = i16::from_le_bytes([chunk[0], chunk[1]]);
+                                        pcm_f32.push(sample_i16 as f32 / 32768.0);
                                     }
                                 }
-                            }
-                            if let Some(ref mut resampler) = input_resampler {
-                                resampler.resample(
-                                    &pcm_f32,
-                                    channels.max(1),
-                                    &mut resample_out_buf,
-                                );
-                                pcm_f32.clear();
-                                pcm_f32.extend_from_slice(&resample_out_buf);
-                            }
-                        } else {
-                            input_resampler = None;
-                            current_input_sample_rate = 48000;
-                        }
-
-                        let queued_samples = audio_manager.queued_samples();
-                        let queued_ms = if channels > 0 {
-                            (queued_samples as f64 / channels as f64) / 48.0
-                        } else {
-                            0.0
-                        };
-
-                        // Web mode: skip DSP for now, output raw audio directly
-                        let processed_rms = if is_web_mode {
-                            let sum: f32 = pcm_f32.iter().map(|x| x * x).sum();
-                            (sum / pcm_f32.len() as f32).sqrt()
-                        } else {
-                            // Read speaker loopback for AEC far-end reference.
-                            // This captures the ACTUAL speaker output (WASAPI/BlackHole/PipeWire),
-                            // which is the true echo source the phone mic picks up.
-                            if let Some(lb) = &loopback {
-                                if lb.is_active() {
-                                    let hop = 480usize;
-                                    if let Some(far_data) = lb.read(hop) {
-                                        dsp_processor.set_far_end_audio(&far_data);
+                                3 => {
+                                    for &byte in &audio_data.buffer {
+                                        let sample_f32 = (byte as f32 - 128.0) / 128.0;
+                                        pcm_f32.push(sample_f32);
                                     }
                                 }
+                                4 => {
+                                    for chunk in audio_data.buffer.chunks_exact(4) {
+                                        let sample_f32 = f32::from_le_bytes([
+                                            chunk[0], chunk[1], chunk[2], chunk[3],
+                                        ]);
+                                        pcm_f32.push(sample_f32);
+                                    }
+                                }
+                                6 => {
+                                    for chunk in audio_data.buffer.chunks_exact(3) {
+                                        let sample24 = (chunk[0] as i32)
+                                            | ((chunk[1] as i32) << 8)
+                                            | ((chunk[2] as i8 as i32) << 16);
+                                        let sample_f32 = (sample24 as f32) / 8388608.0;
+                                        pcm_f32.push(sample_f32);
+                                    }
+                                }
+                                _ => {
+                                    eprintln!(
+                                        "Unsupported audio format: {}",
+                                        audio_data.audio_format
+                                    );
+                                }
                             }
-                            let (_raw, processed) =
-                                dsp_processor.process(&mut pcm_f32, channels.max(1), queued_ms);
-                            if let Some(reason) = dsp_processor.take_aec_failure() {
-                                disable_aec_runtime(
-                                    &dsp_settings,
-                                    &events_audio,
-                                    reason,
-                                    &mut aec_failure_reported,
-                                );
-                            }
-                            processed
-                        };
+                            if !pcm_f32.is_empty() {
+                                let channels = audio_data.channel_count as usize;
+                                let sample_rate = audio_data.sample_rate as u32;
 
-                        audio_manager.push_audio_data(&pcm_f32, channels.max(1));
+                                if sample_rate > 0 && sample_rate != 48000 {
+                                    if current_input_sample_rate != sample_rate {
+                                        match micyou_audio::RubatoResampler::new(
+                                            sample_rate,
+                                            48000,
+                                            channels.max(1),
+                                        ) {
+                                            Ok(res) => {
+                                                input_resampler = Some(res);
+                                                current_input_sample_rate = sample_rate;
+                                            }
+                                            Err(e) => {
+                                                eprintln!("Failed to create resampler: {}", e);
+                                                input_resampler = None;
+                                                current_input_sample_rate = 48000;
+                                            }
+                                        }
+                                    }
+                                    if let Some(ref mut resampler) = input_resampler {
+                                        resampler.resample(
+                                            &pcm_f32,
+                                            channels.max(1),
+                                            &mut resample_out_buf,
+                                        );
+                                        pcm_f32.clear();
+                                        pcm_f32.extend_from_slice(&resample_out_buf);
+                                    }
+                                } else {
+                                    input_resampler = None;
+                                    current_input_sample_rate = 48000;
+                                }
 
-                        frame_counter = frame_counter.wrapping_add(1);
-                        if frame_counter.is_multiple_of(6) {
-                            let level = (processed_rms * 500.0).min(100.0) as u32;
-                            events_audio.audio_level(level);
+                                let queued_samples = audio_manager.queued_samples();
+                                let queued_ms = if channels > 0 {
+                                    (queued_samples as f64 / channels as f64) / 48.0
+                                } else {
+                                    0.0
+                                };
 
-                            if spectrum_streaming_enabled
-                                .load(std::sync::atomic::Ordering::Acquire)
-                            {
-                                let (raw_spec, proc_spec) = dsp_processor.get_spectrums();
-                                events_audio.audio_spectrum(raw_spec, proc_spec);
+                                // Web mode: skip DSP for now, output raw audio directly
+                                let processed_rms = if is_web_mode {
+                                    let sum: f32 = pcm_f32.iter().map(|x| x * x).sum();
+                                    (sum / pcm_f32.len() as f32).sqrt()
+                                } else {
+                                    // Read speaker loopback for AEC far-end reference.
+                                    // This captures the ACTUAL speaker output (WASAPI/BlackHole/PipeWire),
+                                    // which is the true echo source the phone mic picks up.
+                                    if let Some(lb) = &loopback {
+                                        if lb.is_active() {
+                                            let hop = 480usize;
+                                            if let Some(far_data) = lb.read(hop) {
+                                                dsp_processor.set_far_end_audio(&far_data);
+                                            }
+                                        }
+                                    }
+                                    let (_raw, processed) = dsp_processor.process(
+                                        &mut pcm_f32,
+                                        channels.max(1),
+                                        queued_ms,
+                                    );
+                                    if let Some(reason) = dsp_processor.take_aec_failure() {
+                                        disable_aec_runtime(
+                                            &dsp_settings,
+                                            &events_audio,
+                                            reason,
+                                            &mut aec_failure_reported,
+                                        );
+                                    }
+                                    processed
+                                };
+
+                                audio_manager.push_audio_data(&pcm_f32, channels.max(1));
+
+                                frame_counter = frame_counter.wrapping_add(1);
+                                if frame_counter.is_multiple_of(6) {
+                                    let level = (processed_rms * 500.0).min(100.0) as u32;
+                                    events_audio.audio_level(level);
+
+                                    if spectrum_streaming_enabled
+                                        .load(std::sync::atomic::Ordering::Acquire)
+                                    {
+                                        let (raw_spec, proc_spec) = dsp_processor.get_spectrums();
+                                        events_audio.audio_spectrum(raw_spec, proc_spec);
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                }
-            }
             }
 
             if let Some(lb) = &loopback {
@@ -695,11 +694,8 @@ pub async fn stop_server_inner(
     }
     state.lifecycle.lock().await.begin_stopping();
     let tasks = std::mem::take(&mut *state.background_tasks.lock().await);
-    crate::tcp_server::cleanup_session_state(
-        &state.active_connection,
-        &state.active_audio_session,
-    )
-    .await;
+    crate::tcp_server::cleanup_session_state(&state.active_connection, &state.active_audio_session)
+        .await;
     join_tasks_bounded(tasks, NETWORK_TASK_JOIN_TIMEOUT).await;
     let audio_result = state
         .lifecycle

@@ -1,6 +1,6 @@
 use crate::config;
-use tauri_app_lib::mode_lock as lock;
 use micyou_audio::dsp::AudioDspSettings;
+use tauri_app_lib::mode_lock as lock;
 
 pub fn cmd_devices() {
     let devices = tauri_app_lib::commands::audio::get_audio_devices();
@@ -203,7 +203,10 @@ pub async fn cmd_mics_install() -> Result<(), String> {
     let events: std::sync::Arc<dyn tauri_app_lib::events::ServerEvents> =
         std::sync::Arc::new(crate::events::CliEventSink);
     let result = tauri_app_lib::vbcable::install(events).await;
-    println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&result).unwrap_or_default()
+    );
     if result.success {
         Ok(())
     } else {
@@ -219,7 +222,10 @@ pub fn cmd_adb_devices() {
         Ok(devices) => {
             println!("ADB devices:");
             for device in devices {
-                println!("  {} ({}) - {}", device.serial, device.state, device.description);
+                println!(
+                    "  {} ({}) - {}",
+                    device.serial, device.state, device.description
+                );
             }
         }
         Err(e) => {
@@ -242,7 +248,10 @@ pub fn cmd_server_get() {
     println!("bindAddress: {}", prefs.bind_address);
     println!("autoBind: {}", prefs.auto_bind);
     println!("outputDevice: {}", prefs.output_device);
-    println!("file: {}", tauri_app_lib::app_config::server_prefs_path().display());
+    println!(
+        "file: {}",
+        tauri_app_lib::app_config::server_prefs_path().display()
+    );
 }
 
 pub fn cmd_server_set(key: &str, value: &str) -> Result<(), String> {

@@ -1,11 +1,11 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{SampleFormat, StreamConfig, OutputCallbackInfo};
+use cpal::{OutputCallbackInfo, SampleFormat, StreamConfig};
 use ringbuf::{HeapRb, Producer};
-use rubato::{Resampler, Async, FixedAsync, PolynomialDegree};
-use rubato::audioadapter_buffers::owned::InterleavedOwned;
 use rubato::audioadapter::{Adapter, AdapterMut};
-use std::sync::Arc;
+use rubato::audioadapter_buffers::owned::InterleavedOwned;
+use rubato::{Async, FixedAsync, PolynomialDegree, Resampler};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 const BUFFER_HEADROOM_MS: usize = 300;
 const MS_PER_SECOND: usize = 1000;
@@ -18,9 +18,13 @@ pub struct RubatoResampler {
 }
 
 impl RubatoResampler {
-    pub fn new(in_rate: u32, out_rate: u32, channels: usize) -> Result<Self, rubato::ResamplerConstructionError> {
+    pub fn new(
+        in_rate: u32,
+        out_rate: u32,
+        channels: usize,
+    ) -> Result<Self, rubato::ResamplerConstructionError> {
         let chunk_size = 480; // Match typical audio frame size
-        // Use polynomial interpolation - much faster than sinc, good enough quality
+                              // Use polynomial interpolation - much faster than sinc, good enough quality
         let resampler = Async::<f32>::new_poly(
             out_rate as f64 / in_rate as f64,
             2.0,
@@ -41,20 +45,27 @@ impl RubatoResampler {
 
     pub fn resample(&mut self, input: &[f32], channels: usize, output: &mut Vec<f32>) {
         output.clear();
-        let capacity = (input.len() as f64 * (self.resampler.output_frames_max() as f64 / self.chunk_size as f64)).ceil() as usize;
+        let capacity = (input.len() as f64
+            * (self.resampler.output_frames_max() as f64 / self.chunk_size as f64))
+            .ceil() as usize;
         output.reserve(capacity);
         let mut offset = 0;
 
         while offset < input.len() {
-            let chunk_input = &input[offset..(offset + self.chunk_size * channels).min(input.len())];
+            let chunk_input =
+                &input[offset..(offset + self.chunk_size * channels).min(input.len())];
             offset += chunk_input.len();
 
             let in_frames = chunk_input.len() / channels;
-            
+
             for frame in 0..self.chunk_size {
                 for ch in 0..channels {
                     if frame < in_frames {
-                        self.input_buffer.write_sample(ch, frame, &chunk_input[frame * channels + ch]);
+                        self.input_buffer.write_sample(
+                            ch,
+                            frame,
+                            &chunk_input[frame * channels + ch],
+                        );
                     } else {
                         self.input_buffer.write_sample(ch, frame, &0.0);
                     }
@@ -64,7 +75,9 @@ impl RubatoResampler {
             match self.resampler.process(&self.input_buffer, 0, None) {
                 Ok(output_buffer) => {
                     let out_frames = output_buffer.frames();
-                    let expected_out_frames = (in_frames as f64 * (out_frames as f64 / self.chunk_size as f64)).round() as usize;
+                    let expected_out_frames = (in_frames as f64
+                        * (out_frames as f64 / self.chunk_size as f64))
+                        .round() as usize;
                     for frame in 0..expected_out_frames.min(out_frames) {
                         for ch in 0..channels {
                             if let Some(sample) = output_buffer.read_sample(ch, frame) {
@@ -86,7 +99,7 @@ impl RubatoResampler {
 fn rand_f32() -> f32 {
     use std::cell::Cell;
     thread_local! {
-        static STATE: Cell<u32> = Cell::new(12345);
+        static STATE: Cell<u32> = const { Cell::new(12345) };
     }
     STATE.with(|s| {
         let mut x = s.get();
@@ -107,10 +120,10 @@ fn map_channels(input: &[f32], in_channels: usize, out_channels: usize, output: 
         output.extend_from_slice(input);
         return;
     }
-    
+
     let in_frames = input.len() / in_channels;
     output.reserve(in_frames * out_channels);
-    
+
     for i in 0..in_frames {
         let in_idx = i * in_channels;
         for c in 0..out_channels {
@@ -147,6 +160,12 @@ pub struct AudioOutputManager {
     is_monitoring: bool,
     #[cfg(target_os = "linux")]
     pw_loopback_child: Option<std::process::Child>,
+}
+
+impl Default for AudioOutputManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AudioOutputManager {
@@ -230,12 +249,20 @@ impl AudioOutputManager {
             self.monitor_device_channels = config.channels() as usize;
 
             if self.monitor_device_sample_rate != 48000 {
-                self.monitor_resampler = RubatoResampler::new(48000, self.monitor_device_sample_rate, self.monitor_device_channels).ok();
+                self.monitor_resampler = RubatoResampler::new(
+                    48000,
+                    self.monitor_device_sample_rate,
+                    self.monitor_device_channels,
+                )
+                .ok();
             } else {
                 self.monitor_resampler = None;
             }
 
-            let buffer_size = (self.monitor_device_sample_rate as usize * self.monitor_device_channels * self.buffer_headroom_ms) / MS_PER_SECOND;
+            let buffer_size = (self.monitor_device_sample_rate as usize
+                * self.monitor_device_channels
+                * self.buffer_headroom_ms)
+                / MS_PER_SECOND;
             let ring_buffer = HeapRb::<f32>::new(buffer_size.max(MIN_BUFFER_SIZE));
             let (producer, mut consumer) = ring_buffer.split();
 
@@ -259,7 +286,8 @@ impl AudioOutputManager {
                                         underrun_counter.store(0, Ordering::Relaxed);
                                     }
                                     None => {
-                                        let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
+                                        let count =
+                                            underrun_counter.fetch_add(1, Ordering::Relaxed);
                                         let fade = (1.0 - count as f32 * 0.01).max(0.0);
                                         *sample = last_sample * fade;
                                     }
@@ -284,12 +312,14 @@ impl AudioOutputManager {
                                         s
                                     }
                                     None => {
-                                        let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
+                                        let count =
+                                            underrun_counter.fetch_add(1, Ordering::Relaxed);
                                         let fade = (1.0 - count as f32 * 0.01).max(0.0);
                                         last_sample * fade
                                     }
                                 };
-                                let dither: f32 = (rand_f32() - 0.5 + rand_f32() - 0.5) * (1.0 / 32768.0);
+                                let dither: f32 =
+                                    (rand_f32() - 0.5 + rand_f32() - 0.5) * (1.0 / 32768.0);
                                 let dithered = f_sample + dither;
                                 *sample = (dithered * 32768.0).clamp(-32768.0, 32767.0) as i16;
                             }
@@ -334,7 +364,7 @@ impl AudioOutputManager {
         buffer_headroom_ms: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let host = cpal::default_host();
-        
+
         let device = if let Some(target) = target_device.clone() {
             let mut matched_device = None;
             if let Ok(devices) = host.output_devices() {
@@ -348,7 +378,10 @@ impl AudioOutputManager {
                 }
             }
             if matched_device.is_none() {
-                eprintln!("Could not find exact device: {}, falling back to default.", target);
+                eprintln!(
+                    "Could not find exact device: {}, falling back to default.",
+                    target
+                );
             }
             matched_device.or_else(|| host.default_output_device())
         } else {
@@ -390,13 +423,17 @@ impl AudioOutputManager {
         };
 
         let device = device.ok_or("No output device available")?;
-        
+
         let config = device.default_output_config()?;
         self.device_sample_rate = config.sample_rate().0;
         self.device_channels = config.channels() as usize;
 
         if self.device_sample_rate != 48000 {
-            self.resampler = Some(RubatoResampler::new(48000, self.device_sample_rate, self.device_channels)?);
+            self.resampler = Some(RubatoResampler::new(
+                48000,
+                self.device_sample_rate,
+                self.device_channels,
+            )?);
         } else {
             self.resampler = None;
         }
@@ -404,7 +441,9 @@ impl AudioOutputManager {
         // Initialize a ring buffer with configurable headroom — larger values
         // tolerate jitter better but add latency, smaller values reduce latency
         self.buffer_headroom_ms = buffer_headroom_ms.clamp(100, 1200);
-        let buffer_size = (self.device_sample_rate as usize * self.device_channels * self.buffer_headroom_ms) / MS_PER_SECOND;
+        let buffer_size =
+            (self.device_sample_rate as usize * self.device_channels * self.buffer_headroom_ms)
+                / MS_PER_SECOND;
         let ring_buffer = HeapRb::<f32>::new(buffer_size.max(MIN_BUFFER_SIZE));
         let (producer, mut consumer) = ring_buffer.split();
 
@@ -418,55 +457,58 @@ impl AudioOutputManager {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
                 let mut last_sample = 0.0f32;
                 device.build_output_stream(
-                &stream_config,
-                move |data: &mut [f32], _: &OutputCallbackInfo| {
-                    for sample in data.iter_mut() {
-                        match consumer.pop() {
-                            Some(s) => {
-                                *sample = s;
-                                last_sample = s;
-                                underrun_counter.store(0, Ordering::Relaxed);
-                            }
-                            None => {
-                                // Soft fade to silence on underrun instead of hard cut
-                                let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
-                                let fade = (1.0 - count as f32 * 0.01).max(0.0);
-                                *sample = last_sample * fade;
+                    &stream_config,
+                    move |data: &mut [f32], _: &OutputCallbackInfo| {
+                        for sample in data.iter_mut() {
+                            match consumer.pop() {
+                                Some(s) => {
+                                    *sample = s;
+                                    last_sample = s;
+                                    underrun_counter.store(0, Ordering::Relaxed);
+                                }
+                                None => {
+                                    // Soft fade to silence on underrun instead of hard cut
+                                    let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
+                                    let fade = (1.0 - count as f32 * 0.01).max(0.0);
+                                    *sample = last_sample * fade;
+                                }
                             }
                         }
-                    }
-                },
-                err_fn,
-                None,
-            )?},
+                    },
+                    err_fn,
+                    None,
+                )?
+            }
             SampleFormat::I16 => {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
                 let mut last_sample = 0.0f32;
                 device.build_output_stream(
-                &stream_config,
-                move |data: &mut [i16], _: &OutputCallbackInfo| {
-                    for sample in data.iter_mut() {
-                        let f_sample = match consumer.pop() {
-                            Some(s) => {
-                                underrun_counter.store(0, Ordering::Relaxed);
-                                last_sample = s;
-                                s
-                            }
-                            None => {
-                                let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
-                                let fade = (1.0 - count as f32 * 0.01).max(0.0);
-                                last_sample * fade // Soft fade on underrun
-                            }
-                        };
-                        // TPDF dithering for f32→i16 conversion — reduces quantization noise
-                        let dither: f32 = (rand_f32() - 0.5 + rand_f32() - 0.5) * (1.0 / 32768.0);
-                        let dithered = f_sample + dither;
-                        *sample = (dithered * 32768.0).clamp(-32768.0, 32767.0) as i16;
-                    }
-                },
-                err_fn,
-                None,
-            )?},
+                    &stream_config,
+                    move |data: &mut [i16], _: &OutputCallbackInfo| {
+                        for sample in data.iter_mut() {
+                            let f_sample = match consumer.pop() {
+                                Some(s) => {
+                                    underrun_counter.store(0, Ordering::Relaxed);
+                                    last_sample = s;
+                                    s
+                                }
+                                None => {
+                                    let count = underrun_counter.fetch_add(1, Ordering::Relaxed);
+                                    let fade = (1.0 - count as f32 * 0.01).max(0.0);
+                                    last_sample * fade // Soft fade on underrun
+                                }
+                            };
+                            // TPDF dithering for f32→i16 conversion — reduces quantization noise
+                            let dither: f32 =
+                                (rand_f32() - 0.5 + rand_f32() - 0.5) * (1.0 / 32768.0);
+                            let dithered = f_sample + dither;
+                            *sample = (dithered * 32768.0).clamp(-32768.0, 32767.0) as i16;
+                        }
+                    },
+                    err_fn,
+                    None,
+                )?
+            }
             _ => return Err("Unsupported sample format".into()),
         };
 
@@ -482,10 +524,19 @@ impl AudioOutputManager {
     }
 
     pub fn push_audio_data(&mut self, data: &[f32], input_channels: usize) {
-        map_channels(data, input_channels, self.device_channels, &mut self.channel_map_buffer);
-        
+        map_channels(
+            data,
+            input_channels,
+            self.device_channels,
+            &mut self.channel_map_buffer,
+        );
+
         if let Some(resampler) = &mut self.resampler {
-            resampler.resample(&self.channel_map_buffer, self.device_channels, &mut self.resample_buffer);
+            resampler.resample(
+                &self.channel_map_buffer,
+                self.device_channels,
+                &mut self.resample_buffer,
+            );
             if let Some(producer) = &mut self.producer {
                 producer.push_slice(&self.resample_buffer);
             }
@@ -499,9 +550,18 @@ impl AudioOutputManager {
             #[cfg(not(target_os = "linux"))]
             {
                 if let Some(producer) = &mut self.monitor_producer {
-                    map_channels(data, input_channels, self.monitor_device_channels, &mut self.monitor_channel_map_buffer);
+                    map_channels(
+                        data,
+                        input_channels,
+                        self.monitor_device_channels,
+                        &mut self.monitor_channel_map_buffer,
+                    );
                     if let Some(resampler) = &mut self.monitor_resampler {
-                        resampler.resample(&self.monitor_channel_map_buffer, self.monitor_device_channels, &mut self.monitor_resample_buffer);
+                        resampler.resample(
+                            &self.monitor_channel_map_buffer,
+                            self.monitor_device_channels,
+                            &mut self.monitor_resample_buffer,
+                        );
                         producer.push_slice(&self.monitor_resample_buffer);
                     } else {
                         producer.push_slice(&self.monitor_channel_map_buffer);

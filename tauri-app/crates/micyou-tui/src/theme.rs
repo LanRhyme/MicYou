@@ -119,7 +119,7 @@ fn derive_gradient(primary: Rgba, secondary: Rgba, tertiary: Rgba) -> [Rgba; 8] 
     // Low bins: cooler/darker (secondary shifted toward surface), high bins:
     // warmer/brighter (tertiary/primary). Simple two-stage blend chain.
     let mut out = [Rgba { r: 0, g: 0, b: 0 }; 8];
-    for i in 0..8 {
+    for (i, color) in out.iter_mut().enumerate() {
         let t = i as f32 / 7.0;
         let base = if t < 0.5 {
             primary.blend(secondary, t * 2.0)
@@ -127,8 +127,15 @@ fn derive_gradient(primary: Rgba, secondary: Rgba, tertiary: Rgba) -> [Rgba; 8] 
             secondary.blend(tertiary, (t - 0.5) * 2.0)
         };
         // Brighten toward the top
-        let bright = base.blend(Rgba { r: 255, g: 255, b: 255 }, t * 0.25);
-        out[i] = bright;
+        let bright = base.blend(
+            Rgba {
+                r: 255,
+                g: 255,
+                b: 255,
+            },
+            t * 0.25,
+        );
+        *color = bright;
     }
     out
 }

@@ -198,7 +198,8 @@ fn wasapi_loopback_thread(
 
         log::info!(
             "[Loopback] WASAPI device format: {}Hz {}ch",
-            device_rate, channels
+            device_rate,
+            channels
         );
 
         let (_def_time, min_time) = audio_client.get_periods()?;
@@ -253,9 +254,7 @@ fn wasapi_loopback_thread(
                     .collect();
 
                 if !f32_samples.is_empty() {
-                    push_to_buffer(
-                        &f32_samples, channels, device_rate, &resampler, &buffer,
-                    );
+                    push_to_buffer(&f32_samples, channels, device_rate, &resampler, &buffer);
                     total_frames += (f32_samples.len() / channels) as u64;
                 }
             }
@@ -310,8 +309,7 @@ fn cpal_capture_thread(
                 if let Ok(name) = dev.name() {
                     let lower = name.to_lowercase();
                     #[cfg(target_os = "linux")]
-                    let matches = lower == "micyouvirtualmic"
-                        || lower.contains("micyouvirtualmic");
+                    let matches = lower == "micyouvirtualmic" || lower.contains("micyouvirtualmic");
                     #[cfg(target_os = "macos")]
                     let matches = lower.contains("blackhole");
                     if matches {
@@ -352,7 +350,8 @@ fn cpal_capture_thread(
 
     log::info!(
         "[Loopback] cpal capture started: {}Hz {}ch",
-        device_rate, channels
+        device_rate,
+        channels
     );
 
     let resampler = if device_rate != TARGET_RATE {
@@ -393,7 +392,13 @@ fn cpal_capture_thread(
             &config.into(),
             move |data: &[i16], _: &cpal::InputCallbackInfo| {
                 let f32_data: Vec<f32> = data.iter().map(|&s| s as f32 / 32768.0).collect();
-                push_to_buffer(&f32_data, channels, device_rate, &resampler_clone, &buf_clone);
+                push_to_buffer(
+                    &f32_data,
+                    channels,
+                    device_rate,
+                    &resampler_clone,
+                    &buf_clone,
+                );
             },
             err_fn,
             None,

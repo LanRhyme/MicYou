@@ -59,13 +59,7 @@ impl ServerEvents for TauriEventSink {
     }
     fn audio_spectrum(&self, raw: Vec<f32>, processed: Vec<f32>) {
         if let Some(main_window) = self.0.get_webview_window("main") {
-            let _ = main_window.emit(
-                "audio-spectrum",
-                SpectrumPayload {
-                    raw,
-                    processed,
-                },
-            );
+            let _ = main_window.emit("audio-spectrum", SpectrumPayload { raw, processed });
         }
     }
     fn server_stopped(&self) {

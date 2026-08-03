@@ -122,14 +122,16 @@ pub fn release_gui_lock() -> Result<(), String> {
 /// - macOS: Terminal.app via osascript (iTerm2 fallback)
 /// - Windows: cmd start (Windows Terminal preferred)
 pub fn open_cli_terminal() -> Result<(), String> {
-    let binary = find_cli_binary().ok_or_else(|| {
-        "micyou CLI binary not found - install it or add it to PATH".to_string()
-    })?;
+    let binary = find_cli_binary()
+        .ok_or_else(|| "micyou CLI binary not found - install it or add it to PATH".to_string())?;
 
     #[cfg(target_os = "linux")]
     {
         let candidates: &[(&str, &[&str])] = &[
-            ("kitty", &["--", binary.to_str().unwrap_or("micyou"), "serve"]),
+            (
+                "kitty",
+                &["--", binary.to_str().unwrap_or("micyou"), "serve"],
+            ),
             (
                 "alacritty",
                 &["-e", binary.to_str().unwrap_or("micyou"), "serve"],
@@ -142,14 +144,20 @@ pub fn open_cli_terminal() -> Result<(), String> {
                 "konsole",
                 &["-e", binary.to_str().unwrap_or("micyou"), "serve"],
             ),
-            ("xterm", &["-e", binary.to_str().unwrap_or("micyou"), "serve"]),
+            (
+                "xterm",
+                &["-e", binary.to_str().unwrap_or("micyou"), "serve"],
+            ),
         ];
         for (term, args) in candidates {
             if Command::new(term).args(*args).spawn().is_ok() {
                 return Ok(());
             }
         }
-        Err("no supported terminal emulator found (kitty/alacritty/gnome-terminal/konsole/xterm)".into())
+        Err(
+            "no supported terminal emulator found (kitty/alacritty/gnome-terminal/konsole/xterm)"
+                .into(),
+        )
     }
     #[cfg(target_os = "macos")]
     {
@@ -169,7 +177,9 @@ pub fn open_cli_terminal() -> Result<(), String> {
         let bin = binary.to_string_lossy().to_string();
         // Prefer Windows Terminal if available, otherwise plain cmd start
         Command::new("cmd")
-            .args(["/c", "start", "", "wt", "-d", ".", "cmd", "/k", &bin, "serve"])
+            .args([
+                "/c", "start", "", "wt", "-d", ".", "cmd", "/k", &bin, "serve",
+            ])
             .spawn()
             .or_else(|_| {
                 Command::new("cmd")
@@ -187,9 +197,8 @@ pub fn open_cli_terminal() -> Result<(), String> {
 
 /// Open a terminal window running the standalone TUI.
 pub fn open_tui_terminal() -> Result<(), String> {
-    let binary = find_tui_binary().ok_or_else(|| {
-        "micyou-tui binary not found - install it or add it to PATH".to_string()
-    })?;
+    let binary = find_tui_binary()
+        .ok_or_else(|| "micyou-tui binary not found - install it or add it to PATH".to_string())?;
 
     #[cfg(target_os = "linux")]
     {
@@ -203,10 +212,7 @@ pub fn open_tui_terminal() -> Result<(), String> {
                 "gnome-terminal",
                 &["--", binary.to_str().unwrap_or("micyou-tui")],
             ),
-            (
-                "konsole",
-                &["-e", binary.to_str().unwrap_or("micyou-tui")],
-            ),
+            ("konsole", &["-e", binary.to_str().unwrap_or("micyou-tui")]),
             ("xterm", &["-e", binary.to_str().unwrap_or("micyou-tui")]),
         ];
         for (terminal, args) in candidates {
@@ -214,7 +220,10 @@ pub fn open_tui_terminal() -> Result<(), String> {
                 return Ok(());
             }
         }
-        Err("no supported terminal emulator found (kitty/alacritty/gnome-terminal/konsole/xterm)".into())
+        Err(
+            "no supported terminal emulator found (kitty/alacritty/gnome-terminal/konsole/xterm)"
+                .into(),
+        )
     }
     #[cfg(target_os = "macos")]
     {
@@ -234,11 +243,7 @@ pub fn open_tui_terminal() -> Result<(), String> {
         Command::new("cmd")
             .args(["/c", "start", "", "wt", "-d", ".", "cmd", "/k", &bin])
             .spawn()
-            .or_else(|_| {
-                Command::new("cmd")
-                    .args(["/c", "start", "", &bin])
-                    .spawn()
-            })
+            .or_else(|_| Command::new("cmd").args(["/c", "start", "", &bin]).spawn())
             .map_err(|e| e.to_string())?;
         Ok(())
     }
@@ -251,18 +256,18 @@ pub fn open_tui_terminal() -> Result<(), String> {
 /// Switch from the GUI to CLI mode: release the GUI lock and launch a terminal
 /// running `micyou serve`. The frontend should exit the app after this succeeds.
 #[tauri::command]
-pub async fn switch_to_cli(
-    app: AppHandle,
-    state: State<'_, ServerState>,
-) -> Result<(), String> {
+pub async fn switch_to_cli(app: AppHandle, state: State<'_, ServerState>) -> Result<(), String> {
     // Make sure no CLI or TUI instance is currently running.
     if let Some(info) = mode_lock::read_lock() {
-        if matches!(info.mode, RunMode::Cli | RunMode::Tui)
-            && mode_lock::pid_alive_public(info.pid)
+        if matches!(info.mode, RunMode::Cli | RunMode::Tui) && mode_lock::pid_alive_public(info.pid)
         {
             return Err(format!(
                 "{} mode is already running (pid {}) - stop it first",
-                if info.mode == RunMode::Cli { "CLI" } else { "TUI" },
+                if info.mode == RunMode::Cli {
+                    "CLI"
+                } else {
+                    "TUI"
+                },
                 info.pid,
             ));
         }
@@ -278,17 +283,17 @@ pub async fn switch_to_cli(
 
 /// Switch from the GUI to TUI mode and launch `micyou-tui` in a terminal.
 #[tauri::command]
-pub async fn switch_to_tui(
-    app: AppHandle,
-    state: State<'_, ServerState>,
-) -> Result<(), String> {
+pub async fn switch_to_tui(app: AppHandle, state: State<'_, ServerState>) -> Result<(), String> {
     if let Some(info) = mode_lock::read_lock() {
-        if matches!(info.mode, RunMode::Cli | RunMode::Tui)
-            && mode_lock::pid_alive_public(info.pid)
+        if matches!(info.mode, RunMode::Cli | RunMode::Tui) && mode_lock::pid_alive_public(info.pid)
         {
             return Err(format!(
                 "{} mode is already running (pid {}) - stop it first",
-                if info.mode == RunMode::Cli { "CLI" } else { "TUI" },
+                if info.mode == RunMode::Cli {
+                    "CLI"
+                } else {
+                    "TUI"
+                },
                 info.pid,
             ));
         }
@@ -301,10 +306,7 @@ pub async fn switch_to_tui(
 /// Persist the current GUI UI preferences (language, theme color) to ui.json so
 /// the TUI can pick the same language and theme.
 #[tauri::command]
-pub fn save_ui_prefs(
-    language: String,
-    theme_color: String,
-) -> Result<(), String> {
+pub fn save_ui_prefs(language: String, theme_color: String) -> Result<(), String> {
     crate::app_config::save_ui_prefs(&crate::app_config::UiPrefs {
         language,
         theme_color,

@@ -11,9 +11,7 @@ pub const LOCALES: &[&str] = &["zh", "en", "cat", "lzh", "zh-hk", "zh-ss", "zh-t
 /// Detect the effective language.
 pub fn detect_lang() -> String {
     // 1. GUI-written ui.json
-    if let Ok(prefs) = std::fs::read_to_string(
-        tauri_app_lib::app_config::ui_prefs_path(),
-    ) {
+    if let Ok(prefs) = std::fs::read_to_string(tauri_app_lib::app_config::ui_prefs_path()) {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&prefs) {
             if let Some(lang) = json.get("language").and_then(|v| v.as_str()) {
                 if LOCALES.contains(&lang) {
@@ -81,7 +79,10 @@ const ZH: Dict = Dict {
         ("listening", "监听"),
         ("port", "端口"),
         ("device", "设备"),
-        ("device_not_connected", "未连接 - 在手机上打开 MicYou 并连接"),
+        (
+            "device_not_connected",
+            "未连接 - 在手机上打开 MicYou 并连接",
+        ),
         ("muted", "静音"),
         ("web_clients", "网页客户端"),
         ("connected", "已连接"),
@@ -95,7 +96,10 @@ const ZH: Dict = Dict {
         ("jitter", "抖动"),
         ("packet_loss", "丢包率"),
         ("buffer", "缓冲"),
-        ("audio_params_title", "音频参数（Enter 开关，-/+ 调整增益与缓冲）"),
+        (
+            "audio_params_title",
+            "音频参数（Enter 开关，-/+ 调整增益与缓冲）",
+        ),
         ("gain", "增益"),
         ("aec", "回声消除"),
         ("noise_reduction", "降噪"),
@@ -103,7 +107,10 @@ const ZH: Dict = Dict {
         ("agc", "AGC"),
         ("vad", "VAD"),
         ("output_buffer", "输出缓冲区"),
-        ("chain_title", "处理链路（↑↓ 选择，+/- 上下移动，AEC 固定首位）"),
+        (
+            "chain_title",
+            "处理链路（↑↓ 选择，+/- 上下移动，AEC 固定首位）",
+        ),
         ("pinned", "固定"),
         ("logs", "日志"),
         ("help", "q 退出  Tab 切换  ↑↓ 选择  Enter 开关  -/+ 调整"),
@@ -161,7 +168,10 @@ const EN: Dict = Dict {
         ("listening", "Listening"),
         ("port", "port"),
         ("device", "Device"),
-        ("device_not_connected", "Not connected - open MicYou on your phone"),
+        (
+            "device_not_connected",
+            "Not connected - open MicYou on your phone",
+        ),
         ("muted", "muted"),
         ("web_clients", "web clients"),
         ("connected", "connected"),
@@ -175,7 +185,10 @@ const EN: Dict = Dict {
         ("jitter", "Jitter"),
         ("packet_loss", "Packet loss"),
         ("buffer", "Buffer"),
-        ("audio_params_title", "Audio params (Enter toggle, -/+ adjust gain & buffer)"),
+        (
+            "audio_params_title",
+            "Audio params (Enter toggle, -/+ adjust gain & buffer)",
+        ),
         ("gain", "Gain"),
         ("aec", "Echo cancellation"),
         ("noise_reduction", "Noise reduction"),
@@ -183,10 +196,16 @@ const EN: Dict = Dict {
         ("agc", "AGC"),
         ("vad", "VAD"),
         ("output_buffer", "Output buffer"),
-        ("chain_title", "Chain (↑↓ select, +/- move, AEC pinned first)"),
+        (
+            "chain_title",
+            "Chain (↑↓ select, +/- move, AEC pinned first)",
+        ),
         ("pinned", "pinned"),
         ("logs", "Logs"),
-        ("help", "q quit  Tab switch  ↑↓ select  Enter toggle  -/+ adjust"),
+        (
+            "help",
+            "q quit  Tab switch  ↑↓ select  Enter toggle  -/+ adjust",
+        ),
         ("quit_hint", "Press q or Ctrl+C to quit"),
         ("tab_switch", "Tab switch"),
         ("nav", "select"),
@@ -202,7 +221,10 @@ const EN: Dict = Dict {
         ("conn_auto", "Auto (all interfaces)"),
         ("conn_manual", "Manual"),
         ("conn_device", "Output device"),
-        ("conn_hint", "Changes are written to shared server.json and apply after restarting serve"),
+        (
+            "conn_hint",
+            "Changes are written to shared server.json and apply after restarting serve",
+        ),
         ("spectrum_wait", "Spectrum appears after a device connects"),
         ("enabled", "on"),
         ("disabled", "off"),
@@ -241,7 +263,10 @@ const CAT: Dict = Dict {
         ("listening", "监听"),
         ("port", "端口"),
         ("device", "设备"),
-        ("device_not_connected", "未连接喵 - 在手机上打开 MicYou 并连接喵~"),
+        (
+            "device_not_connected",
+            "未连接喵 - 在手机上打开 MicYou 并连接喵~",
+        ),
         ("muted", "静音"),
         ("web_clients", "网页客户端"),
         ("connected", "已连接"),
@@ -255,7 +280,10 @@ const CAT: Dict = Dict {
         ("jitter", "抖动"),
         ("packet_loss", "丢包率"),
         ("buffer", "缓冲"),
-        ("audio_params_title", "音频参数（Enter 开关，-/+ 调整增益与缓冲）喵~"),
+        (
+            "audio_params_title",
+            "音频参数（Enter 开关，-/+ 调整增益与缓冲）喵~",
+        ),
         ("gain", "增益"),
         ("aec", "回声消除"),
         ("noise_reduction", "降噪"),
@@ -263,7 +291,10 @@ const CAT: Dict = Dict {
         ("agc", "AGC"),
         ("vad", "VAD"),
         ("output_buffer", "输出缓冲区"),
-        ("chain_title", "处理链路（↑↓ 选择，+/- 上下移动，AEC 固定首位）喵~"),
+        (
+            "chain_title",
+            "处理链路（↑↓ 选择，+/- 上下移动，AEC 固定首位）喵~",
+        ),
         ("pinned", "固定"),
         ("logs", "日志"),
         ("help", "q 退出  Tab 切换  ↑↓ 选择  Enter 开关  -/+ 调整"),
@@ -282,7 +313,10 @@ const CAT: Dict = Dict {
         ("conn_auto", "自动（所有网卡）喵~"),
         ("conn_manual", "手动喵~"),
         ("conn_device", "输出设备"),
-        ("conn_hint", "更改写入共享 server.json，重启 serve 后生效喵~"),
+        (
+            "conn_hint",
+            "更改写入共享 server.json，重启 serve 后生效喵~",
+        ),
         ("spectrum_wait", "等待设备连接后显示频谱喵~"),
         ("enabled", "开"),
         ("disabled", "关"),
@@ -335,7 +369,10 @@ const LZH: Dict = Dict {
         ("jitter", "抖动"),
         ("packet_loss", "丢包率"),
         ("buffer", "缓冲"),
-        ("audio_params_title", "音频参数（Enter 开关，-/+ 调增益与缓冲）"),
+        (
+            "audio_params_title",
+            "音频参数（Enter 开关，-/+ 调增益与缓冲）",
+        ),
         ("gain", "增益"),
         ("aec", "回声消除"),
         ("noise_reduction", "降噪"),
@@ -415,7 +452,10 @@ const ZH_HK: Dict = Dict {
         ("jitter", "抖動"),
         ("packet_loss", "丟包率"),
         ("buffer", "緩衝"),
-        ("audio_params_title", "音訊參數（Enter 開關，-/+ 調整增益同緩衝）"),
+        (
+            "audio_params_title",
+            "音訊參數（Enter 開關，-/+ 調整增益同緩衝）",
+        ),
         ("gain", "增益"),
         ("aec", "迴聲消除"),
         ("noise_reduction", "降噪"),
@@ -481,7 +521,10 @@ const ZH_SS: Dict = Dict {
         ("listening", "监听"),
         ("port", "端口"),
         ("device", "设备"),
-        ("device_not_connected", "未连接 - 在手机上打开 MicYou 并连接"),
+        (
+            "device_not_connected",
+            "未连接 - 在手机上打开 MicYou 并连接",
+        ),
         ("muted", "静音"),
         ("web_clients", "网页客户端"),
         ("connected", "已连接"),
@@ -495,7 +538,10 @@ const ZH_SS: Dict = Dict {
         ("jitter", "抖动"),
         ("packet_loss", "丢包率"),
         ("buffer", "缓冲"),
-        ("audio_params_title", "音频参数（Enter 开关，-/+ 调整增益与缓冲）"),
+        (
+            "audio_params_title",
+            "音频参数（Enter 开关，-/+ 调整增益与缓冲）",
+        ),
         ("gain", "增益"),
         ("aec", "回声消除"),
         ("noise_reduction", "降噪"),
@@ -503,7 +549,10 @@ const ZH_SS: Dict = Dict {
         ("agc", "AGC"),
         ("vad", "VAD"),
         ("output_buffer", "输出缓冲区"),
-        ("chain_title", "处理链路（↑↓ 选择，+/- 上下移动，AEC 固定首位）"),
+        (
+            "chain_title",
+            "处理链路（↑↓ 选择，+/- 上下移动，AEC 固定首位）",
+        ),
         ("pinned", "固定"),
         ("logs", "日志"),
         ("help", "q 退出  Tab 切换  ↑↓ 选择  Enter 开关  -/+ 调整"),
@@ -561,7 +610,10 @@ const ZH_TW: Dict = Dict {
         ("listening", "監聽"),
         ("port", "連接埠"),
         ("device", "裝置"),
-        ("device_not_connected", "未連線 - 在手機上開啟 MicYou 並連線"),
+        (
+            "device_not_connected",
+            "未連線 - 在手機上開啟 MicYou 並連線",
+        ),
         ("muted", "靜音"),
         ("web_clients", "網頁用戶端"),
         ("connected", "已連線"),
@@ -575,7 +627,10 @@ const ZH_TW: Dict = Dict {
         ("jitter", "抖動"),
         ("packet_loss", "封包遺失率"),
         ("buffer", "緩衝"),
-        ("audio_params_title", "音訊參數（Enter 開關，-/+ 調整增益與緩衝）"),
+        (
+            "audio_params_title",
+            "音訊參數（Enter 開關，-/+ 調整增益與緩衝）",
+        ),
         ("gain", "增益"),
         ("aec", "迴聲消除"),
         ("noise_reduction", "降噪"),
@@ -602,7 +657,10 @@ const ZH_TW: Dict = Dict {
         ("conn_auto", "自動（所有網卡）"),
         ("conn_manual", "手動"),
         ("conn_device", "輸出裝置"),
-        ("conn_hint", "變更寫入共享 server.json，重新啟動 serve 後生效"),
+        (
+            "conn_hint",
+            "變更寫入共享 server.json，重新啟動 serve 後生效",
+        ),
         ("spectrum_wait", "等待裝置連線後顯示頻譜"),
         ("enabled", "開"),
         ("disabled", "關"),

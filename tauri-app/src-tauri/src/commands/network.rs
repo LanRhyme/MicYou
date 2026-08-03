@@ -1,9 +1,12 @@
-use tauri::State;
-use crate::server::{ServerState, NetworkInfo, NetworkInterfaceInfo, query_network_interfaces};
 use crate::adb_manager;
+use crate::server::{query_network_interfaces, NetworkInfo, NetworkInterfaceInfo, ServerState};
+use tauri::State;
 
 #[tauri::command]
-pub fn enable_usb_mode(port: u16, device_serial: Option<String>) -> Result<adb_manager::UsbModeResult, String> {
+pub fn enable_usb_mode(
+    port: u16,
+    device_serial: Option<String>,
+) -> Result<adb_manager::UsbModeResult, String> {
     adb_manager::enable_usb_mode(port, device_serial.as_deref())
 }
 

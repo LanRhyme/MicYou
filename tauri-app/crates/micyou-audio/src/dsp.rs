@@ -212,8 +212,8 @@ impl UlunasProcessor {
         self.previous.copy_from_slice(input);
 
         // Apply window
-        for i in 0..frame_size {
-            fft_buffer[i] *= self.window[i];
+        for (sample, window) in fft_buffer.iter_mut().zip(&self.window) {
+            *sample *= window;
         }
 
         // FFT using cached planner
@@ -297,18 +297,19 @@ impl UlunasProcessor {
         // IFFT
         self.fft_inverse.process(&mut complex_buf);
         let scale = 1.0 / frame_size as f32;
-        for i in 0..frame_size {
-            fft_buffer[i] = complex_buf[i].re * scale * self.window[i];
+        for ((sample, complex), window) in fft_buffer.iter_mut().zip(&complex_buf).zip(&self.window)
+        {
+            *sample = complex.re * scale * window;
         }
 
         // OLA
-        for i in 0..frame_size {
-            self.ola_accumulator[i] += fft_buffer[i];
+        for (accumulated, sample) in self.ola_accumulator.iter_mut().zip(&fft_buffer) {
+            *accumulated += sample;
         }
 
         let mut output = vec![0.0_f32; hop_length];
-        for i in 0..hop_length {
-            output[i] = self.ola_accumulator[i] * self.ola_gain;
+        for (sample, accumulated) in output.iter_mut().zip(&self.ola_accumulator) {
+            *sample = accumulated * self.ola_gain;
         }
 
         // Shift accumulator
@@ -400,8 +401,8 @@ impl PureVoxProcessor {
         self.previous.copy_from_slice(input);
 
         // Apply window
-        for i in 0..frame_size {
-            fft_buffer[i] *= self.window[i];
+        for (sample, window) in fft_buffer.iter_mut().zip(&self.window) {
+            *sample *= window;
         }
 
         // FFT
@@ -480,18 +481,19 @@ impl PureVoxProcessor {
         // IFFT
         self.fft_inverse.process(&mut complex_buf);
         let scale = 1.0 / frame_size as f32;
-        for i in 0..frame_size {
-            fft_buffer[i] = complex_buf[i].re * scale * self.window[i];
+        for ((sample, complex), window) in fft_buffer.iter_mut().zip(&complex_buf).zip(&self.window)
+        {
+            *sample = complex.re * scale * window;
         }
 
         // OLA
-        for i in 0..frame_size {
-            self.ola_accumulator[i] += fft_buffer[i];
+        for (accumulated, sample) in self.ola_accumulator.iter_mut().zip(&fft_buffer) {
+            *accumulated += sample;
         }
 
         let mut output = vec![0.0_f32; hop_length];
-        for i in 0..hop_length {
-            output[i] = self.ola_accumulator[i] * self.ola_gain;
+        for (sample, accumulated) in output.iter_mut().zip(&self.ola_accumulator) {
+            *sample = accumulated * self.ola_gain;
         }
 
         // Shift accumulator
@@ -695,8 +697,13 @@ impl AecProcessor {
             }
             self.fft_inverse.process(complex_buf);
             let scale = 1.0 / AEC_NFFT as f32;
-            for i in 0..AEC_WIN_LEN {
-                self.scratch_time_frame[i] = complex_buf[i].re * scale * self.window[i];
+            for ((sample, complex), window) in self
+                .scratch_time_frame
+                .iter_mut()
+                .zip(complex_buf.iter())
+                .zip(&self.window)
+            {
+                *sample = complex.re * scale * window;
             }
         }
 
@@ -707,12 +714,15 @@ impl AecProcessor {
         }
 
         let mut output = vec![0.0f32; AEC_HOP_LEN];
-        for i in 0..AEC_HOP_LEN {
-            let norm = self.window_sum[i];
-            output[i] = if norm > 1e-6 {
-                self.ola_accumulator[i] / norm
+        for ((sample, norm), accumulated) in output
+            .iter_mut()
+            .zip(&self.window_sum)
+            .zip(&self.ola_accumulator)
+        {
+            *sample = if *norm > 1e-6 {
+                accumulated / norm
             } else {
-                self.ola_accumulator[i]
+                *accumulated
             };
         }
 
@@ -839,7 +849,7 @@ impl FarEndBuffer {
 fn forward_stft_free(
     windowed_frame: &[f32],
     out: &mut Array3<f32>,
-    complex_buf: &mut Vec<Complex<f32>>,
+    complex_buf: &mut [Complex<f32>],
     window: &[f32],
     fft_forward: &std::sync::Arc<dyn rustfft::Fft<f32>>,
 ) {
@@ -906,10 +916,14 @@ impl SpeexStyleNS {
             self.fft_forward.process(&mut complex);
 
             // Compute magnitude and update noise estimate
-            for i in 0..spec_size {
-                let mag = complex[i].norm();
-                self.noise_estimate[i] = self.noise_estimate[i] * (1.0 - self.adaptation_rate)
-                    + mag * self.adaptation_rate;
+            for (bin, noise_estimate) in complex
+                .iter()
+                .zip(self.noise_estimate.iter_mut())
+                .take(spec_size)
+            {
+                let mag = bin.norm();
+                *noise_estimate =
+                    *noise_estimate * (1.0 - self.adaptation_rate) + mag * self.adaptation_rate;
             }
 
             // Spectral subtraction
@@ -1344,10 +1358,8 @@ impl DspProcessor {
                         );
                     }
                 }
-                "VAD" => {
-                    if settings.vad_enabled {
-                        self.apply_vad(&mut to_process, settings.vad_threshold);
-                    }
+                "VAD" if settings.vad_enabled => {
+                    self.apply_vad(&mut to_process, settings.vad_threshold);
                 }
                 _ => {}
             }
@@ -1583,7 +1595,7 @@ impl DspProcessor {
 
     #[cfg(feature = "dsp")]
     fn process_rnnoise_single_channel(
-        data: &mut Vec<f32>,
+        data: &mut [f32],
         ns_buffer: &mut Vec<f32>,
         denoiser: &mut DenoiseState<'static>,
         intensity: f32,
@@ -1618,7 +1630,7 @@ impl DspProcessor {
             output.push(0.0);
         }
 
-        *data = output;
+        data.copy_from_slice(&output);
     }
 
     // ── Ulunas (ONNX) ──────────────────────────────────────────────────────
@@ -1697,7 +1709,7 @@ impl DspProcessor {
 
     #[cfg(feature = "noise-suppression")]
     fn process_ulunas_single_channel(
-        data: &mut Vec<f32>,
+        data: &mut [f32],
         ulunas: &mut Option<UlunasProcessor>,
         intensity: f32,
     ) {
@@ -1790,7 +1802,7 @@ impl DspProcessor {
 
     #[cfg(feature = "noise-suppression")]
     fn process_purevox_single_channel(
-        data: &mut Vec<f32>,
+        data: &mut [f32],
         purevox: &mut Option<PureVoxProcessor>,
         intensity: f32,
     ) {
@@ -1840,7 +1852,7 @@ impl DspProcessor {
 
     // ── Dereverb (delay-line comb filter, matching KMP DereverbEffect) ─────
 
-    fn apply_dereverb(&mut self, data: &mut Vec<f32>, channels: usize, level: f32) {
+    fn apply_dereverb(&mut self, data: &mut [f32], channels: usize, level: f32) {
         let mix = (level / 100.0).clamp(0.0, 1.0);
         if mix <= 0.0 || channels == 0 {
             return;
@@ -1889,7 +1901,7 @@ impl DspProcessor {
 
     // ── AGC ─────────────────────────────────────────────────────────────────
 
-    fn apply_agc(&mut self, data: &mut Vec<f32>, target: f32, attack: f32, decay: f32) {
+    fn apply_agc(&mut self, data: &mut [f32], target: f32, attack: f32, decay: f32) {
         let target_linear = target / 32767.0;
         // Noise gate threshold: below this level, don't apply AGC gain
         // (prevents amplifying hiss/noise floor during speech pauses)
@@ -1920,7 +1932,7 @@ impl DspProcessor {
 
     // ── VAD ─────────────────────────────────────────────────────────────────
 
-    fn apply_vad(&mut self, data: &mut Vec<f32>, threshold_db: f32) {
+    fn apply_vad(&mut self, data: &mut [f32], threshold_db: f32) {
         let rms = compute_rms(data);
         let rms_db = if rms > 1e-10 {
             20.0 * rms.log10()
@@ -1963,8 +1975,8 @@ impl DspProcessor {
         static BAND_LIMITS: std::sync::OnceLock<[f32; BANDS + 1]> = std::sync::OnceLock::new();
         let limits = BAND_LIMITS.get_or_init(|| {
             let mut array = [0.0; BANDS + 1];
-            for i in 0..=BANDS {
-                array[i] = (i as f32 / BANDS as f32).powf(1.5);
+            for (i, limit) in array.iter_mut().enumerate() {
+                *limit = (i as f32 / BANDS as f32).powf(1.5);
             }
             array
         });
@@ -1979,8 +1991,8 @@ impl DspProcessor {
                 continue;
             }
             let mut sum = 0.0_f32;
-            for i in start..end {
-                sum += data[i] * data[i];
+            for sample in &data[start..end] {
+                sum += sample * sample;
             }
             let rms = (sum / (end - start) as f32).sqrt();
             let db = if rms > 1e-10 {

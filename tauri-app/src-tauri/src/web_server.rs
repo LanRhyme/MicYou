@@ -199,6 +199,7 @@ mod tests {
     }
 }
 
+use crate::events::SharedEvents;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse};
@@ -209,7 +210,6 @@ use rustls::pki_types::CertificateDer;
 use rustls::ServerConfig;
 use std::io::BufReader;
 use std::net::SocketAddr;
-use crate::events::SharedEvents;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_rustls::{server::TlsStream, TlsAcceptor};
@@ -270,11 +270,13 @@ async fn handle_ws_socket(
     log::info!("Web client connected (total: {})", count);
 
     if count == 1 && !replaced {
-        state.events.device_connected(crate::tcp_server::DeviceInfo {
-            name: "Web Browser".to_string(),
-            ip: "browser".to_string(),
-            latency: 0,
-        });
+        state
+            .events
+            .device_connected(crate::tcp_server::DeviceInfo {
+                name: "Web Browser".to_string(),
+                ip: "browser".to_string(),
+                latency: 0,
+            });
     }
 
     loop {
@@ -505,7 +507,8 @@ impl WebServer {
         let cert = load_or_generate_cert_pem()?;
         let cert_chain: Vec<CertificateDer<'static>> =
             rustls_pemfile::certs(&mut BufReader::new(cert.cert_pem.as_bytes()))
-                .filter_map(|r| r.ok()).collect();
+                .filter_map(|r| r.ok())
+                .collect();
 
         let private_key = rustls_pemfile::private_key(&mut BufReader::new(cert.key_pem.as_bytes()))
             .map_err(|e| format!("Failed to read private key: {}", e))?

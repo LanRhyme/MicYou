@@ -22,9 +22,7 @@ pub async fn run(args: ServeArgs) -> Result<(), String> {
     let prefs = tauri_app_lib::app_config::load_server_prefs();
     let port = args.port.unwrap_or(prefs.port);
     let bind = args.bind.or_else(|| {
-        if prefs.auto_bind {
-            None
-        } else if prefs.bind_address.is_empty() || prefs.bind_address == "0.0.0.0" {
+        if prefs.auto_bind || prefs.bind_address.is_empty() || prefs.bind_address == "0.0.0.0" {
             None
         } else {
             Some(prefs.bind_address.clone())

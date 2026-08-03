@@ -1,3 +1,4 @@
+use crate::events::SharedEvents;
 use micyou_protocol::micyou::MessageWrapper;
 use micyou_protocol::{HANDSHAKE_CLIENT_STR, HANDSHAKE_SERVER_STR, PACKET_MAGIC};
 use prost::Message;
@@ -8,7 +9,6 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use crate::events::SharedEvents;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
@@ -81,6 +81,7 @@ pub struct DeviceInfo {
     pub latency: u32,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn start_tcp_server(
     events: SharedEvents,
     port: u16,
@@ -187,12 +188,7 @@ pub async fn cleanup_session_state(
     active_connection: &SharedActiveConnection,
     active_audio_session: &SharedActiveAudioSession,
 ) {
-    cleanup_session_state_with(
-        active_connection,
-        active_audio_session,
-        force_close_socket,
-    )
-    .await;
+    cleanup_session_state_with(active_connection, active_audio_session, force_close_socket).await;
 }
 
 async fn cleanup_session_state_with<F>(
@@ -292,7 +288,8 @@ where
     let active = active.lock().await;
     if takeover_token.is_cancelled()
         || active
-            .as_ref().is_none_or(|connection| connection.connection_id != connection_id)
+            .as_ref()
+            .is_none_or(|connection| connection.connection_id != connection_id)
     {
         return false;
     }
@@ -313,6 +310,7 @@ async fn clear_if_active(active: &SharedActiveConnection, connection_id: u64) ->
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_client(
     mut socket: TcpStream,
     addr: SocketAddr,
@@ -602,6 +600,7 @@ async fn handle_client(
     reader_result
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_message(
     msg: MessageWrapper,
     tx: &tokio::sync::mpsc::Sender<MessageWrapper>,
@@ -756,34 +755,27 @@ mod tests {
             connection_id: 1,
             takeover_token: token.clone(),
         })));
-        let active_audio_session = Arc::new(std::sync::RwLock::new(
-            ActiveAudioSession::UnboundLegacy {
+        let active_audio_session =
+            Arc::new(std::sync::RwLock::new(ActiveAudioSession::UnboundLegacy {
                 peer_ip: "127.0.0.1".parse().unwrap(),
                 epoch: 1,
-            },
-        ));
+            }));
         let shutdown_handles = Arc::new(std::sync::Mutex::new(Vec::new()));
 
         let shutdown_handles_first = shutdown_handles.clone();
         let active_connection_at_shutdown = active_connection.clone();
         let token_at_shutdown = token.clone();
-        cleanup_session_state_with(
-            &active_connection,
-            &active_audio_session,
-            move |handle| {
-                assert!(active_connection_at_shutdown.try_lock().unwrap().is_none());
-                assert!(token_at_shutdown.is_cancelled());
-                shutdown_handles_first.lock().unwrap().push(handle);
-            },
-        )
+        cleanup_session_state_with(&active_connection, &active_audio_session, move |handle| {
+            assert!(active_connection_at_shutdown.try_lock().unwrap().is_none());
+            assert!(token_at_shutdown.is_cancelled());
+            shutdown_handles_first.lock().unwrap().push(handle);
+        })
         .await;
 
         let shutdown_handles_second = shutdown_handles.clone();
-        cleanup_session_state_with(
-            &active_connection,
-            &active_audio_session,
-            move |handle| shutdown_handles_second.lock().unwrap().push(handle),
-        )
+        cleanup_session_state_with(&active_connection, &active_audio_session, move |handle| {
+            shutdown_handles_second.lock().unwrap().push(handle)
+        })
         .await;
 
         assert_eq!(*shutdown_handles.lock().unwrap(), vec![raw]);

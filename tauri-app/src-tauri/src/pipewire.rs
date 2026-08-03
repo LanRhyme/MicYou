@@ -110,7 +110,9 @@ fn setup_alsa_config() {
             std::env::set_var("ALSA_CONFIG_PATH", &path);
         }
         None => {
-            log::warn!("[PipeWire] ALSA config file not found, audio may not route to virtual sink");
+            log::warn!(
+                "[PipeWire] ALSA config file not found, audio may not route to virtual sink"
+            );
         }
     }
 }
@@ -143,7 +145,9 @@ fn find_alsa_config() -> Option<std::path::PathBuf> {
 
     // Try CARGO_MANIFEST_DIR (for cargo run)
     if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        let cargo_path = std::path::PathBuf::from(manifest_dir).join("resources").join(relative_path);
+        let cargo_path = std::path::PathBuf::from(manifest_dir)
+            .join("resources")
+            .join(relative_path);
         if cargo_path.exists() {
             return Some(cargo_path);
         }
@@ -196,7 +200,8 @@ fn create_virtual_sink() -> bool {
 
     match Command::new("pw-cli")
         .args([
-            "create-node", "adapter",
+            "create-node",
+            "adapter",
             "factory.name=support.null-audio-sink",
             &format!("node.name={}", SINK_NAME),
             "media.class=Audio/Sink",
@@ -217,7 +222,10 @@ fn create_virtual_sink() -> bool {
                 if let Ok(mut state) = STATE.lock() {
                     state.sink_node_id = id.clone();
                 }
-                log::info!("[PipeWire] Virtual Sink created successfully (id: {:?})", id);
+                log::info!(
+                    "[PipeWire] Virtual Sink created successfully (id: {:?})",
+                    id
+                );
                 true
             } else {
                 log::error!("[PipeWire] Failed to create virtual Sink: {}", combined);
@@ -232,7 +240,11 @@ fn create_virtual_sink() -> bool {
 }
 
 fn create_loopback() -> bool {
-    log::debug!("[PipeWire] Creating loopback: {} -> {}", SINK_NAME, SOURCE_NAME);
+    log::debug!(
+        "[PipeWire] Creating loopback: {} -> {}",
+        SINK_NAME,
+        SOURCE_NAME
+    );
 
     let capture_props = format!(
         "{{\"node.target\": \"{}\", \"media.class\": \"Stream/Input/Audio\", \"stream.capture.sink\": true}}",
@@ -291,7 +303,9 @@ fn hide_virtual_sink() -> bool {
 
     match Command::new("pw-cli")
         .args([
-            "set-param", SINK_NAME, "Props",
+            "set-param",
+            SINK_NAME,
+            "Props",
             "{media.role=Communication device.intended-roles=Communication}",
         ])
         .output()
@@ -320,10 +334,7 @@ fn set_default_source() -> bool {
     let node_id = STATE.lock().ok().and_then(|s| s.source_node_id.clone());
 
     if let Some(ref id) = node_id {
-        match Command::new("wpctl")
-            .args(["set-default", id])
-            .output()
-        {
+        match Command::new("wpctl").args(["set-default", id]).output() {
             Ok(output) if output.status.success() => {
                 log::info!("[PipeWire] Default source set via wpctl (id: {})", id);
                 return true;
@@ -360,10 +371,7 @@ fn set_default_source() -> bool {
 }
 
 fn save_original_default_source() {
-    match Command::new("pactl")
-        .arg("get-default-source")
-        .output()
-    {
+    match Command::new("pactl").arg("get-default-source").output() {
         Ok(output) if output.status.success() => {
             let source = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !source.is_empty() && source != SOURCE_NAME {
@@ -380,7 +388,10 @@ fn save_original_default_source() {
 }
 
 fn restore_original_default_source() {
-    let original = STATE.lock().ok().and_then(|s| s.original_default_source.clone());
+    let original = STATE
+        .lock()
+        .ok()
+        .and_then(|s| s.original_default_source.clone());
     let original = match original {
         Some(o) => o,
         None => return,
@@ -395,7 +406,10 @@ fn restore_original_default_source() {
         }
         Ok(output) => {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            log::warn!("[PipeWire] Failed to restore original default source: {}", stderr);
+            log::warn!(
+                "[PipeWire] Failed to restore original default source: {}",
+                stderr
+            );
         }
         Err(e) => {
             log::warn!("[PipeWire] Error restoring original default source: {}", e);
@@ -408,10 +422,7 @@ fn restore_original_default_source() {
 }
 
 fn find_node_id_by_name(name: &str) -> Option<String> {
-    match Command::new("pw-cli")
-        .arg("list-objects")
-        .output()
-    {
+    match Command::new("pw-cli").arg("list-objects").output() {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let mut current_id: Option<String> = None;
@@ -438,7 +449,9 @@ fn regex_match_id(line: &str) -> Option<String> {
     let trimmed = line.trim_start();
     if trimmed.starts_with("id ") || trimmed.starts_with("id\t") {
         let rest = &trimmed[3..].trim_start();
-        let end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
+        let end = rest
+            .find(|c: char| !c.is_ascii_digit())
+            .unwrap_or(rest.len());
         if end > 0 {
             return Some(rest[..end].to_string());
         }
@@ -464,10 +477,7 @@ fn stop_loopback(pid: u32) {
 }
 
 fn destroy_node(node_id: &str, description: &str) {
-    match Command::new("pw-cli")
-        .args(["destroy", node_id])
-        .output()
-    {
+    match Command::new("pw-cli").args(["destroy", node_id]).output() {
         Ok(output) => {
             if output.status.success() {
                 log::debug!("[PipeWire] {} destroyed (id: {})", description, node_id);
@@ -483,19 +493,15 @@ fn destroy_node(node_id: &str, description: &str) {
 }
 
 fn destroy_node_by_name(node_name: &str, description: &str) {
-    match Command::new("pw-cli")
-        .args(["destroy", node_name])
-        .output()
-    {
+    match Command::new("pw-cli").args(["destroy", node_name]).output() {
         Ok(output) => {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            if output.status.success()
-                || stderr.contains("not found")
-                || stderr.contains("No such")
+            if output.status.success() || stderr.contains("not found") || stderr.contains("No such")
             {
                 log::debug!(
                     "[PipeWire] {} destroyed or not found (name: {})",
-                    description, node_name
+                    description,
+                    node_name
                 );
             } else {
                 log::warn!("[PipeWire] Failed to destroy {}: {}", description, stderr);
@@ -521,10 +527,7 @@ fn wait_for_device(max_wait_ms: u64) {
 }
 
 pub fn device_exists() -> bool {
-    match Command::new("pw-cli")
-        .arg("list-objects")
-        .output()
-    {
+    match Command::new("pw-cli").arg("list-objects").output() {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
             stdout.contains(SINK_NAME) && stdout.contains(SOURCE_NAME)
