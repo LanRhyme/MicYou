@@ -76,6 +76,10 @@ jobs:
         cache-dependency-path: tauri-app/package-lock.json
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
+    - name: Cache Rust
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: tauri-app -> target
     - name: Install cargo-about
       uses: taiki-e/install-action@v2
       with:
@@ -143,6 +147,10 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     - name: Setup Rust Target
       run: rustup target add ${{ matrix.target }}
+    - name: Cache Rust
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: tauri-app -> target
     - name: Install cargo-about
       uses: taiki-e/install-action@v2
       with:
@@ -189,6 +197,10 @@ jobs:
         cache-dependency-path: tauri-app/package-lock.json
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
+    - name: Cache Rust
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: tauri-app -> target
     - name: Install cargo-about
       uses: taiki-e/install-action@v2
       with:
