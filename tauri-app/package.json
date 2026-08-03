@@ -4,7 +4,7 @@
   "version": "2.0.0-alpha1",
   "type": "module",
   "scripts": {
-    "licenses": "cargo about generate about.hbs --workspace --all-features --locked --fail --output-file src/generated/third-party-licenses.html && node generate-licenses.js",
+    "licenses": "node generate-licenses.js",
     "dev": "npm run licenses && vite",
     "build": "npm run licenses && vue-tsc --noEmit && vite build",
     "preview": "vite preview",

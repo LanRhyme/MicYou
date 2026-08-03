@@ -1,10 +1,40 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
 const resourcesDir = path.join(appDir, 'src-tauri', 'resources');
 const outputFile = path.join(appDir, 'src', 'generated', 'third-party-licenses.html');
+
+await mkdir(path.dirname(outputFile), { recursive: true });
+
+await new Promise((resolve, reject) => {
+  const child = spawn(
+    'cargo',
+    [
+      'about',
+      'generate',
+      'about.hbs',
+      '--workspace',
+      '--all-features',
+      '--locked',
+      '--fail',
+      '--output-file',
+      path.relative(appDir, outputFile),
+    ],
+    { cwd: appDir, stdio: 'inherit' },
+  );
+
+  child.once('error', reject);
+  child.once('exit', (code, signal) => {
+    if (code === 0) {
+      resolve();
+    } else {
+      reject(new Error(`cargo-about exited with ${signal ? `signal ${signal}` : `code ${code}`}`));
+    }
+  });
+});
 
 const escapeHtml = (value) =>
   value
