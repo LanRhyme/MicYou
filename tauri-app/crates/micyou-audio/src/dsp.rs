@@ -153,6 +153,7 @@ impl PureVoxProcessor {
         let hop_length = 480;
 
         let session = ort::session::Session::builder()?
+            .with_log_level(ort::logging::LogLevel::Warning)?
             .with_intra_threads(1)?
             .with_inter_threads(1)?
             .commit_from_file(model_path)?;
@@ -384,6 +385,7 @@ impl AecProcessor {
         use rustfft::FftPlanner;
 
         let session = ort::session::Session::builder()?
+            .with_log_level(ort::logging::LogLevel::Warning)?
             .with_intra_threads(1)?
             .with_inter_threads(1)?
             .commit_from_file(model_path)?;
