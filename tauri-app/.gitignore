@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+src/generated/third-party-licenses.html
 
 # Editor directories and files
 .vscode/*

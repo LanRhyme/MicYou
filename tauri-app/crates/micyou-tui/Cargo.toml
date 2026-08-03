@@ -3,6 +3,7 @@ name = "micyou-tui"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "MicYou interactive terminal interface"
 
 [[bin]]

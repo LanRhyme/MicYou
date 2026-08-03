@@ -4,6 +4,7 @@ version = "2.0.0-alpha1"
 description = "MicYou - Turn your Android device into a high-quality PC microphone"
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [lib]
 name = "tauri_app_lib"

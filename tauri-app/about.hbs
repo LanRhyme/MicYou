@@ -1,0 +1,38 @@
+<section class="cargo-about">
+  <div class="license-summary">
+    <h3>Rust dependencies</h3>
+    <p>Generated from Cargo.lock by cargo-about.</p>
+  </div>
+
+  <table class="license-table">
+    <thead>
+      <tr>
+        <th>Package</th>
+        <th>Version</th>
+        <th>License</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each crates}}
+      <tr>
+        <td>
+          <a href="{{#if package.repository}}{{package.repository}}{{else}}https://crates.io/crates/{{package.name}}{{/if}}" target="_blank" rel="noreferrer">
+            {{package.name}}
+          </a>
+        </td>
+        <td>{{package.version}}</td>
+        <td>{{license}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <div class="license-texts">
+    {{#each overview}}
+    <details>
+      <summary>{{name}}</summary>
+      <pre>{{text}}</pre>
+    </details>
+    {{/each}}
+  </div>
+</section>

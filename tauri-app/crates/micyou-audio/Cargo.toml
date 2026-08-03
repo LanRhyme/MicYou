@@ -3,6 +3,7 @@ name = "micyou-audio"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [features]
 default = ["dsp"]

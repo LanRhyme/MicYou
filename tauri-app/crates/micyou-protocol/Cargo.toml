@@ -3,6 +3,7 @@ name = "micyou-protocol"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
+license.workspace = true
 
 [dependencies]
 prost = "0.14.3"
