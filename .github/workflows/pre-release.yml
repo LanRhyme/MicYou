@@ -98,6 +98,10 @@ jobs:
         cache-dependency-path: tauri-app/package-lock.json
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
+    - name: Install cargo-about
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-about@0.9.1
     - name: Install Frontend Dependencies
       run: npm ci --include=dev
       working-directory: tauri-app
@@ -161,6 +165,10 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
     - name: Setup Rust Target
       run: rustup target add ${{ matrix.target }}
+    - name: Install cargo-about
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-about@0.9.1
     - name: Install Frontend Dependencies
       run: npm ci --include=dev
       working-directory: tauri-app
@@ -201,6 +209,10 @@ jobs:
         cache-dependency-path: tauri-app/package-lock.json
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
+    - name: Install cargo-about
+      uses: taiki-e/install-action@v2
+      with:
+        tool: cargo-about@0.9.1
     - name: Install System Dependencies
       run: |
         sudo apt-get update
