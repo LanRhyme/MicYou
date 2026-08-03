@@ -112,9 +112,12 @@ impl LoopbackCapture {
         self.active.load(Ordering::Relaxed)
     }
 
-    /// Returns the stable reason for the most recent capture failure.
-    pub fn failure_reason(&self) -> Option<String> {
-        self.failure.lock().ok().and_then(|reason| reason.clone())
+    /// Takes the most recent capture failure so one failed attempt is handled once.
+    pub fn take_failure_reason(&self) -> Option<String> {
+        self.failure
+            .lock()
+            .ok()
+            .and_then(|mut reason| reason.take())
     }
 }
 
@@ -432,5 +435,22 @@ fn cpal_capture_thread(
             set_failure(&failure, "reference_lost");
             active.store(false, Ordering::Relaxed);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn capture_failure_is_consumed_once() {
+        let capture = LoopbackCapture::new();
+        set_failure(&capture.failure, "virtual_source_missing");
+
+        assert_eq!(
+            capture.take_failure_reason().as_deref(),
+            Some("virtual_source_missing")
+        );
+        assert_eq!(capture.take_failure_reason(), None);
     }
 }

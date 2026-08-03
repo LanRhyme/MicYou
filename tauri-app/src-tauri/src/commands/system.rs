@@ -31,11 +31,7 @@ fn disable_aec_runtime(
     settings: &std::sync::Arc<std::sync::RwLock<micyou_audio::dsp::AudioDspSettings>>,
     events: &crate::events::SharedEvents,
     reason: String,
-    reported: &mut bool,
 ) {
-    if *reported {
-        return;
-    }
     let mut changed = false;
     if let Ok(mut current) = settings.write() {
         if current.aec_enabled {
@@ -51,7 +47,14 @@ fn disable_aec_runtime(
             reason: Some(reason),
         });
     }
-    *reported = true;
+}
+
+fn should_capture_loopback(
+    transport_active: bool,
+    audio_received: bool,
+    aec_enabled: bool,
+) -> bool {
+    transport_active && audio_received && aec_enabled
 }
 
 async fn join_tasks_bounded(
@@ -236,42 +239,51 @@ pub async fn start_server_inner(
 
         // Speaker loopback capture for the AEC far-end reference. Windows uses
         // WASAPI loopback; Linux uses the PipeWire source created above. Both
-        // are started lazily only while an AEC-enabled device session is active.
+        // are started lazily only after an AEC-enabled session sends audio.
         #[cfg(any(target_os = "windows", target_os = "linux"))]
         let loopback: Option<micyou_audio::LoopbackCapture> =
             Some(micyou_audio::LoopbackCapture::new());
         #[cfg(not(any(target_os = "windows", target_os = "linux")))]
         let loopback: Option<micyou_audio::LoopbackCapture> = None;
 
-        let mut aec_failure_reported = false;
-        // Sync the AEC far-end capture with the current session state.
-        let sync_loopback = |loopback: &Option<micyou_audio::LoopbackCapture>| {
-            let session_active = !matches!(
+        let mut audio_received_for_session = false;
+        // Sync the AEC far-end capture with actual audio flow. A control session
+        // alone is not enough: while waiting for the first valid audio packet,
+        // there is no microphone stream that needs an echo reference.
+        let sync_loopback = |loopback: &Option<micyou_audio::LoopbackCapture>,
+                             audio_received: &mut bool| {
+            let transport_active = !matches!(
                 *active_audio_session_audio
                     .read()
                     .unwrap_or_else(|p| p.into_inner()),
                 ActiveAudioSession::Inactive
             );
+            if !transport_active {
+                *audio_received = false;
+            }
             let mut failure = None;
             if let Some(lb) = loopback {
                 let aec_enabled = dsp_settings
                     .read()
                     .map(|settings| settings.aec_enabled)
                     .unwrap_or(false);
-                if session_active && aec_enabled && !lb.is_active() {
-                    if lb.start() {
-                        log::info!("[Audio] Speaker loopback capture started for AEC");
+                let should_capture =
+                    should_capture_loopback(transport_active, *audio_received, aec_enabled);
+                if should_capture && !lb.is_active() {
+                    if let Some(reason) = lb.take_failure_reason() {
+                        failure = Some(reason);
+                    } else if lb.start() {
+                        log::info!("[Audio] Starting speaker loopback capture for AEC");
                     } else {
-                        failure = Some("reference_lost".to_string());
+                        failure = lb
+                            .take_failure_reason()
+                            .or_else(|| Some("reference_lost".to_string()));
                     }
-                } else if (!session_active || !aec_enabled) && lb.is_active() {
+                } else if !should_capture && lb.is_active() {
                     lb.stop();
                 }
-                if session_active && aec_enabled && !lb.is_active() {
-                    failure = lb.failure_reason();
-                }
             }
-            (session_active, failure)
+            (transport_active, failure)
         };
 
         loop {
@@ -284,14 +296,10 @@ pub async fn start_server_inner(
                     // can arrive after a silence gap and must not sit in the
                     // channel for up to 500ms (that caused audible dropouts at
                     // the start of each utterance). Idle servers sleep 500ms.
-                    let (session_active, failure) = sync_loopback(&loopback);
+                    let (session_active, failure) =
+                        sync_loopback(&loopback, &mut audio_received_for_session);
                     if let Some(reason) = failure {
-                        disable_aec_runtime(
-                            &dsp_settings,
-                            &events_audio,
-                            reason,
-                            &mut aec_failure_reported,
-                        );
+                        disable_aec_runtime(&dsp_settings, &events_audio, reason);
                     }
                     std::thread::sleep(std::time::Duration::from_millis(if session_active {
                         10
@@ -305,19 +313,24 @@ pub async fn start_server_inner(
                     );
                     match event {
                         AudioStreamEvent::SessionStarting { expected, epoch } => {
-                            let (_, failure) = sync_loopback(&loopback);
+                            audio_received_for_session = false;
+                            let (_, failure) =
+                                sync_loopback(&loopback, &mut audio_received_for_session);
                             if let Some(reason) = failure {
-                                disable_aec_runtime(
-                                    &dsp_settings,
-                                    &events_audio,
-                                    reason,
-                                    &mut aec_failure_reported,
-                                );
+                                disable_aec_runtime(&dsp_settings, &events_audio, reason);
                             }
                             jb.prepare_transport_session_epoch(expected, epoch);
                             continue;
                         }
-                        AudioStreamEvent::Packet { packet, epoch } => jb.push_epoch(packet, epoch),
+                        AudioStreamEvent::Packet { packet, epoch } => {
+                            audio_received_for_session = true;
+                            let (_, failure) =
+                                sync_loopback(&loopback, &mut audio_received_for_session);
+                            if let Some(reason) = failure {
+                                disable_aec_runtime(&dsp_settings, &events_audio, reason);
+                            }
+                            jb.push_epoch(packet, epoch);
+                        }
                     }
                     let packets: Vec<_> = std::iter::from_fn(|| jb.pop()).collect();
 
@@ -434,12 +447,7 @@ pub async fn start_server_inner(
                                         queued_ms,
                                     );
                                     if let Some(reason) = dsp_processor.take_aec_failure() {
-                                        disable_aec_runtime(
-                                            &dsp_settings,
-                                            &events_audio,
-                                            reason,
-                                            &mut aec_failure_reported,
-                                        );
+                                        disable_aec_runtime(&dsp_settings, &events_audio, reason);
                                     }
                                     processed
                                 };
@@ -463,11 +471,14 @@ pub async fn start_server_inner(
                     }
                 }
             }
+        }
 
-            if let Some(lb) = &loopback {
-                lb.stop();
+        if let Some(lb) = &loopback {
+            let was_active = lb.is_active();
+            lb.stop();
+            if was_active {
+                log::info!("[Audio] Speaker loopback stopped");
             }
-            log::info!("[Audio] Speaker loopback stopped");
         }
     });
 
@@ -874,7 +885,15 @@ pub async fn exit_app(app: AppHandle, state: State<'_, ServerState>) -> Result<(
 
 #[cfg(test)]
 mod tests {
-    use super::validate_server_port;
+    use super::{should_capture_loopback, validate_server_port};
+
+    #[test]
+    fn loopback_waits_for_first_audio_packet() {
+        assert!(!should_capture_loopback(false, false, true));
+        assert!(!should_capture_loopback(true, false, true));
+        assert!(!should_capture_loopback(true, true, false));
+        assert!(should_capture_loopback(true, true, true));
+    }
 
     #[test]
     fn non_web_port_zero_is_rejected() {
