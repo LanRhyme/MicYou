@@ -45,7 +45,8 @@
     "notify": {
       "connected": "Device connected successfully.",
       "disconnected": "Device disconnected.",
-      "usbDisconnected": "USB disconnected. Please reconnect the cable and click Connect."
+      "usbDisconnected": "USB disconnected. Please reconnect the cable and click Connect.",
+      "aecDisabled": "AEC was disabled because the Linux audio reference is unavailable."
     },
     "ipSelector": {
       "allInterfaces": "All Interfaces",
@@ -181,6 +182,7 @@
       "aec": "Acoustic Echo Cancellation (AEC)",
       "aecDesc": "Cancel speaker echo from microphone using AI",
       "aecUnavailable": "Not available on this system",
+      "aecRuntimeUnavailable": "Automatically disabled: Linux audio reference is unavailable",
       "bufferSize": "Output Buffer Size",
       "bufferSizeDesc": "Larger buffer resists network jitter but adds latency",
       "bufferLow": "Low latency",

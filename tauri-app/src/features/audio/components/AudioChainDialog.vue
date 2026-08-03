@@ -59,10 +59,9 @@ import { X, GripVertical, RotateCcw, Lock } from '@lucide/vue';
 const props = defineProps<{ isOpen: boolean, chain: string[] }>();
 const emit = defineEmits(['close', 'update:chain']);
 
-// AEC 仅在 Windows 可用；Linux/macOS 上隐藏该选项
+// AEC 在 Linux/Windows 可用；macOS 上隐藏该选项
 const isMacOS = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform || navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
-const isLinux = typeof navigator !== 'undefined' && /Linux/.test(navigator.platform || navigator.userAgent) && !/Android/.test(navigator.userAgent);
-const isAecSupported = !isMacOS && !isLinux;
+const isAecSupported = !isMacOS;
 
 // 去重；支持平台强制 AEC 置顶，不支持平台彻底移除 AEC
 const normalizeChain = (chain: string[]) => {

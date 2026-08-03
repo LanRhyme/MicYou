@@ -14,6 +14,7 @@ const TARGET_RATE: u32 = 48000;
 pub struct LoopbackCapture {
     active: Arc<AtomicBool>,
     buffer: Arc<Mutex<HeapRb<f32>>>,
+    failure: Arc<Mutex<Option<String>>>,
 }
 
 impl LoopbackCapture {
@@ -21,6 +22,7 @@ impl LoopbackCapture {
         Self {
             active: Arc::new(AtomicBool::new(false)),
             buffer: Arc::new(Mutex::new(HeapRb::new(TARGET_RATE as usize * RING_BUF_SEC))),
+            failure: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -28,20 +30,29 @@ impl LoopbackCapture {
         if self.active.load(Ordering::Relaxed) {
             return true;
         }
+        if let Ok(mut failure) = self.failure.lock() {
+            *failure = None;
+        }
         self.active.store(true, Ordering::Relaxed);
 
         let active = self.active.clone();
         let buffer = self.buffer.clone();
+        let failure = self.failure.clone();
 
-        std::thread::Builder::new()
+        let spawned = std::thread::Builder::new()
             .name("SpeakerLoopback".into())
             .spawn(move || {
                 #[cfg(target_os = "windows")]
-                wasapi_loopback_thread(active, buffer);
+                wasapi_loopback_thread(active, buffer, failure);
                 #[cfg(not(target_os = "windows"))]
-                cpal_capture_thread(active, buffer);
-            })
-            .is_ok()
+                cpal_capture_thread(active, buffer, failure);
+            });
+
+        if spawned.is_err() {
+            self.active.store(false, Ordering::Relaxed);
+            set_failure(&self.failure, "reference_lost");
+        }
+        spawned.is_ok()
     }
 
     pub fn stop(&self) {
@@ -64,6 +75,17 @@ impl LoopbackCapture {
 
     pub fn is_active(&self) -> bool {
         self.active.load(Ordering::Relaxed)
+    }
+
+    /// Returns the stable reason for the most recent capture failure.
+    pub fn failure_reason(&self) -> Option<String> {
+        self.failure.lock().ok().and_then(|reason| reason.clone())
+    }
+}
+
+fn set_failure(failure: &Mutex<Option<String>>, reason: &str) {
+    if let Ok(mut current) = failure.lock() {
+        *current = Some(reason.to_string());
     }
 }
 
@@ -113,7 +135,11 @@ fn push_to_buffer(
 // (see api.rs line 832-835).
 
 #[cfg(target_os = "windows")]
-fn wasapi_loopback_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>) {
+fn wasapi_loopback_thread(
+    active: Arc<AtomicBool>,
+    buffer: Arc<Mutex<HeapRb<f32>>>,
+    failure: Arc<Mutex<Option<String>>>,
+) {
     use std::collections::VecDeque;
     use wasapi::*;
 
@@ -206,6 +232,7 @@ fn wasapi_loopback_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>
 
     if let Err(e) = result {
         log::error!("[Loopback] WASAPI error: {}", e);
+        set_failure(&failure, "reference_lost");
     }
     active.store(false, Ordering::Relaxed);
 }
@@ -213,18 +240,27 @@ fn wasapi_loopback_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>
 // ─── macOS/Linux: cpal capture from virtual audio device ──────────────────
 
 #[cfg(not(target_os = "windows"))]
-fn cpal_capture_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>) {
+fn cpal_capture_thread(
+    active: Arc<AtomicBool>,
+    buffer: Arc<Mutex<HeapRb<f32>>>,
+    failure: Arc<Mutex<Option<String>>>,
+) {
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
     let host = cpal::default_host();
 
-    // Find virtual audio device by name hint
-    let hints: &[&str] = &[
-        "monitor",      // Linux: PulseAudio/PipeWire monitor sources
-        "blackhole",    // macOS
-        "pipewire",     // Linux fallback
-        "virtual",      // Linux fallback
-    ];
+    #[cfg(target_os = "linux")]
+    if std::process::Command::new("pw-cli")
+        .arg("--version")
+        .output()
+        .map(|output| !output.status.success())
+        .unwrap_or(true)
+    {
+        log::error!("[Loopback] PipeWire is not available");
+        set_failure(&failure, "pipewire_unavailable");
+        active.store(false, Ordering::Relaxed);
+        return;
+    }
 
     let device = {
         let mut found = None;
@@ -232,12 +268,15 @@ fn cpal_capture_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>)
             'outer: for dev in devices {
                 if let Ok(name) = dev.name() {
                     let lower = name.to_lowercase();
-                    for hint in hints {
-                        if lower.contains(hint) {
-                            log::info!("[Loopback] Found virtual device: '{}'", name);
-                            found = Some(dev);
-                            break 'outer;
-                        }
+                    #[cfg(target_os = "linux")]
+                    let matches = lower == "micyouvirtualmic"
+                        || lower.contains("micyouvirtualmic");
+                    #[cfg(target_os = "macos")]
+                    let matches = lower.contains("blackhole");
+                    if matches {
+                        log::info!("[Loopback] Found virtual device: '{}'", name);
+                        found = Some(dev);
+                        break 'outer;
                     }
                 }
             }
@@ -247,8 +286,9 @@ fn cpal_capture_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>)
             None => {
                 log::error!(
                     "[Loopback] No virtual audio device found. \
-                     Install BlackHole (macOS) or PipeWire (Linux)."
+                     Install BlackHole (macOS) or start MicYou PipeWire routing (Linux)."
                 );
+                set_failure(&failure, "virtual_source_missing");
                 active.store(false, Ordering::Relaxed);
                 return;
             }
@@ -259,6 +299,7 @@ fn cpal_capture_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>)
         Ok(c) => c,
         Err(e) => {
             log::error!("[Loopback] Failed to get input config: {}", e);
+            set_failure(&failure, "reference_lost");
             active.store(false, Ordering::Relaxed);
             return;
         }
@@ -278,6 +319,7 @@ fn cpal_capture_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>)
             Ok(r) => Some(Arc::new(Mutex::new(r))),
             Err(e) => {
                 log::error!("[Loopback] Failed to create resampler: {}", e);
+                set_failure(&failure, "reference_lost");
                 None
             }
         }
@@ -285,8 +327,12 @@ fn cpal_capture_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>)
         None
     };
 
-    let err_fn = |err: cpal::StreamError| {
+    let stream_active = active.clone();
+    let stream_failure = failure.clone();
+    let err_fn = move |err: cpal::StreamError| {
         log::error!("[Loopback] Stream error: {}", err);
+        set_failure(&stream_failure, "reference_lost");
+        stream_active.store(false, Ordering::Relaxed);
     };
 
     let buf_clone = buffer.clone();
@@ -313,6 +359,7 @@ fn cpal_capture_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>)
         ),
         fmt => {
             log::error!("[Loopback] Unsupported sample format: {:?}", fmt);
+            set_failure(&failure, "reference_lost");
             active.store(false, Ordering::Relaxed);
             return;
         }
@@ -322,6 +369,7 @@ fn cpal_capture_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>)
         Ok(stream) => {
             if let Err(e) = stream.play() {
                 log::error!("[Loopback] Failed to start stream: {}", e);
+                set_failure(&failure, "reference_lost");
                 active.store(false, Ordering::Relaxed);
                 return;
             }
@@ -335,6 +383,7 @@ fn cpal_capture_thread(active: Arc<AtomicBool>, buffer: Arc<Mutex<HeapRb<f32>>>)
         }
         Err(e) => {
             log::error!("[Loopback] Failed to build stream: {}", e);
+            set_failure(&failure, "reference_lost");
             active.store(false, Ordering::Relaxed);
         }
     }

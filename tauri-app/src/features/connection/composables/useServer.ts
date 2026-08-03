@@ -164,6 +164,14 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
    * Toggles the server state between started and stopped
    */
   const toggleStreaming = async () => {
+    // PipeWire setup and audio initialization can take a moment. Do not let a
+    // second click (or an auto-start racing with a manual click) stop the
+    // server that is still starting.
+    if (serverState.value === 'starting') {
+      console.warn('[Server] Ignoring toggle while server startup is in progress');
+      return;
+    }
+
     if (serverState.value !== 'idle') {
       try {
         await invoke('stop_server');
@@ -378,6 +386,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
   let unlistenDeviceDisconnected: UnlistenFn | null = null;
   let unlistenServerStopped: UnlistenFn | null = null;
   let unlistenWebClients: UnlistenFn | null = null;
+  let unlistenAecStatus: UnlistenFn | null = null;
 
   // ---- Shared server prefs (server.json, also read/written by the CLI) ----
   interface ServerPrefsBackend {
@@ -508,6 +517,12 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
       webClientCount.value = event.payload;
     });
 
+    unlistenAecStatus = await listen<{ available: boolean; enabled: boolean; reason?: string | null }>('aec-status-changed', (event) => {
+      if (!event.payload.available && notificationsEnabled.value) {
+        void notify(t('app.notify.aecDisabled'));
+      }
+    });
+
     // Start streaming automatically if user configuration allows it
     if (localStorage.getItem('micyou_auto_stream') === 'true') {
       toggleStreaming();
@@ -519,6 +534,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     if (unlistenDeviceDisconnected) unlistenDeviceDisconnected();
     if (unlistenServerStopped) unlistenServerStopped();
     if (unlistenWebClients) unlistenWebClients();
+    if (unlistenAecStatus) unlistenAecStatus();
   });
 
   return {
@@ -556,4 +572,3 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     cancelDeviceSelection,
   };
 }
-

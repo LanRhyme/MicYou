@@ -43,7 +43,8 @@
     "notify": {
       "connected": "裝置已經成功連接",
       "disconnected": "裝置已經斷開連接",
-      "usbDisconnected": "USB 斷開咗，請重新插返條線再㩒連線"
+      "usbDisconnected": "USB 斷開咗，請重新插返條線再㩒連線",
+      "aecDisabled": "Linux 音訊參考流唔可用，AEC 已自動停用。"
     },
     "ipSelector": {
       "allInterfaces": "全部",
@@ -179,6 +180,7 @@
       "aec": "聲學迴聲消除 (AEC)",
       "aecDesc": "使用 AI 從咪高風中消除喇叭迴聲",
       "aecUnavailable": "喺呢個系統上唔可用",
+      "aecRuntimeUnavailable": "已自動停用：Linux 音訊參考流唔可用",
       "bufferSize": "輸出緩衝區大小",
       "bufferSizeDesc": "愈大愈能抵禦網絡抖動，但延遲愈高",
       "bufferLow": "低延遲",

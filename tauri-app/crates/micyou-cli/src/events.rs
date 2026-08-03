@@ -1,5 +1,5 @@
 use std::sync::mpsc::Sender;
-use tauri_app_lib::events::ServerEvents;
+use tauri_app_lib::events::{AecStatus, ServerEvents};
 use tauri_app_lib::stats::AudioMetrics;
 use tauri_app_lib::tcp_server::DeviceInfo;
 use std::sync::Mutex;
@@ -44,6 +44,13 @@ impl ServerEvents for CliEventSink {
     fn install_progress(&self, message: String) {
         println!("[install] {message}");
     }
+    fn aec_status_changed(&self, status: AecStatus) {
+        if status.available && status.enabled {
+            println!("[aec] enabled");
+        } else if let Some(reason) = status.reason {
+            println!("[warn] AEC disabled: {reason}");
+        }
+    }
 }
 
 /// TUI-mode events: forward to the TUI channel.
@@ -80,6 +87,7 @@ pub enum Event {
     Stopped,
     WebClientCount(u32),
     InstallProgress(String),
+    AecStatus(AecStatus),
 }
 
 impl ServerEvents for TuiEventSink {
@@ -122,5 +130,8 @@ impl ServerEvents for TuiEventSink {
     }
     fn install_progress(&self, message: String) {
         let _ = self.tx.send(Event::InstallProgress(message));
+    }
+    fn aec_status_changed(&self, status: AecStatus) {
+        let _ = self.tx.send(Event::AecStatus(status));
     }
 }

@@ -1,12 +1,13 @@
+#[cfg(feature = "noise-suppression")]
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
-#[cfg(feature = "dsp")]
+#[cfg(feature = "noise-suppression")]
 use ndarray::{Array3, ArrayD, IxDyn};
 #[cfg(feature = "dsp")]
 use nnnoiseless::DenoiseState;
-#[cfg(feature = "dsp")]
+#[cfg(feature = "noise-suppression")]
 use rustfft::num_complex::Complex;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -507,9 +508,13 @@ impl PureVoxProcessor {
 
 // ─── AEC7 ONNX acoustic echo cancellation ────────────────────────────────
 
+#[cfg(feature = "noise-suppression")]
 const AEC_WIN_LEN: usize = 960;
+#[cfg(feature = "noise-suppression")]
 const AEC_HOP_LEN: usize = 480;
+#[cfg(feature = "noise-suppression")]
 const AEC_NFFT: usize = 960;
+#[cfg(feature = "noise-suppression")]
 const AEC_N_BINS: usize = AEC_NFFT / 2 + 1; // 481
 
 /// Hardcoded aec7 cache state configuration.
@@ -625,9 +630,9 @@ impl AecProcessor {
 
     /// Process one frame (480 samples each of mic and far-end).
     /// Returns 480 samples of echo-cancelled audio.
-    fn process(&mut self, mic_chunk: &[f32], far_chunk: &[f32]) -> Vec<f32> {
+    fn process(&mut self, mic_chunk: &[f32], far_chunk: &[f32]) -> Result<Vec<f32>, String> {
         if mic_chunk.len() != AEC_HOP_LEN || far_chunk.len() != AEC_HOP_LEN {
-            return mic_chunk.to_vec();
+            return Ok(mic_chunk.to_vec());
         }
 
         // ── Build overlapping frames into scratch buffers ──
@@ -669,8 +674,7 @@ impl AecProcessor {
         let enhanced_stft = match self.infer_step(&mic_flat, &far_flat) {
             Ok(frame) => frame,
             Err(e) => {
-                log::error!("[DSP] AEC ONNX inference failed: {}", e);
-                return mic_chunk.to_vec();
+                return Err(e.to_string());
             }
         };
 
@@ -722,7 +726,7 @@ impl AecProcessor {
             self.window_sum[i] = 0.0;
         }
 
-        output
+        Ok(output)
     }
 
     /// Run one ONNX inference step with mic and far STFT frames (flat f32 slices).
@@ -787,6 +791,7 @@ impl AecProcessor {
 struct FarEndBuffer {
     buffer: Vec<f32>,
     write_pos: usize,
+    sample_count: usize,
 }
 
 #[cfg(feature = "noise-suppression")]
@@ -795,6 +800,7 @@ impl FarEndBuffer {
         Self {
             buffer: vec![0.0; 480 * 2],
             write_pos: 0,
+            sample_count: 0,
         }
     }
 
@@ -802,7 +808,12 @@ impl FarEndBuffer {
         for &sample in data {
             self.buffer[self.write_pos] = sample;
             self.write_pos = (self.write_pos + 1) % self.buffer.len();
+            self.sample_count = (self.sample_count + 1).min(self.buffer.len());
         }
+    }
+
+    fn is_ready(&self) -> bool {
+        self.sample_count >= AEC_HOP_LEN
     }
 
     fn read_last_hop(&self) -> Vec<f32> {
@@ -1155,6 +1166,8 @@ pub struct DspProcessor {
     aec_model_path: Option<PathBuf>,
     #[cfg(feature = "noise-suppression")]
     aec_load_failed: bool,
+    #[cfg(feature = "noise-suppression")]
+    aec_failure: Option<String>,
     /// Far-end buffer for AEC.
     #[cfg(feature = "noise-suppression")]
     far_end: FarEndBuffer,
@@ -1224,6 +1237,8 @@ impl DspProcessor {
             aec_model_path: _model_dir.as_ref().map(|d| d.join("aec7_ep0185.onnx")),
             #[cfg(feature = "noise-suppression")]
             aec_load_failed: false,
+            #[cfg(feature = "noise-suppression")]
+            aec_failure: None,
             #[cfg(feature = "noise-suppression")]
             far_end: FarEndBuffer::new(),
 
@@ -1362,8 +1377,24 @@ impl DspProcessor {
     }
 
     /// Feed far-end (speaker) audio for AEC.
+    #[cfg(feature = "noise-suppression")]
     pub fn set_far_end_audio(&mut self, far_end: &[f32]) {
         self.far_end.feed(far_end);
+    }
+
+    /// No-op when the optional DSP feature is disabled. This keeps the public
+    /// audio API usable by callers that build the crate without ONNX support.
+    #[cfg(not(feature = "noise-suppression"))]
+    pub fn set_far_end_audio(&mut self, _far_end: &[f32]) {}
+
+    #[cfg(feature = "noise-suppression")]
+    pub fn take_aec_failure(&mut self) -> Option<String> {
+        self.aec_failure.take()
+    }
+
+    #[cfg(not(feature = "noise-suppression"))]
+    pub fn take_aec_failure(&mut self) -> Option<String> {
+        None
     }
 
     // ── AEC Acoustic Echo Cancellation ────────────────────────────────────
@@ -1382,21 +1413,30 @@ impl DspProcessor {
                         Err(e) => {
                             log::error!("[DSP] Failed to load AEC7 model: {}", e);
                             self.aec_load_failed = true;
+                            self.aec_failure = Some("model_load_failed".to_string());
                             return;
                         }
                     }
                 } else {
                     log::warn!("[DSP] AEC7 model not found at {:?}, disabling AEC", path);
                     self.aec_load_failed = true;
+                    self.aec_failure = Some("model_missing".to_string());
                     return;
                 }
             } else {
                 self.aec_load_failed = true;
+                self.aec_failure = Some("model_missing".to_string());
                 return;
             }
         }
 
         if self.aec.is_none() {
+            return;
+        }
+
+        // The ONNX model must receive a real far-end reference. Do not feed
+        // the initial zero-filled buffer while PipeWire is still starting.
+        if !self.far_end.is_ready() {
             return;
         }
 
@@ -1424,7 +1464,14 @@ impl DspProcessor {
                 if chunk.len() == hop {
                     let far_chunk = self.far_end.read_last_hop();
                     let clean = match &mut self.aec {
-                        Some(proc) => proc.process(chunk, &far_chunk),
+                        Some(proc) => match proc.process(chunk, &far_chunk) {
+                            Ok(clean) => clean,
+                            Err(e) => {
+                                log::error!("[DSP] AEC ONNX inference failed: {}", e);
+                                self.aec_failure = Some("model_load_failed".to_string());
+                                return;
+                            }
+                        },
                         None => chunk.to_vec(),
                     };
                     mono_output.extend_from_slice(&clean);
@@ -1448,7 +1495,14 @@ impl DspProcessor {
                 if chunk.len() == hop {
                     let far_chunk = self.far_end.read_last_hop();
                     let clean = match &mut self.aec {
-                        Some(proc) => proc.process(chunk, &far_chunk),
+                        Some(proc) => match proc.process(chunk, &far_chunk) {
+                            Ok(clean) => clean,
+                            Err(e) => {
+                                log::error!("[DSP] AEC ONNX inference failed: {}", e);
+                                self.aec_failure = Some("model_load_failed".to_string());
+                                return;
+                            }
+                        },
                         None => chunk.to_vec(),
                     };
                     output.extend_from_slice(&clean);

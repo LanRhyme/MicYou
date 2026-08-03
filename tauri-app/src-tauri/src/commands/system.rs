@@ -27,6 +27,33 @@ fn validate_server_port(port: u16, mode: &str) -> Result<Option<u16>, String> {
     })
 }
 
+fn disable_aec_runtime(
+    settings: &std::sync::Arc<std::sync::RwLock<micyou_audio::dsp::AudioDspSettings>>,
+    events: &crate::events::SharedEvents,
+    reason: String,
+    reported: &mut bool,
+) {
+    if *reported {
+        return;
+    }
+    let mut changed = false;
+    if let Ok(mut current) = settings.write() {
+        if current.aec_enabled {
+            current.aec_enabled = false;
+            let _ = crate::app_config::save_dsp_settings(&current);
+            changed = true;
+        }
+    }
+    if changed {
+        events.aec_status_changed(crate::events::AecStatus {
+            available: false,
+            enabled: false,
+            reason: Some(reason),
+        });
+    }
+    *reported = true;
+}
+
 async fn join_tasks_bounded(
     mut tasks: Vec<tokio::task::JoinHandle<()>>,
     timeout_duration: std::time::Duration,
@@ -184,21 +211,26 @@ pub async fn start_server_inner(
                 .and_then(|p| p.parent().map(|d| d.to_path_buf()));
             let resources_dir = exe_dir.as_ref().and_then(|d| {
                 let model_direct = d.join("ulunas.onnx");
-                if model_direct.exists() {
+                let aec_direct = d.join("aec7_ep0185.onnx");
+                if model_direct.exists() || aec_direct.exists() {
                     return Some(d.clone());
                 }
                 let res_dir = d.join("resources");
-                if res_dir.join("ulunas.onnx").exists() {
+                if res_dir.join("ulunas.onnx").exists()
+                    || res_dir.join("aec7_ep0185.onnx").exists()
+                {
                     return Some(res_dir);
                 }
                 let dev_res =
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources");
-                if dev_res.join("ulunas.onnx").exists() {
+                if dev_res.join("ulunas.onnx").exists()
+                    || dev_res.join("aec7_ep0185.onnx").exists()
+                {
                     return Some(dev_res);
                 }
                 None
             });
-            DspProcessor::new(dsp_settings, resources_dir)
+            DspProcessor::new(dsp_settings.clone(), resources_dir)
         };
         let mut jb = crate::jitter_buffer::JitterBuffer::new(12);
         let mut frame_counter: u32 = 0;
@@ -207,18 +239,16 @@ pub async fn start_server_inner(
         let mut resample_out_buf = Vec::new();
         let mut pcm_f32 = Vec::new();
 
-        // Speaker loopback capture for the AEC far-end reference.
-        // AEC is only supported on Windows (it is disabled on Linux/macOS), so
-        // the loopback capture stream is created on Windows only - on other
-        // platforms it would burn CPU reading BlackHole/PipeWire for data the
-        // DSP never uses. Started lazily: the idle heartbeat below starts it
-        // only while a device session is active and stops it when idle.
-        #[cfg(target_os = "windows")]
+        // Speaker loopback capture for the AEC far-end reference. Windows uses
+        // WASAPI loopback; Linux uses the PipeWire source created above. Both
+        // are started lazily only while an AEC-enabled device session is active.
+        #[cfg(any(target_os = "windows", target_os = "linux"))]
         let loopback: Option<micyou_audio::LoopbackCapture> =
             Some(micyou_audio::LoopbackCapture::new());
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(not(any(target_os = "windows", target_os = "linux")))]
         let loopback: Option<micyou_audio::LoopbackCapture> = None;
 
+        let mut aec_failure_reported = false;
         // Sync the AEC far-end capture with the current session state.
         let sync_loopback = |loopback: &Option<micyou_audio::LoopbackCapture>| {
             let session_active = !matches!(
@@ -227,16 +257,26 @@ pub async fn start_server_inner(
                     .unwrap_or_else(|p| p.into_inner()),
                 ActiveAudioSession::Inactive
             );
+            let mut failure = None;
             if let Some(lb) = loopback {
-                if session_active && !lb.is_active() {
+                let aec_enabled = dsp_settings
+                    .read()
+                    .map(|settings| settings.aec_enabled)
+                    .unwrap_or(false);
+                if session_active && aec_enabled && !lb.is_active() {
                     if lb.start() {
                         log::info!("[Audio] Speaker loopback capture started for AEC");
+                    } else {
+                        failure = Some("reference_lost".to_string());
                     }
-                } else if !session_active && lb.is_active() {
+                } else if (!session_active || !aec_enabled) && lb.is_active() {
                     lb.stop();
                 }
+                if session_active && aec_enabled && !lb.is_active() {
+                    failure = lb.failure_reason();
+                }
             }
-            session_active
+            (session_active, failure)
         };
 
         loop {
@@ -249,7 +289,15 @@ pub async fn start_server_inner(
                     // can arrive after a silence gap and must not sit in the
                     // channel for up to 500ms (that caused audible dropouts at
                     // the start of each utterance). Idle servers sleep 500ms.
-                    let session_active = sync_loopback(&loopback);
+                    let (session_active, failure) = sync_loopback(&loopback);
+                    if let Some(reason) = failure {
+                        disable_aec_runtime(
+                            &dsp_settings,
+                            &events_audio,
+                            reason,
+                            &mut aec_failure_reported,
+                        );
+                    }
                     std::thread::sleep(std::time::Duration::from_millis(if session_active {
                         10
                     } else {
@@ -262,7 +310,15 @@ pub async fn start_server_inner(
                     );
                     match event {
                         AudioStreamEvent::SessionStarting { expected, epoch } => {
-                            sync_loopback(&loopback);
+                            let (_, failure) = sync_loopback(&loopback);
+                            if let Some(reason) = failure {
+                                disable_aec_runtime(
+                                    &dsp_settings,
+                                    &events_audio,
+                                    reason,
+                                    &mut aec_failure_reported,
+                                );
+                            }
                             jb.prepare_transport_session_epoch(expected, epoch);
                             continue;
                         }
@@ -378,6 +434,14 @@ pub async fn start_server_inner(
                             }
                             let (_raw, processed) =
                                 dsp_processor.process(&mut pcm_f32, channels.max(1), queued_ms);
+                            if let Some(reason) = dsp_processor.take_aec_failure() {
+                                disable_aec_runtime(
+                                    &dsp_settings,
+                                    &events_audio,
+                                    reason,
+                                    &mut aec_failure_reported,
+                                );
+                            }
                             processed
                         };
 

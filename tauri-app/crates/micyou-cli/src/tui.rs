@@ -207,6 +207,14 @@ impl TuiApp {
                 self.log(format!("[inf] web clients: {count}"));
             }
             Event::InstallProgress(msg) => self.log(format!("[inf] install: {msg}")),
+            Event::AecStatus(status) => {
+                self.settings.aec_enabled = status.enabled;
+                if status.available && status.enabled {
+                    self.log("[ok] AEC enabled".to_string());
+                } else if let Some(reason) = status.reason {
+                    self.log(format!("[warn] AEC disabled: {reason}"));
+                }
+            }
         }
     }
 

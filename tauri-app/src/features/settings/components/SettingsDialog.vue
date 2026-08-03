@@ -444,6 +444,9 @@
                   <p v-if="!isAecSupported" class="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
                     <Ban class="w-3 h-3 shrink-0" /> {{ $t('settings.audioParams.aecUnavailable') }}
                   </p>
+                  <p v-else-if="!aecRuntimeAvailable" class="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
+                    <Ban class="w-3 h-3 shrink-0" /> {{ $t('settings.audioParams.aecRuntimeUnavailable') }}
+                  </p>
                 </div>
                 <button
                   :disabled="!isAecSupported"
@@ -917,11 +920,13 @@ const hasVBCable = computed(() => audioDevices.value.some(d => d.toLowerCase().i
 const hasBlackHole = computed(() => audioDevices.value.some(d => d.toLowerCase().includes('blackhole')));
 const isMacOS = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform || navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
 const isLinux = typeof navigator !== 'undefined' && /Linux/.test(navigator.platform || navigator.userAgent) && !/Android/.test(navigator.userAgent);
-const isAecSupported = !isMacOS && !isLinux;
+const isAecSupported = !isMacOS;
+const aecRuntimeAvailable = ref(true);
 const pipewireStatus = ref<{ available: boolean; setup: boolean; device_exists: boolean }>({ available: false, setup: false, device_exists: false });
 const vbcableInstalling = ref(false);
 const vbcableInstallProgress = ref('');
 let unlistenVbcableProgress: UnlistenFn | null = null;
+let unlistenAecStatus: UnlistenFn | null = null;
 
 interface BlackHoleStatus {
   installed: boolean;
@@ -1159,6 +1164,12 @@ onMounted(async () => {
   unlistenVbcableProgress = await listen<string>('vbcable-install-progress', (event) => {
     vbcableInstallProgress.value = event.payload;
   });
+  unlistenAecStatus = await listen<{ available: boolean; enabled: boolean; reason?: string | null }>('aec-status-changed', (event) => {
+    aecRuntimeAvailable.value = event.payload.available;
+    if (!event.payload.available) {
+      settings.aecEnabled = false;
+    }
+  });
   checkBlackHoleStatus();
 });
 
@@ -1180,6 +1191,7 @@ onUnmounted(() => {
   isMounted = false;
   stopAudioMonitoring();
   if (unlistenVbcableProgress) unlistenVbcableProgress();
+  if (unlistenAecStatus) unlistenAecStatus();
 });
 
 const fetchDevices = async () => {
@@ -1222,7 +1234,7 @@ const loadSettings = async () => {
     }
   }
 
-  // AEC 仅在 Windows 可用；其他平台强制禁用并从链路中移除，可用平台强制置顶
+  // AEC 在 Linux/Windows 可用，在 macOS 禁用；可用平台强制置顶
   const savedChain = settings.processingChain ?? [];
   settings.processingChain = isAecSupported
     ? ['AEC', ...savedChain.filter((i) => i !== 'AEC')]

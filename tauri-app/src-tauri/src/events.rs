@@ -21,6 +21,14 @@ pub trait ServerEvents: Send + Sync + 'static {
     fn server_stopped(&self);
     fn web_client_count(&self, count: u32);
     fn install_progress(&self, message: String);
+    fn aec_status_changed(&self, status: AecStatus);
+}
+
+#[derive(serde::Serialize, Clone, Debug)]
+pub struct AecStatus {
+    pub available: bool,
+    pub enabled: bool,
+    pub reason: Option<String>,
 }
 
 pub type SharedEvents = Arc<dyn ServerEvents>;
@@ -68,5 +76,9 @@ impl ServerEvents for TauriEventSink {
     }
     fn install_progress(&self, message: String) {
         let _ = self.0.emit("vbcable-install-progress", message);
+    }
+
+    fn aec_status_changed(&self, status: AecStatus) {
+        let _ = self.0.emit("aec-status-changed", status);
     }
 }
