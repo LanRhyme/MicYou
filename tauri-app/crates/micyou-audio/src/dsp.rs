@@ -129,6 +129,28 @@ fn overlap_add_gain(window: &[f32], hop_length: usize) -> f32 {
 // ─── PureVox6 ONNX noise suppression ────────────────────────────────────
 
 #[cfg(feature = "noise-suppression")]
+fn onnx_warning_logger() -> ort::logging::LoggerFunction {
+    Arc::new(|level, _category, _id, _location, message| match level {
+        ort::logging::LogLevel::Warning => log::warn!(target: "onnxruntime", "{message}"),
+        ort::logging::LogLevel::Error => log::error!(target: "onnxruntime", "{message}"),
+        ort::logging::LogLevel::Fatal => {
+            log::error!(target: "onnxruntime", "[FATAL] {message}")
+        }
+        ort::logging::LogLevel::Verbose | ort::logging::LogLevel::Info => {}
+    })
+}
+
+#[cfg(feature = "noise-suppression")]
+fn configure_onnx_logging() -> ort::Result<()> {
+    // `ort`'s tracing-enabled default environment registers a verbose global
+    // logger. Configure it before the first Session is built; session-level
+    // severity alone does not suppress environment initialization messages.
+    ort::init().with_logger(onnx_warning_logger()).commit();
+    ort::environment::Environment::current()?.set_log_level(ort::logging::LogLevel::Warning);
+    Ok(())
+}
+
+#[cfg(feature = "noise-suppression")]
 struct PureVoxProcessor {
     session: ort::session::Session,
     frame_size: usize, // 960
@@ -152,8 +174,10 @@ impl PureVoxProcessor {
         let frame_size = 960;
         let hop_length = 480;
 
+        configure_onnx_logging()?;
         let session = ort::session::Session::builder()?
             .with_log_level(ort::logging::LogLevel::Warning)?
+            .with_logger(onnx_warning_logger())?
             .with_intra_threads(1)?
             .with_inter_threads(1)?
             .commit_from_file(model_path)?;
@@ -384,8 +408,10 @@ impl AecProcessor {
     fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         use rustfft::FftPlanner;
 
+        configure_onnx_logging()?;
         let session = ort::session::Session::builder()?
             .with_log_level(ort::logging::LogLevel::Warning)?
+            .with_logger(onnx_warning_logger())?
             .with_intra_threads(1)?
             .with_inter_threads(1)?
             .commit_from_file(model_path)?;
