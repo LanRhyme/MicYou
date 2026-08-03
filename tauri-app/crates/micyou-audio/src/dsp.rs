@@ -1,5 +1,5 @@
 #[cfg(feature = "noise-suppression")]
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -432,6 +432,16 @@ impl AecProcessor {
         })
     }
 
+    fn reset(&mut self) {
+        for tensor in &mut self.cache_tensors {
+            tensor.fill(0.0);
+        }
+        self.window_sum.fill(0.0);
+        self.mic_previous.fill(0.0);
+        self.far_previous.fill(0.0);
+        self.ola_accumulator.fill(0.0);
+    }
+
     /// Process one frame (480 samples each of mic and far-end).
     /// Returns 480 samples of echo-cancelled audio.
     fn process(&mut self, mic_chunk: &[f32], far_chunk: &[f32]) -> Result<Vec<f32>, String> {
@@ -596,51 +606,52 @@ impl AecProcessor {
 
 // ─── AEC Delay Estimation and Alignment ───────────────────────────────
 
-/// Delay estimator for far-end/mic time alignment.
-///
-/// Simple ring buffer for far-end audio fed to AEC.
+/// FIFO for far-end audio fed to AEC. The producer feeds the same number of
+/// mono reference samples as the near-end frames entering the DSP pipeline, so
+/// each 480-sample AEC hop consumes a distinct reference hop.
 #[cfg(feature = "noise-suppression")]
 struct FarEndBuffer {
-    buffer: Vec<f32>,
-    write_pos: usize,
-    sample_count: usize,
+    buffer: VecDeque<f32>,
 }
 
 #[cfg(feature = "noise-suppression")]
 impl FarEndBuffer {
     fn new() -> Self {
         Self {
-            buffer: vec![0.0; 480 * 2],
-            write_pos: 0,
-            sample_count: 0,
+            buffer: VecDeque::with_capacity(AEC_HOP_LEN * 4),
         }
     }
 
     fn feed(&mut self, data: &[f32]) {
-        for &sample in data {
-            self.buffer[self.write_pos] = sample;
-            self.write_pos = (self.write_pos + 1) % self.buffer.len();
-            self.sample_count = (self.sample_count + 1).min(self.buffer.len());
+        const MAX_REFERENCE_SAMPLES: usize = 48_000 * 2;
+
+        if data.len() >= MAX_REFERENCE_SAMPLES {
+            self.buffer.clear();
+            self.buffer
+                .extend(data[data.len() - MAX_REFERENCE_SAMPLES..].iter().copied());
+            return;
         }
+
+        let overflow = self
+            .buffer
+            .len()
+            .saturating_add(data.len())
+            .saturating_sub(MAX_REFERENCE_SAMPLES);
+        if overflow > 0 {
+            self.buffer.drain(..overflow);
+        }
+        self.buffer.extend(data.iter().copied());
     }
 
-    fn is_ready(&self) -> bool {
-        self.sample_count >= AEC_HOP_LEN
+    fn take_hop(&mut self) -> Option<Vec<f32>> {
+        if self.buffer.len() < AEC_HOP_LEN {
+            return None;
+        }
+        Some(self.buffer.drain(..AEC_HOP_LEN).collect())
     }
 
-    fn read_last_hop(&self) -> Vec<f32> {
-        let hop = AEC_HOP_LEN;
-        let len = self.buffer.len();
-        let start = (self.write_pos + len - hop) % len;
-        let mut out = vec![0.0; hop];
-        if start + hop <= len {
-            out.copy_from_slice(&self.buffer[start..start + hop]);
-        } else {
-            let first = len - start;
-            out[..first].copy_from_slice(&self.buffer[start..]);
-            out[first..].copy_from_slice(&self.buffer[..hop - first]);
-        }
-        out
+    fn clear(&mut self) {
+        self.buffer.clear();
     }
 }
 
@@ -1192,6 +1203,19 @@ impl DspProcessor {
         None
     }
 
+    /// Reset stream-local AEC state when a new transport session begins.
+    #[cfg(feature = "noise-suppression")]
+    pub fn reset_aec_session(&mut self) {
+        self.far_end.clear();
+        self.aec_failure = None;
+        if let Some(aec) = &mut self.aec {
+            aec.reset();
+        }
+    }
+
+    #[cfg(not(feature = "noise-suppression"))]
+    pub fn reset_aec_session(&mut self) {}
+
     // ── AEC Acoustic Echo Cancellation ────────────────────────────────────
 
     #[cfg(feature = "noise-suppression")]
@@ -1229,12 +1253,6 @@ impl DspProcessor {
             return;
         }
 
-        // The ONNX model must receive a real far-end reference. Do not feed
-        // the initial zero-filled buffer while PipeWire is still starting.
-        if !self.far_end.is_ready() {
-            return;
-        }
-
         let hop = AEC_HOP_LEN; // 480
 
         // Reference pattern: stereo → mono downmix → AEC → mono → stereo upmix.
@@ -1257,7 +1275,10 @@ impl DspProcessor {
             let mut mono_output = Vec::with_capacity(mono_data.len());
             for chunk in mono_data.chunks(hop) {
                 if chunk.len() == hop {
-                    let far_chunk = self.far_end.read_last_hop();
+                    let Some(far_chunk) = self.far_end.take_hop() else {
+                        mono_output.extend_from_slice(chunk);
+                        continue;
+                    };
                     let clean = match &mut self.aec {
                         Some(proc) => match proc.process(chunk, &far_chunk) {
                             Ok(clean) => clean,
@@ -1288,7 +1309,10 @@ impl DspProcessor {
             let mut output = Vec::with_capacity(data.len());
             for chunk in data.chunks(hop) {
                 if chunk.len() == hop {
-                    let far_chunk = self.far_end.read_last_hop();
+                    let Some(far_chunk) = self.far_end.take_hop() else {
+                        output.extend_from_slice(chunk);
+                        continue;
+                    };
                     let clean = match &mut self.aec {
                         Some(proc) => match proc.process(chunk, &far_chunk) {
                             Ok(clean) => clean,
@@ -1735,6 +1759,27 @@ mod tests {
         settings.normalize();
 
         assert_eq!(settings.ns_type, AudioDspSettings::default().ns_type);
+    }
+
+    #[cfg(feature = "noise-suppression")]
+    #[test]
+    fn far_end_buffer_consumes_distinct_hops_in_order() {
+        let mut buffer = FarEndBuffer::new();
+        let samples: Vec<f32> = (0..AEC_HOP_LEN * 2 + 60)
+            .map(|sample| sample as f32)
+            .collect();
+        buffer.feed(&samples);
+
+        let first = buffer.take_hop().unwrap();
+        let second = buffer.take_hop().unwrap();
+        assert_eq!(first[0], 0.0);
+        assert_eq!(first[AEC_HOP_LEN - 1], 479.0);
+        assert_eq!(second[0], 480.0);
+        assert_eq!(second[AEC_HOP_LEN - 1], 959.0);
+        assert!(buffer.take_hop().is_none());
+
+        buffer.clear();
+        assert!(buffer.take_hop().is_none());
     }
 
     #[test]

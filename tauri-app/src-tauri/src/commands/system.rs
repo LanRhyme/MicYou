@@ -316,6 +316,7 @@ pub async fn start_server_inner(
                     match event {
                         AudioStreamEvent::SessionStarting { expected, epoch } => {
                             audio_received_for_session = false;
+                            dsp_processor.reset_aec_session();
                             let (_, failure) =
                                 sync_loopback(&loopback, &mut audio_received_for_session);
                             if let Some(reason) = failure {
@@ -437,8 +438,12 @@ pub async fn start_server_inner(
                                     // which is the true echo source the phone mic picks up.
                                     if let Some(lb) = &loopback {
                                         if lb.is_active() {
-                                            let hop = 480usize;
-                                            if let Some(far_data) = lb.read(hop) {
+                                            // Feed one mono reference sample for each near-end
+                                            // frame entering the DSP. Packet sizes and input
+                                            // sample rates vary, so consuming a fixed hop per
+                                            // network packet makes the two streams drift.
+                                            let near_frames = pcm_f32.len() / channels.max(1);
+                                            if let Some(far_data) = lb.read(near_frames) {
                                                 dsp_processor.set_far_end_audio(&far_data);
                                             }
                                         }

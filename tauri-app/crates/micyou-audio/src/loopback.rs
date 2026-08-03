@@ -10,7 +10,7 @@ const TARGET_RATE: u32 = 48000;
 ///
 /// - Windows: WASAPI loopback on default render device (no virtual device needed)
 /// - macOS: cpal input from BlackHole
-/// - Linux: cpal input from PipeWire virtual mic
+/// - Linux: pw-record on the default physical playback sink monitor
 pub struct LoopbackCapture {
     active: Arc<AtomicBool>,
     buffer: Arc<Mutex<HeapRb<f32>>>,
@@ -59,8 +59,15 @@ impl LoopbackCapture {
             .spawn(move || {
                 #[cfg(target_os = "windows")]
                 wasapi_loopback_thread(active, buffer, failure);
-                #[cfg(not(target_os = "windows"))]
+                #[cfg(target_os = "linux")]
+                pipewire_loopback_thread(active, buffer, failure);
+                #[cfg(target_os = "macos")]
                 cpal_capture_thread(active, buffer, failure);
+                #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+                {
+                    set_failure(&failure, "reference_lost");
+                    active.store(false, Ordering::Relaxed);
+                }
             });
 
         match spawned {
@@ -135,6 +142,7 @@ fn set_failure(failure: &Mutex<Option<String>>, reason: &str) {
 
 // ─── Helper: downmix + resample + push to buffer ─────────────────────────
 
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 fn push_to_buffer(
     data: &[f32],
     channels: usize,
@@ -280,9 +288,148 @@ fn wasapi_loopback_thread(
     active.store(false, Ordering::Relaxed);
 }
 
-// ─── macOS/Linux: cpal capture from virtual audio device ──────────────────
+// ─── Linux: PipeWire capture from the physical playback sink ──────────────
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
+fn pipewire_loopback_thread(
+    active: Arc<AtomicBool>,
+    buffer: Arc<Mutex<HeapRb<f32>>>,
+    failure: Arc<Mutex<Option<String>>>,
+) {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+
+    // Capture the monitor of the current default playback sink. MicYouVirtualMic
+    // contains MicYou's own microphone output and is therefore not a valid AEC
+    // far-end reference.
+    let mut child = match Command::new("pw-record")
+        .args([
+            "--target",
+            "@DEFAULT_AUDIO_SINK@",
+            "--properties",
+            "{ stream.capture.sink = true node.name = MicYouAecCapture }",
+            "--latency",
+            "10ms",
+            "--rate",
+            "48000",
+            "--channels",
+            "1",
+            "--format",
+            "f32",
+            "--raw",
+            "-",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(error) => {
+            log::error!("[Loopback] Failed to start pw-record: {}", error);
+            set_failure(&failure, "pipewire_unavailable");
+            active.store(false, Ordering::Relaxed);
+            return;
+        }
+    };
+
+    let Some(mut stdout) = child.stdout.take() else {
+        log::error!("[Loopback] pw-record stdout is unavailable");
+        let _ = child.kill();
+        let _ = child.wait();
+        set_failure(&failure, "reference_lost");
+        active.store(false, Ordering::Relaxed);
+        return;
+    };
+
+    let reader_active = active.clone();
+    let reader_buffer = buffer.clone();
+    let reader_failure = failure.clone();
+    let reader = std::thread::Builder::new()
+        .name("PipeWireReferenceReader".into())
+        .spawn(move || {
+            let mut read_buffer = [0_u8; 4096];
+            let mut pending = Vec::with_capacity(read_buffer.len() + 3);
+
+            loop {
+                match stdout.read(&mut read_buffer) {
+                    Ok(0) => {
+                        if reader_active.load(Ordering::Relaxed) {
+                            set_failure(&reader_failure, "reference_lost");
+                            reader_active.store(false, Ordering::Relaxed);
+                        }
+                        break;
+                    }
+                    Ok(count) => {
+                        pending.extend_from_slice(&read_buffer[..count]);
+                        let complete_bytes = pending.len() / 4 * 4;
+                        if complete_bytes == 0 {
+                            continue;
+                        }
+
+                        if let Ok(mut ring) = reader_buffer.lock() {
+                            for bytes in pending[..complete_bytes].chunks_exact(4) {
+                                ring.push_overwrite(f32::from_ne_bytes([
+                                    bytes[0], bytes[1], bytes[2], bytes[3],
+                                ]));
+                            }
+                        }
+                        pending.drain(..complete_bytes);
+                    }
+                    Err(error) => {
+                        if reader_active.load(Ordering::Relaxed) {
+                            log::error!("[Loopback] Failed to read PipeWire reference: {}", error);
+                            set_failure(&reader_failure, "reference_lost");
+                            reader_active.store(false, Ordering::Relaxed);
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+
+    let reader = match reader {
+        Ok(reader) => reader,
+        Err(error) => {
+            log::error!("[Loopback] Failed to spawn PipeWire reader: {}", error);
+            let _ = child.kill();
+            let _ = child.wait();
+            set_failure(&failure, "reference_lost");
+            active.store(false, Ordering::Relaxed);
+            return;
+        }
+    };
+
+    log::info!("[Loopback] PipeWire default playback monitor started");
+    while active.load(Ordering::Relaxed) {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                log::error!("[Loopback] pw-record exited unexpectedly: {}", status);
+                set_failure(&failure, "reference_lost");
+                active.store(false, Ordering::Relaxed);
+                break;
+            }
+            Ok(None) => std::thread::sleep(std::time::Duration::from_millis(20)),
+            Err(error) => {
+                log::error!("[Loopback] Failed to inspect pw-record: {}", error);
+                set_failure(&failure, "reference_lost");
+                active.store(false, Ordering::Relaxed);
+                break;
+            }
+        }
+    }
+
+    if child.try_wait().ok().flatten().is_none() {
+        let _ = child.kill();
+    }
+    let _ = child.wait();
+    let _ = reader.join();
+    active.store(false, Ordering::Relaxed);
+    log::info!("[Loopback] PipeWire default playback monitor stopped");
+}
+
+// ─── macOS: cpal capture from BlackHole ──────────────────────────────────
+
+#[cfg(target_os = "macos")]
 fn cpal_capture_thread(
     active: Arc<AtomicBool>,
     buffer: Arc<Mutex<HeapRb<f32>>>,
@@ -292,28 +439,12 @@ fn cpal_capture_thread(
 
     let host = cpal::default_host();
 
-    #[cfg(target_os = "linux")]
-    if std::process::Command::new("pw-cli")
-        .arg("--version")
-        .output()
-        .map(|output| !output.status.success())
-        .unwrap_or(true)
-    {
-        log::error!("[Loopback] PipeWire is not available");
-        set_failure(&failure, "pipewire_unavailable");
-        active.store(false, Ordering::Relaxed);
-        return;
-    }
-
     let device = {
         let mut found = None;
         if let Ok(devices) = host.input_devices() {
             'outer: for dev in devices {
                 if let Ok(name) = dev.name() {
                     let lower = name.to_lowercase();
-                    #[cfg(target_os = "linux")]
-                    let matches = lower == "micyouvirtualmic" || lower.contains("micyouvirtualmic");
-                    #[cfg(target_os = "macos")]
                     let matches = lower.contains("blackhole");
                     if matches {
                         log::info!("[Loopback] Found virtual device: '{}'", name);
@@ -452,5 +583,23 @@ mod tests {
             Some("virtual_source_missing")
         );
         assert_eq!(capture.take_failure_reason(), None);
+    }
+
+    #[test]
+    fn reference_reads_follow_requested_near_end_frame_count() {
+        let capture = LoopbackCapture::new();
+        {
+            let mut buffer = capture.buffer.lock().unwrap();
+            for sample in 0..700 {
+                buffer.push(sample as f32).unwrap();
+            }
+        }
+
+        let reference = capture.read(660).unwrap();
+        assert_eq!(reference.len(), 660);
+        assert_eq!(reference.first().copied(), Some(0.0));
+        assert_eq!(reference.last().copied(), Some(659.0));
+        assert!(capture.read(480).is_none());
+        assert_eq!(capture.buffer.lock().unwrap().len(), 40);
     }
 }
