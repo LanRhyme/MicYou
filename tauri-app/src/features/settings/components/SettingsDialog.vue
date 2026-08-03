@@ -448,7 +448,7 @@
 
             <!-- Acoustic Echo Cancellation (AEC) -->
             <div class="bg-surface-bright rounded-2xl p-4 shadow-sm">
-              <div class="flex justify-between items-center" :class="isAecSupported ? 'cursor-pointer' : ''" @click="isAecSupported && (settings.aecEnabled = !settings.aecEnabled)">
+              <div class="flex justify-between items-center" :class="isAecSupported && aecRuntimeAvailable ? 'cursor-pointer' : ''" @click="isAecSupported && aecRuntimeAvailable && (settings.aecEnabled = !settings.aecEnabled)">
                 <div>
                   <span class="font-medium text-on-surface">{{ $t('settings.audioParams.aec') }}</span>
                   <p class="text-xs text-on-surface-variant mt-0.5">{{ $t('settings.audioParams.aecDesc') }}</p>
@@ -460,7 +460,7 @@
                   </p>
                 </div>
                 <button
-                  :disabled="!isAecSupported"
+                  :disabled="!isAecSupported || !aecRuntimeAvailable"
                   class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                   :class="settings.aecEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
                 >
@@ -1181,9 +1181,6 @@ onMounted(async () => {
   });
   unlistenAecStatus = await listen<{ available: boolean; enabled: boolean; reason?: string | null }>('aec-status-changed', (event) => {
     aecRuntimeAvailable.value = event.payload.available;
-    if (!event.payload.available) {
-      settings.aecEnabled = false;
-    }
   });
   checkBlackHoleStatus();
 });

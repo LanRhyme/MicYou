@@ -28,33 +28,44 @@ fn validate_server_port(port: u16, mode: &str) -> Result<Option<u16>, String> {
 }
 
 fn disable_aec_runtime(
-    settings: &std::sync::Arc<std::sync::RwLock<micyou_audio::dsp::AudioDspSettings>>,
+    runtime_available: &mut bool,
     events: &crate::events::SharedEvents,
     reason: String,
 ) {
-    let mut changed = false;
-    if let Ok(mut current) = settings.write() {
-        if current.aec_enabled {
-            current.aec_enabled = false;
-            let _ = crate::app_config::save_dsp_settings(&current);
-            changed = true;
-        }
+    if !std::mem::replace(runtime_available, false) {
+        return;
     }
-    if changed {
-        events.aec_status_changed(crate::events::AecStatus {
-            available: false,
-            enabled: false,
-            reason: Some(reason),
-        });
-    }
+    events.aec_status_changed(crate::events::AecStatus {
+        available: false,
+        enabled: false,
+        reason: Some(reason),
+    });
+}
+
+fn restore_aec_runtime(
+    runtime_available: &mut bool,
+    settings: &std::sync::Arc<std::sync::RwLock<micyou_audio::dsp::AudioDspSettings>>,
+    events: &crate::events::SharedEvents,
+) {
+    *runtime_available = true;
+    let enabled = settings
+        .read()
+        .map(|current| current.aec_enabled)
+        .unwrap_or(false);
+    events.aec_status_changed(crate::events::AecStatus {
+        available: true,
+        enabled,
+        reason: None,
+    });
 }
 
 fn should_capture_loopback(
     transport_active: bool,
     audio_received: bool,
     aec_enabled: bool,
+    runtime_available: bool,
 ) -> bool {
-    transport_active && audio_received && aec_enabled
+    transport_active && audio_received && aec_enabled && runtime_available
 }
 
 async fn join_tasks_bounded(
@@ -240,8 +251,8 @@ pub async fn start_server_inner(
         let mut pcm_f32 = Vec::new();
 
         // Speaker loopback capture for the AEC far-end reference. Windows uses
-        // WASAPI loopback; Linux uses the PipeWire source created above. Both
-        // are started lazily only after an AEC-enabled session sends audio.
+        // WASAPI loopback; Linux records the default physical playback sink.
+        // Both start lazily only after an AEC-enabled session sends audio.
         #[cfg(any(target_os = "windows", target_os = "linux"))]
         let loopback: Option<micyou_audio::LoopbackCapture> =
             Some(micyou_audio::LoopbackCapture::new());
@@ -249,11 +260,18 @@ pub async fn start_server_inner(
         let loopback: Option<micyou_audio::LoopbackCapture> = None;
 
         let mut audio_received_for_session = false;
+        let mut aec_runtime_available = true;
+        // A newly started server always begins with a fresh runtime state, even
+        // before the first client session arrives.
+        if loopback.is_some() {
+            restore_aec_runtime(&mut aec_runtime_available, &dsp_settings, &events_audio);
+        }
         // Sync the AEC far-end capture with actual audio flow. A control session
         // alone is not enough: while waiting for the first valid audio packet,
         // there is no microphone stream that needs an echo reference.
         let sync_loopback = |loopback: &Option<micyou_audio::LoopbackCapture>,
-                             audio_received: &mut bool| {
+                             audio_received: &mut bool,
+                             runtime_available: bool| {
             let transport_active = !matches!(
                 *active_audio_session_audio
                     .read()
@@ -269,8 +287,12 @@ pub async fn start_server_inner(
                     .read()
                     .map(|settings| settings.aec_enabled)
                     .unwrap_or(false);
-                let should_capture =
-                    should_capture_loopback(transport_active, *audio_received, aec_enabled);
+                let should_capture = should_capture_loopback(
+                    transport_active,
+                    *audio_received,
+                    aec_enabled,
+                    runtime_available,
+                );
                 if should_capture && !lb.is_active() {
                     if let Some(reason) = lb.take_failure_reason() {
                         failure = Some(reason);
@@ -298,10 +320,13 @@ pub async fn start_server_inner(
                     // can arrive after a silence gap and must not sit in the
                     // channel for up to 500ms (that caused audible dropouts at
                     // the start of each utterance). Idle servers sleep 500ms.
-                    let (session_active, failure) =
-                        sync_loopback(&loopback, &mut audio_received_for_session);
+                    let (session_active, failure) = sync_loopback(
+                        &loopback,
+                        &mut audio_received_for_session,
+                        aec_runtime_available,
+                    );
                     if let Some(reason) = failure {
-                        disable_aec_runtime(&dsp_settings, &events_audio, reason);
+                        disable_aec_runtime(&mut aec_runtime_available, &events_audio, reason);
                     }
                     std::thread::sleep(std::time::Duration::from_millis(if session_active {
                         10
@@ -316,21 +341,45 @@ pub async fn start_server_inner(
                     match event {
                         AudioStreamEvent::SessionStarting { expected, epoch } => {
                             audio_received_for_session = false;
+                            if let Some(lb) = &loopback {
+                                lb.reset_session();
+                            }
                             dsp_processor.reset_aec_session();
-                            let (_, failure) =
-                                sync_loopback(&loopback, &mut audio_received_for_session);
+                            if loopback.is_some() {
+                                restore_aec_runtime(
+                                    &mut aec_runtime_available,
+                                    &dsp_settings,
+                                    &events_audio,
+                                );
+                            }
+                            let (_, failure) = sync_loopback(
+                                &loopback,
+                                &mut audio_received_for_session,
+                                aec_runtime_available,
+                            );
                             if let Some(reason) = failure {
-                                disable_aec_runtime(&dsp_settings, &events_audio, reason);
+                                disable_aec_runtime(
+                                    &mut aec_runtime_available,
+                                    &events_audio,
+                                    reason,
+                                );
                             }
                             jb.prepare_transport_session_epoch(expected, epoch);
                             continue;
                         }
                         AudioStreamEvent::Packet { packet, epoch } => {
                             audio_received_for_session = true;
-                            let (_, failure) =
-                                sync_loopback(&loopback, &mut audio_received_for_session);
+                            let (_, failure) = sync_loopback(
+                                &loopback,
+                                &mut audio_received_for_session,
+                                aec_runtime_available,
+                            );
                             if let Some(reason) = failure {
-                                disable_aec_runtime(&dsp_settings, &events_audio, reason);
+                                disable_aec_runtime(
+                                    &mut aec_runtime_available,
+                                    &events_audio,
+                                    reason,
+                                );
                             }
                             jb.push_epoch(packet, epoch);
                         }
@@ -454,7 +503,11 @@ pub async fn start_server_inner(
                                         queued_ms,
                                     );
                                     if let Some(reason) = dsp_processor.take_aec_failure() {
-                                        disable_aec_runtime(&dsp_settings, &events_audio, reason);
+                                        disable_aec_runtime(
+                                            &mut aec_runtime_available,
+                                            &events_audio,
+                                            reason,
+                                        );
                                     }
                                     processed
                                 };
@@ -896,10 +949,11 @@ mod tests {
 
     #[test]
     fn loopback_waits_for_first_audio_packet() {
-        assert!(!should_capture_loopback(false, false, true));
-        assert!(!should_capture_loopback(true, false, true));
-        assert!(!should_capture_loopback(true, true, false));
-        assert!(should_capture_loopback(true, true, true));
+        assert!(!should_capture_loopback(false, false, true, true));
+        assert!(!should_capture_loopback(true, false, true, true));
+        assert!(!should_capture_loopback(true, true, false, true));
+        assert!(!should_capture_loopback(true, true, true, false));
+        assert!(should_capture_loopback(true, true, true, true));
     }
 
     #[test]

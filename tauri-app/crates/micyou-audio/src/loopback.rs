@@ -101,6 +101,17 @@ impl LoopbackCapture {
         }
     }
 
+    /// Stop capture and discard stream-local state before a new transport session.
+    pub fn reset_session(&self) {
+        self.stop();
+        if let Ok(mut failure) = self.failure.lock() {
+            *failure = None;
+        }
+        if let Ok(mut buffer) = self.buffer.lock() {
+            buffer.clear();
+        }
+    }
+
     /// Read n_samples from the loopback buffer, consuming them.
     /// Returns None if insufficient data.
     pub fn read(&self, n_samples: usize) -> Option<Vec<f32>> {
@@ -601,5 +612,18 @@ mod tests {
         assert_eq!(reference.last().copied(), Some(659.0));
         assert!(capture.read(480).is_none());
         assert_eq!(capture.buffer.lock().unwrap().len(), 40);
+    }
+
+    #[test]
+    fn reset_session_clears_buffer_and_stale_failure() {
+        let capture = LoopbackCapture::new();
+        capture.buffer.lock().unwrap().push(1.0).unwrap();
+        set_failure(&capture.failure, "reference_lost");
+
+        capture.reset_session();
+
+        assert_eq!(capture.buffer.lock().unwrap().len(), 0);
+        assert_eq!(capture.take_failure_reason(), None);
+        assert!(!capture.is_active());
     }
 }

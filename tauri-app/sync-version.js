@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const gradlePropsPath = resolve(__dirname, '..', 'gradle.properties');
@@ -55,6 +56,16 @@ function updatePackageJson(version) {
   console.log(`Updated package.json: ${version}`);
 }
 
+function updateCargoLock() {
+  // Cargo.lock records the local micyou-app package version. Refresh it after
+  // rewriting Cargo.toml so subsequent cargo-about --locked runs stay reproducible.
+  execFileSync('cargo', ['metadata', '--format-version', '1'], {
+    cwd: __dirname,
+    stdio: ['ignore', 'ignore', 'inherit']
+  });
+  console.log('Updated Cargo.lock');
+}
+
 try {
   const { version, versionCode } = readGradleVersion();
   const semver = toSemver(version);
@@ -64,6 +75,7 @@ try {
   
   updateTauriConfig(semver);
   updateCargoToml(semver);
+  updateCargoLock();
   updatePackageJson(semver);
   
   console.log('Version sync completed!');

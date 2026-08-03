@@ -1236,6 +1236,10 @@ impl DspProcessor {
     pub fn reset_aec_session(&mut self) {
         self.far_end.clear();
         self.aec_failure = None;
+        // A previous model load failure is scoped to that transport session.
+        // Retry once for each new session so a restored/mounted model can recover
+        // without restarting the whole application.
+        self.aec_load_failed = false;
         if let Some(aec) = &mut self.aec {
             aec.reset();
         }
@@ -1312,7 +1316,7 @@ impl DspProcessor {
                             Ok(clean) => clean,
                             Err(e) => {
                                 log::error!("[DSP] AEC ONNX inference failed: {}", e);
-                                self.aec_failure = Some("model_load_failed".to_string());
+                                self.aec_failure = Some("inference_failed".to_string());
                                 return;
                             }
                         },
@@ -1346,7 +1350,7 @@ impl DspProcessor {
                             Ok(clean) => clean,
                             Err(e) => {
                                 log::error!("[DSP] AEC ONNX inference failed: {}", e);
-                                self.aec_failure = Some("model_load_failed".to_string());
+                                self.aec_failure = Some("inference_failed".to_string());
                                 return;
                             }
                         },
@@ -1808,6 +1812,22 @@ mod tests {
 
         buffer.clear();
         assert!(buffer.take_hop().is_none());
+    }
+
+    #[cfg(feature = "noise-suppression")]
+    #[test]
+    fn new_session_retries_aec_model_after_load_failure() {
+        let settings = Arc::new(RwLock::new(AudioDspSettings::default()));
+        let mut processor = DspProcessor::new(settings, None);
+        processor.aec_load_failed = true;
+        processor.aec_failure = Some("model_missing".to_string());
+        processor.far_end.feed(&vec![1.0; AEC_HOP_LEN]);
+
+        processor.reset_aec_session();
+
+        assert!(!processor.aec_load_failed);
+        assert_eq!(processor.aec_failure, None);
+        assert!(processor.far_end.take_hop().is_none());
     }
 
     #[test]
