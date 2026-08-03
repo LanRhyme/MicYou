@@ -46,7 +46,13 @@
       "connected": "设备已成功连接",
       "disconnected": "设备已断开连接",
       "usbDisconnected": "USB 已断开，请重新插上数据线后点击连接",
-      "aecDisabled": "Linux 音频参考流不可用，AEC 已自动停用。"
+      "aecDisabled": "AEC 不可用，已自动停用。",
+      "aecDisabledInferenceFailed": "AEC 音频处理失败，已自动停用。",
+      "aecDisabledModelLoadFailed": "AEC AI 模型加载失败，已自动停用。",
+      "aecDisabledModelMissing": "未找到 AEC AI 模型，已自动停用。",
+      "aecDisabledPipeWireUnavailable": "PipeWire 不可用，AEC 已自动停用。",
+      "aecDisabledReferenceLost": "AEC 音频参考流已中断，已自动停用。",
+      "aecDisabledVirtualSourceMissing": "未找到虚拟音频源，AEC 已自动停用。"
     },
     "ipSelector": {
       "allInterfaces": "所有网卡",

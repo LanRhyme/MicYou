@@ -44,7 +44,13 @@
       "connected": "设备连接成功喵~ ✓",
       "disconnected": "设备断开连接喵~ (×_×;)",
       "usbDisconnected": "USB 断开了喵~请重新插线并点击连接喵~",
-      "aecDisabled": "Linux 音频参考流不可用喵~AEC 已自动停用喵~"
+      "aecDisabled": "AEC 不可用喵~已自动停用喵~",
+      "aecDisabledInferenceFailed": "AEC 音频处理失败喵~已自动停用喵~",
+      "aecDisabledModelLoadFailed": "AEC AI 模型加载失败喵~已自动停用喵~",
+      "aecDisabledModelMissing": "找不到 AEC AI 模型喵~已自动停用喵~",
+      "aecDisabledPipeWireUnavailable": "PipeWire 不可用喵~AEC 已自动停用喵~",
+      "aecDisabledReferenceLost": "AEC 音频参考流中断了喵~已自动停用喵~",
+      "aecDisabledVirtualSourceMissing": "找不到虚拟音频源喵~AEC 已自动停用喵~"
     },
     "ipSelector": {
       "allInterfaces": "全部喵~",

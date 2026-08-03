@@ -44,7 +44,13 @@
       "connected": "装置已通矣。",
       "disconnected": "装置已断矣。",
       "usbDisconnected": "USB 断矣，复插而后连。",
-      "aecDisabled": "Linux 音频参考流不可用，AEC 已自停。"
+      "aecDisabled": "AEC 不可用，已自停。",
+      "aecDisabledInferenceFailed": "AEC 处理音频败，已自停。",
+      "aecDisabledModelLoadFailed": "AEC AI 模型载入败，已自停。",
+      "aecDisabledModelMissing": "AEC AI 模型不存，已自停。",
+      "aecDisabledPipeWireUnavailable": "PipeWire 不可用，AEC 已自停。",
+      "aecDisabledReferenceLost": "AEC 音频参考流已断，已自停。",
+      "aecDisabledVirtualSourceMissing": "虚拟音源不存，AEC 已自停。"
     },
     "ipSelector": {
       "allInterfaces": "诸网",

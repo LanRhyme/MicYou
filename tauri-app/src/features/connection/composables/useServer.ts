@@ -13,6 +13,19 @@ export type ConnectionMode = 'wifi' | 'usb' | 'web';
 // Backend server streaming states
 export type ServerState = 'idle' | 'starting' | 'connecting' | 'streaming';
 
+const aecFailureNotificationKeys: Record<string, string> = {
+  inference_failed: 'app.notify.aecDisabledInferenceFailed',
+  model_load_failed: 'app.notify.aecDisabledModelLoadFailed',
+  model_missing: 'app.notify.aecDisabledModelMissing',
+  pipewire_unavailable: 'app.notify.aecDisabledPipeWireUnavailable',
+  reference_lost: 'app.notify.aecDisabledReferenceLost',
+  virtual_source_missing: 'app.notify.aecDisabledVirtualSourceMissing',
+};
+
+function aecFailureNotificationKey(reason?: string | null) {
+  return (reason && aecFailureNotificationKeys[reason]) || 'app.notify.aecDisabled';
+}
+
 // Interface representing an ADB device discovered on the system
 export interface AdbDevice {
   serial: string;
@@ -524,7 +537,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
 
     unlistenAecStatus = await listen<{ available: boolean; enabled: boolean; reason?: string | null }>('aec-status-changed', (event) => {
       if (!event.payload.available && notificationsEnabled.value) {
-        void notify(t('app.notify.aecDisabled'));
+        void notify(t(aecFailureNotificationKey(event.payload.reason)));
       }
     });
 

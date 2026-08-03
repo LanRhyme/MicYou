@@ -46,7 +46,13 @@
       "connected": "Device connected successfully.",
       "disconnected": "Device disconnected.",
       "usbDisconnected": "USB disconnected. Please reconnect the cable and click Connect.",
-      "aecDisabled": "AEC was disabled because the Linux audio reference is unavailable."
+      "aecDisabled": "AEC became unavailable and was automatically disabled.",
+      "aecDisabledInferenceFailed": "AEC audio processing failed and was automatically disabled.",
+      "aecDisabledModelLoadFailed": "The AEC AI model could not be loaded, so AEC was automatically disabled.",
+      "aecDisabledModelMissing": "The AEC AI model is missing, so AEC was automatically disabled.",
+      "aecDisabledPipeWireUnavailable": "PipeWire is unavailable, so AEC was automatically disabled.",
+      "aecDisabledReferenceLost": "The AEC audio reference stream was lost, so AEC was automatically disabled.",
+      "aecDisabledVirtualSourceMissing": "No virtual audio source was found, so AEC was automatically disabled."
     },
     "ipSelector": {
       "allInterfaces": "All Interfaces",

@@ -44,7 +44,13 @@
       "connected": "裝置已經成功連接",
       "disconnected": "裝置已經斷開連接",
       "usbDisconnected": "USB 斷開咗，請重新插返條線再㩒連線",
-      "aecDisabled": "Linux 音訊參考流唔可用，AEC 已自動停用。"
+      "aecDisabled": "AEC 唔可用，已自動停用。",
+      "aecDisabledInferenceFailed": "AEC 音訊處理失敗，已自動停用。",
+      "aecDisabledModelLoadFailed": "AEC AI 模型載入失敗，已自動停用。",
+      "aecDisabledModelMissing": "搵唔到 AEC AI 模型，已自動停用。",
+      "aecDisabledPipeWireUnavailable": "PipeWire 唔可用，AEC 已自動停用。",
+      "aecDisabledReferenceLost": "AEC 音訊參考流已中斷，已自動停用。",
+      "aecDisabledVirtualSourceMissing": "搵唔到虛擬音訊來源，AEC 已自動停用。"
     },
     "ipSelector": {
       "allInterfaces": "全部",
