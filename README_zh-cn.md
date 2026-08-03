@@ -89,6 +89,8 @@ Made with [contrib.rocks](https://contrib.rocks).
 
 ## 致谢
 
+特别感谢 [a2heng](https://github.com/a2heng) 开源 [AEC7](https://github.com/a2heng/lightweight-aec-48k) 与 [PureVox](https://github.com/a2heng/lightweight-denoise-48k)，为 MicYou 提供声学回声消除与 AI 降噪能力。
+
 特别感谢 [重庆大学开源软件镜像站](https://mirrors.cqu.edu.cn/) 为本项目提供镜像下载服务。
 
 特别感谢 [Mirror 酱](https://mirrorchyan.com/zh/get-start) 为本项目提供高速镜像下载服务。
