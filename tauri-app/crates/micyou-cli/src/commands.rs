@@ -108,6 +108,12 @@ pub fn cmd_settings_set(key: String, value: String) -> Result<(), String> {
         }
     }
     settings = serde_json::from_value(current).map_err(|e| e.to_string())?;
+    if key == "aecEnabled"
+        && settings.aec_enabled
+        && !tauri_app_lib::commands::audio::aec_supported()
+    {
+        return Err("AEC is not supported on macOS".to_string());
+    }
     config::save_settings(&settings)?;
     println!("{key} = {value}");
     Ok(())

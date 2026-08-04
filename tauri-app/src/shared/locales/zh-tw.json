@@ -202,7 +202,7 @@
       "aec": "聲學迴聲消除 (AEC)",
       "aecDesc": "使用 AI 從麥克風中消除揚聲器迴聲",
       "aecUnavailable": "在此系統上不可用",
-      "aecRuntimeUnavailable": "已自動停用：Linux 音訊參考流不可用",
+      "aecRuntimeUnavailable": "已自動停用：音訊參考流不可用",
       "bufferSize": "輸出緩衝區大小",
       "bufferSizeDesc": "越大越能抵禦網路抖動，但延遲越高",
       "bufferLow": "低延遲",

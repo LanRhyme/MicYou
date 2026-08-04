@@ -204,7 +204,7 @@
       "aec": "Acoustic Echo Cancellation (AEC)",
       "aecDesc": "Cancel speaker echo from microphone using AI",
       "aecUnavailable": "Not available on this system",
-      "aecRuntimeUnavailable": "Automatically disabled: Linux audio reference is unavailable",
+      "aecRuntimeUnavailable": "Automatically disabled: audio reference is unavailable",
       "bufferSize": "Output Buffer Size",
       "bufferSizeDesc": "Larger buffer resists network jitter but adds latency",
       "bufferLow": "Low latency",

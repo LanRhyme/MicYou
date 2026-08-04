@@ -46,6 +46,11 @@ pub fn get_audio_devices() -> Vec<String> {
     names
 }
 
+/// Whether the current desktop backend has a usable AEC reference capture path.
+pub const fn aec_supported() -> bool {
+    !cfg!(target_os = "macos")
+}
+
 #[tauri::command]
 pub fn update_audio_settings(
     state: State<'_, ServerState>,
@@ -61,10 +66,14 @@ pub fn update_audio_settings(
     }
     match state.dsp_settings.write() {
         Ok(mut current) => {
-            *current = settings.clone();
+            if settings.aec_enabled && !current.aec_enabled && !aec_supported() {
+                return Err("AEC is not supported on macOS".to_string());
+            }
             // Persist to the shared settings.json so the CLI sees the same values
             crate::app_config::save_dsp_settings(&settings)
                 .map_err(|e| format!("Failed to persist settings: {e}"))?;
+            // Only update live state after validation and persistence succeed.
+            *current = settings;
             Ok("Settings updated".to_string())
         }
         Err(e) => Err(format!("Failed to update settings: {}", e)),

@@ -202,7 +202,7 @@
       "aec": "声学回声消除喵~ (AEC)",
       "aecDesc": "用 AI 从麦克风消除扬声器回声喵~ 🎤",
       "aecUnavailable": "在此系统上不可用喵~ 🚫",
-      "aecRuntimeUnavailable": "已自动停用喵~Linux 音频参考流不可用喵~",
+      "aecRuntimeUnavailable": "已自动停用喵~音频参考流不可用喵~",
       "bufferSize": "输出缓冲区大小喵~ 📦",
       "bufferSizeDesc": "越大越抗网络抖动，但延迟越高喵~",
       "bufferLow": "低延迟喵~",

@@ -478,8 +478,13 @@ impl AecProcessor {
     /// Process one frame (480 samples each of mic and far-end).
     /// Returns 480 samples of echo-cancelled audio.
     fn process(&mut self, mic_chunk: &[f32], far_chunk: &[f32]) -> Result<Vec<f32>, String> {
-        debug_assert_eq!(mic_chunk.len(), AEC_HOP_LEN);
-        debug_assert_eq!(far_chunk.len(), AEC_HOP_LEN);
+        if mic_chunk.len() != AEC_HOP_LEN || far_chunk.len() != AEC_HOP_LEN {
+            return Err(format!(
+                "invalid AEC frame lengths: mic={}, far={}, expected={AEC_HOP_LEN}",
+                mic_chunk.len(),
+                far_chunk.len()
+            ));
+        }
 
         // ── Build overlapping frames into scratch buffers ──
         {
@@ -1011,7 +1016,9 @@ pub struct DspProcessor {
     #[cfg(feature = "noise-suppression")]
     aec_model_path: Option<PathBuf>,
     #[cfg(feature = "noise-suppression")]
-    aec_load_failed: bool,
+    /// Latches model loading or inference failures until the next transport
+    /// session, preventing expensive retries on the real-time audio thread.
+    aec_session_failed: bool,
     #[cfg(feature = "noise-suppression")]
     aec_failure: Option<AecFailure>,
     /// Far-end buffer for AEC.
@@ -1073,7 +1080,7 @@ impl DspProcessor {
             #[cfg(feature = "noise-suppression")]
             aec_model_path: _model_dir.as_ref().map(|d| d.join("aec7_ep0185.onnx")),
             #[cfg(feature = "noise-suppression")]
-            aec_load_failed: false,
+            aec_session_failed: false,
             #[cfg(feature = "noise-suppression")]
             aec_failure: None,
             #[cfg(feature = "noise-suppression")]
@@ -1237,10 +1244,11 @@ impl DspProcessor {
     pub fn reset_aec_session(&mut self) {
         self.far_end.clear();
         self.aec_failure = None;
-        // A previous model load failure is scoped to that transport session.
-        // Retry once for each new session so a restored/mounted model can recover
-        // without restarting the whole application.
-        self.aec_load_failed = false;
+        // Model loading and inference failures are scoped to one transport
+        // session. A failed inference discards the ONNX session, so clearing the
+        // latch here causes the next session to build a fresh one rather than
+        // reusing potentially corrupted runtime state.
+        self.aec_session_failed = false;
         if let Some(aec) = &mut self.aec {
             aec.reset();
         }
@@ -1256,7 +1264,7 @@ impl DspProcessor {
         if self.aec.is_some() {
             return true;
         }
-        if self.aec_load_failed {
+        if self.aec_session_failed {
             return false;
         }
 
@@ -1286,12 +1294,29 @@ impl DspProcessor {
 
     #[cfg(feature = "noise-suppression")]
     fn fail_aec_load(&mut self, failure: AecFailure) {
-        self.aec_load_failed = true;
+        self.aec_session_failed = true;
         self.aec_failure = Some(failure);
     }
 
     #[cfg(feature = "noise-suppression")]
+    fn fail_aec_inference(&mut self) {
+        // Do not retry a failing ONNX session for every audio packet. Keep the
+        // failure latched for this transport session and rebuild on the next
+        // reset_aec_session().
+        self.aec = None;
+        self.aec_session_failed = true;
+        self.aec_failure = Some(AecFailure::InferenceFailed);
+    }
+
+    #[cfg(feature = "noise-suppression")]
     fn process_aec_mono(&mut self, input: &[f32]) -> Result<Vec<f32>, String> {
+        if !input.len().is_multiple_of(AEC_HOP_LEN) {
+            return Err(format!(
+                "invalid AEC input length: {}, expected a multiple of {AEC_HOP_LEN}",
+                input.len()
+            ));
+        }
+
         let processor = self
             .aec
             .as_mut()
@@ -1305,7 +1330,6 @@ impl DspProcessor {
             }
         }
 
-        debug_assert!(input.chunks_exact(AEC_HOP_LEN).remainder().is_empty());
         Ok(output)
     }
 
@@ -1325,7 +1349,7 @@ impl DspProcessor {
             Ok(clean) => clean,
             Err(error) => {
                 log::error!("[DSP] AEC ONNX inference failed: {error}");
-                self.aec_failure = Some(AecFailure::InferenceFailed);
+                self.fail_aec_inference();
                 return;
             }
         };
@@ -1795,15 +1819,51 @@ mod tests {
     fn new_session_retries_aec_model_after_load_failure() {
         let settings = Arc::new(RwLock::new(AudioDspSettings::default()));
         let mut processor = DspProcessor::new(settings, None);
-        processor.aec_load_failed = true;
+        processor.aec_session_failed = true;
         processor.aec_failure = Some(AecFailure::ModelMissing);
         processor.far_end.feed(&vec![1.0; AEC_HOP_LEN]);
 
         processor.reset_aec_session();
 
-        assert!(!processor.aec_load_failed);
+        assert!(!processor.aec_session_failed);
         assert_eq!(processor.aec_failure, None);
         assert!(processor.far_end.take_hop().is_none());
+    }
+
+    #[cfg(feature = "noise-suppression")]
+    #[test]
+    fn inference_failure_is_latched_until_next_session() {
+        let settings = Arc::new(RwLock::new(AudioDspSettings::default()));
+        let mut processor = DspProcessor::new(settings, None);
+
+        processor.fail_aec_inference();
+
+        assert!(processor.aec.is_none());
+        assert!(processor.aec_session_failed);
+        assert_eq!(
+            processor.take_aec_failure(),
+            Some(AecFailure::InferenceFailed)
+        );
+        assert_eq!(processor.take_aec_failure(), None);
+        assert!(!processor.ensure_aec_loaded());
+
+        processor.reset_aec_session();
+
+        assert!(!processor.aec_session_failed);
+        assert_eq!(processor.aec_failure, None);
+    }
+
+    #[cfg(feature = "noise-suppression")]
+    #[test]
+    fn invalid_aec_input_length_is_rejected_before_processing() {
+        let settings = Arc::new(RwLock::new(AudioDspSettings::default()));
+        let mut processor = DspProcessor::new(settings, None);
+        let input = vec![0.0; AEC_HOP_LEN - 1];
+
+        let error = processor.process_aec_mono(&input).unwrap_err();
+
+        assert!(error.contains("invalid AEC input length"));
+        assert_eq!(input.len(), AEC_HOP_LEN - 1);
     }
 
     #[test]

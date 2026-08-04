@@ -103,7 +103,9 @@ impl TuiApp {
             level: 0,
             muted: false,
             web_clients: 0,
-            aec_runtime_available: true,
+            // The desktop backend currently has no macOS loopback reference
+            // implementation, so do not expose a toggle that cannot take effect.
+            aec_runtime_available: tauri_app_lib::commands::audio::aec_supported(),
             settings,
             selected_setting: 0,
             chain_index: 0,

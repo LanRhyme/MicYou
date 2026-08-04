@@ -202,7 +202,7 @@
       "aec": "声学回声消除项 (AEC)",
       "aecDesc": "使用人工智能从麦克风中消除扬声器回声项",
       "aecUnavailable": "在此系统上不可用项",
-      "aecRuntimeUnavailable": "已自动停用项：Linux 音频参考流不可用项",
+      "aecRuntimeUnavailable": "已自动停用项：音频参考流不可用项",
       "bufferSize": "输出缓冲区大小项",
       "bufferSizeDesc": "越大越抗网络抖动项，但延迟越高项",
       "bufferLow": "低延迟项",

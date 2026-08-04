@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 use ringbuf::{HeapRb, Rb};
 
@@ -8,6 +9,8 @@ use crate::AecFailure;
 const RING_BUF_SEC: usize = 2;
 const TARGET_RATE: u32 = 48000;
 const MAX_REFERENCE_LAG_SAMPLES: usize = TARGET_RATE as usize * 300 / 1000;
+const CAPTURE_JOIN_TIMEOUT: Duration = Duration::from_millis(500);
+const CAPTURE_JOIN_POLL: Duration = Duration::from_millis(10);
 
 /// Cross-platform speaker loopback capture for AEC far-end reference.
 ///
@@ -40,9 +43,13 @@ impl LoopbackCapture {
         // thread is still winding down. Join it before reusing the shared
         // state; otherwise it can observe the new `true` flag and keep
         // running alongside the new capture thread.
-        let previous_thread = lock(&self.thread).take();
-        if let Some(thread) = previous_thread {
-            let _ = thread.join();
+        if !self.join_capture_thread(CAPTURE_JOIN_TIMEOUT) {
+            log::error!(
+                "[Loopback] Previous capture thread did not stop within {:?}",
+                CAPTURE_JOIN_TIMEOUT
+            );
+            set_failure(&self.failure, AecFailure::ReferenceLost);
+            return Err(AecFailure::ReferenceLost);
         }
 
         *lock(&self.failure) = None;
@@ -86,12 +93,40 @@ impl LoopbackCapture {
     pub fn stop(&self) {
         self.active.store(false, Ordering::Relaxed);
 
-        // Wait for the capture stream to be dropped before the next start or
-        // before the audio worker exits. This prevents overlapping cpal/WASAPI
-        // streams and makes stop a complete lifecycle transition.
-        let thread = lock(&self.thread).take();
-        if let Some(thread) = thread {
-            let _ = thread.join();
+        // Give the capture stream a bounded window to release its device. A
+        // timed-out handle remains stored, so start() cannot overlap a new
+        // capture with a stuck old one and can reap it after it eventually exits.
+        if !self.join_capture_thread(CAPTURE_JOIN_TIMEOUT) {
+            log::warn!(
+                "[Loopback] Capture thread is still stopping after {:?}",
+                CAPTURE_JOIN_TIMEOUT
+            );
+        }
+    }
+
+    fn join_capture_thread(&self, timeout: Duration) -> bool {
+        let deadline = Instant::now() + timeout;
+        loop {
+            let finished = {
+                let mut thread = lock(&self.thread);
+                match thread.as_ref() {
+                    None => return true,
+                    Some(handle) if handle.is_finished() => thread.take(),
+                    Some(_) => None,
+                }
+            };
+
+            if let Some(handle) = finished {
+                if handle.join().is_err() {
+                    log::warn!("[Loopback] Capture thread panicked while stopping");
+                }
+                return true;
+            }
+
+            if Instant::now() >= deadline {
+                return false;
+            }
+            std::thread::sleep(CAPTURE_JOIN_POLL);
         }
     }
 
@@ -668,5 +703,25 @@ mod tests {
 
         assert_eq!(reference, vec![1.0, 2.0, 0.0, 0.0]);
         assert_eq!(capture.buffer.lock().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn timed_out_join_keeps_handle_for_later_reap() {
+        let capture = LoopbackCapture::new();
+        let release = Arc::new(AtomicBool::new(false));
+        let release_thread = release.clone();
+        let handle = std::thread::spawn(move || {
+            while !release_thread.load(Ordering::Relaxed) {
+                std::thread::yield_now();
+            }
+        });
+        *capture.thread.lock().unwrap() = Some(handle);
+
+        assert!(!capture.join_capture_thread(Duration::ZERO));
+        assert!(capture.thread.lock().unwrap().is_some());
+
+        release.store(true, Ordering::Relaxed);
+        assert!(capture.join_capture_thread(Duration::from_secs(1)));
+        assert!(capture.thread.lock().unwrap().is_none());
     }
 }
