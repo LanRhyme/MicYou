@@ -3,6 +3,7 @@ pub mod audio;
 pub mod mode;
 pub mod network;
 pub mod system;
+pub mod theme;
 
 pub use audio::*;
 pub use network::*;

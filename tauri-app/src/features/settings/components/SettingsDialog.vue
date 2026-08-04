@@ -1,15 +1,15 @@
 <template>
   <Transition name="dialog">
   <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm" @click.self="$emit('close')">
-    <div class="bg-surface-bright/85 backdrop-blur-2xl w-full max-w-5xl h-full max-h-[80vh] rounded-3xl flex overflow-hidden shadow-2xl relative border border-white/10">
+    <div class="settings-panel relative backdrop-blur-2xl">
       
       <!-- Close Button -->
-      <button @click="$emit('close')" class="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors">
+      <button @click="$emit('close')" class="absolute top-4 right-4 z-[100] w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors">
         <X class="w-5 h-5 text-on-surface" />
       </button>
 
       <!-- Left Sidebar -->
-      <div class="w-64 bg-surface-container-low/50 border-r border-surface-variant/30 flex flex-col p-4 space-y-2 overflow-y-auto">
+      <div class="settings-nav space-y-2">
         <div class="px-4 py-4 mb-4 flex items-center gap-3">
           <SettingsIcon class="w-6 h-6 text-primary" />
           <h2 class="text-xl font-bold text-primary">{{ $t('settings.title') }}</h2>
@@ -17,7 +17,7 @@
 
         <button v-for="section in sections" :key="section.id" 
                 @click="currentSection = section.id"
-                class="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 w-full text-left"
+                class="settings-nav-item"
                 :class="currentSection === section.id ? 'bg-secondary-container/80 text-on-secondary-container shadow-sm scale-[1.02]' : 'hover:bg-surface-variant/30 text-on-surface-variant'">
           <component :is="section.icon" class="w-5 h-5" :class="currentSection === section.id ? 'text-primary' : ''" />
           <span class="font-medium text-sm">{{ section.name }}</span>
@@ -25,7 +25,7 @@
       </div>
 
       <!-- Right Content -->
-      <div ref="contentRef" class="flex-1 bg-surface-container-lowest/50 p-8 overflow-y-auto overscroll-contain">
+      <div ref="contentRef" class="settings-scrollbar flex-1 bg-surface-container-lowest/50 p-8 overflow-y-auto overscroll-contain">
         <div class="max-w-2xl mx-auto space-y-8">
           <h3 class="text-3xl font-bold text-primary mb-6">{{ currentSectionName }}</h3>
 
@@ -323,7 +323,7 @@
           <!-- APPEARANCE SECTION -->
           <div v-else-if="currentSection === 'appearance'" class="space-y-6" key="appearance">
             <!-- Theme Mode Settings -->
-            <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
+            <div class="surface-card flex items-center justify-between">
               <div>
                 <h4 class="font-bold text-on-surface">{{ $t('settings.theme.title') }}</h4>
                 <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.desc') }}</p>
@@ -342,8 +342,29 @@
               </Select>
             </div>
 
+            <div class="relative space-y-6">
+            <!-- Theme Color Source -->
+            <div class="surface-card flex items-center justify-between">
+              <div>
+                <h4 class="font-bold text-on-surface">{{ $t('settings.theme.modeTitle') }}</h4>
+                <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.modeDesc') }}</p>
+              </div>
+              <Select v-model="themeMode" :disabled="themePackageActive">
+                <SelectTrigger class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
+                  <SelectGroup>
+                    <SelectItem value="system">{{ $t('settings.theme.systemColor') }}</SelectItem>
+                    <SelectItem value="preset">{{ $t('settings.theme.presetColor') }}</SelectItem>
+                    <SelectItem value="custom">{{ $t('settings.theme.customColor') }}</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
             <!-- Theme Color Settings -->
-            <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
+            <div class="surface-card relative flex items-center justify-between overflow-hidden">
               <div class="flex-shrink-0 mr-4">
                 <h4 class="font-bold text-on-surface">{{ $t('settings.themeColor.title') }}</h4>
                 <p class="text-xs text-on-surface-variant">{{ $t('settings.themeColor.desc') }}</p>
@@ -354,18 +375,30 @@
                   :custom-h="customH"
                   :custom-s="customS"
                   :custom-l="customL"
-                  @open-custom="showColorPicker = true"
+                  :disabled="themePackageActive"
+                  @update:model-value="themeMode = 'preset'"
+                  @open-custom="themeMode = 'custom'; showColorPicker = true"
                 />
+              </div>
+
+              <div v-if="!themePackageActive && themeMode === 'system'" class="absolute inset-0 z-10 flex items-center justify-center gap-3 bg-surface-bright/80 px-4 backdrop-blur-sm">
+                <span class="h-8 w-8 shrink-0 rounded-full border border-outline/30 shadow-sm" :style="{ backgroundColor: systemAccent.hex }"></span>
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-on-surface">
+                    {{ systemAccent.supported ? $t('settings.theme.systemReady') : $t('settings.theme.systemUnavailable') }}
+                  </p>
+                  <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.systemSource', { source: systemAccent.source }) }}</p>
+                </div>
               </div>
             </div>
 
             <!-- Theme Generation Variant Settings -->
-            <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
+            <div class="surface-card flex items-center justify-between">
               <div>
                 <h4 class="font-bold text-on-surface">{{ $t('settings.customColor.variant') }}</h4>
                 <p class="text-xs text-on-surface-variant">{{ $t('settings.customColor.variantDesc') }}</p>
               </div>
-              <Select v-model="customVariant">
+              <Select v-model="customVariant" :disabled="themePackageActive">
                 <SelectTrigger class="w-[160px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
                   <SelectValue />
                 </SelectTrigger>
@@ -385,8 +418,25 @@
               </Select>
             </div>
 
+            <div v-if="themePackageActive" class="absolute inset-0 z-20 !mt-0 flex min-h-full items-center justify-center rounded-2xl bg-surface-bright/90 p-6 text-center shadow-lg backdrop-blur-md">
+              <div class="flex max-w-sm flex-col items-center gap-3">
+                <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <Palette class="h-6 w-6" />
+                </div>
+                <p class="text-sm font-semibold text-on-surface">{{ $t('settings.theme.packageActive') }}</p>
+                <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.packageActiveDesc', { id: installedThemeId }) }}</p>
+                <button
+                  class="mt-1 rounded-full bg-primary px-4 py-2 text-sm font-medium text-on-primary transition-opacity hover:opacity-90"
+                  @click="deactivateInstalledTheme"
+                >
+                  {{ $t('settings.theme.deactivate') }}
+                </button>
+              </div>
+            </div>
+            </div>
+
             <!-- UI Style Settings -->
-            <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
+            <div class="surface-card flex items-center justify-between">
               <div>
                 <h4 class="font-bold text-on-surface">{{ $t('settings.uiStyle.title') }}</h4>
                 <p class="text-xs text-on-surface-variant">{{ $t('settings.uiStyle.desc') }}</p>
@@ -405,13 +455,26 @@
             </div>
 
             <!-- Custom CSS -->
-            <div class="bg-surface-bright rounded-2xl p-4 flex items-center justify-between shadow-sm">
-              <div class="flex-1 mr-4">
+            <div class="surface-card flex items-center justify-between">
+              <div class="mr-4 flex-1">
                 <h4 class="font-bold text-on-surface">{{ $t('settings.customCss.title') }}</h4>
                 <p class="text-xs text-on-surface-variant">{{ $t('settings.customCss.desc') }}</p>
               </div>
-              <button @click="showCustomCssDialog = true" class="px-4 py-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary font-medium text-sm transition-colors flex-shrink-0">
+              <button @click="showCustomCssDialog = true" class="flex-shrink-0 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20">
                 {{ $t('settings.customCss.editBtn') }}
+              </button>
+            </div>
+
+            <div class="surface-card flex items-center justify-between">
+              <div class="flex-1 mr-4">
+                <h4 class="font-bold text-on-surface">{{ $t('settings.theme.catalogTitle') }}</h4>
+                <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.catalogDesc') }}</p>
+              </div>
+              <button
+                class="rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+                @click="showThemeCatalogDialog = true"
+              >
+                {{ $t('settings.theme.catalogButton') }}
               </button>
             </div>
           </div>
@@ -421,7 +484,7 @@
             
 
             <!-- Spectrum Analyzer / Real-time Monitoring -->
-            <div class="bg-surface-bright rounded-2xl p-4 space-y-3 shadow-sm">
+            <div class="haze-surface p-4 space-y-3">
               <div class="flex justify-between items-center mb-2">
                 <h4 class="font-bold text-on-surface text-sm">{{ $t('settings.spectrum.title') }}</h4>
                 <div class="flex gap-4">
@@ -725,6 +788,7 @@
   <LicensesDialog :isOpen="showLicenses" @close="showLicenses = false" />
   <AudioChainDialog :isOpen="showAudioChain" :chain="settings.processingChain" @update:chain="updateProcessingChain" @close="showAudioChain = false" />
   <CustomCssDialog :isOpen="showCustomCssDialog" @close="showCustomCssDialog = false" />
+  <ThemeCatalogDialog :isOpen="showThemeCatalogDialog" @close="showThemeCatalogDialog = false" />
   <CustomColorPicker 
     :is-open="showColorPicker" 
     :initial-h="customH"
@@ -766,9 +830,11 @@ import SponsorsDialog from './SponsorsDialog.vue';
 import LicensesDialog from './LicensesDialog.vue';
 import AudioChainDialog from '@/features/audio/components/AudioChainDialog.vue';
 import CustomCssDialog from '@/features/theme/components/CustomCssDialog.vue';
+import ThemeCatalogDialog from '@/features/theme/components/ThemeCatalogDialog.vue';
 import EqualizerPanel from '@/features/audio/components/EqualizerPanel.vue';
 import ThemeSelector from '@/features/theme/components/ThemeSelector.vue';
 import CustomColorPicker from '@/features/theme/components/CustomColorPicker.vue';
+import { useTheme } from '@/features/theme/composables/useTheme';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
 
 const props = defineProps<{
@@ -788,13 +854,20 @@ const colorMode = useColorMode({
   attribute: 'class',
 });
 
-const themeColor = useStorage('micyou_theme_color', 'theme-blue');
-const uiStyle = useStorage('micyou_ui_style', 'style-default');
-
-const customH = useStorage('micyou_custom_h', 215);
-const customS = useStorage('micyou_custom_s', 35);
-const customL = useStorage('micyou_custom_l', 55);
-const customVariant = useStorage('micyou_custom_variant', 'TonalSpot');
+const {
+  themeMode,
+  themeColor,
+  uiStyle,
+  customH,
+  customS,
+  customL,
+  customVariant,
+  systemAccent,
+  installedThemeId,
+  installedThemeControlsColor,
+  clearInstalledTheme,
+} = useTheme();
+const themePackageActive = computed(() => Boolean(installedThemeId.value && installedThemeControlsColor.value));
 const showColorPicker = ref(false);
 const pocketMode = useStorage('micyou_pocket_mode', false);
 const closeBehavior = useStorage<'ask' | 'hide' | 'exit' | null>('micyou_remember_close_action', null);
@@ -808,6 +881,18 @@ const applyCustomColor = (color: { h: number, s: number, l: number }) => {
   customS.value = color.s;
   customL.value = color.l;
   themeColor.value = 'theme-custom';
+  themeMode.value = 'custom';
+};
+
+const deactivateInstalledTheme = async () => {
+  const themeId = installedThemeId.value;
+  if (!themeId) return;
+  clearInstalledTheme();
+  try {
+    await invoke('remove_installed_theme', { themeId });
+  } catch (error) {
+    console.warn('Failed to remove installed theme:', error);
+  }
 };
 
 // --- Run mode (GUI / CLI / TUI) ---
@@ -891,7 +976,7 @@ function saveUiPrefs() {
     : currentLanguage.value;
   void invoke('save_ui_prefs', {
     language: effective,
-    themeColor: localStorage.getItem('micyou_theme_color') || 'theme-blue',
+    themeColor: themeMode.value === 'system' ? 'theme-system' : themeColor.value,
   }).catch((e) => console.error('save_ui_prefs failed:', e));
 }
 watch(currentLanguage, (newLang) => {
@@ -1062,6 +1147,7 @@ const showSponsors = ref(false);
 const showLicenses = ref(false);
 const showAudioChain = ref(false);
 const showCustomCssDialog = ref(false);
+const showThemeCatalogDialog = ref(false);
 const appVersion = ref('0.1.0');
 
 const updateProcessingChain = (newChain: string[]) => {

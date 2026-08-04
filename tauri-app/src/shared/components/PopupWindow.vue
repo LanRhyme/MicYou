@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import {
   Wifi, Mic, Globe, Settings
 } from '@lucide/vue';
+import { BUILTIN_THEMES, generateThemeCSS, hexToHsl } from '@/features/theme/composables/useTheme';
 
 const { t } = useI18n();
 const popupWindow = getCurrentWindow();
@@ -21,8 +22,9 @@ const syncTheme = () => {
   html.classList.toggle('dark', mq.matches);
   mq.addEventListener('change', (e) => html.classList.toggle('dark', e.matches));
 
-  const themeColor = localStorage.getItem('micyou_theme_color') || 'theme-blue';
-  const uiStyle = localStorage.getItem('micyou_ui_style') || 'style-default';
+  const themeMode = localStorage.getItem('micyou_theme_v2_mode') || 'system';
+  const themeColor = localStorage.getItem('micyou_theme_v2_color') || 'theme-blue';
+  const uiStyle = localStorage.getItem('micyou_theme_v2_ui_style') || 'style-default';
 
   // Detect macOS for native vibrancy
   const isMacOS = /Mac/.test(navigator.platform || navigator.userAgent) &&
@@ -32,50 +34,41 @@ const syncTheme = () => {
     html.classList.add('platform-macos');
   }
 
-  const themes = ['theme-blue', 'theme-green', 'theme-rose', 'theme-purple', 'theme-orange', 'theme-amber', 'theme-teal', 'theme-cyan', 'theme-custom'];
-  html.classList.remove(...themes, 'style-default', 'style-glass');
-  html.classList.add(themeColor);
-  html.classList.add(uiStyle);
+  const themes = Object.keys(BUILTIN_THEMES).concat('theme-custom', 'theme-system');
+  html.classList.remove(...themes, 'theme-color-blue', 'theme-color-green', 'theme-color-rose', 'theme-color-purple', 'theme-color-orange', 'theme-color-amber', 'theme-color-teal', 'theme-color-cyan', 'theme-color-custom', 'theme-color-system', 'style-default', 'style-glass', 'theme-mode-system', 'theme-mode-preset', 'theme-mode-custom', 'system-accent-unavailable');
+  const activeColor = themeMode === 'system' ? 'theme-system' : themeColor;
+  html.classList.add(activeColor, `theme-color-${activeColor.replace('theme-', '')}`, `theme-mode-${themeMode}`, uiStyle);
 
-  if (themeColor === 'theme-custom') {
-    const h = Number(localStorage.getItem('micyou_custom_h') || '215');
-    const s = Number(localStorage.getItem('micyou_custom_s') || '35');
-    const l = Number(localStorage.getItem('micyou_custom_l') || '55');
-    const lDark = Math.min(l + 10, 80);
+  const baseColor = themeMode === 'system'
+    ? hexToHsl(localStorage.getItem('micyou_theme_v2_system_hex') || '#5b7cfa')
+    : themeMode === 'custom'
+      ? {
+          h: Number(localStorage.getItem('micyou_theme_v2_custom_h') || '215'),
+          s: Number(localStorage.getItem('micyou_theme_v2_custom_s') || '35'),
+          l: Number(localStorage.getItem('micyou_theme_v2_custom_l') || '55'),
+        }
+      : (BUILTIN_THEMES[themeColor] || BUILTIN_THEMES['theme-blue']);
+  const variant = localStorage.getItem('micyou_theme_v2_variant') || 'TonalSpot';
+  const style = document.getElementById('popup-theme-tokens') || document.createElement('style');
+  style.id = 'popup-theme-tokens';
+  style.textContent = `
+    :root, :root[class] { ${generateThemeCSS(baseColor.h, baseColor.s, baseColor.l, variant, false)} }
+    :root.dark, html.dark[class] { ${generateThemeCSS(baseColor.h, baseColor.s, baseColor.l, variant, true)} }
+  `;
+  if (!style.parentElement) document.head.appendChild(style);
 
-    let style = document.getElementById('popup-custom-theme');
-    if (!style) {
-      style = document.createElement('style');
-      style.id = 'popup-custom-theme';
-      document.head.appendChild(style);
-    }
-    style.innerHTML = `
-      :root, .theme-custom {
-        --primary: ${h} ${s}% ${l}%;
-        --on-primary: ${h} ${s}% 92%;
-        --surface: ${h} 15% 98%;
-        --on-surface: ${h} 15% 25%;
-        --surface-variant: ${h} 15% 88%;
-        --on-surface-variant: ${h} 15% 45%;
-        --outline: ${h} 15% 80%;
-        --error: 0 40% 55%;
-        --foreground: ${h} 15% 25%;
-        --background: ${h} 15% 96%;
-      }
-      .dark.theme-custom, .theme-custom .dark {
-        --primary: ${h} ${s}% ${lDark}%;
-        --on-primary: ${h} ${s}% 20%;
-        --surface: ${h} 15% 10%;
-        --on-surface: ${h} 15% 85%;
-        --surface-variant: ${h} 15% 22%;
-        --on-surface-variant: ${h} 15% 60%;
-        --outline: ${h} 15% 20%;
-        --error: 0 40% 65%;
-        --foreground: ${h} 15% 85%;
-        --background: ${h} 15% 8%;
-      }
-    `;
-  }
+  const packageStyle = document.getElementById('popup-theme-package-css') || document.createElement('style');
+  packageStyle.id = 'popup-theme-package-css';
+  packageStyle.textContent = localStorage.getItem('micyou_theme_v2_installed_css') || '';
+  if (!packageStyle.parentElement) document.head.appendChild(packageStyle);
+
+  const userStyle = document.getElementById('popup-user-custom-css') || document.createElement('style');
+  userStyle.id = 'popup-user-custom-css';
+  userStyle.textContent = localStorage.getItem('micyou_theme_v2_css_enabled') !== 'false'
+    ? localStorage.getItem('micyou_theme_v2_css') || ''
+    : '';
+  if (!userStyle.parentElement) document.head.appendChild(userStyle);
+
 };
 
 const connectionMode = ref(localStorage.getItem('popup_connectionMode') || 'wifi');
@@ -183,7 +176,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="w-full h-full bg-surface-container rounded-2xl shadow-xl border border-outline/10 overflow-hidden"
+    class="popup-panel w-full h-full"
     :class="[noTransition ? '' : 'transition-all duration-200 ease-out', {
       'opacity-0 -translate-y-1.5 scale-95': animState === 'hidden' || animState === 'entering',
       'opacity-100 translate-y-0 scale-100': animState === 'visible',

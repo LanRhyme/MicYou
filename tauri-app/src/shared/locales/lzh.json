@@ -98,7 +98,21 @@
       "desc": "择应用之主题",
       "auto": "随系统",
       "light": "明",
-      "dark": "暗"
+      "dark": "暗",
+      "modeTitle": "主题色之源",
+      "modeDesc": "择主题色所出",
+      "systemColor": "系统强调色",
+      "presetColor": "预置主题",
+      "customColor": "自定主题",
+      "systemReady": "已用系统强调色",
+      "systemUnavailable": "未能取系统强调色，今用默认青蓝",
+      "systemSource": "所出：{source}",
+      "catalogTitle": "主题市",
+      "catalogDesc": "可由 MicYou 主题仓库择诸主题",
+      "catalogButton": "观主题",
+      "packageActive": "所装主题正行",
+      "packageActiveDesc": "{id} 正掌主题之色",
+      "deactivate": "止用主题"
     },
     "themeColor": {
       "title": "主题之色",
@@ -114,7 +128,10 @@
       "placeholder": "/* 例：\nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
       "editBtn": "编 CSS",
       "loadFromFile": "从档载入",
-      "clear": "清之"
+      "clear": "清之",
+      "enabled": "启",
+      "export": "出",
+      "referenceTitle": "变量与语义类名"
     },
     "customColor": {
       "title": "自定之色",
@@ -293,6 +310,23 @@
     "logs": {
       "success": "日志已出矣。",
       "failed": "日志出败：{error}"
+    },
+    "themeCatalog": {
+      "title": "主题市",
+      "loading": "载主题中...",
+      "count": "凡 {count} 主题",
+      "empty": "尚无可用主题",
+      "loadFailed": "载主题败：{error}",
+      "retry": "复试",
+      "author": "作者：{author}",
+      "version": "版 {version}",
+      "repository": "观源",
+      "install": "下载而装",
+      "installing": "装之中...",
+      "installed": "已装",
+      "downloadFailed": "装败：{error}",
+      "uninstall": "卸主题",
+      "uninstalling": "卸之中..."
     },
     "udpWarning": {
       "title": "防火墙阻 UDP 连接",

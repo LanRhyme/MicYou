@@ -100,7 +100,21 @@
       "desc": "选择应用程序的外观主题",
       "auto": "跟随系统",
       "light": "浅色",
-      "dark": "深色"
+      "dark": "深色",
+      "modeTitle": "主题色来源",
+      "modeDesc": "选择主题色的来源",
+      "systemColor": "系统强调色",
+      "presetColor": "预置主题",
+      "customColor": "自定义主题",
+      "systemReady": "已应用系统强调色",
+      "systemUnavailable": "无法读取系统强调色，当前使用默认蓝",
+      "systemSource": "来源：{source}",
+      "catalogTitle": "主题商场",
+      "catalogDesc": "从 MicYou 主题仓库浏览更多主题",
+      "catalogButton": "浏览主题",
+      "packageActive": "已安装主题正在生效",
+      "packageActiveDesc": "{id} 正在接管主题色设置",
+      "deactivate": "停用主题"
     },
     "themeColor": {
       "title": "主题色",
@@ -116,7 +130,10 @@
       "placeholder": "/* 例如: \nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
       "editBtn": "编辑自定义 CSS",
       "loadFromFile": "从文件导入",
-      "clear": "清空代码"
+      "clear": "清空代码",
+      "enabled": "启用",
+      "export": "导出",
+      "referenceTitle": "变量与语义类名"
     },
     "customColor": {
       "title": "自定义颜色",
@@ -295,6 +312,23 @@
     "logs": {
       "success": "日志导出成功",
       "failed": "导出日志失败：{error}"
+    },
+    "themeCatalog": {
+      "title": "主题商场",
+      "loading": "正在加载主题...",
+      "count": "共 {count} 个主题",
+      "empty": "暂时没有可用主题",
+      "loadFailed": "加载主题失败：{error}",
+      "retry": "重试",
+      "author": "作者：{author}",
+      "version": "版本 {version}",
+      "repository": "查看源码",
+      "install": "下载安装",
+      "installing": "正在安装...",
+      "installed": "已安装",
+      "downloadFailed": "安装失败：{error}",
+      "uninstall": "卸载主题",
+      "uninstalling": "正在卸载..."
     },
     "udpWarning": {
       "title": "防火墙阻止了 UDP 音频连接",

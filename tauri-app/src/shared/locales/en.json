@@ -100,7 +100,21 @@
       "desc": "Choose application theme",
       "auto": "System",
       "light": "Light",
-      "dark": "Dark"
+      "dark": "Dark",
+      "modeTitle": "Theme color source",
+      "modeDesc": "Choose where the accent color comes from",
+      "systemColor": "System accent",
+      "presetColor": "Preset",
+      "customColor": "Custom",
+      "systemReady": "System accent applied",
+      "systemUnavailable": "System accent unavailable; using default blue",
+      "systemSource": "Source: {source}",
+      "catalogTitle": "Theme library",
+      "catalogDesc": "Browse themes from the MicYou theme repository",
+      "catalogButton": "Browse themes",
+      "packageActive": "Installed theme is active",
+      "packageActiveDesc": "{id} controls the theme colors",
+      "deactivate": "Disable"
     },
     "themeColor": {
       "title": "Theme Color",
@@ -116,7 +130,10 @@
       "placeholder": "/* Example: \nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
       "editBtn": "Edit Custom CSS",
       "loadFromFile": "Load from File",
-      "clear": "Clear CSS"
+      "clear": "Clear CSS",
+      "enabled": "Enabled",
+      "export": "Export",
+      "referenceTitle": "Variables and semantic classes"
     },
     "customColor": {
       "title": "Custom Color",
@@ -295,6 +312,23 @@
     "logs": {
       "success": "Logs exported successfully.",
       "failed": "Failed to export logs: {error}"
+    },
+    "themeCatalog": {
+      "title": "Theme library",
+      "loading": "Loading themes...",
+      "count": "{count} themes",
+      "empty": "No themes are available yet.",
+      "loadFailed": "Failed to load themes: {error}",
+      "retry": "Retry",
+      "author": "By {author}",
+      "version": "Version {version}",
+      "repository": "View source",
+      "install": "Install",
+      "installing": "Installing...",
+      "installed": "Installed",
+      "downloadFailed": "Installation failed: {error}",
+      "uninstall": "Uninstall",
+      "uninstalling": "Uninstalling..."
     },
     "udpWarning": {
       "title": "Firewall Blocked UDP Connection",

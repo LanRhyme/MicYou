@@ -1,5 +1,6 @@
 <template>
-  <div class="h-full bg-surface-bright/90 backdrop-blur-md rounded-2xl flex flex-col p-4 overflow-y-auto space-y-4">
+  <div class="haze-surface h-full overflow-hidden">
+    <div class="settings-scrollbar h-full flex flex-col overflow-y-auto p-4 space-y-4">
     <!-- Header -->
     <div class="flex items-center space-x-2">
       <ActivityIcon class="w-5 h-5 text-primary" />
@@ -84,6 +85,7 @@
           <span class="text-on-surface font-medium">{{ metrics?.bufferDurationMs ? `${metrics.bufferDurationMs} ms` : '--' }}</span>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>

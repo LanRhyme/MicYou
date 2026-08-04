@@ -98,7 +98,21 @@
       "desc": "選擇應用程式的外觀主題",
       "auto": "跟隨系統",
       "light": "亮色",
-      "dark": "暗色"
+      "dark": "暗色",
+      "modeTitle": "主題色來源",
+      "modeDesc": "選擇主題色的來源",
+      "systemColor": "系統強調色",
+      "presetColor": "預設主題",
+      "customColor": "自訂主題",
+      "systemReady": "已套用系統強調色",
+      "systemUnavailable": "無法讀取系統強調色，目前使用預設藍",
+      "systemSource": "來源：{source}",
+      "catalogTitle": "主題商場",
+      "catalogDesc": "從 MicYou 主題倉庫瀏覽更多主題",
+      "catalogButton": "瀏覽主題",
+      "packageActive": "已安裝主題正在套用",
+      "packageActiveDesc": "{id} 正在接管主題顏色設定",
+      "deactivate": "停用主題"
     },
     "themeColor": {
       "title": "主題顏色",
@@ -114,7 +128,10 @@
       "placeholder": "/* 例如：\nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
       "editBtn": "編輯自訂 CSS",
       "loadFromFile": "從檔案匯入",
-      "clear": "清空程式碼"
+      "clear": "清空程式碼",
+      "enabled": "啟用",
+      "export": "匯出",
+      "referenceTitle": "變數與語意類名"
     },
     "customColor": {
       "title": "自訂顏色",
@@ -293,6 +310,23 @@
     "logs": {
       "success": "紀錄匯出成功",
       "failed": "匯出紀錄失敗：{error}"
+    },
+    "themeCatalog": {
+      "title": "主題商場",
+      "loading": "正在載入主題...",
+      "count": "共 {count} 個主題",
+      "empty": "暫時沒有可用主題",
+      "loadFailed": "載入主題失敗：{error}",
+      "retry": "重試",
+      "author": "作者：{author}",
+      "version": "版本 {version}",
+      "repository": "查看原始碼",
+      "install": "下載安裝",
+      "installing": "正在安裝...",
+      "installed": "已安裝",
+      "downloadFailed": "安裝失敗：{error}",
+      "uninstall": "解除安裝",
+      "uninstalling": "正在解除安裝..."
     },
     "udpWarning": {
       "title": "防火牆封鎖了 UDP 音訊連線",

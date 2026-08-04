@@ -4,7 +4,8 @@
       v-for="theme in themes" 
       :key="theme.id"
       @click="selectTheme(theme.id)"
-      class="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px]"
+      :disabled="disabled"
+      class="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] disabled:pointer-events-none disabled:opacity-40"
       :class="modelValue === theme.id ? 'border-primary scale-110 shadow-md' : 'border-transparent hover:scale-110 shadow-sm'"
       :style="{ backgroundColor: theme.color }"
       :title="theme.name"
@@ -15,7 +16,8 @@
     <!-- Custom Theme Button -->
     <button 
       @click="$emit('open-custom')"
-      class="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px]"
+      :disabled="disabled"
+      class="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 border-[1.5px] disabled:pointer-events-none disabled:opacity-40"
       :class="modelValue === 'theme-custom' ? 'border-primary scale-110 shadow-md' : 'border-transparent hover:scale-110 shadow-sm'"
       :style="customStyle"
       title="Custom Color"
@@ -35,6 +37,7 @@ const props = defineProps<{
   customH: number;
   customS: number;
   customL: number;
+  disabled?: boolean;
 }>();
 
 const emit = defineEmits(['update:modelValue', 'open-custom']);

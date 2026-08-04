@@ -98,7 +98,21 @@
       "desc": "选择应用主题喵~",
       "auto": "跟随系统喵~",
       "light": "浅色喵~ ☀️",
-      "dark": "深色喵~ 🌙"
+      "dark": "深色喵~ 🌙",
+      "modeTitle": "主题色来源喵~",
+      "modeDesc": "选择主题色来源喵~",
+      "systemColor": "系统强调色喵~",
+      "presetColor": "预置主题喵~",
+      "customColor": "自定义主题喵~",
+      "systemReady": "已应用系统强调色喵~",
+      "systemUnavailable": "读不到系统强调色，使用默认蓝喵~",
+      "systemSource": "来源：{source} 喵~",
+      "catalogTitle": "主题商场喵~",
+      "catalogDesc": "可以从 MicYou 主题仓库找更多主题喵~",
+      "catalogButton": "浏览主题喵~",
+      "packageActive": "已安装主题正在生效喵~",
+      "packageActiveDesc": "{id} 正在接管主题颜色设置喵~",
+      "deactivate": "停用主题喵~"
     },
     "themeColor": {
       "title": "主题颜色喵~ 🎨",
@@ -114,7 +128,10 @@
       "placeholder": "/* 例如: \nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
       "editBtn": "编辑自定义 CSS 喵~",
       "loadFromFile": "从文件加载喵~",
-      "clear": "清除 CSS 喵~"
+      "clear": "清除 CSS 喵~",
+      "enabled": "启用喵~",
+      "export": "导出喵~",
+      "referenceTitle": "变量与语义类名喵~"
     },
     "customColor": {
       "title": "自定义颜色喵~ 🎨",
@@ -293,6 +310,23 @@
     "logs": {
       "success": "日志导出成功喵~ ✓",
       "failed": "日志导出失败喵: {error} (ToT)"
+    },
+    "themeCatalog": {
+      "title": "主题商场喵~",
+      "loading": "正在加载主题喵...",
+      "count": "共有 {count} 个主题喵~",
+      "empty": "暂时没有可用主题喵~",
+      "loadFailed": "加载主题失败喵：{error}",
+      "retry": "重试喵~",
+      "author": "作者：{author}",
+      "version": "版本 {version}",
+      "repository": "查看源码喵~",
+      "install": "下载安装喵~",
+      "installing": "正在安装喵...",
+      "installed": "已安装喵~",
+      "downloadFailed": "安装失败喵：{error}",
+      "uninstall": "卸载主题喵~",
+      "uninstalling": "正在卸载喵..."
     },
     "udpWarning": {
       "title": "UDP 音频警告喵~",

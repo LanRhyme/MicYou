@@ -117,6 +117,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::set_window_effects,
+            commands::get_system_accent_color,
+            commands::theme::install_theme,
+            commands::theme::list_installed_themes,
+            commands::theme::remove_installed_theme,
             commands::start_window_drag,
             commands::enable_usb_mode,
             commands::list_adb_devices,

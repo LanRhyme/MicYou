@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useI18n } from 'vue-i18n';
 import { Globe, CheckCircle2 } from '@lucide/vue';
+import { BUILTIN_THEMES, generateThemeCSS, hexToHsl } from '@/features/theme/composables/useTheme';
 
 interface NetworkInterface {
   ip: string;
@@ -25,8 +26,9 @@ const syncTheme = () => {
   html.classList.toggle('dark', mq.matches);
   mq.addEventListener('change', (e) => html.classList.toggle('dark', e.matches));
 
-  const themeColor = localStorage.getItem('micyou_theme_color') || 'theme-blue';
-  const uiStyle = localStorage.getItem('micyou_ui_style') || 'style-default';
+  const themeMode = localStorage.getItem('micyou_theme_v2_mode') || 'system';
+  const themeColor = localStorage.getItem('micyou_theme_v2_color') || 'theme-blue';
+  const uiStyle = localStorage.getItem('micyou_theme_v2_ui_style') || 'style-default';
 
   // Detect macOS for native vibrancy
   const isMacOS = /Mac/.test(navigator.platform || navigator.userAgent) &&
@@ -36,10 +38,41 @@ const syncTheme = () => {
     html.classList.add('platform-macos');
   }
 
-  const themes = ['theme-blue', 'theme-green', 'theme-rose', 'theme-purple', 'theme-orange', 'theme-amber', 'theme-teal', 'theme-cyan', 'theme-custom'];
-  html.classList.remove(...themes, 'style-default', 'style-glass');
-  html.classList.add(themeColor);
-  html.classList.add(uiStyle);
+  const themes = Object.keys(BUILTIN_THEMES).concat('theme-custom', 'theme-system');
+  html.classList.remove(...themes, 'theme-color-blue', 'theme-color-green', 'theme-color-rose', 'theme-color-purple', 'theme-color-orange', 'theme-color-amber', 'theme-color-teal', 'theme-color-cyan', 'theme-color-custom', 'theme-color-system', 'style-default', 'style-glass', 'theme-mode-system', 'theme-mode-preset', 'theme-mode-custom', 'system-accent-unavailable');
+  const activeColor = themeMode === 'system' ? 'theme-system' : themeColor;
+  html.classList.add(activeColor, `theme-color-${activeColor.replace('theme-', '')}`, `theme-mode-${themeMode}`, uiStyle);
+
+  const baseColor = themeMode === 'system'
+    ? hexToHsl(localStorage.getItem('micyou_theme_v2_system_hex') || '#5b7cfa')
+    : themeMode === 'custom'
+      ? {
+          h: Number(localStorage.getItem('micyou_theme_v2_custom_h') || '215'),
+          s: Number(localStorage.getItem('micyou_theme_v2_custom_s') || '35'),
+          l: Number(localStorage.getItem('micyou_theme_v2_custom_l') || '55'),
+        }
+      : (BUILTIN_THEMES[themeColor] || BUILTIN_THEMES['theme-blue']);
+  const variant = localStorage.getItem('micyou_theme_v2_variant') || 'TonalSpot';
+  const style = document.getElementById('ip-popup-theme-tokens') || document.createElement('style');
+  style.id = 'ip-popup-theme-tokens';
+  style.textContent = `
+    :root, :root[class] { ${generateThemeCSS(baseColor.h, baseColor.s, baseColor.l, variant, false)} }
+    :root.dark, html.dark[class] { ${generateThemeCSS(baseColor.h, baseColor.s, baseColor.l, variant, true)} }
+  `;
+  if (!style.parentElement) document.head.appendChild(style);
+
+  const packageStyle = document.getElementById('ip-popup-theme-package-css') || document.createElement('style');
+  packageStyle.id = 'ip-popup-theme-package-css';
+  packageStyle.textContent = localStorage.getItem('micyou_theme_v2_installed_css') || '';
+  if (!packageStyle.parentElement) document.head.appendChild(packageStyle);
+
+  const userStyle = document.getElementById('ip-popup-user-custom-css') || document.createElement('style');
+  userStyle.id = 'ip-popup-user-custom-css';
+  userStyle.textContent = localStorage.getItem('micyou_theme_v2_css_enabled') !== 'false'
+    ? localStorage.getItem('micyou_theme_v2_css') || ''
+    : '';
+  if (!userStyle.parentElement) document.head.appendChild(userStyle);
+
 };
 
 const selectIp = (ip: string, autoSelect: boolean) => {
