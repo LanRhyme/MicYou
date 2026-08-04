@@ -462,7 +462,7 @@ pub async fn start_server_inner(
                                     if let Some(far_data) = loopback
                                         .as_ref()
                                         .filter(|capture| capture.is_active())
-                                        .and_then(|capture| capture.read(near_frames))
+                                        .map(|capture| capture.read(near_frames))
                                     {
                                         dsp_processor.set_far_end_audio(&far_data);
                                     }

@@ -102,13 +102,12 @@ impl LoopbackCapture {
         lock(&self.buffer).clear();
     }
 
-    /// Read n_samples from the loopback buffer, consuming them.
-    /// Returns None if insufficient data.
-    pub fn read(&self, n_samples: usize) -> Option<Vec<f32>> {
+    /// Read exactly `n_samples` from the loopback timeline, consuming available
+    /// samples and padding an underrun with silence. Advancing the timeline even
+    /// while capture is starting prevents old reference samples from being paired
+    /// with later near-end frames.
+    pub fn read(&self, n_samples: usize) -> Vec<f32> {
         let mut buf = lock(&self.buffer);
-        if buf.len() < n_samples {
-            return None;
-        }
 
         // If the near-end stream paused while playback continued, discard old
         // reference audio instead of preserving a permanent multi-second lag.
@@ -119,11 +118,13 @@ impl LoopbackCapture {
             buf.pop();
         }
 
+        let available = buf.len().min(n_samples);
         let mut out = Vec::with_capacity(n_samples);
-        for _ in 0..n_samples {
-            out.push(buf.pop().unwrap());
+        for _ in 0..available {
+            out.push(buf.pop().expect("available reference sample must exist"));
         }
-        Some(out)
+        out.resize(n_samples, 0.0);
+        out
     }
 
     pub fn is_active(&self) -> bool {
@@ -607,12 +608,17 @@ mod tests {
             }
         }
 
-        let reference = capture.read(660).unwrap();
+        let reference = capture.read(660);
         assert_eq!(reference.len(), 660);
         assert_eq!(reference.first().copied(), Some(0.0));
         assert_eq!(reference.last().copied(), Some(659.0));
-        assert!(capture.read(480).is_none());
-        assert_eq!(capture.buffer.lock().unwrap().len(), 40);
+        let underrun = capture.read(480);
+        assert_eq!(
+            &underrun[..40],
+            &(660..700).map(|sample| sample as f32).collect::<Vec<_>>()
+        );
+        assert!(underrun[40..].iter().all(|sample| *sample == 0.0));
+        assert_eq!(capture.buffer.lock().unwrap().len(), 0);
     }
 
     #[test]
@@ -626,7 +632,7 @@ mod tests {
             }
         }
 
-        let reference = capture.read(480).unwrap();
+        let reference = capture.read(480);
 
         assert_eq!(reference.first(), Some(&480.0));
         assert_eq!(reference.last(), Some(&959.0));
@@ -647,5 +653,20 @@ mod tests {
         assert_eq!(capture.buffer.lock().unwrap().len(), 0);
         assert_eq!(capture.take_failure_reason(), None);
         assert!(!capture.is_active());
+    }
+
+    #[test]
+    fn reference_underrun_advances_timeline_with_silence() {
+        let capture = LoopbackCapture::new();
+        {
+            let mut buffer = capture.buffer.lock().unwrap();
+            buffer.push(1.0).unwrap();
+            buffer.push(2.0).unwrap();
+        }
+
+        let reference = capture.read(4);
+
+        assert_eq!(reference, vec![1.0, 2.0, 0.0, 0.0]);
+        assert_eq!(capture.buffer.lock().unwrap().len(), 0);
     }
 }

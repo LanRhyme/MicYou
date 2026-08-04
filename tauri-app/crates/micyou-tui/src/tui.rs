@@ -49,6 +49,9 @@ pub struct TuiApp {
     pub muted: bool,
     pub web_clients: u32,
     pub settings: AudioDspSettings,
+    /// Runtime capability is transient and must never overwrite the persisted
+    /// AEC preference in `settings`.
+    pub aec_runtime_available: bool,
     pub selected_setting: usize,
     pub chain_index: usize,
     pub logs: VecDeque<String>,
@@ -100,6 +103,7 @@ impl TuiApp {
             level: 0,
             muted: false,
             web_clients: 0,
+            aec_runtime_available: true,
             settings,
             selected_setting: 0,
             chain_index: 0,
@@ -208,7 +212,7 @@ impl TuiApp {
             }
             Event::InstallProgress(msg) => self.log(format!("[inf] install: {msg}")),
             Event::AecStatus(status) => {
-                self.settings.aec_enabled = status.enabled;
+                self.aec_runtime_available = status.available;
                 if status.available && status.enabled {
                     self.log("[ok] AEC enabled".to_string());
                 } else if let Some(reason) = status.reason {
@@ -910,7 +914,7 @@ impl TuiApp {
             ListItem::new(Line::from(vec![
                 Span::raw(format!(" {}", self.t("aec"))),
                 Span::raw("  "),
-                badge(self.settings.aec_enabled),
+                badge(self.settings.aec_enabled && self.aec_runtime_available),
             ])),
             ListItem::new(Line::from(vec![
                 Span::raw(format!(" {}", self.t("noise_reduction"))),
@@ -1356,7 +1360,9 @@ fn handle_mouse(app: &mut TuiApp, mouse: MouseEvent, area: Rect, state: &ServerS
 
 fn toggle_setting(app: &mut TuiApp, idx: usize, state: &ServerState) {
     match idx {
-        1 => app.settings.aec_enabled = !app.settings.aec_enabled,
+        1 if app.aec_runtime_available => {
+            app.settings.aec_enabled = !app.settings.aec_enabled;
+        }
         2 => app.settings.ns_enabled = !app.settings.ns_enabled,
         3 => app.settings.dereverb_enabled = !app.settings.dereverb_enabled,
         4 => app.settings.agc_enabled = !app.settings.agc_enabled,
@@ -1518,4 +1524,28 @@ fn sync_chain(settings: &AudioDspSettings, state: &ServerState) {
 /// Persist the edited connection settings to the shared server.json.
 fn sync_server_prefs(app: &TuiApp) {
     let _ = tauri_app_lib::app_config::save_server_prefs(&app.prefs);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tauri_app_lib::events::AecStatus;
+
+    #[test]
+    fn runtime_failure_does_not_overwrite_aec_preference() {
+        let settings = AudioDspSettings {
+            aec_enabled: true,
+            ..Default::default()
+        };
+        let mut app = TuiApp::new(settings, 8554, "wifi".to_string());
+
+        app.on_event(Event::AecStatus(AecStatus {
+            available: false,
+            enabled: false,
+            reason: Some(micyou_audio::AecFailure::ReferenceLost),
+        }));
+
+        assert!(app.settings.aec_enabled);
+        assert!(!app.aec_runtime_available);
+    }
 }

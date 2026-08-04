@@ -13,3 +13,6 @@ version = "2.0.0"
 authors = ["LanRhyme"]
 edition = "2021"
 license = "GPL-3.0-only"
+
+[workspace.metadata.tools]
+cargo-about = "0.9.1"
