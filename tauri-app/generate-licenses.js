@@ -73,7 +73,10 @@ async function configuredCargoAboutVersion() {
 async function ensureCargoAbout() {
   const expected = await configuredCargoAboutVersion();
   const installed = await cargoAboutVersion();
-  if (installed === expected) return;
+  if (installed === expected) {
+    console.log(`[licenses] cargo-about ${installed} ready`);
+    return;
+  }
 
   console.log(
     installed
@@ -90,9 +93,11 @@ async function ensureCargoAbout() {
     'cli',
     '--force',
   ]);
+  console.log(`[licenses] cargo-about ${expected} installed`);
 }
 
 async function generateRustReport() {
+  console.log('[licenses] Generating Rust dependency report...');
   await ensureCargoAbout();
 
   await run('cargo', [
@@ -107,7 +112,9 @@ async function generateRustReport() {
     path.relative(appDir, outputFile),
   ]);
 
-  return readFile(outputFile, 'utf8');
+  const report = await readFile(outputFile, 'utf8');
+  console.log('[licenses] Rust dependency report generated');
+  return report;
 }
 
 async function readLicenseFiles(packageDirectory) {
@@ -151,6 +158,7 @@ async function generateNpmReport() {
   packages.sort((left, right) =>
     left.name.localeCompare(right.name) || left.version.localeCompare(right.version),
   );
+  console.log(`[licenses] Frontend production dependencies: ${packages.length}`);
 
   const rows = packages
     .map(
@@ -198,6 +206,7 @@ async function generateAssetReport() {
     }),
   );
 
+  console.log(`[licenses] Bundled asset licenses: ${assetLicenses.length}`);
   if (!assetLicenses.length) return '';
   return `<section class="asset-licenses">
   <div class="license-summary"><h3>${assetLicenses
@@ -222,3 +231,4 @@ const [rustReport, npmReport, assetReport] = await Promise.all([
   generateAssetReport(),
 ]);
 await writeFile(outputFile, `${assetReport}\n${npmReport}\n${rustReport}`);
+console.log(`[licenses] Report written to ${path.relative(appDir, outputFile)}`);
