@@ -258,11 +258,23 @@ jobs:
         cp "${deb_files[0]}" "ci-artifacts/MicYou-Linux-$VER.deb"
         cp "${rpm_files[0]}" "ci-artifacts/MicYou-Linux-$VER.rpm"
         cp "${appimage_files[0]}" "ci-artifacts/MicYou-Linux-$VER.AppImage"
-    - name: Upload Artifacts
+    - name: Upload DEB Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: MicYou-Linux-${{ steps.version.outputs.version }}
-        path: ci-artifacts/
+        name: MicYou-Linux-${{ steps.version.outputs.version }}-deb
+        path: ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.deb
+        if-no-files-found: error
+    - name: Upload RPM Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: MicYou-Linux-${{ steps.version.outputs.version }}-rpm
+        path: ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.rpm
+        if-no-files-found: error
+    - name: Upload AppImage Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: MicYou-Linux-${{ steps.version.outputs.version }}-appimage
+        path: ci-artifacts/MicYou-Linux-${{ steps.version.outputs.version }}.AppImage
         if-no-files-found: error
 
   # ----------------- 发布 Pre-release -----------------
