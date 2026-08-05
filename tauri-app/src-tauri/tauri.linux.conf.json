@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "title": "MicYou",
+        "width": 800,
+        "height": 600,
+        "decorations": false,
+        "resizable": false,
+        "transparent": false,
+        "shadow": false,
+        "backgroundColor": "#e8eaee"
+      }
+    ]
+  }
+}
