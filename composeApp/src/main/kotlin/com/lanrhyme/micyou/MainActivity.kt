@@ -1,6 +1,7 @@
 package com.lanrhyme.micyou
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -21,6 +22,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lanrhyme.micyou.audio.AudioEngine
+import com.lanrhyme.micyou.service.AudioService
 import com.lanrhyme.micyou.theme.isDarkThemeActive
 import com.lanrhyme.micyou.ui.dialog.getRequiredPermissions
 import com.lanrhyme.micyou.ui.dialog.hasAllRequiredPermissions
@@ -140,6 +143,19 @@ class MainActivity : ComponentActivity() {
         } else {
             // No permissions needed, mark as dismissed so first launch can show
             permissionDialogDismissed.value = true
+        }
+
+        // 打开 App 即常驻显示通知（未串流时为空闲前台服务）。
+        // 串流时 AudioEngine 会用 ACTION_START 升级为 mic 前台服务。
+        if (!AudioEngine.isStreaming()) {
+            try {
+                val idleIntent = Intent(this, AudioService::class.java).apply {
+                    action = AudioService.ACTION_START_IDLE
+                }
+                startForegroundService(idleIntent)
+            } catch (_: Exception) {
+                // 空闲保活失败不阻塞启动
+            }
         }
 
         setContent {
