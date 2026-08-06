@@ -72,6 +72,8 @@ pub async fn run(args: ServeArgs) -> Result<(), String> {
 
     let tui_result = crate::tui::run_tui(rx, state.clone(), port, mode);
     let _ = stop_server_inner(&state, events).await;
+    // Close the persistent virtual device (only on process exit).
+    tauri_app_lib::commands::system::shutdown_audio_output(state.as_ref());
     tauri_app_lib::mode_lock::release();
     tui_result
 }

@@ -301,6 +301,52 @@ async fn rollback_start(
 use crate::tray::{TrayContext, TrayMenuStrings, TrayState};
 use micyou_audio::dsp::DspProcessor;
 
+/// Normalize a raw persisted output-device value ("", "auto", "default" all
+/// mean "no explicit device") to the Option form used by the audio engine.
+pub fn normalize_output_device(raw: &str) -> Option<String> {
+    let d = raw.trim();
+    if d.is_empty() || d == "auto" || d == "default" {
+        None
+    } else {
+        Some(d.to_string())
+    }
+}
+
+/// Create and open the persistent audio output device (cpal stream, plus the
+/// PipeWire virtual sink/source on Linux). Idempotent: re-opening only happens
+/// if the stream is not already open, so repeated calls from app startup and
+/// server start are safe. Called at GUI startup and lazily from the audio
+/// thread on the first server start (CLI/TUI).
+pub fn ensure_audio_output_started(
+    audio_output: &std::sync::Arc<crate::audio_output::AudioOutputHandle>,
+    output_device: Option<String>,
+    output_buffer_ms: usize,
+    resource_dir: Option<&std::path::Path>,
+) -> bool {
+    // On Linux, create the PipeWire virtual sink/source before opening output.
+    #[cfg(target_os = "linux")]
+    {
+        if output_device.is_none() && crate::pipewire::is_available() && !crate::pipewire::is_setup()
+        {
+            if crate::pipewire::setup(resource_dir) {
+                log::info!("[PipeWire] Virtual device ready, ALSA will route to virtual sink");
+            } else {
+                log::warn!("[PipeWire] Setup failed, falling back to default device");
+            }
+        }
+    }
+
+    audio_output.ensure_open(output_device, output_buffer_ms)
+}
+
+/// Tear down the persistent audio output device. Only called when the process
+/// is exiting (GUI `RunEvent::Exit`, CLI/TUI shutdown), never on server stop.
+pub fn shutdown_audio_output(state: &ServerState) {
+    state.audio_output.shutdown();
+    #[cfg(target_os = "linux")]
+    crate::pipewire::cleanup();
+}
+
 #[derive(serde::Serialize, Clone)]
 pub struct SpectrumPayload {
     pub raw: Vec<f32>,
@@ -385,23 +431,6 @@ pub async fn start_server_inner(
     // startup. On a packaged deb this does NOT equal Tauri's resource_dir().
     let resource_root = find_resource_dir(resource_dir.as_deref());
 
-    // On Linux, set up PipeWire virtual audio device before starting audio output.
-    #[cfg(target_os = "linux")]
-    if output_device.is_none() {
-        if crate::pipewire::is_available() {
-            if !crate::pipewire::is_setup() {
-                log::info!("[PipeWire] Setting up virtual audio device...");
-                if crate::pipewire::setup(resource_root.as_deref()) {
-                    log::info!("[PipeWire] Virtual device ready, ALSA will route to virtual sink");
-                } else {
-                    log::warn!("[PipeWire] Setup failed, falling back to default device");
-                }
-            }
-        } else {
-            log::info!("[PipeWire] Not available, using default audio device");
-        }
-    }
-
     let resolved_output_device = output_device;
     // Bound queued latency: Android packets are ~7 ms, so 128 slots provide ample
     // scheduling headroom without retaining seconds of stale audio.
@@ -415,15 +444,24 @@ pub async fn start_server_inner(
     let is_monitoring_flag = state.is_monitoring.clone();
     let spectrum_streaming_enabled = state.spectrum_streaming_enabled.clone();
     let active_audio_session_audio = state.active_audio_session.clone();
+    // The audio output device is persistent (created at app startup or on the
+    // first server start) and shared across server restarts. The audio thread
+    // only pushes decoded PCM into it; it never owns or tears it down.
+    let audio_output_shared = state.audio_output.clone();
 
     let audio_thread = std::thread::spawn(move || {
-        let mut audio_manager = micyou_audio::AudioOutputManager::new();
-        if let Err(e) = audio_manager.start(resolved_output_device, output_buffer_ms) {
-            let _ = ready_tx.send(Err(e.to_string()));
-            return;
+        // Ensure the virtual device is open. This is normally a no-op (already
+        // opened at app startup); it also covers CLI/TUI first run and the rare
+        // case where opening failed earlier and a later attempt succeeds.
+        if !ensure_audio_output_started(
+            &audio_output_shared,
+            resolved_output_device,
+            output_buffer_ms,
+            resource_root.as_deref(),
+        ) {
+            eprintln!("[Audio] Output device unavailable; audio will be silent");
         }
         let _ = ready_tx.send(Ok(()));
-
         let mut dsp_processor = DspProcessor::new(dsp_settings.clone(), resource_root);
         let mut jb = crate::jitter_buffer::JitterBuffer::new(12);
         let mut frame_counter: u32 = 0;
@@ -431,6 +469,10 @@ pub async fn start_server_inner(
         let mut current_input_sample_rate: u32 = 0;
         let mut resample_out_buf = Vec::new();
         let mut pcm_f32 = Vec::new();
+        // Opus decoder is keyed by (sample_rate, channel_count); recreated whenever
+        // those change or a new transport session starts (stateful codec).
+        let mut opus_decoder: Option<(u32, usize, crate::opus::Decoder)> = None;
+        let mut opus_float_buf: Vec<f32> = Vec::new();
 
         // Speaker loopback capture for the AEC far-end reference. Windows uses
         // WASAPI loopback; Linux records the default physical playback sink.
@@ -514,7 +556,7 @@ pub async fn start_server_inner(
                     }));
                 }
                 Ok(event) => {
-                    audio_manager.set_monitoring(
+                    audio_output_shared.set_monitoring(
                         is_monitoring_flag.load(std::sync::atomic::Ordering::Relaxed),
                     );
                     match event {
@@ -524,6 +566,7 @@ pub async fn start_server_inner(
                                 lb.reset_session();
                             }
                             dsp_processor.reset_aec_session();
+                            opus_decoder = None;
                             if loopback.is_some() {
                                 restore_aec_runtime(
                                     &mut aec_runtime_available,
@@ -669,7 +712,7 @@ pub async fn start_server_inner(
                                     current_input_sample_rate = 48000;
                                 }
 
-                                let queued_samples = audio_manager.queued_samples();
+                                let queued_samples = audio_output_shared.queued_samples();
                                 let queued_ms = if channels > 0 {
                                     (queued_samples as f64 / channels as f64) / 48.0
                                 } else {
@@ -710,7 +753,8 @@ pub async fn start_server_inner(
                                     processed
                                 };
 
-                                audio_manager.push_audio_data(&pcm_f32, channels.max(1));
+                                audio_output_shared
+                                    .push(pcm_f32.clone(), channels.max(1));
 
                                 frame_counter = frame_counter.wrapping_add(1);
                                 if frame_counter.is_multiple_of(6) {
@@ -976,11 +1020,6 @@ pub async fn stop_server_inner(
     #[cfg(target_os = "macos")]
     {
         let _ = crate::blackhole::do_restore_input_device().await;
-    }
-    // Clean up PipeWire virtual devices on Linux
-    #[cfg(target_os = "linux")]
-    {
-        crate::pipewire::cleanup();
     }
     audio_result?;
     if had_token {

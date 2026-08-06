@@ -2,6 +2,7 @@
 
 pub mod adb_manager;
 pub mod app_config;
+pub mod audio_output;
 pub mod audio_stream;
 pub mod blackhole;
 pub mod commands;
@@ -9,6 +10,7 @@ pub mod events;
 pub mod jitter_buffer;
 pub mod mode_lock;
 pub mod network;
+pub mod opus;
 #[cfg(target_os = "linux")]
 pub mod pipewire;
 pub mod server;
@@ -77,6 +79,7 @@ pub fn run() {
             active_connection: Arc::new(Mutex::new(None)),
             takeover_lock: Arc::new(Mutex::new(())),
             active_audio_session: Arc::new(RwLock::new(Default::default())),
+            audio_output: crate::audio_output::AudioOutputHandle::spawn(),
             #[cfg(feature = "web-server")]
             web_server: Arc::new(Mutex::new(None)),
             #[cfg(feature = "web-server")]
@@ -111,6 +114,35 @@ pub fn run() {
             // Apply native macOS frosted glass vibrancy
             if let Some(win) = app.get_webview_window("main") {
                 apply_macos_vibrancy(&win);
+            }
+
+            // Create the virtual audio device at program startup (PipeWire
+            // virtual sink/source on Linux + the cpal output stream). It stays
+            // open until the app exits; phone connect/disconnect and server
+            // start/stop never tear it down.
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let state = handle.state::<server::ServerState>();
+                    let prefs = crate::app_config::load_server_prefs();
+                    let device =
+                        crate::commands::system::normalize_output_device(&prefs.output_device);
+                    let buffer_ms = state
+                        .dsp_settings
+                        .read()
+                        .map(|s| (s.output_buffer_ms as usize).clamp(100, 1200))
+                        .unwrap_or(800);
+                    let resource_dir = handle.path().resource_dir().ok();
+                    let started = crate::commands::system::ensure_audio_output_started(
+                        &state.audio_output,
+                        device,
+                        buffer_ms,
+                        resource_dir.as_deref(),
+                    );
+                    if started {
+                        log::info!("[Audio] Virtual device ready at app startup");
+                    }
+                });
             }
 
             Ok(())
@@ -159,6 +191,14 @@ pub fn run() {
             commands::get_server_prefs,
             commands::save_server_prefs,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // Tear down the persistent virtual audio device only when the
+            // process exits, never on server stop or connection close.
+            if let tauri::RunEvent::Exit = event {
+                let state = app_handle.state::<server::ServerState>();
+                commands::system::shutdown_audio_output(state.inner());
+            }
+        });
 }

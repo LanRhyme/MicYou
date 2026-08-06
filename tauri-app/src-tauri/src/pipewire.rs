@@ -124,6 +124,12 @@ fn find_alsa_config(resource_dir: Option<&std::path::Path>) -> Option<std::path:
     // Prefer the runtime resource directory resolved by Tauri (correct for both
     // development and packaged deb/appimage/app builds).
     if let Some(dir) = resource_dir {
+        // Packaged layout: resources live under <resource_dir>/resources.
+        let resources_path = dir.join("resources").join(relative_path);
+        if resources_path.exists() {
+            return Some(resources_path);
+        }
+        // Development layout: resources live directly under <resource_dir>.
         let res_path = dir.join(relative_path);
         if res_path.exists() {
             return Some(res_path.canonicalize().unwrap_or(res_path));

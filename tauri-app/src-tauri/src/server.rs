@@ -159,6 +159,11 @@ pub struct ServerState {
     pub active_connection: crate::tcp_server::SharedActiveConnection,
     pub takeover_lock: crate::tcp_server::SharedTakeoverLock,
     pub active_audio_session: crate::udp_server::SharedActiveAudioSession,
+    /// Persistent audio output device. A dedicated thread owns the cpal stream
+    /// for the whole process; it is opened at app startup (or lazily on the
+    /// first server start for CLI/TUI) and only closed when the process exits.
+    /// Server start/stop and phone connect/disconnect never tear it down.
+    pub audio_output: Arc<crate::audio_output::AudioOutputHandle>,
     #[cfg(feature = "web-server")]
     pub web_server: Arc<Mutex<Option<crate::web_server::WebServer>>>,
     #[cfg(feature = "web-server")]

@@ -523,6 +523,21 @@ impl AudioOutputManager {
         Ok(())
     }
 
+    /// Whether the cpal output stream is currently open.
+    pub fn is_open(&self) -> bool {
+        self.stream.is_some()
+    }
+
+    /// Close the output stream while keeping the instance alive so it can be
+    /// re-opened later. Used when the app process is exiting so the persistent
+    /// virtual device is torn down without dropping the whole manager.
+    pub fn close(&mut self) {
+        self.stop_monitor_loopback();
+        self.stream = None;
+        self.producer = None;
+        self.resampler = None;
+    }
+
     pub fn push_audio_data(&mut self, data: &[f32], input_channels: usize) {
         map_channels(
             data,
