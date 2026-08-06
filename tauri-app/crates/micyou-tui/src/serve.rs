@@ -55,8 +55,16 @@ pub async fn run(args: ServeArgs) -> Result<(), String> {
     let (tx, rx) = channel::<Event>();
     let events: Arc<dyn tauri_app_lib::events::ServerEvents> = Arc::new(TuiEventSink::new(tx));
 
-    if let Err(error) =
-        start_server_inner(&state, port, mode.clone(), bind, device, events.clone()).await
+    if let Err(error) = start_server_inner(
+        &state,
+        port,
+        mode.clone(),
+        bind,
+        device,
+        None,
+        events.clone(),
+    )
+    .await
     {
         tauri_app_lib::mode_lock::release();
         return Err(error);

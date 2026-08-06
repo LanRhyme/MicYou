@@ -39,7 +39,7 @@ pub fn virtual_sink_name() -> &'static str {
     SINK_NAME
 }
 
-pub fn setup() -> bool {
+pub fn setup(resource_dir: Option<&std::path::Path>) -> bool {
     if !cfg!(target_os = "linux") {
         log::warn!("[PipeWire] PipeWire virtual audio device only supports Linux");
         return false;
@@ -82,7 +82,7 @@ pub fn setup() -> bool {
     }
 
     // Set ALSA_CONFIG_PATH to redirect ALSA output to virtual sink
-    setup_alsa_config();
+    setup_alsa_config(resource_dir);
 
     let mut state = match STATE.lock() {
         Ok(s) => s,
@@ -101,9 +101,9 @@ pub fn setup() -> bool {
 
 /// Set up ALSA_CONFIG_PATH environment variable to redirect ALSA output to virtual sink.
 /// This is the key mechanism that makes cpal/ALSA route audio to the PipeWire virtual sink.
-fn setup_alsa_config() {
+fn setup_alsa_config(resource_dir: Option<&std::path::Path>) {
     // Find the bundled ALSA config file
-    let alsa_config = find_alsa_config();
+    let alsa_config = find_alsa_config(resource_dir);
     match alsa_config {
         Some(path) => {
             log::info!("[PipeWire] Setting ALSA_CONFIG_PATH={}", path.display());
@@ -118,8 +118,17 @@ fn setup_alsa_config() {
 }
 
 /// Find the bundled micyou-pipewire.conf file
-fn find_alsa_config() -> Option<std::path::PathBuf> {
+fn find_alsa_config(resource_dir: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
     let relative_path = "alsa/micyou-pipewire.conf";
+
+    // Prefer the runtime resource directory resolved by Tauri (correct for both
+    // development and packaged deb/appimage/app builds).
+    if let Some(dir) = resource_dir {
+        let res_path = dir.join(relative_path);
+        if res_path.exists() {
+            return Some(res_path.canonicalize().unwrap_or(res_path));
+        }
+    }
 
     // Try resources directory relative to executable
     if let Ok(exe_path) = std::env::current_exe() {
@@ -128,11 +137,6 @@ fn find_alsa_config() -> Option<std::path::PathBuf> {
             let resources_path = exe_dir.join("resources").join(relative_path);
             if resources_path.exists() {
                 return Some(resources_path);
-            }
-            // Check in ../lib/app/resources/ (for packaged apps)
-            let lib_path = exe_dir.join("../lib/app/resources").join(relative_path);
-            if lib_path.exists() {
-                return Some(lib_path.canonicalize().unwrap_or(lib_path));
             }
         }
     }

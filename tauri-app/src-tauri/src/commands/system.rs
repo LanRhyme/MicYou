@@ -212,10 +212,27 @@ fn should_capture_loopback(
     transport_active && audio_received && aec_enabled && runtime_available
 }
 
-fn find_model_dir() -> Option<std::path::PathBuf> {
-    const MODELS: [&str; 2] = ["purevox6.onnx", "aec7_ep0185.onnx"];
+/// Locate the directory containing MicYou's bundled runtime resources (ONNX
+/// models and the `alsa/` config). The path cannot be derived from
+/// `resource_dir()` alone on a packaged deb: the binary is installed as
+/// `/usr/bin/micyou-app` (Cargo package name) while the deb bundler places
+/// resources under `/usr/lib/<productName>/resources`, so the Tauri-resolved
+/// resource dir (`/usr/lib/<crate name>`) does not exist. We therefore probe a
+/// candidate list ending in a scan of `/usr/lib/*`.
+fn find_resource_dir(resource_dir: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+    const MARKERS: [&str; 2] = ["purevox6.onnx", "aec7_ep0185.onnx"];
 
-    let mut candidates = Vec::with_capacity(3);
+    let mut candidates = Vec::new();
+
+    // Runtime resource dir resolved by Tauri (correct in dev and when the
+    // binary name matches the product name).
+    if let Some(dir) = resource_dir {
+        candidates.push(dir.to_path_buf());
+        candidates.push(dir.join("resources"));
+    }
+
+    // Executable-relative (covers `cargo run`, `tauri dev` and installs where
+    // resources live next to the binary).
     if let Some(executable_dir) = std::env::current_exe()
         .ok()
         .and_then(|path| path.parent().map(std::path::Path::to_path_buf))
@@ -223,11 +240,25 @@ fn find_model_dir() -> Option<std::path::PathBuf> {
         candidates.push(executable_dir.clone());
         candidates.push(executable_dir.join("resources"));
     }
+
+    // Compile-time fallback for `cargo run` from the workspace.
     candidates.push(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources"));
+
+    // Packaged deb/appimage: resources live under /usr/lib/<productName>/resources,
+    // which does not always match the binary-derived resource_dir().
+    if let Ok(entries) = std::fs::read_dir("/usr/lib") {
+        for entry in entries.flatten() {
+            if let Ok(ft) = entry.file_type() {
+                if ft.is_dir() {
+                    candidates.push(entry.path().join("resources"));
+                }
+            }
+        }
+    }
 
     candidates
         .into_iter()
-        .find(|directory| MODELS.iter().any(|model| directory.join(model).exists()))
+        .find(|directory| MARKERS.iter().any(|model| directory.join(model).exists()))
 }
 
 async fn join_tasks_bounded(
@@ -286,13 +317,23 @@ pub async fn start_server(
     output_device: Option<String>,
 ) -> Result<String, String> {
     let events: crate::events::SharedEvents =
-        std::sync::Arc::new(crate::events::TauriEventSink(app_handle));
+        std::sync::Arc::new(crate::events::TauriEventSink(app_handle.clone()));
+    let resource_dir = app_handle.path().resource_dir().ok();
     // Reload shared settings.json before starting so CLI-side changes apply
     let file_settings = crate::app_config::load_dsp_settings();
     if let Ok(mut current) = state.dsp_settings.write() {
         *current = file_settings;
     }
-    start_server_inner(&state, port, mode, bind_address, output_device, events).await
+    start_server_inner(
+        &state,
+        port,
+        mode,
+        bind_address,
+        output_device,
+        resource_dir,
+        events,
+    )
+    .await
 }
 
 /// Core server startup, independent of the Tauri runtime.
@@ -303,6 +344,7 @@ pub async fn start_server_inner(
     mode: String,
     bind_address: Option<String>,
     output_device: Option<String>,
+    resource_dir: Option<std::path::PathBuf>,
     events: crate::events::SharedEvents,
 ) -> Result<String, String> {
     let udp_port = validate_server_port(port, &mode)?;
@@ -339,13 +381,17 @@ pub async fn start_server_inner(
         .map(|s| (s.output_buffer_ms as usize).clamp(100, 1200))
         .unwrap_or(800);
 
+    // Locate bundled resources (ONNX models + alsa config) once for the whole
+    // startup. On a packaged deb this does NOT equal Tauri's resource_dir().
+    let resource_root = find_resource_dir(resource_dir.as_deref());
+
     // On Linux, set up PipeWire virtual audio device before starting audio output.
     #[cfg(target_os = "linux")]
     if output_device.is_none() {
         if crate::pipewire::is_available() {
             if !crate::pipewire::is_setup() {
                 log::info!("[PipeWire] Setting up virtual audio device...");
-                if crate::pipewire::setup() {
+                if crate::pipewire::setup(resource_root.as_deref()) {
                     log::info!("[PipeWire] Virtual device ready, ALSA will route to virtual sink");
                 } else {
                     log::warn!("[PipeWire] Setup failed, falling back to default device");
@@ -378,7 +424,7 @@ pub async fn start_server_inner(
         }
         let _ = ready_tx.send(Ok(()));
 
-        let mut dsp_processor = DspProcessor::new(dsp_settings.clone(), find_model_dir());
+        let mut dsp_processor = DspProcessor::new(dsp_settings.clone(), resource_root);
         let mut jb = crate::jitter_buffer::JitterBuffer::new(12);
         let mut frame_counter: u32 = 0;
         let mut input_resampler: Option<micyou_audio::RubatoResampler> = None;
