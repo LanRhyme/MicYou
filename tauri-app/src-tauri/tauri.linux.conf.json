@@ -4,10 +4,8 @@
     "windows": [
       {
         "title": "MicYou",
-        "width": 800,
-        "height": 600,
         "decorations": false,
-        "resizable": false,
+        "resizable": true,
         "transparent": false,
         "shadow": false,
         "backgroundColor": "#e8eaee"
