@@ -44,4 +44,8 @@ message AudioPacketMessage {
     int32 sampleRate = 2;
     int32 channelCount = 3;
     int32 audioFormat = 4;
+    // Codec of the buffer: 0 = raw PCM (legacy default), 1 = Opus.
+    // Opus payloads carry compressed audio; audioFormat still describes
+    // the originating capture format for telemetry but is not used to decode.
+    int32 codec = 5;
 }

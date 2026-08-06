@@ -112,6 +112,7 @@ dependencies {
     implementation(libs.filekit.core)
     implementation(libs.filekit.dialogs.compose)
     implementation(libs.materialKolor)
+    implementation(libs.concentus)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

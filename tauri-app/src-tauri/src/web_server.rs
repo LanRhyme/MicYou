@@ -308,6 +308,7 @@ async fn handle_ws_socket(
                     sample_rate: 48000,
                     channel_count: 1,
                     audio_format: 2,
+                    codec: micyou_protocol::CODEC_PCM,
                 };
                 match state.audio_tx.try_send((generation, packet)) {
                     Ok(()) | Err(tokio::sync::mpsc::error::TrySendError::Full(_)) => {}

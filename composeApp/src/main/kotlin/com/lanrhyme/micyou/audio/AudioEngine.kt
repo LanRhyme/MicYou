@@ -42,6 +42,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.protobuf.ProtoBuf
+import io.github.jaredmdobson.concentus.OpusApplication
+import io.github.jaredmdobson.concentus.OpusEncoder
 import java.io.EOFException
 import java.io.OutputStream
 import java.net.DatagramPacket
@@ -53,11 +55,13 @@ import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
+import kotlin.math.roundToInt
 import com.lanrhyme.micyou.audio.AndroidAudioSource
 import com.lanrhyme.micyou.audio.AudioLevelData
 import com.lanrhyme.micyou.audio.AudioMetrics
 import com.lanrhyme.micyou.network.AudioPacketMessage
 import com.lanrhyme.micyou.network.AudioPacketMessageOrdered
+import com.lanrhyme.micyou.network.CODEC_OPUS
 import com.lanrhyme.micyou.network.ConnectMessage
 import com.lanrhyme.micyou.network.calculateUdpPort
 import com.lanrhyme.micyou.network.MessageWrapper
@@ -88,6 +92,9 @@ internal suspend fun awaitJobWithin(job: Job, timeoutMs: Long): Boolean =
     } == true
 
 internal enum class AudioReadStatus { Data, Waiting, Failed, Stalled }
+
+/** libopus 支持的采样率；44.1kHz 不在其中，捕获时会映射到 48kHz。 */
+private val OPUS_SAMPLE_RATES = intArrayOf(8000, 12000, 16000, 24000, 48000)
 
 internal fun classifyAudioRead(
     readCount: Int,
@@ -532,6 +539,9 @@ class AudioEngine constructor() {
                             throw CancellationException("Audio session superseded before initialization")
                         }
                         val androidSampleRate = sampleRate.value
+                        // Opus 编码器仅支持 8/12/16/24/48kHz；把 44.1kHz 采集映射到 48kHz，
+                        // 保证线上 codec 始终合法（44.1kHz 单独配置的用户极少）。
+                        val opusSampleRate = if (androidSampleRate in OPUS_SAMPLE_RATES) androidSampleRate else 48000
                         val androidChannelConfig = if (channelCount == ChannelCount.Stereo) 
                             android.media.AudioFormat.CHANNEL_IN_STEREO 
                         else 
@@ -546,7 +556,7 @@ class AudioEngine constructor() {
                         }
                         val androidAudioFormat = resolvedAudioFormat.androidEncoding
                         val wireAudioFormat = resolvedAudioFormat.wireFormat
-                        val minBufSize = AudioRecord.getMinBufferSize(androidSampleRate, androidChannelConfig, androidAudioFormat)
+                        val minBufSize = AudioRecord.getMinBufferSize(opusSampleRate, androidChannelConfig, androidAudioFormat)
 
                         if (minBufSize <= 0 || minBufSize == AudioRecord.ERROR || minBufSize == AudioRecord.ERROR_BAD_VALUE) {
                             val msg = String.format(getString(R.string.errorAudioFormatNotSupported), audioFormat.label, androidAudioFormat.toString(), androidSampleRate)
@@ -570,7 +580,7 @@ class AudioEngine constructor() {
                                 try {
                                     AudioRecord(
                                         sourceId,
-                                        androidSampleRate,
+                                        opusSampleRate,
                                         androidChannelConfig,
                                         androidAudioFormat,
                                         minBufSize * 3
@@ -579,7 +589,7 @@ class AudioEngine constructor() {
                                     Logger.w("AudioEngine", "${audioSource.name} failed, falling back to MIC: ${e.message}")
                                     AudioRecord(
                                         MediaRecorder.AudioSource.MIC,
-                                        androidSampleRate,
+                                        opusSampleRate,
                                         androidChannelConfig,
                                         androidAudioFormat,
                                         minBufSize * 3
@@ -834,6 +844,17 @@ class AudioEngine constructor() {
                         val readBufSize = minOf(minBufSize, alignedPayloadSize).coerceAtLeast(frameAlignBytes)
                         val buffer = ByteArray(readBufSize)
                         val floatBuffer = if (androidAudioFormat == android.media.AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
+
+                        // Opus 编码：固定 20ms 帧。AudioRecord 返回的块大小任意，
+                        // 先把 PCM 转成 Short 累积到 opusPcmAccumulator，凑满一帧再编码发送。
+                        val opusChannels = if (channelCount == ChannelCount.Stereo) 2 else 1
+                        val opusFrameSamples = (opusSampleRate * 20) / 1000
+                        val opusEncoder = OpusEncoder(opusSampleRate, opusChannels, OpusApplication.OPUS_APPLICATION_VOIP)
+                        val opusEncodedBuf = ByteArray(4000) // Concentus 要求输出缓冲区至少 4000 字节
+                        val pcmShortBuf = ShortArray((readBufSize / 2).coerceAtLeast(1) + 8)
+                        val opusPcmAccumulator = ShortArray(opusFrameSamples * opusChannels * 2)
+                        var opusPendingSamples = 0
+
                         var sequenceNumber = 0
                         var fecGroupBuffer = mutableListOf<ByteArray>()
                         var fecGroupStartSeq = 0
@@ -883,60 +904,86 @@ class AudioEngine constructor() {
                                 _audioLevelData.value = levelData
 
                                 if (!_isMuted.value) {
-                                    val packet = AudioPacketMessage(
-                                        buffer = audioData,
-                                        sampleRate = androidSampleRate,
-                                        channelCount = if (channelCount == ChannelCount.Stereo) 2 else 1,
-                                        audioFormat = wireAudioFormat.value
-                                    )
-                                    val wrapper = MessageWrapper(
-                                        audioPacket = AudioPacketMessageOrdered(
-                                            sequenceNumber = sequenceNumber++,
-                                            audioPacket = packet,
-                                            timestamp = System.currentTimeMillis(),
-                                            sessionId = sessionId
-                                        )
-                                    )
-
-                                    val localUdpSocket = sessionUdpSocket
-                                    val localUdpAddress = sessionUdpAddress
-                                    if (localUdpSocket != null && localUdpAddress != null) {
-                                        sessionUdpConsecutiveFailures = sendAudioPacketViaUdp(wrapper, localUdpSocket, localUdpAddress, sessionUdpConsecutiveFailures)
-
-                                        // FEC: 收集音频 buffer，满一组后生成 FEC 包
-                                        fecGroupBuffer.add(audioData)
-                                        if (fecGroupBuffer.size >= FEC_GROUP_SIZE) {
-                                            val xorResult = xorBuffers(fecGroupBuffer)
-                                            val fecPacket = AudioPacketMessage(
-                                                buffer = xorResult,
-                                                sampleRate = androidSampleRate,
-                                                channelCount = if (channelCount == ChannelCount.Stereo) 2 else 1,
-                                                audioFormat = wireAudioFormat.value
-                                            )
-                                            val fecWrapper = MessageWrapper(
-                                                audioPacket = AudioPacketMessageOrdered(
-                                                    // FEC is out-of-band: it may share the next regular
-                                                    // sequence number, but must not create a gap in audio.
-                                                    sequenceNumber = sequenceNumber,
-                                                    audioPacket = fecPacket,
-                                                    timestamp = System.currentTimeMillis(),
-                                                    // Non-empty marker disambiguates group zero from proto3's
-                                                    // omitted/default fecSequenceNumber on regular packets.
-                                                    fecBuffer = byteArrayOf(1),
-                                                    fecSequenceNumber = fecGroupStartSeq,
-                                                    sessionId = sessionId,
-                                                    // AudioRecord.READ_NON_BLOCKING may return short chunks.
-                                                    // Preserve each source length so recovery can remove XOR zero-padding.
-                                                    fecPacketLengths = fecGroupBuffer.map { it.size }
-                                                )
-                                            )
-                                            sessionUdpConsecutiveFailures = sendAudioPacketViaUdp(fecWrapper, localUdpSocket, localUdpAddress, sessionUdpConsecutiveFailures)
-                                            fecGroupBuffer = mutableListOf()
-                                            fecGroupStartSeq = sequenceNumber
-                                        }
-                                    } else {
-                                        channel.send(wrapper)
+                                    // 把采集到的 PCM（8bit/16bit/float）统一转成 16-bit Short 并累积。
+                                    val shortsIn = convertPcmToShort(audioData, resolvedAudioFormat.captureFormat, pcmShortBuf)
+                                    var idx = 0
+                                    while (idx < shortsIn && opusPendingSamples < opusPcmAccumulator.size) {
+                                        opusPcmAccumulator[opusPendingSamples++] = pcmShortBuf[idx++]
                                     }
+
+                                    // 每凑满 20ms 帧就编码并发送一个 Opus 包。
+                                    val frameSizePerChannel = opusFrameSamples * opusChannels
+                                    while (opusPendingSamples >= frameSizePerChannel) {
+                                        val encodedLen = opusEncoder.encode(opusPcmAccumulator, 0, opusFrameSamples, opusEncodedBuf, 0, opusEncodedBuf.size)
+                                        val encoded = opusEncodedBuf.copyOf(encodedLen)
+
+                                        // 紧凑剩余未编码的 PCM，为下一帧腾出头部空间。
+                                        val remaining = opusPendingSamples - frameSizePerChannel
+                                        if (remaining > 0) {
+                                            System.arraycopy(opusPcmAccumulator, frameSizePerChannel, opusPcmAccumulator, 0, remaining)
+                                        }
+                                        opusPendingSamples = remaining
+
+                                        val packet = AudioPacketMessage(
+                                            buffer = encoded,
+                                            sampleRate = opusSampleRate,
+                                            channelCount = opusChannels,
+                                            audioFormat = wireAudioFormat.value,
+                                            codec = CODEC_OPUS
+                                        )
+                                        val wrapper = MessageWrapper(
+                                            audioPacket = AudioPacketMessageOrdered(
+                                                sequenceNumber = sequenceNumber++,
+                                                audioPacket = packet,
+                                                timestamp = System.currentTimeMillis(),
+                                                sessionId = sessionId
+                                            )
+                                        )
+
+                                        val localUdpSocket = sessionUdpSocket
+                                        val localUdpAddress = sessionUdpAddress
+                                        if (localUdpSocket != null && localUdpAddress != null) {
+                                            sessionUdpConsecutiveFailures = sendAudioPacketViaUdp(wrapper, localUdpSocket, localUdpAddress, sessionUdpConsecutiveFailures)
+
+                                            // FEC: 收集 Opus 编码包，满一组后生成 FEC 包。XOR 与编码无关，
+                                            // 且 fecPacketLengths 保留每个包的原始长度以处理变长 Opus 包。
+                                            fecGroupBuffer.add(encoded)
+                                            if (fecGroupBuffer.size >= FEC_GROUP_SIZE) {
+                                                val xorResult = xorBuffers(fecGroupBuffer)
+                                                val fecPacket = AudioPacketMessage(
+                                                    buffer = xorResult,
+                                                    sampleRate = opusSampleRate,
+                                                    channelCount = opusChannels,
+                                                    audioFormat = wireAudioFormat.value,
+                                                    codec = CODEC_OPUS
+                                                )
+                                                val fecWrapper = MessageWrapper(
+                                                    audioPacket = AudioPacketMessageOrdered(
+                                                        // FEC is out-of-band: it may share the next regular
+                                                        // sequence number, but must not create a gap in audio.
+                                                        sequenceNumber = sequenceNumber,
+                                                        audioPacket = fecPacket,
+                                                        timestamp = System.currentTimeMillis(),
+                                                        // Non-empty marker disambiguates group zero from proto3's
+                                                        // omitted/default fecSequenceNumber on regular packets.
+                                                        fecBuffer = byteArrayOf(1),
+                                                        fecSequenceNumber = fecGroupStartSeq,
+                                                        sessionId = sessionId,
+                                                        // Opus 包长度可变；保留每个原始长度以便 XOR 恢复时去除零填充。
+                                                        fecPacketLengths = fecGroupBuffer.map { it.size }
+                                                    )
+                                                )
+                                                sessionUdpConsecutiveFailures = sendAudioPacketViaUdp(fecWrapper, localUdpSocket, localUdpAddress, sessionUdpConsecutiveFailures)
+                                                fecGroupBuffer = mutableListOf()
+                                                fecGroupStartSeq = sequenceNumber
+                                            }
+                                        } else {
+                                            channel.send(wrapper)
+                                        }
+                                    }
+                                } else {
+                                    // 静音时丢弃累积的 PCM，避免恢复后把静音前的残留音频发出去。
+                                    opusPendingSamples = 0
                                 }
                             }
                         }
@@ -1083,6 +1130,43 @@ class AudioEngine constructor() {
         }
     }
     
+    /**
+     * 把任意采集格式的 PCM 字节转成 16-bit LE Short（Opus 编码输入格式）。
+     * @return 写入 out 的 sample 数量
+     */
+    private fun convertPcmToShort(data: ByteArray, format: AudioFormat, out: ShortArray): Int {
+        return when (format) {
+            AudioFormat.PCM_FLOAT -> {
+                val fb = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+                var n = 0
+                while (n < fb.limit() && n < out.size) {
+                    out[n] = (fb.get(n) * 32767.0f).roundToInt().coerceIn(-32768, 32767).toShort()
+                    n++
+                }
+                n
+            }
+            AudioFormat.PCM_8BIT -> {
+                var n = 0
+                while (n < data.size && n < out.size) {
+                    val v = (data[n].toInt() and 0xff) - 128
+                    out[n] = (v * 256).toShort()
+                    n++
+                }
+                n
+            }
+            AudioFormat.PCM_16BIT -> {
+                val n = minOf(data.size / 2, out.size)
+                var i = 0
+                while (i < n) {
+                    out[i] = ((data[i * 2 + 1].toInt() shl 8) or (data[i * 2].toInt() and 0xff)).toShort()
+                    i++
+                }
+                n
+            }
+            AudioFormat.PCM_24BIT -> 0 // 采集时已回退为 PCM16，实际不可达
+        }
+    }
+
     /**
      * XOR 多个 buffer（处理不同长度：以最长的为准，短的用 0 填充）
      */

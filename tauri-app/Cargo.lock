@@ -3392,6 +3392,7 @@ dependencies = [
  "micyou-audio",
  "micyou-protocol",
  "objc",
+ "opus-decoder",
  "prost",
  "rcgen",
  "reqwest",
@@ -4108,6 +4109,15 @@ name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
+name = "opus-decoder"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15ae32c275dabb0cd2c863460bf349e9abc3568ba2abf0f9eb7b7d2edeeed07e"
+dependencies = [
+ "thiserror 2.0.18",
+]
 
 [[package]]
 name = "ordered-stream"

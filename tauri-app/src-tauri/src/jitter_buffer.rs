@@ -19,6 +19,7 @@ struct PlayedPacketReference {
     sample_rate: i32,
     channel_count: i32,
     audio_format: i32,
+    codec: i32,
 }
 
 struct PlayedFecGroup {
@@ -331,6 +332,7 @@ impl JitterBuffer {
                     sample_rate: audio.sample_rate,
                     channel_count: audio.channel_count,
                     audio_format: audio.audio_format,
+                    codec: audio.codec,
                 },
             });
         if !group.sequences.insert(packet.sequence_number) {
@@ -400,6 +402,7 @@ impl JitterBuffer {
                 sample_rate: played.reference.sample_rate,
                 channel_count: played.reference.channel_count,
                 audio_format: played.reference.audio_format,
+                codec: played.reference.codec,
             });
         }
         for seq in group_start..group_end {
@@ -422,6 +425,7 @@ impl JitterBuffer {
                 sample_rate: audio.sample_rate,
                 channel_count: audio.channel_count,
                 audio_format: audio.audio_format,
+                codec: audio.codec,
             });
         }
         if received != self.fec_group_size.saturating_sub(1) as usize {
@@ -456,6 +460,7 @@ impl JitterBuffer {
                 sample_rate: reference.sample_rate,
                 channel_count: reference.channel_count,
                 audio_format: reference.audio_format,
+                codec: reference.codec,
             }),
         })
     }
@@ -483,6 +488,7 @@ mod tests {
                 sample_rate: 48_000,
                 channel_count: 1,
                 audio_format: 2,
+                codec: micyou_protocol::CODEC_PCM,
             }),
             timestamp: 0,
             fec_buffer: Vec::new(),

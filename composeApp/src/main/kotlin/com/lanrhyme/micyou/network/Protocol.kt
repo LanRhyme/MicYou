@@ -24,7 +24,11 @@ data class AudioPacketMessage(
     @ProtoNumber(3)
     val channelCount: Int,
     @ProtoNumber(4)
-    val audioFormat: Int
+    val audioFormat: Int,
+    // 0 = PCM（旧版默认），1 = Opus。Opus 载荷为压缩音频，
+    // audioFormat 仍描述采集格式仅供遥测，解码不依赖它。
+    @ProtoNumber(5)
+    val codec: Int = 0
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -36,6 +40,7 @@ data class AudioPacketMessage(
         if (sampleRate != other.sampleRate) return false
         if (channelCount != other.channelCount) return false
         if (audioFormat != other.audioFormat) return false
+        if (codec != other.codec) return false
 
         return true
     }
@@ -45,6 +50,7 @@ data class AudioPacketMessage(
         result = 31 * result + sampleRate
         result = 31 * result + channelCount
         result = 31 * result + audioFormat
+        result = 31 * result + codec
         return result
     }
 }
@@ -103,6 +109,10 @@ const val UDP_CUSTOM_HEADER_SIZE = 8
 const val UDP_MAX_DATAGRAM_SIZE = 1472
 // 为自定义头、嵌套 protobuf、64 位字段及 FEC 长度元数据预留最坏情况预算。
 const val UDP_PCM_PAYLOAD_SIZE = 1320
+
+/** 音频 buffer 编码：0 = PCM（旧版默认），1 = Opus */
+const val CODEC_PCM = 0
+const val CODEC_OPUS = 1
 
 /** UDP 端口 = TCP 端口 + 1 */
 const val UDP_PORT_OFFSET = 1

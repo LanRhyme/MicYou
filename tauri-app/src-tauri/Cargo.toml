@@ -41,6 +41,9 @@ prost = "0.14.3"
 # Audio device enumeration
 cpal = "0.15.3"
 
+# Opus decode (pure Rust, RFC 8251, no FFI)
+opus-decoder = "0.1.1"
+
 # Networking
 mdns-sd = "0.20.0"
 hostname = "0.4.2"

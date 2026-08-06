@@ -547,50 +547,90 @@ pub async fn start_server_inner(
 
                     for ordered_packet in packets {
                         if let Some(audio_data) = ordered_packet.audio_packet {
-                            let capacity = match audio_data.audio_format {
-                                2 => audio_data.buffer.len() / 2,
-                                3 => audio_data.buffer.len(),
-                                4 => audio_data.buffer.len() / 4,
-                                6 => audio_data.buffer.len() / 3,
-                                _ => 0,
-                            };
-                            pcm_f32.clear();
-                            pcm_f32.reserve(capacity);
-                            match audio_data.audio_format {
-                                2 => {
-                                    for chunk in audio_data.buffer.chunks_exact(2) {
-                                        let sample_i16 = i16::from_le_bytes([chunk[0], chunk[1]]);
-                                        pcm_f32.push(sample_i16 as f32 / 32768.0);
+                            if audio_data.codec == micyou_protocol::CODEC_OPUS {
+                                // Opus decode: reorder on flags/sample-rate changes, then
+                                // decode directly into f32 so it feeds the DSP chain intact.
+                                let channels = audio_data.channel_count as usize;
+                                let sample_rate = audio_data.sample_rate as u32;
+                                let needs_decoder = match &opus_decoder {
+                                    Some((sr, ch, _)) => *sr != sample_rate || *ch != channels,
+                                    None => true,
+                                };
+                                if needs_decoder {
+                                    let created = crate::opus::Channels::from_channel_count(channels)
+                                        .and_then(|ch| crate::opus::Decoder::new(sample_rate, ch).ok());
+                                    opus_decoder = created.map(|dec| (sample_rate, channels, dec));
+                                    if opus_decoder.is_none() {
+                                        eprintln!(
+                                            "[Audio] Failed to create Opus decoder for {}Hz/{}ch",
+                                            sample_rate, channels
+                                        );
                                     }
                                 }
-                                3 => {
-                                    for &byte in &audio_data.buffer {
-                                        let sample_f32 = (byte as f32 - 128.0) / 128.0;
-                                        pcm_f32.push(sample_f32);
+                                if let Some((_, _, decoder)) = opus_decoder.as_mut() {
+                                    let target_frames = (sample_rate as usize / 50) * channels; // 20ms
+                                    if opus_float_buf.len() != target_frames {
+                                        opus_float_buf.resize(target_frames, 0.0);
                                     }
-                                }
-                                4 => {
-                                    for chunk in audio_data.buffer.chunks_exact(4) {
-                                        let sample_f32 = f32::from_le_bytes([
-                                            chunk[0], chunk[1], chunk[2], chunk[3],
-                                        ]);
-                                        pcm_f32.push(sample_f32);
+                                    match decoder.decode_float(&audio_data.buffer, &mut opus_float_buf) {
+                                        Ok(frames) => {
+                                            pcm_f32.clear();
+                                            pcm_f32.extend_from_slice(&opus_float_buf[..frames * channels]);
+                                        }
+                                        Err(e) => {
+                                            eprintln!("[Audio] Opus decode error: {}", e);
+                                            pcm_f32.clear();
+                                        }
                                     }
+                                } else {
+                                    pcm_f32.clear();
                                 }
-                                6 => {
-                                    for chunk in audio_data.buffer.chunks_exact(3) {
-                                        let sample24 = (chunk[0] as i32)
-                                            | ((chunk[1] as i32) << 8)
-                                            | ((chunk[2] as i8 as i32) << 16);
-                                        let sample_f32 = (sample24 as f32) / 8388608.0;
-                                        pcm_f32.push(sample_f32);
+                            } else {
+                                let capacity = match audio_data.audio_format {
+                                    2 => audio_data.buffer.len() / 2,
+                                    3 => audio_data.buffer.len(),
+                                    4 => audio_data.buffer.len() / 4,
+                                    6 => audio_data.buffer.len() / 3,
+                                    _ => 0,
+                                };
+                                pcm_f32.clear();
+                                pcm_f32.reserve(capacity);
+                                match audio_data.audio_format {
+                                    2 => {
+                                        for chunk in audio_data.buffer.chunks_exact(2) {
+                                            let sample_i16 = i16::from_le_bytes([chunk[0], chunk[1]]);
+                                            pcm_f32.push(sample_i16 as f32 / 32768.0);
+                                        }
                                     }
-                                }
-                                _ => {
-                                    eprintln!(
-                                        "Unsupported audio format: {}",
-                                        audio_data.audio_format
-                                    );
+                                    3 => {
+                                        for &byte in &audio_data.buffer {
+                                            let sample_f32 = (byte as f32 - 128.0) / 128.0;
+                                            pcm_f32.push(sample_f32);
+                                        }
+                                    }
+                                    4 => {
+                                        for chunk in audio_data.buffer.chunks_exact(4) {
+                                            let sample_f32 = f32::from_le_bytes([
+                                                chunk[0], chunk[1], chunk[2], chunk[3],
+                                            ]);
+                                            pcm_f32.push(sample_f32);
+                                        }
+                                    }
+                                    6 => {
+                                        for chunk in audio_data.buffer.chunks_exact(3) {
+                                            let sample24 = (chunk[0] as i32)
+                                                | ((chunk[1] as i32) << 8)
+                                                | ((chunk[2] as i8 as i32) << 16);
+                                            let sample_f32 = (sample24 as f32) / 8388608.0;
+                                            pcm_f32.push(sample_f32);
+                                        }
+                                    }
+                                    _ => {
+                                        eprintln!(
+                                            "Unsupported audio format: {}",
+                                            audio_data.audio_format
+                                        );
+                                    }
                                 }
                             }
                             if !pcm_f32.is_empty() {
