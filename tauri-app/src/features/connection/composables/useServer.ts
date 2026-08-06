@@ -209,7 +209,9 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
       serverState.value = 'starting';
       activeConnectionMode.value = mode;
       activePort.value = port;
-      const bindAddress = isAutoBind.value ? null : selectedIp.value;
+      // USB mode goes through adb reverse which forwards to 127.0.0.1, so the
+      // server must listen on all interfaces regardless of the selected IP.
+      const bindAddress = mode === 'usb' ? null : isAutoBind.value ? null : selectedIp.value;
       await invoke('start_server', {
         port,
         mode,
@@ -313,7 +315,11 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
         activeConnectionMode.value = null;
         activePort.value = null;
         if (options?.audioLevel) options.audioLevel.value = 0;
-        const bindAddress = isAutoBind.value ? null : selectedIp.value;
+        const bindAddress = activeConnectionMode.value === 'usb'
+          ? null
+          : isAutoBind.value
+            ? null
+            : selectedIp.value;
         activeConnectionMode.value = connectionMode.value;
         activePort.value = connectionMode.value === 'web' ? Number(webPort.value) : Number(serverPort.value);
         await invoke('start_server', {
@@ -369,7 +375,8 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
       serverState.value = 'starting';
       activeConnectionMode.value = 'usb';
       activePort.value = pendingUsbPort.value;
-      const bindAddress = isAutoBind.value ? null : selectedIp.value;
+      // USB mode requires 0.0.0.0 so the adb-reverse 127.0.0.1 target works.
+      const bindAddress = null;
       await invoke('start_server', {
         port: activePort.value,
         mode: activeConnectionMode.value,
