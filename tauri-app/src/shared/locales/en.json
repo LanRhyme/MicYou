@@ -88,7 +88,8 @@
       "appearance": "Appearance",
       "audio": "Audio",
       "network": "Network",
-      "about": "About"
+      "about": "About",
+      "plugins": "Plugins"
     },
     "language": {
       "title": "Language",
@@ -232,7 +233,8 @@
       "Amplifier": "Amplifier (Gain)",
       "AGC": "Auto Gain Control",
       "VAD": "Voice Activity Detection",
-      "Equalizer": "Equalizer (EQ)"
+      "Equalizer": "Equalizer (EQ)",
+      "Plugins": "Plugins"
     },
     "equalizer": {
       "title": "Equalizer",
@@ -521,5 +523,59 @@
     "adminRequired": "Administrator privileges required. Please approve the UAC prompt.",
     "timeout": "Installation timed out. Please try again.",
     "retry": "Retry"
+  },
+  "plugins": {
+    "title": "Plugins",
+    "desc": "Extend MicYou with native or WASM plugins",
+    "refresh": "Refresh",
+    "loading": "Loading plugins…",
+    "noPlugins": "No plugins installed yet",
+    "openDir": "Open plugins folder",
+    "installHint": "Drop a plugin folder or .zip into the plugins folder, then refresh",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "uninstall": "Uninstall",
+    "logs": "Logs",
+    "noLogs": "No logs yet",
+    "config": "Configuration",
+    "configSaved": "Saved",
+    "save": "Save",
+    "inChain": "in DSP chain",
+    "sync": {
+      "connected": "Device connected",
+      "disconnected": "No device",
+      "tip": "Cross-device plugin sync status: shows when a phone/device is connected over the control channel"
+    },
+    "kind": {
+      "dsp": "DSP",
+      "utility": "Utility",
+      "ui": "UI Panel",
+      "bridge": "Bridge"
+    },
+    "import": "Import .zip",
+    "importing": "Importing…",
+    "installHintDir": "Or drop a plugin folder into the plugins folder",
+    "soundpad": "Soundpad",
+    "soundpadEmpty": "Add sounds to plugin config to show buttons",
+    "openWindow": "Open in window",
+    "checkUpdates": "Check updates",
+    "updating": "Updating…",
+    "updateNow": "Update",
+    "market": "Plugin Market",
+    "marketTitle": "Plugin Market",
+    "marketLoading": "Loading market catalog…",
+    "marketEmpty": "No plugins in the market yet",
+    "marketFailed": "Failed to load market: {error}",
+    "marketInstall": "Install",
+    "marketInstalling": "Installing…",
+    "marketInstalled": "Installed",
+    "marketConfirm": "This plugin requests the following capabilities",
+    "marketConfirmText": "Installing means you trust the plugin author. Please verify the source.",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "search": "Search plugins",
+    "uninstallConfirm": "Uninstall {name}?",
+    "marketSearch": "Search plugin market",
+    "marketAll": "All"
   }
 }

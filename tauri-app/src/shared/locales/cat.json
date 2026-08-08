@@ -86,7 +86,8 @@
       "appearance": "外观设置喵~ ✨",
       "audio": "音频设置喵~ 🎵",
       "network": "网络设置喵~",
-      "about": "关于喵~ (´,,•ω•,,)"
+      "about": "关于喵~ (´,,•ω•,,)",
+      "plugins": "喵插件"
     },
     "language": {
       "title": "语言喵~",
@@ -230,7 +231,8 @@
       "Amplifier": "放大器（增益）喵~",
       "AGC": "自动增益喵~",
       "VAD": "语音检测喵~",
-      "Equalizer": "均衡器（EQ）喵~ 🎵"
+      "Equalizer": "均衡器（EQ）喵~ 🎵",
+      "Plugins": "喵插件"
     },
     "equalizer": {
       "title": "均衡器喵~ 🎵",
@@ -519,5 +521,59 @@
     "adminRequired": "需要管理员权限喵~请批准 UAC 提示喵~",
     "timeout": "安装超时喵~请重试喵~ (´・ω・`)",
     "retry": "重试喵~"
+  },
+  "plugins": {
+    "title": "喵插件",
+    "desc": "用原生或 WASM 喵插件扩展 MicYou 喵",
+    "refresh": "刷新喵",
+    "loading": "正在加载喵插件…",
+    "noPlugins": "还没有喵插件喵",
+    "openDir": "打开喵插件目录",
+    "installHint": "把喵插件文件夹或 .zip 放进来，然后刷新喵",
+    "enabled": "已启用喵",
+    "disabled": "已禁用喵",
+    "uninstall": "卸载喵",
+    "logs": "日志喵",
+    "noLogs": "暂无日志喵",
+    "config": "配置喵",
+    "configSaved": "已保存喵",
+    "save": "保存喵",
+    "inChain": "DSP 链中喵",
+    "sync": {
+      "connected": "设备已连接喵",
+      "disconnected": "无设备喵",
+      "tip": "跨端喵插件同步状态：手机连上后，喵插件消息可以跨端收发喵"
+    },
+    "kind": {
+      "dsp": "DSP 处理喵",
+      "utility": "工具喵",
+      "ui": "UI 面板喵",
+      "bridge": "同步桥喵"
+    },
+    "import": "导入 .zip 喵",
+    "importing": "正在导入喵…",
+    "installHintDir": "或把喵插件文件夹放进来喵",
+    "soundpad": "喵音效板",
+    "soundpadEmpty": "在喵插件配置里加 sounds 数组就能显示按钮喵",
+    "openWindow": "在新喵窗開啟",
+    "checkUpdates": "檢查喵插件更新",
+    "updating": "更新中…",
+    "updateNow": "更新",
+    "market": "喵插件商店",
+    "marketTitle": "喵插件商店",
+    "marketLoading": "加载喵商店目录中…",
+    "marketEmpty": "喵商店暂无插件",
+    "marketFailed": "加载喵商店失败：{error}",
+    "marketInstall": "装喵",
+    "marketInstalling": "装着喵…",
+    "marketInstalled": "装好喵",
+    "marketConfirm": "装前请确认这喵插件要啥能力",
+    "marketConfirmText": "装就是信任作者喵，来源要靠谱喵",
+    "retry": "再试喵",
+    "cancel": "取消喵",
+    "search": "搜喵插件",
+    "uninstallConfirm": "卸載 {name} 喵？",
+    "marketSearch": "搜喵插件商店",
+    "marketAll": "全喵"
   }
 }

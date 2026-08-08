@@ -1,6 +1,7 @@
 mod commands;
 mod config;
 mod events;
+mod plugin_cmds;
 mod serve;
 
 use clap::{Parser, Subcommand};
@@ -110,6 +111,11 @@ enum Commands {
     },
     /// 显示配置文件路径
     Config,
+    /// 插件开发工具：校验 / 打包 / 生成骨架
+    Plugin {
+        #[command(subcommand)]
+        action: plugin_cmds::PluginAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -239,6 +245,9 @@ async fn main() {
             }
             ServerAction::Set { key, value } => commands::cmd_server_set(&key, &value),
         },
+        Commands::Plugin { action } => {
+            plugin_cmds::run(action)
+        }
         Commands::Config => {
             commands::cmd_config_path();
             Ok(())

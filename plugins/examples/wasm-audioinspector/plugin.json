@@ -1,0 +1,48 @@
+{
+  "id": "dev.micyou.example.audioinspector",
+  "name": "Example: Audio Inspector",
+  "nameI18n": {
+    "zh-CN": "示例插件：音频监视器"
+  },
+  "description": "WASM example plugin: samples audio_state + connected_devices on an interval and persists them",
+  "descriptionI18n": {
+    "zh-CN": "WASM 示例插件：定时采样音频状态与连接设备并持久化，演示 set_interval/audio_state/set_config/面板"
+  },
+  "version": "1.0.0",
+  "author": "MicYou",
+  "license": "GPL-3.0-only",
+  "homepage": "https://github.com/MicYou-Dev/MicYou-Plugins",
+  "repository": "https://github.com/MicYou-Dev/MicYou-Plugins",
+  "runtime": "wasm",
+  "entry": "audioinspector.wasm",
+  "apiVersion": 1,
+  "kind": "utility",
+  "capabilities": [
+    "config.read",
+    "config.write",
+    "audio.state",
+    "device.list"
+  ],
+  "ui": {
+    "label": "音频监视器",
+    "panels": [
+      {
+        "id": "inspector",
+        "label": "监视器",
+        "entry": "panel.html",
+        "sidebar": true
+      }
+    ],
+    "route": "plugin-panel"
+  },
+  "config": {
+    "state": ""
+  },
+  "updateUrl": "https://micyou-dev.github.io/MicYou-Plugins/plugin/dev.micyou.example.audioinspector/plugin.json",
+  "keywords": [
+    "wasm",
+    "audio",
+    "monitor",
+    "example"
+  ]
+}

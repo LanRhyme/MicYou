@@ -145,7 +145,32 @@ impl ServerLifecycleState {
     }
 }
 
-#[derive(Default)]
+impl Default for ServerState {
+    fn default() -> Self {
+        let audio_output = crate::audio_output::AudioOutputHandle::spawn();
+        Self {
+            lifecycle_gate: ServerLifecycleGate::default(),
+            lifecycle: Arc::new(Mutex::new(ServerLifecycleState::default())),
+            cancel_token: Arc::new(Mutex::new(None)),
+            background_tasks: Arc::new(Mutex::new(Vec::new())),
+            mdns_manager: Arc::new(Mutex::new(None)),
+            dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
+            is_monitoring: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            spectrum_streaming_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            network_stats: Arc::new(NetworkStats::default()),
+            active_connection: Arc::new(Mutex::new(None)),
+            takeover_lock: Arc::new(Mutex::new(())),
+            active_audio_session: Arc::new(RwLock::new(Default::default())),
+            audio_output: audio_output.clone(),
+            plugins: Arc::new(crate::plugins::PluginHost::new(audio_output)),
+            #[cfg(feature = "web-server")]
+            web_server: Arc::new(Mutex::new(None)),
+            #[cfg(feature = "web-server")]
+            web_mdns: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
 pub struct ServerState {
     pub lifecycle_gate: ServerLifecycleGate,
     pub lifecycle: Arc<Mutex<ServerLifecycleState>>,
@@ -164,6 +189,8 @@ pub struct ServerState {
     /// first server start for CLI/TUI) and only closed when the process exits.
     /// Server start/stop and phone connect/disconnect never tear it down.
     pub audio_output: Arc<crate::audio_output::AudioOutputHandle>,
+    /// Plugin host: manager + DSP node registry, shared with the audio thread.
+    pub plugins: Arc<crate::plugins::PluginHost>,
     #[cfg(feature = "web-server")]
     pub web_server: Arc<Mutex<Option<crate::web_server::WebServer>>>,
     #[cfg(feature = "web-server")]

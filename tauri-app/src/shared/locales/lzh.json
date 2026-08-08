@@ -86,7 +86,8 @@
       "appearance": "外观",
       "audio": "音频",
       "network": "网络",
-      "about": "关于"
+      "about": "关于",
+      "plugins": "插件"
     },
     "language": {
       "title": "语言",
@@ -230,7 +231,8 @@
       "Amplifier": "放大",
       "AGC": "自动增益",
       "VAD": "语音检测",
-      "Equalizer": "均衡器"
+      "Equalizer": "均衡器",
+      "Plugins": "插件"
     },
     "equalizer": {
       "title": "均衡器",
@@ -519,5 +521,59 @@
     "adminRequired": "需管理员权限，请准 UAC 之示。",
     "timeout": "超时矣，请复试。",
     "retry": "复试"
+  },
+  "plugins": {
+    "title": "插件",
+    "desc": "以原生或 WASM 插件擴展 MicYou",
+    "refresh": "刷新",
+    "loading": "載入插件中…",
+    "noPlugins": "尚未安裝插件",
+    "openDir": "開啟插件目錄",
+    "installHint": "置插件目錄或 .zip 於插件目錄，再行刷新",
+    "enabled": "已啟用",
+    "disabled": "已停用",
+    "uninstall": "卸載",
+    "logs": "日誌",
+    "noLogs": "尚無日誌",
+    "config": "設定",
+    "configSaved": "已存",
+    "save": "存儲",
+    "inChain": "DSP 鏈中",
+    "sync": {
+      "connected": "設備已連",
+      "disconnected": "無設備",
+      "tip": "跨端插件同步之態：設備既接，消息可互通"
+    },
+    "kind": {
+      "dsp": "DSP 處理",
+      "utility": "工具",
+      "ui": "UI 面板",
+      "bridge": "同步橋"
+    },
+    "import": "匯入 .zip",
+    "importing": "匯入中…",
+    "installHintDir": "或置插件目錄於插件目錄",
+    "soundpad": "音效板",
+    "soundpadEmpty": "插件配置中添 sounds 陣列，按鈕自現",
+    "openWindow": "另開新窗",
+    "checkUpdates": "查更新",
+    "updating": "方更新",
+    "updateNow": "即更",
+    "market": "插件坊",
+    "marketTitle": "插件坊",
+    "marketLoading": "載坊中目錄…",
+    "marketEmpty": "坊中暫無插件",
+    "marketFailed": "載坊不成：{error}",
+    "marketInstall": "載之",
+    "marketInstalling": "載入中…",
+    "marketInstalled": "已載",
+    "marketConfirm": "載前請覽所請之權",
+    "marketConfirmText": "載之即信其作者，慎辨其源",
+    "retry": "再試",
+    "cancel": "罷之",
+    "search": "搜插件",
+    "uninstallConfirm": "欲卸 {name} 乎？",
+    "marketSearch": "搜插件坊",
+    "marketAll": "諸類"
   }
 }

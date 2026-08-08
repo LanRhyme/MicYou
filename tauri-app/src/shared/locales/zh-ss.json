@@ -86,7 +86,8 @@
       "appearance": "外观性部分",
       "audio": "音频性部分",
       "network": "网络",
-      "about": "关于性部分"
+      "about": "关于性部分",
+      "plugins": "铁插件"
     },
     "language": {
       "title": "语言标签项",
@@ -230,7 +231,8 @@
       "Amplifier": "放大倍增项",
       "AGC": "启用自动增益控制项",
       "VAD": "启用声音活动检测项",
-      "Equalizer": "启用均衡器项"
+      "Equalizer": "启用均衡器项",
+      "Plugins": "铁插件"
     },
     "equalizer": {
       "title": "均衡器部分项",
@@ -520,5 +522,59 @@
     "adminRequired": "需要管理员权限，请批准 UAC 提示。",
     "timeout": "安装超时了，请重试。",
     "retry": "重试"
+  },
+  "plugins": {
+    "title": "铁插件",
+    "desc": "使用原生或 WASM 插件扩展硬核 MicYou",
+    "refresh": "刷新",
+    "loading": "正在加载铁插件…",
+    "noPlugins": "尚未安装任何铁插件",
+    "openDir": "打开铁插件目录",
+    "installHint": "将铁插件文件夹或 .zip 放入目录，然后刷新",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "uninstall": "卸载",
+    "logs": "日志",
+    "noLogs": "暂无日志",
+    "config": "配置",
+    "configSaved": "已保存",
+    "save": "保存",
+    "inChain": "DSP 链中",
+    "sync": {
+      "connected": "设备已连接",
+      "disconnected": "无设备",
+      "tip": "跨端铁插件同步状态：手机等设备连接后，铁插件消息可跨端收发"
+    },
+    "kind": {
+      "dsp": "DSP 处理",
+      "utility": "工具",
+      "ui": "UI 面板",
+      "bridge": "同步桥"
+    },
+    "import": "导入 .zip",
+    "importing": "正在导入…",
+    "installHintDir": "或把铁插件文件夹放入铁插件目录",
+    "soundpad": "音效铁板",
+    "soundpadEmpty": "在铁插件配置里加 sounds 数组就能显示按钮",
+    "openWindow": "在新铁窗打开",
+    "checkUpdates": "检查铁插件更新",
+    "updating": "更新中…",
+    "updateNow": "更新",
+    "market": "铁插件商店",
+    "marketTitle": "铁插件商店",
+    "marketLoading": "加载商店目录中…",
+    "marketEmpty": "商店暂无铁插件",
+    "marketFailed": "加载商店失败：{error}",
+    "marketInstall": "装它",
+    "marketInstalling": "装着…",
+    "marketInstalled": "已装",
+    "marketConfirm": "装之前看看这铁插件要啥能力",
+    "marketConfirmText": "装了就是信作者，来源要靠谱",
+    "retry": "再试",
+    "cancel": "算了",
+    "search": "搜铁插件",
+    "uninstallConfirm": "真卸 {name}？",
+    "marketSearch": "搜铁插件商店",
+    "marketAll": "全铁"
   }
 }

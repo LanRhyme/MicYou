@@ -93,6 +93,7 @@ pub async fn start_tcp_server(
     active_connection: SharedActiveConnection,
     takeover_lock: SharedTakeoverLock,
     active_audio_session: SharedActiveAudioSession,
+    plugins: Arc<crate::plugins::PluginHost>,
     ready: tokio::sync::oneshot::Sender<Result<(), String>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let listener = match TcpListener::bind(format!("{}:{}", bind_address, port)).await {
@@ -143,6 +144,7 @@ pub async fn start_tcp_server(
                         let active_connection = active_connection.clone();
                         let takeover_lock = takeover_lock.clone();
                         let active_audio_session = active_audio_session.clone();
+                        let plugins = plugins.clone();
                         let client_cancel = cancel_token.clone();
                         clients.spawn(async move {
                             let _permit = permit;
@@ -156,6 +158,7 @@ pub async fn start_tcp_server(
                                 active_connection,
                                 takeover_lock,
                                 active_audio_session,
+                                plugins,
                                 client_cancel,
                             ).await {
                                 eprintln!("Client {} error: {}", addr, e);
@@ -321,6 +324,7 @@ async fn handle_client(
     active_connection: SharedActiveConnection,
     takeover_lock: SharedTakeoverLock,
     active_audio_session: SharedActiveAudioSession,
+    plugins: Arc<crate::plugins::PluginHost>,
     cancel_token: CancellationToken,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut handshake_buf = vec![0u8; HANDSHAKE_CLIENT_STR.len()];
@@ -373,6 +377,9 @@ async fn handle_client(
     let connection_id = NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
     let (tx, mut rx) = tokio::sync::mpsc::channel::<MessageWrapper>(100);
     let takeover_token = CancellationToken::new();
+    // Point the plugin sync adapter at this client's control channel so plugin
+    // messages can flow to the phone (cleared when the client exits).
+    plugins.sync.set_sender(Some(tx.clone()));
 
     // Serialize reservation and publication so acknowledged candidates cannot reorder
     // SessionStarting relative to the active connection they publish.
@@ -440,6 +447,10 @@ async fn handle_client(
         .unwrap()
         .as_millis() as u64;
     run_if_active(&active_connection, &takeover_token, connection_id, || {
+        plugins.broadcast_event(&micyou_plugin::PluginEvent::DeviceConnected {
+            mode: "wifi".to_string(),
+            label: device_info.name.clone(),
+        });
         events.device_connected(device_info);
         stats.mark_tcp_connected(current_time);
     })
@@ -455,6 +466,7 @@ async fn handle_client(
         connection_id,
         &active_connection,
         &active_audio_session,
+        plugins.bus.clone(),
         addr.ip(),
     )
     .await?;
@@ -508,6 +520,7 @@ async fn handle_client(
                         .as_millis() as i64,
                 }),
                 pong: None,
+                plugin_message: None,
             };
             if tx_ping.send(ping_msg).await.is_err() {
                 break;
@@ -549,6 +562,7 @@ async fn handle_client(
     });
     let task_guard = TaskGuard::new(vec![writer_task, ping_task, monitor_task]);
 
+    let plugin_bus_reader = plugins.bus.clone();
     let reader = async {
         loop {
             let mut header = [0u8; FRAME_HEADER_LEN];
@@ -577,6 +591,7 @@ async fn handle_client(
                 connection_id,
                 &active_connection,
                 &active_audio_session,
+                plugin_bus_reader.clone(),
                 addr.ip(),
             )
             .await?;
@@ -596,7 +611,10 @@ async fn handle_client(
             *active_audio = ActiveAudioSession::default();
         }
         events.device_disconnected();
+        plugins.broadcast_event(&micyou_plugin::PluginEvent::DeviceDisconnected);
     }
+    // Release the plugin sync slot if it still points at this session.
+    plugins.sync.clear_if(&tx);
     reader_result
 }
 
@@ -611,6 +629,7 @@ async fn handle_message(
     connection_id: u64,
     active_connection: &SharedActiveConnection,
     active_audio_session: &SharedActiveAudioSession,
+    plugin_bus: Arc<micyou_plugin::PluginBus>,
     peer_ip: std::net::IpAddr,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(audio) = msg.audio_packet {
@@ -647,6 +666,7 @@ async fn handle_message(
             pong: Some(micyou_protocol::micyou::PongMessage {
                 timestamp: ping.timestamp,
             }),
+            plugin_message: None,
         };
         let permit = tokio::select! {
             biased;
@@ -680,6 +700,12 @@ async fn handle_message(
             events.mute_state_changed(mute.is_muted);
         })
         .await;
+    }
+    if let Some(plugin_message) = msg.plugin_message {
+        // Cross-device plugin message: route to the bus (local plugins via the
+        // dispatcher, pending RPCs via correlation id).
+        let logical = micyou_plugin::sync::from_wire(&plugin_message);
+        plugin_bus.handle_incoming(&logical);
     }
     Ok(())
 }

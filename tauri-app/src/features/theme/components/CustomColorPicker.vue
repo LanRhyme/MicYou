@@ -38,13 +38,13 @@
           <span class="text-sm font-medium text-on-surface">{{ $t('settings.customColor.advanced') }}</span>
           <button
             @click="advanced = !advanced"
-            class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+            class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
             :class="advanced ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
           >
-            <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="advanced ? 'translate-x-[26px]' : 'translate-x-[4px]'">
+            <div class="relative flex items-center justify-center transition-transform duration-300 ease-out" :class="advanced ? 'translate-x-[26px]' : 'translate-x-[4px]'">
               
               <span
-                class="pointer-events-none block rounded-full shadow-sm ring-0 transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                class="pointer-events-none block rounded-full shadow-sm ring-0 transition-transform duration-300 ease-out"
                 :class="advanced ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface group-hover:scale-125'"
               />
             </div>

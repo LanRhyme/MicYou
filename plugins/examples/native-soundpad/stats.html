@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>Soundpad Stats</title>
+    <style>
+      /* 宿主注入主题变量，自动跟随软件主题 */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei",
+          sans-serif;
+        background: hsl(var(--surface));
+        color: hsl(var(--on-surface));
+        padding: 20px;
+        font-size: 14px;
+      }
+      .card {
+        background: hsl(var(--surface-bright));
+        border: 1px solid hsl(var(--border));
+        border-radius: 1rem;
+        padding: 16px;
+      }
+      .card + .card {
+        margin-top: 14px;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .head h2 {
+        font-size: 18px;
+        font-weight: 700;
+        color: hsl(var(--primary));
+      }
+      .badge {
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        background: hsl(var(--primary-container));
+        color: hsl(var(--on-primary-container));
+        font-weight: 600;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid hsl(var(--border));
+      }
+      .row:last-child {
+        border-bottom: none;
+      }
+      .lbl {
+        font-size: 13px;
+        color: hsl(var(--on-surface-variant));
+        font-weight: 600;
+      }
+      .val {
+        font-size: 13px;
+        font-weight: 700;
+        color: hsl(var(--on-surface));
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+      }
+      .dot.on {
+        background: hsl(var(--tertiary));
+      }
+      .dot.off {
+        background: hsl(var(--outline));
+      }
+      .err {
+        color: hsl(var(--error));
+        font-size: 12px;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="head">
+      <h2>Soundpad 状态</h2>
+      <span class="badge">第二个窗口</span>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <span class="lbl">宿主连接</span
+        ><span class="val"
+          ><span class="dot off" id="hostdot"></span
+          ><span id="hosttext">检测中…</span></span
+        >
+      </div>
+      <div class="row">
+        <span class="lbl">音效数量</span><span class="val" id="count">—</span>
+      </div>
+      <div class="row">
+        <span class="lbl">全局快捷键</span
+        ><span class="val"
+          ><span
+            class="kbd"
+            style="
+              font-family: ui-monospace, monospace;
+              font-size: 12px;
+              background: hsl(var(--surface-variant));
+              border-radius: 5px;
+              padding: 2px 6px;
+            "
+            >Ctrl+Shift+S</span
+          ></span
+        >
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="lbl">说明</span></div>
+      <div
+        style="
+          font-size: 12px;
+          color: hsl(var(--on-surface-variant));
+          line-height: 1.8;
+          margin-top: 8px;
+        "
+      >
+        本窗口与「控制台」是插件声明的两个不同页面<br />
+        插件可依自身动作打开任意多个独立窗口，各窗口显示各自页面<br />
+        音效混入虚拟麦克风输出流，对方与用户都能听到
+      </div>
+    </div>
+
+    <div id="err" class="err"></div>
+
+    <script>
+      function call(api, args) {
+        return new Promise((resolve, reject) => {
+          const id = Math.random().toString(36).slice(2);
+          const onMsg = (e) => {
+            if (e.data && e.data.__micyou === 1 && e.data.id === id) {
+              window.removeEventListener("message", onMsg);
+              e.data.ok
+                ? resolve(e.data.value)
+                : reject(new Error(e.data.error));
+            }
+          };
+          window.addEventListener("message", onMsg);
+          window.parent.postMessage(
+            { __micyou: 1, id, api, args: args || {} },
+            "*",
+          );
+        });
+      }
+
+      const langP = call("locale").catch(() => "en");
+      let map = { connected: "已连接", disconnected: "未连接" };
+      langP.then((lang) => {
+        const zh = String(lang).startsWith("zh");
+        map = { connected: zh ? "已连接" : "Connected", disconnected: zh ? "未连接" : "Disconnected" };
+      });
+
+      async function init() {
+        try {
+          const cfg = await call("get_config", {});
+          const sounds = cfg && Array.isArray(cfg.sounds) ? cfg.sounds : [];
+          document.getElementById("count").textContent = String(sounds.length);
+          document.getElementById("hostdot").className = "dot on";
+          const lang = await langP;
+          const zh = String(lang).startsWith("zh");
+          map = { connected: zh ? "已连接" : "Connected", disconnected: zh ? "未连接" : "Disconnected" };
+          document.getElementById("hosttext").textContent = map.connected;
+        } catch (e) {
+          document.getElementById("hostdot").className = "dot off";
+          document.getElementById("hosttext").textContent = map.disconnected;
+          document.getElementById("err").textContent = String(e);
+        }
+      }
+      init();
+    </script>
+  </body>
+</html>

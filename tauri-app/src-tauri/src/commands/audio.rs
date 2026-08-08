@@ -126,6 +126,7 @@ pub async fn set_mute_state(
         mute: Some(micyou_protocol::micyou::MuteMessage { is_muted }),
         ping: None,
         pong: None,
+        plugin_message: None,
     };
 
     let tx = {

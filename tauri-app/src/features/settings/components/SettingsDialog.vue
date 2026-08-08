@@ -1,796 +1,1342 @@
 <template>
   <Transition name="dialog">
-  <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm" @click.self="$emit('close')">
-    <div class="settings-panel relative backdrop-blur-2xl">
-      
-      <!-- Close Button -->
-      <button @click="$emit('close')" class="absolute top-4 right-4 z-[100] w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors">
-        <X class="w-5 h-5 text-on-surface" />
-      </button>
+    <div
+      v-if="isOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm"
+      @click.self="$emit('close')"
+    >
+      <div class="settings-panel relative backdrop-blur-2xl">
+        <!-- Close Button -->
+        <button
+          @click="$emit('close')"
+          class="absolute top-4 right-4 z-40 w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors"
+        >
+          <X class="w-5 h-5 text-on-surface" />
+        </button>
 
-      <!-- Left Sidebar -->
-      <div class="settings-nav space-y-2">
-        <div class="px-4 py-4 mb-4 flex items-center gap-3">
-          <SettingsIcon class="w-6 h-6 text-primary" />
-          <h2 class="text-xl font-bold text-primary">{{ $t('settings.title') }}</h2>
+        <!-- Left Sidebar -->
+        <div class="settings-nav space-y-2">
+          <div class="px-4 py-4 mb-4 flex items-center gap-3">
+            <SettingsIcon class="w-6 h-6 text-primary" />
+            <h2 class="text-xl font-bold text-primary">{{ $t('settings.title') }}</h2>
+          </div>
+
+          <template v-for="section in sections" :key="section.id">
+            <div v-if="section.divider" class="my-2 mx-3 h-px bg-border/70"></div>
+            <button
+              v-else
+              @click="currentSection = section.id"
+              class="settings-nav-item"
+              :class="
+                currentSection === section.id
+                  ? 'bg-secondary-container/80 text-on-secondary-container shadow-sm scale-[1.02]'
+                  : 'hover:bg-surface-variant/30 text-on-surface-variant'
+              "
+            >
+              <component
+                v-if="!section.panelIcon"
+                :is="section.icon"
+                class="w-5 h-5"
+                :class="currentSection === section.id ? 'text-primary' : ''"
+              />
+              <span
+                v-else
+                class="w-5 h-5 text-center text-sm leading-5"
+                :class="currentSection === section.id ? 'text-primary' : ''"
+                >{{ section.panelIcon }}</span
+              >
+              <span class="font-medium text-sm">{{ section.name }}</span>
+            </button>
+          </template>
         </div>
 
-        <button v-for="section in sections" :key="section.id" 
-                @click="currentSection = section.id"
-                class="settings-nav-item"
-                :class="currentSection === section.id ? 'bg-secondary-container/80 text-on-secondary-container shadow-sm scale-[1.02]' : 'hover:bg-surface-variant/30 text-on-surface-variant'">
-          <component :is="section.icon" class="w-5 h-5" :class="currentSection === section.id ? 'text-primary' : ''" />
-          <span class="font-medium text-sm">{{ section.name }}</span>
-        </button>
-      </div>
+        <!-- Right Content -->
+        <div
+          ref="contentRef"
+          class="settings-scrollbar flex-1 bg-surface-container-lowest/50 p-8 overflow-y-auto overscroll-contain"
+        >
+          <div class="max-w-2xl mx-auto space-y-8">
+            <h3 class="text-3xl font-bold text-primary mb-6">{{ currentSectionName }}</h3>
 
-      <!-- Right Content -->
-      <div ref="contentRef" class="settings-scrollbar flex-1 bg-surface-container-lowest/50 p-8 overflow-y-auto overscroll-contain">
-        <div class="max-w-2xl mx-auto space-y-8">
-          <h3 class="text-3xl font-bold text-primary mb-6">{{ currentSectionName }}</h3>
-
-          <!-- SECTIONS -->
-          <Transition name="fade-slide" mode="out-in">
-            <!-- GENERAL SECTION -->
-            <div v-if="currentSection === 'general'" class="space-y-6" key="general">
-            <!-- Run Mode -->
-            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 shadow-sm border border-white/5">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h4 class="font-bold text-on-surface">{{ $t('settings.runMode.title') }}</h4>
-                  <p class="text-xs text-on-surface-variant">{{ $t('settings.runMode.desc') }}</p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <span
-                    class="px-3 py-1 rounded-full text-xs font-semibold"
-                    :class="modeStatus.mode !== 'gui' && modeStatus.mode !== 'none' && modeStatus.running
-                      ? 'bg-warning-container/40 text-warning'
-                      : 'bg-primary-container/40 text-primary'"
+            <!-- SECTIONS -->
+            <Transition name="fade-slide" mode="out-in">
+              <!-- GENERAL SECTION -->
+              <div v-if="currentSection === 'general'" class="space-y-6" key="general">
+                <!-- Run Mode -->
+                <div
+                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 shadow-sm border border-white/5"
+                >
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h4 class="font-bold text-on-surface">{{ $t('settings.runMode.title') }}</h4>
+                      <p class="text-xs text-on-surface-variant">
+                        {{ $t('settings.runMode.desc') }}
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="px-3 py-1 rounded-full text-xs font-semibold"
+                        :class="
+                          modeStatus.mode !== 'gui' &&
+                          modeStatus.mode !== 'none' &&
+                          modeStatus.running
+                            ? 'bg-warning-container/40 text-warning'
+                            : 'bg-primary-container/40 text-primary'
+                        "
+                      >
+                        {{ modeLabel }}
+                      </span>
+                    </div>
+                  </div>
+                  <p
+                    v-if="modeStatus.mode === 'cli' && modeStatus.running"
+                    class="mt-2 text-xs text-warning"
                   >
-                    {{ modeLabel }}
-                  </span>
-                </div>
-              </div>
-              <p v-if="modeStatus.mode === 'cli' && modeStatus.running" class="mt-2 text-xs text-warning">
-                {{ $t('settings.runMode.cliRunning', { pid: modeStatus.pid }) }}
-              </p>
-              <p v-if="modeStatus.mode === 'tui' && modeStatus.running" class="mt-2 text-xs text-warning">
-                {{ $t('settings.runMode.tuiRunning', { pid: modeStatus.pid }) }}
-              </p>
-              <div class="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  @click="switchToCli"
-                  class="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-on-primary hover:opacity-90 transition-opacity"
-                >
-                  {{ $t('settings.runMode.switchButton') }}
-                </button>
-                <button
-                  @click="switchToTui"
-                  class="w-full rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-on-secondary hover:opacity-90 transition-opacity"
-                >
-                  {{ $t('settings.runMode.switchTuiButton') }}
-                </button>
-              </div>
-            </div>
-
-            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('settings.language.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.language.desc') }}</p>
-              </div>
-              <Select v-model="currentLanguage">
-                <SelectTrigger class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
-                  <SelectValue placeholder="Language" />
-                </SelectTrigger>
-                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
-                  <SelectGroup>
-                    <SelectItem value="system">{{ $t('settings.language.system') }}</SelectItem>
-                    <SelectItem value="zh">简体中文</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="cat">喵喵语 (´,,•ω•,,)</SelectItem>
-                    <SelectItem value="zh-hk">粤语</SelectItem>
-                    <SelectItem value="zh-tw">繁體中文（台灣）</SelectItem>
-                    <SelectItem value="zh-ss">中国人（坚硬）</SelectItem>
-                    <SelectItem value="lzh">文言</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <!-- Close Behavior -->
-            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('closeBehavior.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('closeBehavior.desc') }}</p>
-              </div>
-              <Select v-model="closeBehavior">
-                <SelectTrigger class="w-[160px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
-                  <SelectValue :placeholder="$t('closeBehavior.ask')" />
-                </SelectTrigger>
-                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
-                  <SelectGroup>
-                    <SelectItem value="ask">{{ $t('closeBehavior.ask') }}</SelectItem>
-                    <SelectItem value="hide">{{ $t('closeBehavior.hide') }}</SelectItem>
-                    <SelectItem value="exit">{{ $t('closeBehavior.exit') }}</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <!-- Start Minimized -->
-            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('startMinimized.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('startMinimized.desc') }}</p>
-              </div>
-              <button
-                @click="startMinimized = !startMinimized"
-                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                :class="startMinimized ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
-              >
-                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="startMinimized ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                  
-                  <span
-                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                    :class="startMinimized ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                  />
-                </div>
-              </button>
-            </div>
-
-            <!-- Run at Startup -->
-            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('autostart.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('autostart.desc') }}</p>
-              </div>
-              <button
-                @click="toggleAutostart"
-                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                :class="autostartEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
-              >
-                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="autostartEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                  
-                  <span
-                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                    :class="autostartEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                  />
-                </div>
-              </button>
-            </div>
-
-            <!-- Notifications -->
-            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('notifications.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('notifications.desc') }}</p>
-              </div>
-              <button
-                @click="notificationsEnabled = !notificationsEnabled"
-                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                :class="notificationsEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
-              >
-                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="notificationsEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                  
-                  <span
-                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                    :class="notificationsEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                  />
-                </div>
-              </button>
-            </div>
-
-            <!-- Auto Stream -->
-            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('autoStream.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('autoStream.desc') }}</p>
-              </div>
-              <button
-                @click="autoStream = !autoStream"
-                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                :class="autoStream ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
-              >
-                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="autoStream ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                  
-                  <span
-                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                    :class="autoStream ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                  />
-                </div>
-              </button>
-            </div>
-
-            <!-- Pocket Mode -->
-            <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('settings.pocketMode.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.pocketMode.desc') }}</p>
-              </div>
-              <button
-                @click="pocketMode = !pocketMode"
-                class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                :class="pocketMode ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
-              >
-                <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="pocketMode ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                  <!-- State layer (hover halo) -->
-                  
-                  <span
-                    class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                    :class="pocketMode ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                  />
-                </div>
-              </button>
-            </div>
-
-            <!-- Output Device -->
-            <div class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('settings.audioOutput.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.audioOutput.desc') }}</p>
-              </div>
-              <div class="relative">
-                <Select v-model="settings.audioDevice">
-                  <SelectTrigger class="w-full bg-surface-container border-none shadow-none rounded-xl h-12 px-4 font-medium text-sm">
-                    <SelectValue :placeholder="$t('settings.audioOutput.auto')" />
-                  </SelectTrigger>
-                  <SelectContent class="border-surface-variant/20 rounded-xl bg-surface shadow-lg max-h-[40vh]">
-                    <SelectGroup>
-                      <SelectItem value="auto">{{ $t('settings.audioOutput.auto') }}</SelectItem>
-                      <SelectItem v-for="dev in audioDevices" :key="dev" :value="dev">{{ dev }}</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-              <p v-if="settings.audioDevice === 'auto' || (settings.audioDevice && (settings.audioDevice.includes('CABLE Input') || settings.audioDevice.toLowerCase().includes('blackhole') || settings.audioDevice.toLowerCase().includes('micyou')))" class="text-xs text-green-400 font-medium">
-                {{ $t('settings.audioOutput.routingActive') }}
-              </p>
-            </div>
-
-            <!-- Virtual Audio Device Management (macOS: BlackHole, Windows: VB-Cable) -->
-            <div v-if="isMacOS" class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
-              <div class="flex items-center justify-between">
-                <h4 class="font-bold text-on-surface text-lg">BlackHole</h4>
-                <span class="text-xs font-medium px-2 py-1 rounded-md" :class="hasBlackHole ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'">
-                  {{ hasBlackHole ? $t('settings.blackhole.installed') : $t('settings.blackhole.notDetected') }}
-                </span>
-              </div>
-              <p class="text-xs text-on-surface-variant">
-                {{ $t('settings.blackhole.desc') }}
-              </p>
-              <div v-if="blackholeStatus.switch_audio_source" class="text-xs text-on-surface-variant flex items-center gap-1.5">
-                <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400"></span>
-                SwitchAudioSource {{ $t('settings.blackhole.available') }}
-              </div>
-              <div v-else-if="hasBlackHole" class="text-xs text-orange-400 flex items-center gap-1.5">
-                <span class="inline-block w-1.5 h-1.5 rounded-full bg-orange-400"></span>
-                {{ $t('settings.blackhole.switchAudioSourceMissing') }}
-              </div>
-              <div v-if="!hasBlackHole" class="space-y-2">
-                <p class="text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg p-3 select-all">brew install blackhole-2ch</p>
-                <button
-                  @click="openBlackHoleDownload"
-                  class="w-full py-2 bg-surface-variant hover:bg-surface-variant/80 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Download class="w-4 h-4" /> {{ $t('settings.blackhole.download') }}
-                </button>
-              </div>
-            </div>
-            <div v-else-if="isLinux" class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
-              <div class="flex items-center justify-between">
-                <h4 class="font-bold text-on-surface text-lg">PipeWire</h4>
-                <span class="text-xs font-medium px-2 py-1 rounded-md" :class="pipewireStatus.available ? (pipewireStatus.device_exists ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400') : 'bg-red-500/20 text-red-400'">
-                  {{ pipewireStatus.available ? (pipewireStatus.device_exists ? $t('settings.pipewire.active') : $t('settings.pipewire.available')) : $t('settings.pipewire.notAvailable') }}
-                </span>
-              </div>
-              <p class="text-xs text-on-surface-variant">
-                {{ $t('settings.pipewire.desc') }}
-              </p>
-              <div v-if="!pipewireStatus.available" class="text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg p-3 select-all">
-                sudo apt install pipewire pipewire-pulse
-              </div>
-            </div>
-            <div v-else class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
-              <div class="flex items-center justify-between">
-                <h4 class="font-bold text-on-surface text-lg">{{ $t('settings.vbcable.title') }}</h4>
-                <span class="text-xs font-medium px-2 py-1 rounded-md" :class="hasVBCable ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'">
-                  {{ hasVBCable ? $t('settings.vbcable.installed') : $t('settings.vbcable.notDetected') }}
-                </span>
-              </div>
-              <p class="text-xs text-on-surface-variant">
-                {{ $t('settings.vbcable.desc') }}
-              </p>
-              <div v-if="!hasVBCable" class="space-y-2">
-                <button
-                  @click="installVBCableFromSettings"
-                  :disabled="vbcableInstalling"
-                  class="w-full py-2 bg-primary disabled:opacity-50 rounded-xl text-sm font-bold text-on-primary flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Loader2 v-if="vbcableInstalling" class="w-4 h-4 animate-spin" />
-                  <Download v-else class="w-4 h-4" />
-                  {{ vbcableInstalling ? vbcableInstallProgress || $t('vbcableInstall.installing') : $t('vbcableDetect.autoInstall') }}
-                </button>
-                <button
-                  @click="openVBCableDownload"
-                  class="w-full py-2 bg-surface-variant hover:bg-surface-variant/80 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Download class="w-4 h-4" /> {{ $t('settings.vbcable.download') }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- APPEARANCE SECTION -->
-          <div v-else-if="currentSection === 'appearance'" class="space-y-6" key="appearance">
-            <!-- Theme Mode Settings -->
-            <div class="surface-card flex items-center justify-between">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('settings.theme.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.desc') }}</p>
-              </div>
-              <Select v-model="colorMode">
-                <SelectTrigger class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
-                  <SelectValue :placeholder="$t('settings.theme.auto')" />
-                </SelectTrigger>
-                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
-                  <SelectGroup>
-                    <SelectItem value="auto">{{ $t('settings.theme.auto') }}</SelectItem>
-                    <SelectItem value="light">{{ $t('settings.theme.light') }}</SelectItem>
-                    <SelectItem value="dark">{{ $t('settings.theme.dark') }}</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div class="relative space-y-6">
-            <!-- Theme Color Source -->
-            <div class="surface-card flex items-center justify-between">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('settings.theme.modeTitle') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.modeDesc') }}</p>
-              </div>
-              <Select v-model="themeMode" :disabled="themePackageActive">
-                <SelectTrigger class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
-                  <SelectGroup>
-                    <SelectItem value="system">{{ $t('settings.theme.systemColor') }}</SelectItem>
-                    <SelectItem value="preset">{{ $t('settings.theme.presetColor') }}</SelectItem>
-                    <SelectItem value="custom">{{ $t('settings.theme.customColor') }}</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <!-- Theme Color Settings -->
-            <div class="surface-card relative flex items-center justify-between overflow-hidden">
-              <div class="flex-shrink-0 mr-4">
-                <h4 class="font-bold text-on-surface">{{ $t('settings.themeColor.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.themeColor.desc') }}</p>
-              </div>
-              <div class="flex justify-end">
-                <ThemeSelector 
-                  v-model="themeColor" 
-                  :custom-h="customH"
-                  :custom-s="customS"
-                  :custom-l="customL"
-                  :disabled="themePackageActive"
-                  @update:model-value="themeMode = 'preset'"
-                  @open-custom="themeMode = 'custom'; showColorPicker = true"
-                />
-              </div>
-
-              <div v-if="!themePackageActive && themeMode === 'system'" class="absolute inset-0 z-10 flex items-center justify-center gap-3 bg-surface-bright/80 px-4 backdrop-blur-sm">
-                <span class="h-8 w-8 shrink-0 rounded-full border border-outline/30 shadow-sm" :style="{ backgroundColor: systemAccent.hex }"></span>
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-on-surface">
-                    {{ systemAccent.supported ? $t('settings.theme.systemReady') : $t('settings.theme.systemUnavailable') }}
+                    {{ $t('settings.runMode.cliRunning', { pid: modeStatus.pid }) }}
                   </p>
-                  <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.systemSource', { source: systemAccent.source }) }}</p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Theme Generation Variant Settings -->
-            <div class="surface-card flex items-center justify-between">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('settings.customColor.variant') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.customColor.variantDesc') }}</p>
-              </div>
-              <Select v-model="customVariant" :disabled="themePackageActive">
-                <SelectTrigger class="w-[160px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
-                  <SelectGroup>
-                    <SelectItem value="TonalSpot">{{ $t('settings.customColor.variants.tonalSpot') }}</SelectItem>
-                    <SelectItem value="Neutral">{{ $t('settings.customColor.variants.neutral') }}</SelectItem>
-                    <SelectItem value="Vibrant">{{ $t('settings.customColor.variants.vibrant') }}</SelectItem>
-                    <SelectItem value="Expressive">{{ $t('settings.customColor.variants.expressive') }}</SelectItem>
-                    <SelectItem value="Rainbow">{{ $t('settings.customColor.variants.rainbow') }}</SelectItem>
-                    <SelectItem value="FruitSalad">{{ $t('settings.customColor.variants.fruitSalad') }}</SelectItem>
-                    <SelectItem value="Monochrome">{{ $t('settings.customColor.variants.monochrome') }}</SelectItem>
-                    <SelectItem value="Fidelity">{{ $t('settings.customColor.variants.fidelity') }}</SelectItem>
-                    <SelectItem value="Content">{{ $t('settings.customColor.variants.content') }}</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div v-if="themePackageActive" class="absolute inset-0 z-20 !mt-0 flex min-h-full items-center justify-center rounded-2xl bg-surface-bright/90 p-6 text-center shadow-lg backdrop-blur-md">
-              <div class="flex max-w-sm flex-col items-center gap-3">
-                <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
-                  <Palette class="h-6 w-6" />
-                </div>
-                <p class="text-sm font-semibold text-on-surface">{{ $t('settings.theme.packageActive') }}</p>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.packageActiveDesc', { id: installedThemeId }) }}</p>
-                <button
-                  class="mt-1 rounded-full bg-primary px-4 py-2 text-sm font-medium text-on-primary transition-opacity hover:opacity-90"
-                  @click="deactivateInstalledTheme"
-                >
-                  {{ $t('settings.theme.deactivate') }}
-                </button>
-              </div>
-            </div>
-            </div>
-
-            <!-- UI Style Settings -->
-            <div class="surface-card flex items-center justify-between">
-              <div>
-                <h4 class="font-bold text-on-surface">{{ $t('settings.uiStyle.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.uiStyle.desc') }}</p>
-              </div>
-              <Select v-model="uiStyle">
-                <SelectTrigger class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium">
-                  <SelectValue :placeholder="$t('settings.uiStyle.glass')" />
-                </SelectTrigger>
-                <SelectContent class="border-surface-variant/20 rounded-lg bg-surface shadow-lg">
-                  <SelectGroup>
-                    <SelectItem value="style-default">{{ $t('settings.uiStyle.default') }}</SelectItem>
-                    <SelectItem value="style-glass">{{ $t('settings.uiStyle.glass') }}</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <!-- Custom CSS -->
-            <div class="surface-card flex items-center justify-between">
-              <div class="mr-4 flex-1">
-                <h4 class="font-bold text-on-surface">{{ $t('settings.customCss.title') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.customCss.desc') }}</p>
-              </div>
-              <button @click="showCustomCssDialog = true" class="flex-shrink-0 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20">
-                {{ $t('settings.customCss.editBtn') }}
-              </button>
-            </div>
-
-            <div class="surface-card flex items-center justify-between">
-              <div class="flex-1 mr-4">
-                <h4 class="font-bold text-on-surface">{{ $t('settings.theme.catalogTitle') }}</h4>
-                <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.catalogDesc') }}</p>
-              </div>
-              <button
-                class="rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
-                @click="showThemeCatalogDialog = true"
-              >
-                {{ $t('settings.theme.catalogButton') }}
-              </button>
-            </div>
-          </div>
-
-          <!-- AUDIO SECTION -->
-          <div v-else-if="currentSection === 'audio'" class="space-y-6" key="audio">
-            
-
-            <!-- Spectrum Analyzer / Real-time Monitoring -->
-            <div class="haze-surface p-4 space-y-3">
-              <div class="flex justify-between items-center mb-2">
-                <h4 class="font-bold text-on-surface text-sm">{{ $t('settings.spectrum.title') }}</h4>
-                <div class="flex gap-4">
-                  <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 rounded-sm bg-surface-variant"></div>
-                    <span class="text-[10px] text-on-surface-variant">原始 (Raw)</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 rounded-sm bg-primary"></div>
-                    <span class="text-[10px] text-on-surface-variant">处理后 (Processed)</span>
-                  </div>
-                </div>
-              </div>
-              <div class="w-full h-32 bg-surface-container rounded-xl overflow-hidden relative">
-                <canvas ref="spectrumCanvas" class="w-full h-full"></canvas>
-              </div>
-            </div>
-            <!-- Amplifier (Gain) -->
-            <div class="bg-surface-bright rounded-2xl p-4 shadow-sm flex items-center gap-4">
-              <span class="text-sm font-medium text-on-surface whitespace-nowrap">{{ $t('settings.audioParams.gain') }}</span>
-              <MD3Slider :min="-50" :max="50" v-model="settings.gain" />
-              <span class="text-xs w-12 text-right">{{ settings.gain > 0 ? '+' : '' }}{{ settings.gain }} dB</span>
-            </div>
-
-            <!-- Acoustic Echo Cancellation (AEC) -->
-            <div class="bg-surface-bright rounded-2xl p-4 shadow-sm">
-              <div class="flex justify-between items-center" :class="isAecSupported && aecRuntimeAvailable ? 'cursor-pointer' : ''" @click="isAecSupported && aecRuntimeAvailable && (settings.aecEnabled = !settings.aecEnabled)">
-                <div>
-                  <span class="font-medium text-on-surface">{{ $t('settings.audioParams.aec') }}</span>
-                  <p class="text-xs text-on-surface-variant mt-0.5">{{ $t('settings.audioParams.aecDesc') }}</p>
-                  <p v-if="!isAecSupported" class="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
-                    <Ban class="w-3 h-3 shrink-0" /> {{ $t('settings.audioParams.aecUnavailable') }}
+                  <p
+                    v-if="modeStatus.mode === 'tui' && modeStatus.running"
+                    class="mt-2 text-xs text-warning"
+                  >
+                    {{ $t('settings.runMode.tuiRunning', { pid: modeStatus.pid }) }}
                   </p>
-                  <p v-else-if="!aecRuntimeAvailable" class="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
-                    <Ban class="w-3 h-3 shrink-0" /> {{ $t('settings.audioParams.aecRuntimeUnavailable') }}
-                  </p>
+                  <div class="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      @click="switchToCli"
+                      class="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-on-primary hover:opacity-90 transition-opacity"
+                    >
+                      {{ $t('settings.runMode.switchButton') }}
+                    </button>
+                    <button
+                      @click="switchToTui"
+                      class="w-full rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold text-on-secondary hover:opacity-90 transition-opacity"
+                    >
+                      {{ $t('settings.runMode.switchTuiButton') }}
+                    </button>
+                  </div>
                 </div>
-                <button
-                  :disabled="!isAecSupported || !aecRuntimeAvailable"
-                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                  :class="settings.aecEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
-                >
-                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.aecEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                    <span
-                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                      :class="settings.aecEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                    />
-                  </div>
-                </button>
-              </div>
-            </div>
 
-            <!-- Noise Suppression -->
-            <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
-              <div class="flex justify-between items-center cursor-pointer" @click="settings.nsEnabled = !settings.nsEnabled">
-                <span class="font-medium text-on-surface">{{ $t('settings.audioParams.noiseSuppression') }}</span>
-                <button
-                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                  :class="settings.nsEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
+                <div
+                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
                 >
-                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.nsEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                    
-                    <span
-                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                      :class="settings.nsEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                    />
+                  <div>
+                    <h4 class="font-bold text-on-surface">{{ $t('settings.language.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">
+                      {{ $t('settings.language.desc') }}
+                    </p>
                   </div>
-                </button>
-              </div>
-              <div v-if="settings.nsEnabled" class="space-y-4 pt-2 border-t border-surface-variant/20">
-                <div class="flex gap-2 mt-4">
-                  <button v-for="type in [{id: 'PureVox', label: 'PureVox (ONNX)'}, {id: 'RNNoise', label: 'RNNoise'}, {id: 'Speexdsp', label: 'Speexdsp'}]" :key="type.id"
-                          @click="settings.nsType = type.id"
-                          class="px-3 py-1 rounded-full text-xs font-medium transition-colors"
-                          :class="settings.nsType === type.id ? 'bg-primary text-on-primary' : 'bg-surface-container text-on-surface'">
-                    {{ type.label }}
+                  <Select v-model="currentLanguage">
+                    <SelectTrigger
+                      class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium"
+                    >
+                      <SelectValue placeholder="Language" />
+                    </SelectTrigger>
+                    <SelectContent
+                      class="border-surface-variant/20 rounded-lg bg-surface shadow-lg"
+                    >
+                      <SelectGroup>
+                        <SelectItem value="system">{{ $t('settings.language.system') }}</SelectItem>
+                        <SelectItem value="zh">简体中文</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="cat">喵喵语 (´,,•ω•,,)</SelectItem>
+                        <SelectItem value="zh-hk">粤语</SelectItem>
+                        <SelectItem value="zh-tw">繁體中文（台灣）</SelectItem>
+                        <SelectItem value="zh-ss">中国人（坚硬）</SelectItem>
+                        <SelectItem value="lzh">文言</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <!-- Close Behavior -->
+                <div
+                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
+                >
+                  <div>
+                    <h4 class="font-bold text-on-surface">{{ $t('closeBehavior.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">{{ $t('closeBehavior.desc') }}</p>
+                  </div>
+                  <Select v-model="closeBehavior">
+                    <SelectTrigger
+                      class="w-[160px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium"
+                    >
+                      <SelectValue :placeholder="$t('closeBehavior.ask')" />
+                    </SelectTrigger>
+                    <SelectContent
+                      class="border-surface-variant/20 rounded-lg bg-surface shadow-lg"
+                    >
+                      <SelectGroup>
+                        <SelectItem value="ask">{{ $t('closeBehavior.ask') }}</SelectItem>
+                        <SelectItem value="hide">{{ $t('closeBehavior.hide') }}</SelectItem>
+                        <SelectItem value="exit">{{ $t('closeBehavior.exit') }}</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <!-- Start Minimized -->
+                <div
+                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
+                >
+                  <div>
+                    <h4 class="font-bold text-on-surface">{{ $t('startMinimized.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">{{ $t('startMinimized.desc') }}</p>
+                  </div>
+                  <button
+                    @click="startMinimized = !startMinimized"
+                    class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                    :class="
+                      startMinimized
+                        ? 'border-primary bg-primary'
+                        : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                    "
+                  >
+                    <div
+                      class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                      :class="startMinimized ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                    >
+                      <span
+                        class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                        :class="
+                          startMinimized
+                            ? 'h-6 w-6 bg-on-primary'
+                            : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                        "
+                      />
+                    </div>
                   </button>
                 </div>
-                <div class="flex items-center gap-4">
-                  <span class="text-xs text-on-surface-variant whitespace-nowrap">{{ $t('settings.audioParams.intensity') }}</span>
-                  <MD3Slider :min="0" :max="100" v-model="settings.nsIntensity" />
-                  <span class="text-xs w-8 text-right">{{ settings.nsIntensity }}%</span>
-                </div>
-              </div>
-            </div>
 
-            <!-- Dereverb -->
-            <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
-              <div class="flex justify-between items-center cursor-pointer" @click="settings.dereverbEnabled = !settings.dereverbEnabled">
-                <span class="font-medium text-on-surface">{{ $t('settings.audioParams.dereverb') }}</span>
-                <button
-                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                  :class="settings.dereverbEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
+                <!-- Run at Startup -->
+                <div
+                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
                 >
-                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.dereverbEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                    
-                    <span
-                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                      :class="settings.dereverbEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                    />
-                  </div>
-                </button>
-              </div>
-              <div v-if="settings.dereverbEnabled" class="flex items-center gap-4 pt-4 border-t border-surface-variant/20">
-                <span class="text-xs text-on-surface-variant whitespace-nowrap">{{ $t('settings.audioParams.level') }}</span>
-                <MD3Slider :min="0" :max="100" v-model="settings.dereverbLevel" />
-                <span class="text-xs w-8 text-right">{{ settings.dereverbLevel }}%</span>
-              </div>
-            </div>
-
-            <!-- Auto Gain Control -->
-            <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
-              <div class="flex justify-between items-center cursor-pointer" @click="settings.agcEnabled = !settings.agcEnabled">
-                <span class="font-medium text-on-surface">{{ $t('settings.audioParams.agc') }}</span>
-                <button
-                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                  :class="settings.agcEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
-                >
-                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.agcEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                    
-                    <span
-                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                      :class="settings.agcEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                    />
-                  </div>
-                </button>
-              </div>
-              <div v-if="settings.agcEnabled" class="space-y-4 pt-4 border-t border-surface-variant/20">
-                <div class="flex items-center gap-4">
-                  <span class="text-xs text-on-surface-variant w-20">{{ $t('settings.audioParams.target') }}</span>
-                  <MD3Slider :min="0" :max="32767" v-model="settings.agcTarget" />
-                  <span class="text-xs w-10 text-right">{{ settings.agcTarget }}</span>
-                </div>
-                <div class="flex items-center gap-4">
-                  <span class="text-xs text-on-surface-variant w-20">{{ $t('settings.audioParams.attack') }}</span>
-                  <MD3Slider :min="1" :max="100" v-model="settings.agcAttack" />
-                  <span class="text-xs w-10 text-right">{{ (settings.agcAttack / 1000).toFixed(3) }}</span>
-                </div>
-                <div class="flex items-center gap-4">
-                  <span class="text-xs text-on-surface-variant w-20">{{ $t('settings.audioParams.decay') }}</span>
-                  <MD3Slider :min="1" :max="100" v-model="settings.agcDecay" />
-                  <span class="text-xs w-10 text-right">{{ (settings.agcDecay / 10000).toFixed(4) }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Voice Activity Detection -->
-            <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
-              <div class="flex justify-between items-center cursor-pointer" @click="settings.vadEnabled = !settings.vadEnabled">
-                <span class="font-medium text-on-surface">{{ $t('settings.audioParams.vad') }}</span>
-                <button
-                  class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                  :class="settings.vadEnabled ? 'border-primary bg-primary' : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'"
-                >
-                  <div class="relative flex items-center justify-center transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]" :class="settings.vadEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'">
-                    
-                    <span
-                      class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
-                      :class="settings.vadEnabled ? 'h-6 w-6 bg-on-primary' : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'"
-                    />
-                  </div>
-                </button>
-              </div>
-              <div v-if="settings.vadEnabled" class="flex items-center gap-4 pt-4 border-t border-surface-variant/20">
-                <span class="text-xs text-on-surface-variant whitespace-nowrap">{{ $t('settings.audioParams.threshold') }}</span>
-                <MD3Slider :min="-100" :max="0" v-model="settings.vadThreshold" />
-                <span class="text-xs w-12 text-right">{{ settings.vadThreshold }} dB</span>
-              </div>
-            </div>
-
-            <!-- Audio Processing Chain -->
-            <div @click="showAudioChain = true" class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-3 cursor-pointer hover:bg-surface-variant transition-colors group">
-              <div class="flex items-center justify-between">
-                <div>
-                  <h4 class="font-bold text-on-surface">{{ $t('settings.audioChain.title') }}</h4>
-                  <p class="text-xs text-on-surface-variant mt-0.5">{{ $t('settings.audioChain.descPopup') }}</p>
-                </div>
-                <div class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center group-hover:bg-primary group-hover:text-on-primary transition-colors">
-                  <ChevronRight class="w-4 h-4 text-on-surface-variant group-hover:text-on-primary transition-colors" />
-                </div>
-              </div>
-              
-              <div class="flex items-center gap-2 overflow-hidden text-xs text-on-surface-variant font-medium opacity-80 pt-1">
-                <template v-for="(item, index) in displayChain" :key="item">
-                  <span class="whitespace-nowrap">{{ $t(`settings.audioChain.${item}`) }}</span>
-                  <ArrowRight v-if="index < displayChain.length - 1" class="w-3 h-3 shrink-0" />
-                </template>
-              </div>
-            </div>
-
-            <!-- Output Buffer Size -->
-            <div class="bg-surface-bright rounded-2xl p-4 shadow-sm">
-              <div class="flex items-center justify-between">
-                <div>
-                  <span class="font-medium text-on-surface">{{ $t('settings.audioParams.bufferSize') }}</span>
-                  <p class="text-xs text-on-surface-variant mt-0.5">{{ $t('settings.audioParams.bufferSizeDesc') }}</p>
-                </div>
-                <span class="text-xs w-14 text-right text-on-surface-variant font-medium whitespace-nowrap">{{ settings.outputBufferMs }} ms</span>
-              </div>
-              <div class="flex items-center gap-3">
-                <span class="text-[10px] text-on-surface-variant shrink-0">{{ $t('settings.audioParams.bufferLow') }}</span>
-                <MD3Slider :min="100" :max="1200" :step="100" v-model="settings.outputBufferMs" />
-                <span class="text-[10px] text-on-surface-variant shrink-0">{{ $t('settings.audioParams.bufferHigh') }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- EQUALIZER SECTION -->
-          <div v-else-if="currentSection === 'equalizer'" class="space-y-6 h-[600px]" key="equalizer">
-            <EqualizerPanel :config="settings.equalizer" />
-          </div>
-
-          <!-- ABOUT -->
-          <div v-else-if="currentSection === 'about'" class="space-y-4 pb-12" key="about">
-            <div class="bg-surface-bright rounded-2xl overflow-hidden shadow-sm flex flex-col border border-border">
-              <div class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-default">
-                <User class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
-                <div class="flex-1">
-                  <h4 class="text-sm font-medium text-on-surface">Developer</h4>
-                  <p class="text-xs text-on-surface-variant">LanRhyme、ChinsaaWei、ChouChiu</p>
-                </div>
-              </div>
-              <div class="h-px bg-border mx-4"></div>
-              
-              <a href="https://github.com/LanRhyme/MicYou" target="_blank" class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer group">
-                <Globe class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
-                <div class="flex-1">
-                  <h4 class="text-sm font-medium text-on-surface">GitHub Repository</h4>
-                  <p class="text-xs text-primary group-hover:underline">https://github.com/LanRhyme/MicYou</p>
-                </div>
-              </a>
-              <div class="h-px bg-border mx-4"></div>
-
-              <div @click="openDialog('Contributors')" class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer">
-                <Users class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
-                <div class="flex-1">
-                  <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.contributorsBtn') }}</h4>
-                  <p class="text-xs text-on-surface-variant">{{ $t('settings.about.contributorsDesc') }}</p>
-                </div>
-              </div>
-              <div class="h-px bg-border mx-4"></div>
-
-              <div @click="openDialog('Sponsors')" class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer">
-                <Heart class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
-                <div class="flex-1">
-                  <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.sponsorsBtn') }}</h4>
-                  <p class="text-xs text-on-surface-variant">{{ $t('settings.about.sponsorsDesc') }}</p>
-                </div>
-              </div>
-              <div class="h-px bg-border mx-4"></div>
-
-              <div class="flex items-center justify-between p-4 hover:bg-surface-variant transition-colors cursor-default">
-                <div class="flex items-center gap-4">
-                  <Info class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
                   <div>
-                    <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.version') }}</h4>
-                    <p class="text-xs text-on-surface-variant">{{ appVersion }}</p>
+                    <h4 class="font-bold text-on-surface">{{ $t('autostart.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">{{ $t('autostart.desc') }}</p>
+                  </div>
+                  <button
+                    @click="toggleAutostart"
+                    class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                    :class="
+                      autostartEnabled
+                        ? 'border-primary bg-primary'
+                        : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                    "
+                  >
+                    <div
+                      class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                      :class="autostartEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                    >
+                      <span
+                        class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                        :class="
+                          autostartEnabled
+                            ? 'h-6 w-6 bg-on-primary'
+                            : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                        "
+                      />
+                    </div>
+                  </button>
+                </div>
+
+                <!-- Notifications -->
+                <div
+                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
+                >
+                  <div>
+                    <h4 class="font-bold text-on-surface">{{ $t('notifications.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">{{ $t('notifications.desc') }}</p>
+                  </div>
+                  <button
+                    @click="notificationsEnabled = !notificationsEnabled"
+                    class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                    :class="
+                      notificationsEnabled
+                        ? 'border-primary bg-primary'
+                        : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                    "
+                  >
+                    <div
+                      class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                      :class="notificationsEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                    >
+                      <span
+                        class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                        :class="
+                          notificationsEnabled
+                            ? 'h-6 w-6 bg-on-primary'
+                            : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                        "
+                      />
+                    </div>
+                  </button>
+                </div>
+
+                <!-- Auto Stream -->
+                <div
+                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
+                >
+                  <div>
+                    <h4 class="font-bold text-on-surface">{{ $t('autoStream.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">{{ $t('autoStream.desc') }}</p>
+                  </div>
+                  <button
+                    @click="autoStream = !autoStream"
+                    class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                    :class="
+                      autoStream
+                        ? 'border-primary bg-primary'
+                        : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                    "
+                  >
+                    <div
+                      class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                      :class="autoStream ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                    >
+                      <span
+                        class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                        :class="
+                          autoStream
+                            ? 'h-6 w-6 bg-on-primary'
+                            : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                        "
+                      />
+                    </div>
+                  </button>
+                </div>
+
+                <!-- Pocket Mode -->
+                <div
+                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
+                >
+                  <div>
+                    <h4 class="font-bold text-on-surface">{{ $t('settings.pocketMode.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">
+                      {{ $t('settings.pocketMode.desc') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="pocketMode = !pocketMode"
+                    class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                    :class="
+                      pocketMode
+                        ? 'border-primary bg-primary'
+                        : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                    "
+                  >
+                    <div
+                      class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                      :class="pocketMode ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                    >
+                      <!-- State layer (hover halo) -->
+
+                      <span
+                        class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                        :class="
+                          pocketMode
+                            ? 'h-6 w-6 bg-on-primary'
+                            : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                        "
+                      />
+                    </div>
+                  </button>
+                </div>
+
+                <!-- Output Device -->
+                <div class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+                  <div>
+                    <h4 class="font-bold text-on-surface">
+                      {{ $t('settings.audioOutput.title') }}
+                    </h4>
+                    <p class="text-xs text-on-surface-variant">
+                      {{ $t('settings.audioOutput.desc') }}
+                    </p>
+                  </div>
+                  <div class="relative">
+                    <Select v-model="settings.audioDevice">
+                      <SelectTrigger
+                        class="w-full bg-surface-container border-none shadow-none rounded-xl h-12 px-4 font-medium text-sm"
+                      >
+                        <SelectValue :placeholder="$t('settings.audioOutput.auto')" />
+                      </SelectTrigger>
+                      <SelectContent
+                        class="border-surface-variant/20 rounded-xl bg-surface shadow-lg max-h-[40vh]"
+                      >
+                        <SelectGroup>
+                          <SelectItem value="auto">{{
+                            $t('settings.audioOutput.auto')
+                          }}</SelectItem>
+                          <SelectItem v-for="dev in audioDevices" :key="dev" :value="dev">{{
+                            dev
+                          }}</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p
+                    v-if="
+                      settings.audioDevice === 'auto' ||
+                      (settings.audioDevice &&
+                        (settings.audioDevice.includes('CABLE Input') ||
+                          settings.audioDevice.toLowerCase().includes('blackhole') ||
+                          settings.audioDevice.toLowerCase().includes('micyou')))
+                    "
+                    class="text-xs text-green-400 font-medium"
+                  >
+                    {{ $t('settings.audioOutput.routingActive') }}
+                  </p>
+                </div>
+
+                <!-- Virtual Audio Device Management (macOS: BlackHole, Windows: VB-Cable) -->
+                <div v-if="isMacOS" class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+                  <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-on-surface text-lg">BlackHole</h4>
+                    <span
+                      class="text-xs font-medium px-2 py-1 rounded-md"
+                      :class="
+                        hasBlackHole
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-red-500/20 text-red-400'
+                      "
+                    >
+                      {{
+                        hasBlackHole
+                          ? $t('settings.blackhole.installed')
+                          : $t('settings.blackhole.notDetected')
+                      }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant">
+                    {{ $t('settings.blackhole.desc') }}
+                  </p>
+                  <div
+                    v-if="blackholeStatus.switch_audio_source"
+                    class="text-xs text-on-surface-variant flex items-center gap-1.5"
+                  >
+                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                    SwitchAudioSource {{ $t('settings.blackhole.available') }}
+                  </div>
+                  <div
+                    v-else-if="hasBlackHole"
+                    class="text-xs text-orange-400 flex items-center gap-1.5"
+                  >
+                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+                    {{ $t('settings.blackhole.switchAudioSourceMissing') }}
+                  </div>
+                  <div v-if="!hasBlackHole" class="space-y-2">
+                    <p
+                      class="text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg p-3 select-all"
+                    >
+                      brew install blackhole-2ch
+                    </p>
+                    <button
+                      @click="openBlackHoleDownload"
+                      class="w-full py-2 bg-surface-variant hover:bg-surface-variant/80 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Download class="w-4 h-4" /> {{ $t('settings.blackhole.download') }}
+                    </button>
                   </div>
                 </div>
-                <button @click="openDialog('Update')" class="px-3 py-1.5 text-xs font-medium text-on-primary bg-primary hover:opacity-90 rounded-full transition-opacity">
-                  {{ $t('settings.about.updatesBtn') }}
-                </button>
-              </div>
-              <div class="h-px bg-border mx-4"></div>
-
-              <div @click="openDialog('Licenses')" class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer">
-                <FileText class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
-                <div class="flex-1">
-                  <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.licensesBtn') }}</h4>
-                  <p class="text-xs text-on-surface-variant">{{ $t('settings.about.licensesDesc') }}</p>
+                <div
+                  v-else-if="isLinux"
+                  class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm"
+                >
+                  <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-on-surface text-lg">PipeWire</h4>
+                    <span
+                      class="text-xs font-medium px-2 py-1 rounded-md"
+                      :class="
+                        pipewireStatus.available
+                          ? pipewireStatus.device_exists
+                            ? 'bg-green-500/20 text-green-400'
+                            : 'bg-yellow-500/20 text-yellow-400'
+                          : 'bg-red-500/20 text-red-400'
+                      "
+                    >
+                      {{
+                        pipewireStatus.available
+                          ? pipewireStatus.device_exists
+                            ? $t('settings.pipewire.active')
+                            : $t('settings.pipewire.available')
+                          : $t('settings.pipewire.notAvailable')
+                      }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant">
+                    {{ $t('settings.pipewire.desc') }}
+                  </p>
+                  <div
+                    v-if="!pipewireStatus.available"
+                    class="text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg p-3 select-all"
+                  >
+                    sudo apt install pipewire pipewire-pulse
+                  </div>
+                </div>
+                <div v-else class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+                  <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-on-surface text-lg">
+                      {{ $t('settings.vbcable.title') }}
+                    </h4>
+                    <span
+                      class="text-xs font-medium px-2 py-1 rounded-md"
+                      :class="
+                        hasVBCable ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                      "
+                    >
+                      {{
+                        hasVBCable
+                          ? $t('settings.vbcable.installed')
+                          : $t('settings.vbcable.notDetected')
+                      }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-on-surface-variant">
+                    {{ $t('settings.vbcable.desc') }}
+                  </p>
+                  <div v-if="!hasVBCable" class="space-y-2">
+                    <button
+                      @click="installVBCableFromSettings"
+                      :disabled="vbcableInstalling"
+                      class="w-full py-2 bg-primary disabled:opacity-50 rounded-xl text-sm font-bold text-on-primary flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Loader2 v-if="vbcableInstalling" class="w-4 h-4 animate-spin" />
+                      <Download v-else class="w-4 h-4" />
+                      {{
+                        vbcableInstalling
+                          ? vbcableInstallProgress || $t('vbcableInstall.installing')
+                          : $t('vbcableDetect.autoInstall')
+                      }}
+                    </button>
+                    <button
+                      @click="openVBCableDownload"
+                      class="w-full py-2 bg-surface-variant hover:bg-surface-variant/80 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Download class="w-4 h-4" /> {{ $t('settings.vbcable.download') }}
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="h-px bg-border mx-4"></div>
 
-              <div @click="exportLog" class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer">
-                <Download class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
-                <div class="flex-1">
-                  <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.logsBtn') }}</h4>
-                  <p class="text-xs text-on-surface-variant">{{ $t('settings.about.logsDesc') }}</p>
+              <!-- APPEARANCE SECTION -->
+              <div v-else-if="currentSection === 'appearance'" class="space-y-6" key="appearance">
+                <!-- Theme Mode Settings -->
+                <div class="surface-card flex items-center justify-between">
+                  <div>
+                    <h4 class="font-bold text-on-surface">{{ $t('settings.theme.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">{{ $t('settings.theme.desc') }}</p>
+                  </div>
+                  <Select v-model="colorMode">
+                    <SelectTrigger
+                      class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium"
+                    >
+                      <SelectValue :placeholder="$t('settings.theme.auto')" />
+                    </SelectTrigger>
+                    <SelectContent
+                      class="border-surface-variant/20 rounded-lg bg-surface shadow-lg"
+                    >
+                      <SelectGroup>
+                        <SelectItem value="auto">{{ $t('settings.theme.auto') }}</SelectItem>
+                        <SelectItem value="light">{{ $t('settings.theme.light') }}</SelectItem>
+                        <SelectItem value="dark">{{ $t('settings.theme.dark') }}</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div class="relative space-y-6">
+                  <!-- Theme Color Source -->
+                  <div class="surface-card flex items-center justify-between">
+                    <div>
+                      <h4 class="font-bold text-on-surface">
+                        {{ $t('settings.theme.modeTitle') }}
+                      </h4>
+                      <p class="text-xs text-on-surface-variant">
+                        {{ $t('settings.theme.modeDesc') }}
+                      </p>
+                    </div>
+                    <Select v-model="themeMode" :disabled="themePackageActive">
+                      <SelectTrigger
+                        class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        class="border-surface-variant/20 rounded-lg bg-surface shadow-lg"
+                      >
+                        <SelectGroup>
+                          <SelectItem value="system">{{
+                            $t('settings.theme.systemColor')
+                          }}</SelectItem>
+                          <SelectItem value="preset">{{
+                            $t('settings.theme.presetColor')
+                          }}</SelectItem>
+                          <SelectItem value="custom">{{
+                            $t('settings.theme.customColor')
+                          }}</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <!-- Theme Color Settings -->
+                  <div
+                    class="surface-card relative flex items-center justify-between overflow-hidden"
+                  >
+                    <div class="flex-shrink-0 mr-4">
+                      <h4 class="font-bold text-on-surface">
+                        {{ $t('settings.themeColor.title') }}
+                      </h4>
+                      <p class="text-xs text-on-surface-variant">
+                        {{ $t('settings.themeColor.desc') }}
+                      </p>
+                    </div>
+                    <div class="flex justify-end">
+                      <ThemeSelector
+                        v-model="themeColor"
+                        :custom-h="customH"
+                        :custom-s="customS"
+                        :custom-l="customL"
+                        :disabled="themePackageActive"
+                        @update:model-value="themeMode = 'preset'"
+                        @open-custom="
+                          themeMode = 'custom';
+                          showColorPicker = true;
+                        "
+                      />
+                    </div>
+
+                    <div
+                      v-if="!themePackageActive && themeMode === 'system'"
+                      class="absolute inset-0 z-10 flex items-center justify-center gap-3 bg-surface-bright/80 px-4 backdrop-blur-sm"
+                    >
+                      <span
+                        class="h-8 w-8 shrink-0 rounded-full border border-outline/30 shadow-sm"
+                        :style="{ backgroundColor: systemAccent.hex }"
+                      ></span>
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-on-surface">
+                          {{
+                            systemAccent.supported
+                              ? $t('settings.theme.systemReady')
+                              : $t('settings.theme.systemUnavailable')
+                          }}
+                        </p>
+                        <p class="text-xs text-on-surface-variant">
+                          {{ $t('settings.theme.systemSource', { source: systemAccent.source }) }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Theme Generation Variant Settings -->
+                  <div class="surface-card flex items-center justify-between">
+                    <div>
+                      <h4 class="font-bold text-on-surface">
+                        {{ $t('settings.customColor.variant') }}
+                      </h4>
+                      <p class="text-xs text-on-surface-variant">
+                        {{ $t('settings.customColor.variantDesc') }}
+                      </p>
+                    </div>
+                    <Select v-model="customVariant" :disabled="themePackageActive">
+                      <SelectTrigger
+                        class="w-[160px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        class="border-surface-variant/20 rounded-lg bg-surface shadow-lg"
+                      >
+                        <SelectGroup>
+                          <SelectItem value="TonalSpot">{{
+                            $t('settings.customColor.variants.tonalSpot')
+                          }}</SelectItem>
+                          <SelectItem value="Neutral">{{
+                            $t('settings.customColor.variants.neutral')
+                          }}</SelectItem>
+                          <SelectItem value="Vibrant">{{
+                            $t('settings.customColor.variants.vibrant')
+                          }}</SelectItem>
+                          <SelectItem value="Expressive">{{
+                            $t('settings.customColor.variants.expressive')
+                          }}</SelectItem>
+                          <SelectItem value="Rainbow">{{
+                            $t('settings.customColor.variants.rainbow')
+                          }}</SelectItem>
+                          <SelectItem value="FruitSalad">{{
+                            $t('settings.customColor.variants.fruitSalad')
+                          }}</SelectItem>
+                          <SelectItem value="Monochrome">{{
+                            $t('settings.customColor.variants.monochrome')
+                          }}</SelectItem>
+                          <SelectItem value="Fidelity">{{
+                            $t('settings.customColor.variants.fidelity')
+                          }}</SelectItem>
+                          <SelectItem value="Content">{{
+                            $t('settings.customColor.variants.content')
+                          }}</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div
+                    v-if="themePackageActive"
+                    class="absolute inset-0 z-20 !mt-0 flex min-h-full items-center justify-center rounded-2xl bg-surface-bright/90 p-6 text-center shadow-lg backdrop-blur-md"
+                  >
+                    <div class="flex max-w-sm flex-col items-center gap-3">
+                      <div
+                        class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary"
+                      >
+                        <Palette class="h-6 w-6" />
+                      </div>
+                      <p class="text-sm font-semibold text-on-surface">
+                        {{ $t('settings.theme.packageActive') }}
+                      </p>
+                      <p class="text-xs text-on-surface-variant">
+                        {{ $t('settings.theme.packageActiveDesc', { id: installedThemeId }) }}
+                      </p>
+                      <button
+                        class="mt-1 rounded-full bg-primary px-4 py-2 text-sm font-medium text-on-primary transition-opacity hover:opacity-90"
+                        @click="deactivateInstalledTheme"
+                      >
+                        {{ $t('settings.theme.deactivate') }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- UI Style Settings -->
+                <div class="surface-card flex items-center justify-between">
+                  <div>
+                    <h4 class="font-bold text-on-surface">{{ $t('settings.uiStyle.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">{{ $t('settings.uiStyle.desc') }}</p>
+                  </div>
+                  <Select v-model="uiStyle">
+                    <SelectTrigger
+                      class="w-[140px] bg-surface-container border-none shadow-none rounded-lg text-sm font-medium"
+                    >
+                      <SelectValue :placeholder="$t('settings.uiStyle.glass')" />
+                    </SelectTrigger>
+                    <SelectContent
+                      class="border-surface-variant/20 rounded-lg bg-surface shadow-lg"
+                    >
+                      <SelectGroup>
+                        <SelectItem value="style-default">{{
+                          $t('settings.uiStyle.default')
+                        }}</SelectItem>
+                        <SelectItem value="style-glass">{{
+                          $t('settings.uiStyle.glass')
+                        }}</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <!-- Custom CSS -->
+                <div class="surface-card flex items-center justify-between">
+                  <div class="mr-4 flex-1">
+                    <h4 class="font-bold text-on-surface">{{ $t('settings.customCss.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">
+                      {{ $t('settings.customCss.desc') }}
+                    </p>
+                  </div>
+                  <button
+                    @click="showCustomCssDialog = true"
+                    class="flex-shrink-0 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+                  >
+                    {{ $t('settings.customCss.editBtn') }}
+                  </button>
+                </div>
+
+                <div class="surface-card flex items-center justify-between">
+                  <div class="flex-1 mr-4">
+                    <h4 class="font-bold text-on-surface">
+                      {{ $t('settings.theme.catalogTitle') }}
+                    </h4>
+                    <p class="text-xs text-on-surface-variant">
+                      {{ $t('settings.theme.catalogDesc') }}
+                    </p>
+                  </div>
+                  <button
+                    class="rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+                    @click="showThemeCatalogDialog = true"
+                  >
+                    {{ $t('settings.theme.catalogButton') }}
+                  </button>
                 </div>
               </div>
-            </div>
 
-            <div class="bg-secondary-container/50 rounded-2xl p-6 mt-4">
-              <h3 class="text-base font-bold text-on-secondary-container mb-2">{{ $t('settings.about.introTitle') }}</h3>
-              <p class="text-sm text-on-secondary-container/80 leading-relaxed">
-                {{ $t('settings.about.introText') }}
-              </p>
-            </div>
+              <!-- AUDIO SECTION -->
+              <div v-else-if="currentSection === 'audio'" class="space-y-6" key="audio">
+                <!-- Spectrum Analyzer / Real-time Monitoring -->
+                <div class="haze-surface p-4 space-y-3">
+                  <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-bold text-on-surface text-sm">
+                      {{ $t('settings.spectrum.title') }}
+                    </h4>
+                    <div class="flex gap-4">
+                      <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-sm bg-surface-variant"></div>
+                        <span class="text-[10px] text-on-surface-variant">原始 (Raw)</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-sm bg-primary"></div>
+                        <span class="text-[10px] text-on-surface-variant">处理后 (Processed)</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="w-full h-32 bg-surface-container rounded-xl overflow-hidden relative">
+                    <canvas ref="spectrumCanvas" class="w-full h-full"></canvas>
+                  </div>
+                </div>
+                <!-- Amplifier (Gain) -->
+                <div class="bg-surface-bright rounded-2xl p-4 shadow-sm flex items-center gap-4">
+                  <span class="text-sm font-medium text-on-surface whitespace-nowrap">{{
+                    $t('settings.audioParams.gain')
+                  }}</span>
+                  <MD3Slider :min="-50" :max="50" v-model="settings.gain" />
+                  <span class="text-xs w-12 text-right"
+                    >{{ settings.gain > 0 ? '+' : '' }}{{ settings.gain }} dB</span
+                  >
+                </div>
+
+                <!-- Acoustic Echo Cancellation (AEC) -->
+                <div class="bg-surface-bright rounded-2xl p-4 shadow-sm">
+                  <div
+                    class="flex justify-between items-center"
+                    :class="isAecSupported && aecRuntimeAvailable ? 'cursor-pointer' : ''"
+                    @click="
+                      isAecSupported &&
+                      aecRuntimeAvailable &&
+                      (settings.aecEnabled = !settings.aecEnabled)
+                    "
+                  >
+                    <div>
+                      <span class="font-medium text-on-surface">{{
+                        $t('settings.audioParams.aec')
+                      }}</span>
+                      <p class="text-xs text-on-surface-variant mt-0.5">
+                        {{ $t('settings.audioParams.aecDesc') }}
+                      </p>
+                      <p
+                        v-if="!isAecSupported"
+                        class="text-xs text-on-surface-variant mt-1 flex items-center gap-1"
+                      >
+                        <Ban class="w-3 h-3 shrink-0" />
+                        {{ $t('settings.audioParams.aecUnavailable') }}
+                      </p>
+                      <p
+                        v-else-if="!aecRuntimeAvailable"
+                        class="text-xs text-on-surface-variant mt-1 flex items-center gap-1"
+                      >
+                        <Ban class="w-3 h-3 shrink-0" />
+                        {{ $t('settings.audioParams.aecRuntimeUnavailable') }}
+                      </p>
+                    </div>
+                    <button
+                      :disabled="!isAecSupported || !aecRuntimeAvailable"
+                      class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                      :class="
+                        settings.aecEnabled
+                          ? 'border-primary bg-primary'
+                          : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                      "
+                    >
+                      <div
+                        class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                        :class="settings.aecEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                      >
+                        <span
+                          class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                          :class="
+                            settings.aecEnabled
+                              ? 'h-6 w-6 bg-on-primary'
+                              : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                          "
+                        />
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Noise Suppression -->
+                <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
+                  <div
+                    class="flex justify-between items-center cursor-pointer"
+                    @click="settings.nsEnabled = !settings.nsEnabled"
+                  >
+                    <span class="font-medium text-on-surface">{{
+                      $t('settings.audioParams.noiseSuppression')
+                    }}</span>
+                    <button
+                      class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                      :class="
+                        settings.nsEnabled
+                          ? 'border-primary bg-primary'
+                          : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                      "
+                    >
+                      <div
+                        class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                        :class="settings.nsEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                      >
+                        <span
+                          class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                          :class="
+                            settings.nsEnabled
+                              ? 'h-6 w-6 bg-on-primary'
+                              : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                          "
+                        />
+                      </div>
+                    </button>
+                  </div>
+                  <div
+                    v-if="settings.nsEnabled"
+                    class="space-y-4 pt-2 border-t border-surface-variant/20"
+                  >
+                    <div class="flex gap-2 mt-4">
+                      <button
+                        v-for="type in [
+                          { id: 'PureVox', label: 'PureVox (ONNX)' },
+                          { id: 'RNNoise', label: 'RNNoise' },
+                          { id: 'Speexdsp', label: 'Speexdsp' },
+                        ]"
+                        :key="type.id"
+                        @click="settings.nsType = type.id"
+                        class="px-3 py-1 rounded-full text-xs font-medium transition-colors"
+                        :class="
+                          settings.nsType === type.id
+                            ? 'bg-primary text-on-primary'
+                            : 'bg-surface-container text-on-surface'
+                        "
+                      >
+                        {{ type.label }}
+                      </button>
+                    </div>
+                    <div class="flex items-center gap-4">
+                      <span class="text-xs text-on-surface-variant whitespace-nowrap">{{
+                        $t('settings.audioParams.intensity')
+                      }}</span>
+                      <MD3Slider :min="0" :max="100" v-model="settings.nsIntensity" />
+                      <span class="text-xs w-8 text-right">{{ settings.nsIntensity }}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Dereverb -->
+                <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
+                  <div
+                    class="flex justify-between items-center cursor-pointer"
+                    @click="settings.dereverbEnabled = !settings.dereverbEnabled"
+                  >
+                    <span class="font-medium text-on-surface">{{
+                      $t('settings.audioParams.dereverb')
+                    }}</span>
+                    <button
+                      class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                      :class="
+                        settings.dereverbEnabled
+                          ? 'border-primary bg-primary'
+                          : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                      "
+                    >
+                      <div
+                        class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                        :class="
+                          settings.dereverbEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'
+                        "
+                      >
+                        <span
+                          class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                          :class="
+                            settings.dereverbEnabled
+                              ? 'h-6 w-6 bg-on-primary'
+                              : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                          "
+                        />
+                      </div>
+                    </button>
+                  </div>
+                  <div
+                    v-if="settings.dereverbEnabled"
+                    class="flex items-center gap-4 pt-4 border-t border-surface-variant/20"
+                  >
+                    <span class="text-xs text-on-surface-variant whitespace-nowrap">{{
+                      $t('settings.audioParams.level')
+                    }}</span>
+                    <MD3Slider :min="0" :max="100" v-model="settings.dereverbLevel" />
+                    <span class="text-xs w-8 text-right">{{ settings.dereverbLevel }}%</span>
+                  </div>
+                </div>
+
+                <!-- Auto Gain Control -->
+                <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
+                  <div
+                    class="flex justify-between items-center cursor-pointer"
+                    @click="settings.agcEnabled = !settings.agcEnabled"
+                  >
+                    <span class="font-medium text-on-surface">{{
+                      $t('settings.audioParams.agc')
+                    }}</span>
+                    <button
+                      class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                      :class="
+                        settings.agcEnabled
+                          ? 'border-primary bg-primary'
+                          : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                      "
+                    >
+                      <div
+                        class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                        :class="settings.agcEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                      >
+                        <span
+                          class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                          :class="
+                            settings.agcEnabled
+                              ? 'h-6 w-6 bg-on-primary'
+                              : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                          "
+                        />
+                      </div>
+                    </button>
+                  </div>
+                  <div
+                    v-if="settings.agcEnabled"
+                    class="space-y-4 pt-4 border-t border-surface-variant/20"
+                  >
+                    <div class="flex items-center gap-4">
+                      <span class="text-xs text-on-surface-variant w-20">{{
+                        $t('settings.audioParams.target')
+                      }}</span>
+                      <MD3Slider :min="0" :max="32767" v-model="settings.agcTarget" />
+                      <span class="text-xs w-10 text-right">{{ settings.agcTarget }}</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                      <span class="text-xs text-on-surface-variant w-20">{{
+                        $t('settings.audioParams.attack')
+                      }}</span>
+                      <MD3Slider :min="1" :max="100" v-model="settings.agcAttack" />
+                      <span class="text-xs w-10 text-right">{{
+                        (settings.agcAttack / 1000).toFixed(3)
+                      }}</span>
+                    </div>
+                    <div class="flex items-center gap-4">
+                      <span class="text-xs text-on-surface-variant w-20">{{
+                        $t('settings.audioParams.decay')
+                      }}</span>
+                      <MD3Slider :min="1" :max="100" v-model="settings.agcDecay" />
+                      <span class="text-xs w-10 text-right">{{
+                        (settings.agcDecay / 10000).toFixed(4)
+                      }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Voice Activity Detection -->
+                <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
+                  <div
+                    class="flex justify-between items-center cursor-pointer"
+                    @click="settings.vadEnabled = !settings.vadEnabled"
+                  >
+                    <span class="font-medium text-on-surface">{{
+                      $t('settings.audioParams.vad')
+                    }}</span>
+                    <button
+                      class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                      :class="
+                        settings.vadEnabled
+                          ? 'border-primary bg-primary'
+                          : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                      "
+                    >
+                      <div
+                        class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                        :class="settings.vadEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                      >
+                        <span
+                          class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                          :class="
+                            settings.vadEnabled
+                              ? 'h-6 w-6 bg-on-primary'
+                              : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                          "
+                        />
+                      </div>
+                    </button>
+                  </div>
+                  <div
+                    v-if="settings.vadEnabled"
+                    class="flex items-center gap-4 pt-4 border-t border-surface-variant/20"
+                  >
+                    <span class="text-xs text-on-surface-variant whitespace-nowrap">{{
+                      $t('settings.audioParams.threshold')
+                    }}</span>
+                    <MD3Slider :min="-100" :max="0" v-model="settings.vadThreshold" />
+                    <span class="text-xs w-12 text-right">{{ settings.vadThreshold }} dB</span>
+                  </div>
+                </div>
+
+                <!-- Audio Processing Chain -->
+                <div
+                  @click="showAudioChain = true"
+                  class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-3 cursor-pointer hover:bg-surface-variant transition-colors group"
+                >
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h4 class="font-bold text-on-surface">
+                        {{ $t('settings.audioChain.title') }}
+                      </h4>
+                      <p class="text-xs text-on-surface-variant mt-0.5">
+                        {{ $t('settings.audioChain.descPopup') }}
+                      </p>
+                    </div>
+                    <div
+                      class="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center group-hover:bg-primary group-hover:text-on-primary transition-colors"
+                    >
+                      <ChevronRight
+                        class="w-4 h-4 text-on-surface-variant group-hover:text-on-primary transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    class="flex items-center gap-2 overflow-hidden text-xs text-on-surface-variant font-medium opacity-80 pt-1"
+                  >
+                    <template v-for="(item, index) in displayChain" :key="item">
+                      <span class="whitespace-nowrap">{{ $t(`settings.audioChain.${item}`) }}</span>
+                      <ArrowRight v-if="index < displayChain.length - 1" class="w-3 h-3 shrink-0" />
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Output Buffer Size -->
+                <div class="bg-surface-bright rounded-2xl p-4 shadow-sm">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <span class="font-medium text-on-surface">{{
+                        $t('settings.audioParams.bufferSize')
+                      }}</span>
+                      <p class="text-xs text-on-surface-variant mt-0.5">
+                        {{ $t('settings.audioParams.bufferSizeDesc') }}
+                      </p>
+                    </div>
+                    <span
+                      class="text-xs w-14 text-right text-on-surface-variant font-medium whitespace-nowrap"
+                      >{{ settings.outputBufferMs }} ms</span
+                    >
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-[10px] text-on-surface-variant shrink-0">{{
+                      $t('settings.audioParams.bufferLow')
+                    }}</span>
+                    <MD3Slider
+                      :min="100"
+                      :max="1200"
+                      :step="100"
+                      v-model="settings.outputBufferMs"
+                    />
+                    <span class="text-[10px] text-on-surface-variant shrink-0">{{
+                      $t('settings.audioParams.bufferHigh')
+                    }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- EQUALIZER SECTION -->
+              <div
+                v-else-if="currentSection === 'equalizer'"
+                class="space-y-6 h-[600px]"
+                key="equalizer"
+              >
+                <EqualizerPanel :config="settings.equalizer" />
+              </div>
+
+              <!-- PLUGINS SECTION -->
+              <div v-else-if="currentSection === 'plugins'" class="space-y-6" key="plugins">
+                <PluginsPanel />
+              </div>
+
+              <!-- PLUGIN CUSTOM PANEL (sandbox iframe + postMessage bridge) -->
+              <div
+                v-else-if="currentSection.startsWith('panel:')"
+                class="space-y-4"
+                key="plugin-panel"
+              >
+                <div
+                  v-if="panelLoading"
+                  class="flex items-center gap-2 text-sm text-on-surface-variant"
+                >
+                  <span
+                    class="animate-spin inline-block w-4 h-4 border-2 border-primary border-t-transparent rounded-full"
+                  ></span>
+                  {{ $t('plugins.loading') }}
+                </div>
+                <div
+                  v-else-if="panelError"
+                  class="text-sm text-red-400 bg-red-500/10 rounded-xl p-4 font-mono break-all"
+                >
+                  {{ panelError }}
+                </div>
+                <div v-else class="space-y-3">
+                  <iframe
+                    ref="panelFrame"
+                    :srcdoc="panelHtml"
+                    sandbox="allow-scripts allow-popups"
+                    class="w-full h-[600px] rounded-2xl border border-border"
+                    style="background: hsl(var(--surface))"
+                  ></iframe>
+                </div>
+              </div>
+
+              <!-- ABOUT -->
+              <div v-else-if="currentSection === 'about'" class="space-y-4 pb-12" key="about">
+                <div
+                  class="bg-surface-bright rounded-2xl overflow-hidden shadow-sm flex flex-col border border-border"
+                >
+                  <div
+                    class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-default"
+                  >
+                    <User class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+                    <div class="flex-1">
+                      <h4 class="text-sm font-medium text-on-surface">Developer</h4>
+                      <p class="text-xs text-on-surface-variant">LanRhyme、ChinsaaWei、ChouChiu</p>
+                    </div>
+                  </div>
+                  <div class="h-px bg-border mx-4"></div>
+
+                  <a
+                    href="https://github.com/LanRhyme/MicYou"
+                    target="_blank"
+                    class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer group"
+                  >
+                    <Globe class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+                    <div class="flex-1">
+                      <h4 class="text-sm font-medium text-on-surface">GitHub Repository</h4>
+                      <p class="text-xs text-primary group-hover:underline">
+                        https://github.com/LanRhyme/MicYou
+                      </p>
+                    </div>
+                  </a>
+                  <div class="h-px bg-border mx-4"></div>
+
+                  <div
+                    @click="openDialog('Contributors')"
+                    class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer"
+                  >
+                    <Users class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+                    <div class="flex-1">
+                      <h4 class="text-sm font-medium text-on-surface">
+                        {{ $t('settings.about.contributorsBtn') }}
+                      </h4>
+                      <p class="text-xs text-on-surface-variant">
+                        {{ $t('settings.about.contributorsDesc') }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="h-px bg-border mx-4"></div>
+
+                  <div
+                    @click="openDialog('Sponsors')"
+                    class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer"
+                  >
+                    <Heart class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+                    <div class="flex-1">
+                      <h4 class="text-sm font-medium text-on-surface">
+                        {{ $t('settings.about.sponsorsBtn') }}
+                      </h4>
+                      <p class="text-xs text-on-surface-variant">
+                        {{ $t('settings.about.sponsorsDesc') }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="h-px bg-border mx-4"></div>
+
+                  <div
+                    class="flex items-center justify-between p-4 hover:bg-surface-variant transition-colors cursor-default"
+                  >
+                    <div class="flex items-center gap-4">
+                      <Info class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+                      <div>
+                        <h4 class="text-sm font-medium text-on-surface">
+                          {{ $t('settings.about.version') }}
+                        </h4>
+                        <p class="text-xs text-on-surface-variant">{{ appVersion }}</p>
+                      </div>
+                    </div>
+                    <button
+                      @click="openDialog('Update')"
+                      class="px-3 py-1.5 text-xs font-medium text-on-primary bg-primary hover:opacity-90 rounded-full transition-opacity"
+                    >
+                      {{ $t('settings.about.updatesBtn') }}
+                    </button>
+                  </div>
+                  <div class="h-px bg-border mx-4"></div>
+
+                  <div
+                    @click="openDialog('Licenses')"
+                    class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer"
+                  >
+                    <FileText class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+                    <div class="flex-1">
+                      <h4 class="text-sm font-medium text-on-surface">
+                        {{ $t('settings.about.licensesBtn') }}
+                      </h4>
+                      <p class="text-xs text-on-surface-variant">
+                        {{ $t('settings.about.licensesDesc') }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="h-px bg-border mx-4"></div>
+
+                  <div
+                    @click="exportLog"
+                    class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer"
+                  >
+                    <Download class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+                    <div class="flex-1">
+                      <h4 class="text-sm font-medium text-on-surface">
+                        {{ $t('settings.about.logsBtn') }}
+                      </h4>
+                      <p class="text-xs text-on-surface-variant">
+                        {{ $t('settings.about.logsDesc') }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-secondary-container/50 rounded-2xl p-6 mt-4">
+                  <h3 class="text-base font-bold text-on-secondary-container mb-2">
+                    {{ $t('settings.about.introTitle') }}
+                  </h3>
+                  <p class="text-sm text-on-secondary-container/80 leading-relaxed">
+                    {{ $t('settings.about.introText') }}
+                  </p>
+                </div>
+              </div>
+            </Transition>
           </div>
-          </Transition>
-
         </div>
       </div>
     </div>
-  </div>
   </Transition>
-  
+
   <ContributorsDialog :isOpen="showContributors" @close="showContributors = false" />
   <SponsorsDialog :isOpen="showSponsors" @close="showSponsors = false" />
   <LicensesDialog :isOpen="showLicenses" @close="showLicenses = false" />
-  <AudioChainDialog :isOpen="showAudioChain" :chain="settings.processingChain" @update:chain="updateProcessingChain" @close="showAudioChain = false" />
+  <AudioChainDialog
+    :isOpen="showAudioChain"
+    :chain="settings.processingChain"
+    @update:chain="updateProcessingChain"
+    @close="showAudioChain = false"
+  />
   <CustomCssDialog :isOpen="showCustomCssDialog" @close="showCustomCssDialog = false" />
   <ThemeCatalogDialog :isOpen="showThemeCatalogDialog" @close="showThemeCatalogDialog = false" />
-  <CustomColorPicker 
-    :is-open="showColorPicker" 
+  <CustomColorPicker
+    :is-open="showColorPicker"
     :initial-h="customH"
     :initial-s="customS"
     :initial-l="customL"
@@ -800,17 +1346,21 @@
 </template>
 
 <script setup lang="ts">
-import MD3Slider from "@/shared/components/ui/slider/MD3Slider.vue"
+import MD3Slider from '@/shared/components/ui/slider/MD3Slider.vue';
 import { ref, computed, watch, reactive, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useColorMode, useStorage } from '@vueuse/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import { isEnabled as isAutostartEnabled, enable as enableAutostart, disable as disableAutostart } from '@tauri-apps/plugin-autostart';
 import {
-  Settings as SettingsIcon, 
-  X, 
-  Mic, 
+  isEnabled as isAutostartEnabled,
+  enable as enableAutostart,
+  disable as disableAutostart,
+} from '@tauri-apps/plugin-autostart';
+import {
+  Settings as SettingsIcon,
+  X,
+  Mic,
   Info,
   Download,
   Loader2,
@@ -824,6 +1374,8 @@ import {
   SlidersHorizontal,
   Palette,
   Ban,
+  Puzzle,
+  LayoutPanelTop,
 } from '@lucide/vue';
 import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
@@ -832,13 +1384,30 @@ import AudioChainDialog from '@/features/audio/components/AudioChainDialog.vue';
 import CustomCssDialog from '@/features/theme/components/CustomCssDialog.vue';
 import ThemeCatalogDialog from '@/features/theme/components/ThemeCatalogDialog.vue';
 import EqualizerPanel from '@/features/audio/components/EqualizerPanel.vue';
+import PluginsPanel from '@/features/plugins/components/PluginsPanel.vue';
+import { usePlugins } from '@/features/plugins/composables/usePlugins';
+import { usePluginPanelBridge } from '@/shared/composables/usePluginPanelBridge';
 import ThemeSelector from '@/features/theme/components/ThemeSelector.vue';
 import CustomColorPicker from '@/features/theme/components/CustomColorPicker.vue';
 import { useTheme } from '@/features/theme/composables/useTheme';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/shared/components/ui/select';
+
+onMounted(() => {
+  window.addEventListener('message', onPanelMessage);
+  // 侧边栏插件面板项依赖插件列表，对话框挂载即刷新（未进插件页也可见）
+  pluginsState.refresh().then(() => loadPanelIcons());
+});
+onUnmounted(() => window.removeEventListener('message', onPanelMessage));
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
 
 const props = defineProps<{
-  isOpen: boolean
+  isOpen: boolean;
 }>();
 
 const emit = defineEmits(['close', 'updateDevice']);
@@ -867,16 +1436,21 @@ const {
   installedThemeControlsColor,
   clearInstalledTheme,
 } = useTheme();
-const themePackageActive = computed(() => Boolean(installedThemeId.value && installedThemeControlsColor.value));
+const themePackageActive = computed(() =>
+  Boolean(installedThemeId.value && installedThemeControlsColor.value),
+);
 const showColorPicker = ref(false);
 const pocketMode = useStorage('micyou_pocket_mode', false);
-const closeBehavior = useStorage<'ask' | 'hide' | 'exit' | null>('micyou_remember_close_action', null);
+const closeBehavior = useStorage<'ask' | 'hide' | 'exit' | null>(
+  'micyou_remember_close_action',
+  null,
+);
 const startMinimized = useStorage<boolean>('micyou_start_minimized', false);
 const notificationsEnabled = useStorage<boolean>('micyou_notifications', true);
 const autoStream = useStorage<boolean>('micyou_auto_stream', false);
 const autostartEnabled = ref(false);
 
-const applyCustomColor = (color: { h: number, s: number, l: number }) => {
+const applyCustomColor = (color: { h: number; s: number; l: number }) => {
   customH.value = color.h;
   customS.value = color.s;
   customL.value = color.l;
@@ -948,17 +1522,191 @@ async function switchToTui() {
   }
 }
 
-const sections = computed(() => [
+interface SettingsSection {
+  id: string;
+  name: string;
+  icon: typeof SettingsIcon;
+  panelIcon?: string;
+  pluginId?: string;
+  panelId?: string;
+  divider?: boolean;
+}
+
+const baseSections: SettingsSection[] = [
   { id: 'general', name: t('settings.categories.general'), icon: SettingsIcon },
   { id: 'appearance', name: t('settings.categories.appearance'), icon: Palette },
   { id: 'audio', name: t('settings.categories.audio'), icon: Mic },
   { id: 'equalizer', name: t('settings.equalizer.title'), icon: SlidersHorizontal },
+  { id: 'plugins', name: t('settings.categories.plugins'), icon: Puzzle },
   { id: 'about', name: t('settings.categories.about'), icon: Info },
-]);
+];
+
+// 插件面板：每个声明 ui.panels 的插件在侧边栏拥有专属页面
+const pluginsState = usePlugins();
+const panelIcons = ref<Record<string, string>>({});
+
+async function loadPanelIcons() {
+  const icons: Record<string, string> = {};
+  for (const plugin of pluginsState.plugins.value) {
+    if (!plugin.enabled || !plugin.ui?.panels?.length) continue;
+    try {
+      const got = await invoke<Record<string, string>>('get_plugin_panel_icons', {
+        id: plugin.id,
+      });
+      for (const [pid, icon] of Object.entries(got)) {
+        icons[`${plugin.id}:${pid}`] = icon;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  panelIcons.value = icons;
+}
+
+const panelSections = computed(() => {
+  const out: SettingsSection[] = [];
+  for (const plugin of pluginsState.plugins.value) {
+    if (!plugin.enabled) continue; // 禁用插件的页面不显示
+    for (const panel of plugin.ui?.panels ?? []) {
+      if (panel.sidebar === false) continue; // 仅窗口页面由插件自主开窗
+      out.push({
+        id: `panel:${plugin.id}:${panel.id}`,
+        name: `${plugin.name} · ${panel.label}`,
+        icon: LayoutPanelTop,
+        panelIcon: panelIcons.value[`${plugin.id}:${panel.id}`],
+        pluginId: plugin.id,
+        panelId: panel.id,
+      });
+    }
+  }
+  return out;
+});
+
+const sections = computed(() => {
+  const out: SettingsSection[] = [];
+  for (const s of baseSections) {
+    out.push(s);
+  }
+  // 插件专属页面：放在「关于」之下，前面加一条分隔线
+  if (panelSections.value.length > 0) {
+    out.push({ id: '__divider__', name: '', icon: SettingsIcon, divider: true });
+    out.push(...panelSections.value);
+  }
+  return out;
+});
 
 const contentRef = ref<HTMLElement | null>(null);
 const currentSection = ref('general');
-const currentSectionName = computed(() => sections.value.find(s => s.id === currentSection.value)?.name);
+const currentSectionName = computed(
+  () => sections.value.find((s) => s.id === currentSection.value)?.name,
+);
+
+// ── 插件面板（sandbox iframe + postMessage bridge）─────────────────────
+const panelHtml = ref('');
+const panelLoading = ref(false);
+const panelError = ref<string | null>(null);
+const panelFrame = ref<HTMLIFrameElement | null>(null);
+
+function activePanel() {
+  const section = sections.value.find((s) => s.id === currentSection.value);
+  if (section && typeof section.pluginId === 'string' && typeof section.panelId === 'string') {
+    return { pluginId: section.pluginId as string, panelId: section.panelId as string };
+  }
+  return null;
+}
+
+function collectThemeVars(): string {
+  const style = getComputedStyle(document.documentElement);
+  const vars: string[] = [];
+  for (let i = 0; i < style.length; i++) {
+    const name = style[i];
+    if (name.startsWith('--')) {
+      vars.push(`${name}: ${style.getPropertyValue(name)};`);
+    }
+  }
+  return vars.join('\n');
+}
+
+async function loadPanel(pluginId: string, panelId: string) {
+  panelLoading.value = true;
+  panelError.value = null;
+  try {
+    const html = await invoke<string>('get_plugin_panel', { pluginId, panelId });
+    // 注入当前主题 CSS 变量，使插件页面与软件整体风格一致并自动跟随主题
+    // 同时 hook console，把面板的 log/warn/error 转发为插件日志（利于开发者调试面板）
+    const consoleHook = `<script>
+      (function () {
+        var orig = { log: console.log.bind(console), warn: console.warn.bind(console), error: console.error.bind(console) };
+        function send(level) {
+          return function () {
+            var parts = [];
+            for (var i = 0; i < arguments.length; i++) {
+              var a = arguments[i];
+              parts.push(typeof a === 'string' ? a : (function () { try { return JSON.stringify(a); } catch (e) { return String(a); } })());
+            }
+            try {
+              window.parent.postMessage({
+                __micyou: 1,
+                id: 'console-' + Math.random().toString(36).slice(2),
+                api: 'log',
+                args: { level: level, message: parts.join(' ') }
+              }, '*');
+            } catch (e) {}
+            orig[level === 'warn' ? 'warn' : level === 'error' ? 'error' : 'log'].apply(console, arguments);
+          };
+        }
+        console.log = send('info');
+        console.warn = send('warn');
+        console.error = send('error');
+        window.addEventListener('error', function (e) {
+          try {
+            window.parent.postMessage({
+              __micyou: 1,
+              id: 'console-' + Math.random().toString(36).slice(2),
+              api: 'log',
+              args: { level: 'error', message: 'uncaught: ' + (e.message || e.error) }
+            }, '*');
+          } catch (err) {}
+        });
+      })();
+    <\/script>`;
+    panelHtml.value = `<style>:root{${collectThemeVars()}}</style>${consoleHook}${html}`;
+  } catch (e) {
+    panelError.value = String(e);
+    panelHtml.value = '';
+  } finally {
+    panelLoading.value = false;
+  }
+}
+
+function onPanelMessage(e: MessageEvent) {
+  const section = sections.value.find((s) => s.id === currentSection.value);
+  if (!section || typeof section.pluginId !== 'string') return;
+  // bridge 实例的 pluginId 在切换面板时可能过期，直接重建
+  const bridge = usePluginPanelBridge(section.pluginId as string);
+  bridge.handleMessage(e);
+}
+
+watch(currentSection, async () => {
+  const panel = activePanel();
+  if (panel) {
+    await loadPanel(panel.pluginId, panel.panelId);
+  } else {
+    panelHtml.value = '';
+  }
+  contentRef.value?.scrollTo({ top: 0 });
+});
+
+// 主题切换时刷新插件面板（跟随主题）
+watch(
+  () => colorMode.value,
+  async () => {
+    if (currentSection.value.startsWith('panel:')) {
+      const panel = activePanel();
+      if (panel) await loadPanel(panel.pluginId, panel.panelId);
+    }
+  },
+);
 
 watch(currentSection, () => {
   contentRef.value?.scrollTo({ top: 0 });
@@ -971,9 +1719,12 @@ if (stored === '简体中文') stored = 'zh';
 
 const currentLanguage = ref(stored);
 function saveUiPrefs() {
-  const effective = currentLanguage.value === 'system'
-    ? (navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en')
-    : currentLanguage.value;
+  const effective =
+    currentLanguage.value === 'system'
+      ? navigator.language.toLowerCase().startsWith('zh')
+        ? 'zh'
+        : 'en'
+      : currentLanguage.value;
   void invoke('save_ui_prefs', {
     language: effective,
     themeColor: themeMode.value === 'system' ? 'theme-system' : themeColor.value,
@@ -988,6 +1739,11 @@ watch(currentLanguage, (newLang) => {
   }
   // Share the language with the CLI via ui.json
   saveUiPrefs();
+  // 语言变化时刷新插件面板（面板按宿主 locale 重新渲染）
+  if (currentSection.value.startsWith('panel:')) {
+    const panel = activePanel();
+    if (panel) void loadPanel(panel.pluginId, panel.panelId);
+  }
 });
 
 // Reactive Settings State
@@ -1011,18 +1767,32 @@ const settings = reactive({
   equalizer: {
     enabled: false,
     preAmp: 0,
-    gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  }
+    gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  },
 });
 
 const audioDevices = ref<string[]>([]);
-const hasVBCable = computed(() => audioDevices.value.some(d => d.toLowerCase().includes('cable')));
-const hasBlackHole = computed(() => audioDevices.value.some(d => d.toLowerCase().includes('blackhole')));
-const isMacOS = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform || navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
-const isLinux = typeof navigator !== 'undefined' && /Linux/.test(navigator.platform || navigator.userAgent) && !/Android/.test(navigator.userAgent);
+const hasVBCable = computed(() =>
+  audioDevices.value.some((d) => d.toLowerCase().includes('cable')),
+);
+const hasBlackHole = computed(() =>
+  audioDevices.value.some((d) => d.toLowerCase().includes('blackhole')),
+);
+const isMacOS =
+  typeof navigator !== 'undefined' &&
+  /Mac/.test(navigator.platform || navigator.userAgent) &&
+  !/iPhone|iPad|iPod/.test(navigator.userAgent);
+const isLinux =
+  typeof navigator !== 'undefined' &&
+  /Linux/.test(navigator.platform || navigator.userAgent) &&
+  !/Android/.test(navigator.userAgent);
 const isAecSupported = !isMacOS;
 const aecRuntimeAvailable = ref(true);
-const pipewireStatus = ref<{ available: boolean; setup: boolean; device_exists: boolean }>({ available: false, setup: false, device_exists: false });
+const pipewireStatus = ref<{ available: boolean; setup: boolean; device_exists: boolean }>({
+  available: false,
+  setup: false,
+  device_exists: false,
+});
 const vbcableInstalling = ref(false);
 const vbcableInstallProgress = ref('');
 let unlistenVbcableProgress: UnlistenFn | null = null;
@@ -1033,7 +1803,11 @@ interface BlackHoleStatus {
   switch_audio_source: boolean;
   device_name: string | null;
 }
-const blackholeStatus = ref<BlackHoleStatus>({ installed: false, switch_audio_source: false, device_name: null });
+const blackholeStatus = ref<BlackHoleStatus>({
+  installed: false,
+  switch_audio_source: false,
+  device_name: null,
+});
 const blackholeChecking = ref(false);
 const audioLevel = ref(0);
 let unlistenLevel: UnlistenFn | null = null;
@@ -1087,7 +1861,7 @@ function drawSpectrum() {
     scheduleSpectrumFrame();
     return;
   }
-  
+
   const canvas = spectrumCanvas.value;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -1104,7 +1878,7 @@ function drawSpectrum() {
 
   const width = rect.width;
   const height = rect.height;
-  
+
   ctx.clearRect(0, 0, width, height);
 
   const raw = rawSpectrum.value;
@@ -1125,22 +1899,20 @@ function drawSpectrum() {
     if (rawH > 0.5) {
       ctx.fillStyle = variantColor;
       ctx.beginPath();
-      ctx.roundRect(i * barWidth + gap/2, height - rawH, effectiveBarWidth, rawH, 2);
+      ctx.roundRect(i * barWidth + gap / 2, height - rawH, effectiveBarWidth, rawH, 2);
       ctx.fill();
     }
 
     if (procH > 0.5) {
       ctx.fillStyle = primaryColor;
       ctx.beginPath();
-      ctx.roundRect(i * barWidth + gap/2, height - procH, effectiveBarWidth, procH, 2);
+      ctx.roundRect(i * barWidth + gap / 2, height - procH, effectiveBarWidth, procH, 2);
       ctx.fill();
     }
   }
 
   scheduleSpectrumFrame();
 }
-
-
 
 const showContributors = ref(false);
 const showSponsors = ref(false);
@@ -1155,7 +1927,7 @@ const updateProcessingChain = (newChain: string[]) => {
 };
 
 const displayChain = computed(() =>
-  isAecSupported ? settings.processingChain : settings.processingChain.filter((i) => i !== 'AEC')
+  isAecSupported ? settings.processingChain : settings.processingChain.filter((i) => i !== 'AEC'),
 );
 
 const openDialog = async (name: string) => {
@@ -1176,7 +1948,7 @@ const openDialog = async (name: string) => {
           alert(t('dialogs.update.latest'));
         }
       } else {
-        alert(t('dialogs.update.failed', { error: "HTTP " + res.status }));
+        alert(t('dialogs.update.failed', { error: 'HTTP ' + res.status }));
       }
     } catch (e: any) {
       alert(t('dialogs.update.failed', { error: e.message }));
@@ -1197,7 +1969,9 @@ async function installVBCableFromSettings() {
   vbcableInstalling.value = true;
   vbcableInstallProgress.value = '';
   try {
-    const result = await invoke<{ success: boolean; error_type?: string; message?: string }>('install_vbcable');
+    const result = await invoke<{ success: boolean; error_type?: string; message?: string }>(
+      'install_vbcable',
+    );
     if (result.success) {
       audioDevices.value = await invoke<string[]>('get_audio_devices');
     }
@@ -1232,7 +2006,11 @@ async function checkBlackHoleStatus() {
 async function checkPipeWireStatus() {
   if (!isLinux) return;
   try {
-    pipewireStatus.value = await invoke<{ available: boolean; setup: boolean; device_exists: boolean }>('check_pipewire');
+    pipewireStatus.value = await invoke<{
+      available: boolean;
+      setup: boolean;
+      device_exists: boolean;
+    }>('check_pipewire');
   } catch (e) {
     console.error('Failed to check PipeWire status:', e);
   }
@@ -1255,17 +2033,21 @@ onMounted(async () => {
   try {
     appVersion.value = await invoke('get_app_version');
   } catch (e) {
-    console.error("Failed to get version", e);
+    console.error('Failed to get version', e);
   }
   try {
     autostartEnabled.value = await isAutostartEnabled();
   } catch (e) {
-    console.error("Failed to read autostart state:", e);
+    console.error('Failed to read autostart state:', e);
   }
   unlistenVbcableProgress = await listen<string>('vbcable-install-progress', (event) => {
     vbcableInstallProgress.value = event.payload;
   });
-  unlistenAecStatus = await listen<{ available: boolean; enabled: boolean; reason?: string | null }>('aec-status-changed', (event) => {
+  unlistenAecStatus = await listen<{
+    available: boolean;
+    enabled: boolean;
+    reason?: string | null;
+  }>('aec-status-changed', (event) => {
     aecRuntimeAvailable.value = event.payload.available;
   });
   checkBlackHoleStatus();
@@ -1296,7 +2078,7 @@ const fetchDevices = async () => {
   try {
     audioDevices.value = await invoke<string[]>('get_audio_devices');
   } catch (e) {
-    console.error("Failed to fetch audio devices", e);
+    console.error('Failed to fetch audio devices', e);
   }
   checkBlackHoleStatus();
   checkPipeWireStatus();
@@ -1339,13 +2121,13 @@ const loadSettings = async () => {
     ? ['AEC', ...savedChain.filter((i) => i !== 'AEC')]
     : savedChain.filter((i) => i !== 'AEC');
   if (!isAecSupported) settings.aecEnabled = false;
-  
+
   // Legacy support
   const savedDevice = localStorage.getItem('micyou_output_device');
   if (savedDevice && !settings.audioDevice) {
     settings.audioDevice = savedDevice === 'default' ? 'auto' : savedDevice;
   }
-  
+
   if (settings.audioDevice) {
     emit('updateDevice', settings.audioDevice);
   }
@@ -1369,9 +2151,11 @@ const syncSettingsToBackend = async () => {
         vadEnabled: settings.vadEnabled,
         vadThreshold: settings.vadThreshold,
         outputBufferMs: settings.outputBufferMs,
-        processingChain: isAecSupported ? settings.processingChain : settings.processingChain.filter((i) => i !== 'AEC'),
+        processingChain: isAecSupported
+          ? settings.processingChain
+          : settings.processingChain.filter((i) => i !== 'AEC'),
         equalizer: settings.equalizer,
-      }
+      },
     });
   } catch (e) {
     console.error('Failed to sync DSP settings to backend:', e);
@@ -1385,9 +2169,13 @@ const saveSettings = () => {
   syncSettingsToBackend();
 };
 
-watch(settings, () => {
-  saveSettings();
-}, { deep: true });
+watch(
+  settings,
+  () => {
+    saveSettings();
+  },
+  { deep: true },
+);
 
 function resetMonitoringData() {
   audioLevel.value = 0;
@@ -1487,7 +2275,10 @@ function handleOpenState(_isOpen: boolean) {
   handleMonitoringState();
 }
 
-watch(() => props.isOpen, () => {
-  if (isMounted) handleMonitoringState();
-});
+watch(
+  () => props.isOpen,
+  () => {
+    if (isMounted) handleMonitoringState();
+  },
+);
 </script>

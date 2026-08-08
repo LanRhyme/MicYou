@@ -86,7 +86,8 @@
       "appearance": "外觀",
       "audio": "音訊",
       "network": "網絡",
-      "about": "關於"
+      "about": "關於",
+      "plugins": "插件"
     },
     "language": {
       "title": "語言",
@@ -230,7 +231,8 @@
       "Amplifier": "增益放大",
       "AGC": "自動增益控制 (AGC)",
       "VAD": "語音活動偵測 (VAD)",
-      "Equalizer": "等化器 (EQ)"
+      "Equalizer": "等化器 (EQ)",
+      "Plugins": "插件"
     },
     "equalizer": {
       "title": "等化器",
@@ -519,5 +521,59 @@
     "adminRequired": "需要管理員權限，批准吓 UAC 提示。",
     "timeout": "安裝逾時，再試过。",
     "retry": "重試"
+  },
+  "plugins": {
+    "title": "插件",
+    "desc": "使用原生或 WASM 插件擴展 MicYou",
+    "refresh": "刷新",
+    "loading": "正在載入插件…",
+    "noPlugins": "尚未安裝任何插件",
+    "openDir": "開啟插件目錄",
+    "installHint": "將插件資料夾或 .zip 放入插件目錄，然後刷新",
+    "enabled": "已啟用",
+    "disabled": "已停用",
+    "uninstall": "解除安裝",
+    "logs": "日誌",
+    "noLogs": "暫無日誌",
+    "config": "設定",
+    "configSaved": "已儲存",
+    "save": "儲存",
+    "inChain": "DSP 鏈中",
+    "sync": {
+      "connected": "裝置已連接",
+      "disconnected": "無裝置",
+      "tip": "跨端插件同步狀態：手機等裝置經控制通道連接後，插件訊息可跨端收發"
+    },
+    "kind": {
+      "dsp": "DSP 處理",
+      "utility": "工具",
+      "ui": "UI 面板",
+      "bridge": "同步橋"
+    },
+    "import": "匯入 .zip",
+    "importing": "正在匯入…",
+    "installHintDir": "或把插件資料夾放入插件目錄",
+    "soundpad": "音效板",
+    "soundpadEmpty": "在插件配置中加入 sounds 陣列以顯示按鈕",
+    "openWindow": "在新視窗開啟",
+    "checkUpdates": "檢查更新",
+    "updating": "更新中…",
+    "updateNow": "更新",
+    "market": "外掛程式商店",
+    "marketTitle": "外掛程式商店",
+    "marketLoading": "載入商店目錄…",
+    "marketEmpty": "商店暫無外掛程式",
+    "marketFailed": "載入商店失敗：{error}",
+    "marketInstall": "安裝",
+    "marketInstalling": "安裝中…",
+    "marketInstalled": "已安裝",
+    "marketConfirm": "安裝前請確認該外掛程式請求的能力",
+    "marketConfirmText": "安裝即代表信任該外掛程式作者，請確認來源可信",
+    "retry": "重試",
+    "cancel": "取消",
+    "search": "搜尋外掛程式",
+    "uninstallConfirm": "確定卸載 {name}？",
+    "marketSearch": "搜尋外掛程式商店",
+    "marketAll": "全部"
   }
 }

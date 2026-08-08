@@ -143,6 +143,8 @@ pub struct AudioOutputManager {
     channel_map_buffer: Vec<f32>,
     resample_buffer: Vec<f32>,
 
+    /// Sound effects from plugins mixed into the virtual mic output
+    mixer: crate::mixer::SoundMixer,
     #[allow(dead_code)]
     monitor_stream: Option<cpal::Stream>,
     #[allow(dead_code)]
@@ -188,6 +190,7 @@ impl AudioOutputManager {
             monitor_channel_map_buffer: Vec::new(),
             monitor_resample_buffer: Vec::new(),
             is_monitoring: false,
+            mixer: crate::mixer::SoundMixer::new(),
             #[cfg(target_os = "linux")]
             pw_loopback_child: None,
         }
@@ -539,12 +542,25 @@ impl AudioOutputManager {
     }
 
     pub fn push_audio_data(&mut self, data: &[f32], input_channels: usize) {
-        map_channels(
-            data,
-            input_channels,
-            self.device_channels,
-            &mut self.channel_map_buffer,
-        );
+        // Plugin sound effects are mixed into the virtual mic stream so the
+        // remote peer hears them exactly like microphone audio
+        if !self.mixer.is_empty() && !data.is_empty() && input_channels > 0 {
+            let mut mixed = data.to_vec();
+            self.mixer.mix_into(&mut mixed, input_channels);
+            map_channels(
+                &mixed,
+                input_channels,
+                self.device_channels,
+                &mut self.channel_map_buffer,
+            );
+        } else {
+            map_channels(
+                data,
+                input_channels,
+                self.device_channels,
+                &mut self.channel_map_buffer,
+            );
+        }
 
         if let Some(resampler) = &mut self.resampler {
             resampler.resample(
@@ -584,6 +600,11 @@ impl AudioOutputManager {
                 }
             }
         }
+    }
+
+    /// Queue a mono sound effect mixed into the virtual mic output
+    pub fn push_sound_effect(&mut self, samples: Vec<f32>, gain: f32) {
+        self.mixer.add(samples, gain);
     }
 
     pub fn queued_samples(&self) -> usize {

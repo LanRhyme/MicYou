@@ -13,6 +13,8 @@ pub mod network;
 pub mod opus;
 #[cfg(target_os = "linux")]
 pub mod pipewire;
+pub mod plugins;
+pub mod sound_player;
 pub mod server;
 pub mod stats;
 pub mod tcp_server;
@@ -65,6 +67,7 @@ fn apply_macos_vibrancy(_: &tauri::WebviewWindow) {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let audio_output = crate::audio_output::AudioOutputHandle::spawn();
     tauri::Builder::default()
         .manage(server::ServerState {
             lifecycle_gate: server::ServerLifecycleGate::default(),
@@ -79,7 +82,8 @@ pub fn run() {
             active_connection: Arc::new(Mutex::new(None)),
             takeover_lock: Arc::new(Mutex::new(())),
             active_audio_session: Arc::new(RwLock::new(Default::default())),
-            audio_output: crate::audio_output::AudioOutputHandle::spawn(),
+            audio_output: audio_output.clone(),
+            plugins: Arc::new(crate::plugins::PluginHost::new(audio_output.clone())),
             #[cfg(feature = "web-server")]
             web_server: Arc::new(Mutex::new(None)),
             #[cfg(feature = "web-server")]
@@ -92,6 +96,7 @@ pub fn run() {
         )
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec!["--minimized"]),
@@ -101,6 +106,35 @@ pub fn run() {
             app.manage(TrayContext::default());
             if let Err(e) = crate::tray::build_tray(app.handle()) {
                 log::warn!(target: "tray", "failed to build tray: {e}");
+            }
+
+            // Scan the plugins directory and auto-enable plugins that were
+            // enabled in a previous session.
+            {
+                let state = app.state::<server::ServerState>();
+                state.plugins.hotkeys.init(app.handle());
+                state.plugins.window.init(app.handle());
+                let plugins = state.plugins.clone();
+                let report = plugins
+                    .manager
+                    .lock()
+                    .map(|mut m| m.scan())
+                    .unwrap_or_else(|_| Ok(micyou_plugin::ScanReport::default()));
+                match report {
+                    Ok(report) => {
+                        for entry in report.discovered {
+                            if entry.state.is_enabled() {
+                                if let Err(e) = plugins.enable_plugin(&entry.manifest.id) {
+                                    log::warn!(
+                                        "[plugins] failed to start {}: {e}",
+                                        entry.manifest.id
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => log::warn!("[plugins] scan failed: {e}"),
+                }
             }
 
             // Acquire the GUI mode lock so the CLI/TUI knows the GUI is running.
@@ -190,6 +224,25 @@ pub fn run() {
             commands::server_prefs_exists,
             commands::get_server_prefs,
             commands::save_server_prefs,
+            commands::plugins::list_plugins,
+            commands::plugins::set_plugin_enabled,
+            commands::plugins::uninstall_plugin,
+            commands::plugins::get_plugin_config,
+            commands::plugins::set_plugin_config,
+            commands::plugins::get_plugin_logs,
+            commands::plugins::get_plugin_sync_status,
+            commands::plugins::open_plugins_dir,
+            commands::plugins::preview_plugin_zip,
+            commands::plugins::preview_plugin_from_url,
+            commands::plugins::install_plugin_from_url,
+            commands::plugins::check_plugin_updates,
+            commands::plugins::get_plugin_panel_icons,
+            commands::plugins::get_app_locale,
+            commands::plugins::update_plugin,
+            commands::plugins::import_plugin,
+            commands::plugins::plugin_trigger,
+            commands::plugins::get_plugin_panel,
+            commands::plugins::open_plugin_window,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

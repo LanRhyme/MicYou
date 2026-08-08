@@ -1,0 +1,51 @@
+{
+  "id": "dev.micyou.example.voicechanger",
+  "name": "Example VoiceChanger",
+  "version": "1.0.0",
+  "author": "MicYou",
+  "description": "示例变声器 DSP 节点（WASM 运行时）：实时音高变换，证明 WASM 沙箱也能承担实时 DSP，带专属配置页面，处理链位置可拖拽调整",
+  "runtime": "wasm",
+  "entry": "voicechanger.wasm",
+  "platforms": [
+    "linux",
+    "windows",
+    "macos"
+  ],
+  "apiVersion": 1,
+  "capabilities": [
+    "dsp.node",
+    "config.read",
+    "config.write"
+  ],
+  "kind": "dsp",
+  "dsp": {
+    "insertAfter": "AEC",
+    "realtimeSafe": false
+  },
+  "ui": {
+    "route": "plugin-panel",
+    "label": "VoiceChanger",
+    "panels": [
+      {
+        "id": "control",
+        "label": "变声控制",
+        "entry": "panel.html"
+      }
+    ]
+  },
+  "config": {
+    "pitch": 1.3,
+    "bypass": false
+  },
+  "license": "GPL-3.0-only",
+  "homepage": "https://github.com/LanRhyme/MicYou",
+  "keywords": [
+    "voicechanger",
+    "example",
+    "dsp"
+  ],
+  "nameI18n": {
+    "zh-CN": "变声器"
+  },
+  "repository": "https://github.com/MicYou-Dev/MicYou-Plugins"
+}

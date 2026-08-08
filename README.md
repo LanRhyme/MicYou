@@ -38,11 +38,13 @@
 ## Screenshots
 
 ### Android App
+
 |                        Main Screen                        |                           Settings                            |
 |:---------------------------------------------------------:|:-------------------------------------------------------------:|
 | <img src="img/android_screenshot_main.png" width="300" /> | <img src="img/android_screenshot_settings.png" width="300" /> |
 
 ### Desktop App
+
 |                         Main Screen                          |                              Settings                               |
 |:------------------------------------------------------------:|:-------------------------------------------------------------------:|
 | <img src="img/desktop_screenshot.png" width="480" /> | <img src="img/desktop_screenshot_settings.png" width="480" /> |
@@ -70,6 +72,7 @@ For platform-specific installation steps and troubleshooting, visit the [MicYou 
 We welcome contributions of all kinds! Whether you want to report a bug, suggest a feature, help with translations, or contribute code, please check our [Contributing Guidelines](./CONTRIBUTING.md) to get started.
 
 ## Contributors
+
 <a href="https://github.com/LanRhyme/MicYou/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=LanRhyme/MicYou" />
 </a>

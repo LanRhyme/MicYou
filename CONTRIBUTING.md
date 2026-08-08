@@ -85,6 +85,7 @@ To add a new language:
 
 1. Create `composeApp/src/main/res/values-xx/strings.xml` (replace `xx` with the locale code, e.g. `fr` for French, per ISO 639-1 / IETF BCP 47).
 2. Copy the keys from `values/strings.xml` and translate all values, keeping the keys unchanged:
+
 ```xml
 <resources>
     <string name="appName">MicYou</string>
@@ -92,7 +93,8 @@ To add a new language:
     <!-- ... -->
 </resources>
 ```
-3. Register the language in `AppLanguage`:
+1. Register the language in `AppLanguage`:
+
 ```kotlin
 enum class AppLanguage(val label: String, val code: String) {
     // ... existing languages ...
@@ -101,6 +103,7 @@ enum class AppLanguage(val label: String, val code: String) {
 ```
 
 Special variants (easter eggs):
+
 - `values-zh/` — Simplified Chinese
 - `values-zh-rTW/` — Traditional Chinese (Taiwan)
 - `values-zh-rHK/` — Cantonese (Hong Kong)

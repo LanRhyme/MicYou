@@ -3,6 +3,7 @@ import "./shared/assets/index.css";
 import App from "./App.vue";
 import PopupWindow from "./shared/components/PopupWindow.vue";
 import IpPopup from "./features/connection/components/IpPopup.vue";
+import PluginPanelWindow from "./features/plugins/components/PluginPanelWindow.vue";
 import { createI18n } from "vue-i18n";
 
 import en from "./shared/locales/en.json";
@@ -52,6 +53,8 @@ if (hash === '#/popup/ip') {
   RootComponent = IpPopup;
 } else if (hash.startsWith('#/popup')) {
   RootComponent = PopupWindow;
+} else if (hash.startsWith('#/plugin/')) {
+  RootComponent = PluginPanelWindow;
 }
 
 const app = createApp(RootComponent);

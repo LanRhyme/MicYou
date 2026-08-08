@@ -1,0 +1,13 @@
+[package]
+name = "micyou-plugin-fixture-native"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Native plugin fixture: a real cdylib exercising the full MicYou plugin ABI, used by the micyou-plugin loader tests"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]

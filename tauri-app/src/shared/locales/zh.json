@@ -88,7 +88,8 @@
       "appearance": "外观",
       "audio": "音频",
       "network": "网络",
-      "about": "关于"
+      "about": "关于",
+      "plugins": "插件"
     },
     "language": {
       "title": "语言",
@@ -232,7 +233,8 @@
       "Amplifier": "增益放大",
       "AGC": "自动增益 (AGC)",
       "VAD": "语音检测 (VAD)",
-      "Equalizer": "均衡器 (EQ)"
+      "Equalizer": "均衡器 (EQ)",
+      "Plugins": "插件"
     },
     "equalizer": {
       "title": "均衡器",
@@ -521,5 +523,59 @@
     "adminRequired": "需要管理员权限，请批准 UAC 提示",
     "timeout": "安装超时，请重试",
     "retry": "重试"
+  },
+  "plugins": {
+    "title": "插件",
+    "desc": "使用原生或 WASM 插件扩展 MicYou",
+    "refresh": "刷新",
+    "loading": "正在加载插件…",
+    "noPlugins": "尚未安装任何插件",
+    "openDir": "打开插件目录",
+    "installHint": "将插件文件夹或 .zip 放入插件目录，然后刷新",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "uninstall": "卸载",
+    "logs": "日志",
+    "noLogs": "暂无日志",
+    "config": "配置",
+    "configSaved": "已保存",
+    "save": "保存",
+    "inChain": "DSP 链中",
+    "sync": {
+      "connected": "设备已连接",
+      "disconnected": "无设备",
+      "tip": "跨端插件同步状态：手机等设备通过控制通道连接后，插件消息可跨端收发"
+    },
+    "kind": {
+      "dsp": "DSP 处理",
+      "utility": "工具",
+      "ui": "UI 面板",
+      "bridge": "同步桥"
+    },
+    "import": "导入 .zip",
+    "importing": "正在导入…",
+    "installHintDir": "或把插件文件夹放入插件目录",
+    "soundpad": "音效板",
+    "soundpadEmpty": "在插件配置中添加 sounds 数组以显示按钮",
+    "openWindow": "在新窗口打开",
+    "checkUpdates": "检查更新",
+    "updating": "更新中…",
+    "updateNow": "更新",
+    "market": "插件市场",
+    "marketTitle": "插件市场",
+    "marketLoading": "加载市场目录…",
+    "marketEmpty": "市场暂无插件",
+    "marketFailed": "加载市场失败：{error}",
+    "marketInstall": "安装",
+    "marketInstalling": "安装中…",
+    "marketInstalled": "已安装",
+    "marketConfirm": "安装前请确认该插件请求的能力",
+    "marketConfirmText": "安装即代表信任该插件作者，请确认来源可信",
+    "retry": "重试",
+    "cancel": "取消",
+    "search": "搜索插件",
+    "uninstallConfirm": "确定卸载 {name}？",
+    "marketSearch": "搜索插件市场",
+    "marketAll": "全部"
   }
 }

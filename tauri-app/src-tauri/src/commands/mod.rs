@@ -1,6 +1,7 @@
 pub mod about;
 pub mod audio;
 pub mod mode;
+pub mod plugins;
 pub mod network;
 pub mod system;
 pub mod theme;

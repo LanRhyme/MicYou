@@ -42,7 +42,7 @@
               {{ index + 1 }}
             </div>
             
-            <span class="text-sm font-bold text-on-surface flex-1 pointer-events-none">{{ $t(`settings.audioChain.${item}`) }}</span>
+            <span class="text-sm font-bold text-on-surface flex-1 pointer-events-none">{{ chainLabel(item) }}</span>
           </div>
         </div>
       </div>
@@ -52,9 +52,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue';
+import { ref, watch, computed, onUnmounted } from 'vue';
+import { usePlugins } from '@/features/plugins/composables/usePlugins';
 import { invoke } from '@tauri-apps/api/core';
 import { X, GripVertical, RotateCcw, Lock } from '@lucide/vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps<{ isOpen: boolean, chain: string[] }>();
 const emit = defineEmits(['close', 'update:chain']);
@@ -73,9 +75,41 @@ const normalizeChain = (chain: string[]) => {
 
 const localChain = ref<string[]>([]);
 
-watch(() => props.isOpen, (newVal) => {
+// DSP 插件启用时，链中注入 'Plugins' 合成节点（可拖拽调整插件处理位置）
+const pluginsState = usePlugins();
+const hasActiveDsp = computed(() =>
+  pluginsState.plugins.value.some(
+    (p) => p.kind === 'dsp' && p.enabled && p.loaded,
+  ),
+);
+// 处理链中插件节点的显示名（启用中的 DSP 插件）
+const activeDspNames = computed(() =>
+  pluginsState.plugins.value
+    .filter((p) => p.kind === 'dsp' && p.enabled && p.loaded)
+    .map((p) => p.name || p.id),
+);
+function chainLabel(item: string): string {
+  if (item === 'Plugins') {
+    const t = useI18n().t;
+    return activeDspNames.value.length > 0
+      ? `${t('settings.audioChain.Plugins')} · ${activeDspNames.value.join('、')}`
+      : t('settings.audioChain.Plugins');
+  }
+  return useI18n().t(`settings.audioChain.${item}`);
+}
+
+watch(() => props.isOpen, async (newVal) => {
   if (newVal) {
-    localChain.value = normalizeChain(props.chain);
+    await pluginsState.refresh(); // 确保 DSP 插件列表最新（未进过插件页时缓存为空）
+    const chain = normalizeChain(props.chain);
+    if (
+      hasActiveDsp.value &&
+      !chain.includes('Plugins')
+    ) {
+      const idx = chain.indexOf('AEC');
+      chain.splice(idx >= 0 ? idx + 1 : chain.length, 0, 'Plugins');
+    }
+    localChain.value = chain;
   }
 });
 

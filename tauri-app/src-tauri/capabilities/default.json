@@ -25,7 +25,7 @@
     "core:window:allow-show",
     "core:window:allow-hide",
     "core:event:default",
-    "opener:default",
+    "dialog:default",
     "autostart:default",
     "notification:default"
   ]

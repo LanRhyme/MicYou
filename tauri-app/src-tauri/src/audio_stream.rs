@@ -49,7 +49,7 @@ pub fn validate_audio_packet(packet: &AudioPacketMessageOrdered) -> bool {
             if packet
                 .fec_packet_lengths
                 .iter()
-                .any(|&len| (len as usize) % frame_size != 0)
+                .any(|&len| !(len as usize).is_multiple_of(frame_size))
             {
                 return false;
             }

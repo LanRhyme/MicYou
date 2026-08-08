@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Audio Inspector</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: hsl(var(--surface));
+    color: hsl(var(--on-surface));
+    padding: 20px; font-size: 14px;
+  }
+  .card {
+    background: hsl(var(--surface-bright));
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem; padding: 16px;
+  }
+  .card + .card { margin-top: 14px; }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .head h2 { font-size: 18px; font-weight: 700; color: hsl(var(--primary)); }
+  .badge {
+    font-size: 11px; padding: 4px 10px; border-radius: 9999px;
+    background: hsl(var(--primary-container)); color: hsl(var(--on-primary-container)); font-weight: 600;
+  }
+  .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid hsl(var(--border)); font-size: 13px; }
+  .row:last-child { border-bottom: none; }
+  .lbl { color: hsl(var(--on-surface-variant)); }
+  .val { font-weight: 600; }
+  .val.on { color: hsl(var(--tertiary)); }
+  .val.off { color: hsl(var(--error)); }
+  .primary {
+    border: none; border-radius: 9999px; padding: 9px 18px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    background: hsl(var(--primary)); color: hsl(var(--on-primary));
+    transition: filter 0.15s ease; margin-top: 10px;
+  }
+  .primary:active { filter: brightness(.9); }
+  .ts { margin-top: 12px; font-size: 11px; color: hsl(var(--on-surface-variant)); }
+  .dev { display: flex; align-items: center; gap: 8px; }
+  .dev .dot { width: 8px; height: 8px; border-radius: 50%; background: hsl(var(--outline)); }
+  .dev .dot.on { background: hsl(var(--tertiary)); }
+</style>
+</head>
+<body>
+  <div class="head">
+    <h2 id="title">音频监视器</h2>
+    <span class="badge" id="badge">标准示例</span>
+  </div>
+
+  <div class="card">
+    <div class="row"><span class="lbl" id="lblStream">流状态</span><span class="val off" id="stream">—</span></div>
+    <div class="row"><span class="lbl" id="lblRate">采样率</span><span class="val" id="rate">—</span></div>
+    <div class="row"><span class="lbl" id="lblCh">声道</span><span class="val" id="ch">—</span></div>
+    <div class="row"><span class="lbl" id="lblIn">输入电平</span><span class="val" id="in">—</span></div>
+    <div class="row"><span class="lbl" id="lblOut">处理后电平</span><span class="val" id="out">—</span></div>
+    <div class="row"><span class="lbl" id="lblQueue">缓冲</span><span class="val" id="queue">—</span></div>
+    <div class="row"><span class="lbl" id="lblMuted">静音</span><span class="val" id="muted">—</span></div>
+  </div>
+
+  <div class="card">
+    <div class="row"><span class="lbl" id="lblDevices">已连接设备</span><span class="val" id="devcount">0</span></div>
+    <div id="devlist"></div>
+    <button class="primary" id="refresh">↻ 刷新</button>
+    <div class="ts" id="ts"></div>
+  </div>
+
+  <div id="err" style="color:hsl(var(--error)); font-size:12px; margin-top:10px;"></div>
+
+<script>
+function call(api, args) {
+  return new Promise((resolve, reject) => {
+    const id = Math.random().toString(36).slice(2);
+    const on = (e) => {
+      if (e.data && e.data.__micyou === 1 && e.data.id === id) {
+        window.removeEventListener('message', on);
+        e.data.ok ? resolve(e.data.value) : reject(new Error(e.data.error));
+      }
+    };
+    window.addEventListener('message', on);
+    window.parent.postMessage({ __micyou: 1, id, api, args: args || {} }, '*');
+  });
+}
+
+// 本地化：跟随宿主语言（locale API）
+const T = {
+  'zh-CN': {
+    title: '音频监视器', badge: '标准示例', stream: '流状态', rate: '采样率', ch: '声道',
+    in: '输入电平', out: '处理后电平', queue: '缓冲', muted: '静音',
+    devices: '已连接设备', refresh: '刷新', streaming: '流式传输中', idle: '空闲',
+    yes: '是', no: '否', ms: 'ms', devNone: '（无设备）', ts: '最后更新',
+  },
+  en: {
+    title: 'Audio Inspector', badge: 'Standard example', stream: 'Stream', rate: 'Sample rate', ch: 'Channels',
+    in: 'Input level', out: 'Processed level', queue: 'Buffered', muted: 'Muted',
+    devices: 'Connected devices', refresh: 'Refresh', streaming: 'Streaming', idle: 'Idle',
+    yes: 'Yes', no: 'No', ms: 'ms', devNone: '(none)', ts: 'Last update',
+  },
+};
+let t = T.en;
+call('locale').catch(() => 'en').then((lang) => {
+  t = String(lang).startsWith('zh') ? T['zh-CN'] : T.en;
+  document.getElementById('title').textContent = t.title;
+  document.getElementById('badge').textContent = t.badge;
+  const map = { lblStream: t.stream, lblRate: t.rate, lblCh: t.ch, lblIn: t.in, lblOut: t.out, lblQueue: t.queue, lblMuted: t.muted, lblDevices: t.devices };
+  for (const [id, text] of Object.entries(map)) document.getElementById(id).textContent = text;
+  document.getElementById('refresh').textContent = '↻ ' + t.refresh;
+});
+
+const fmt = (v, digits) => (v == null || isNaN(v)) ? '—' : Number(v).toFixed(digits == null ? 0 : digits);
+function render(cfg) {
+  const audio = (cfg && (cfg.audioState || cfg.audio)) || {};
+  const devs = (cfg && Array.isArray(cfg.devices)) ? cfg.devices : [];
+  const s = document.getElementById('stream');
+  s.textContent = audio.streaming ? t.streaming : t.idle;
+  s.className = 'val ' + (audio.streaming ? 'on' : 'off');
+  document.getElementById('rate').textContent = audio.sampleRate ? audio.sampleRate + ' Hz' : '—';
+  document.getElementById('ch').textContent = audio.channels ? audio.channels : '—';
+  document.getElementById('in').textContent = fmt(audio.inputLevel, 3);
+  document.getElementById('out').textContent = fmt(audio.processedLevel, 3);
+  document.getElementById('queue').textContent = audio.queuedMs != null ? Math.round(audio.queuedMs) + ' ' + t.ms : '—';
+  const muted = document.getElementById('muted');
+  if (audio.muted == null) { muted.textContent = '—'; }
+  else { muted.textContent = audio.muted ? t.yes : t.no; }
+  document.getElementById('devcount').textContent = String(devs.length);
+  const list = document.getElementById('devlist');
+  list.replaceChildren();
+  if (!devs.length) {
+    const none = document.createElement('div');
+    none.className = 'dev';
+    none.innerHTML = '<span class="lbl">' + t.devNone + '</span>';
+    list.appendChild(none);
+  }
+  for (const d of devs) {
+    const row = document.createElement('div');
+    row.className = 'dev';
+    row.style.padding = '6px 0';
+    row.innerHTML = '<span class="dot' + (d.audioActive ? ' on' : '') + '"></span><span>' + String(d.label || d.mode || '') + '</span>';
+    list.appendChild(row);
+  }
+  if (cfg && cfg.ts) {
+    const d = new Date(Number(cfg.ts));
+    document.getElementById('ts').textContent = t.ts + ': ' + d.toLocaleTimeString();
+  }
+}
+
+async function load() {
+  try {
+    const cfg = await call('get_config', {});
+    render(cfg);
+  } catch (e) {
+    document.getElementById('err').textContent = String(e);
+  }
+}
+document.getElementById('refresh').addEventListener('click', () => {
+  call('trigger', { action: 'refresh' }).catch((e) => (document.getElementById('err').textContent = String(e)));
+  setTimeout(load, 300);
+});
+load();
+// 每 2 秒轮询一次（interval 由插件侧每 2 秒刷新状态到 config）
+setInterval(load, 2000);
+</script>
+</body>
+</html>

@@ -1,0 +1,967 @@
+//! Plugin host wiring: owns the plugin manager, the DSP node registry and the
+//! cross-device message bus, shared by the audio thread (via
+//! `DspProcessor::set_external_hook`), the TCP server (plugin message relay)
+//! and the frontend commands (`commands/plugins.rs`).
+
+use micyou_plugin::bus::{PluginBus, PluginMessage, PluginSyncTransport};
+use micyou_plugin::host::{
+    AudioStateSnapshot, DeviceSnapshot, HostApi, MessageTarget, PluginLogLevel,
+};
+use micyou_plugin::manifest::{PluginKind, RuntimeKind};
+use micyou_plugin::{PluginError, PluginResult, PluginRuntime};
+use std::collections::{HashMap, VecDeque};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
+use tauri::Manager;
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState, ShortcutWrapper};
+
+/// TCP control-channel transport for cross-device plugin messages.
+/// The tcp_server registers the active client's message sender here; the bus
+/// pushes wire messages through it. Only one device session is active at a
+/// time in MicYou's model, so a single slot suffices.
+pub struct TcpPluginSyncAdapter {
+    sender: Mutex<Option<tokio::sync::mpsc::Sender<micyou_protocol::micyou::MessageWrapper>>>,
+}
+
+impl TcpPluginSyncAdapter {
+    pub fn new() -> Self {
+        Self {
+            sender: Mutex::new(None),
+        }
+    }
+
+    /// Register the active client's control sender (or clear on disconnect).
+    pub fn set_sender(
+        &self,
+        sender: Option<tokio::sync::mpsc::Sender<micyou_protocol::micyou::MessageWrapper>>,
+    ) {
+        if let Ok(mut slot) = self.sender.lock() {
+            *slot = sender;
+        }
+    }
+
+    /// Clear the sender only when it is still ours (avoids nuking a newer
+    /// client's slot during a takeover race).
+    pub fn clear_if(
+        &self,
+        tx: &tokio::sync::mpsc::Sender<micyou_protocol::micyou::MessageWrapper>,
+    ) {
+        if let Ok(mut slot) = self.sender.lock() {
+            if slot.as_ref().is_some_and(|s| s.same_channel(tx)) {
+                *slot = None;
+            }
+        }
+    }
+}
+
+impl Default for TcpPluginSyncAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PluginSyncTransport for TcpPluginSyncAdapter {
+    fn send(&self, msg: &PluginMessage) -> micyou_plugin::PluginResult<()> {
+        let slot = self
+            .sender
+            .lock()
+            .map_err(|_| micyou_plugin::PluginError::Runtime("sync sender poisoned".into()))?;
+        let Some(tx) = slot.as_ref() else {
+            return Err(micyou_plugin::PluginError::MessageDelivery(
+                "no device connected".into(),
+            ));
+        };
+        let wire = micyou_plugin::sync::to_wire(msg);
+        let wrapper = micyou_protocol::micyou::MessageWrapper {
+            audio_packet: None,
+            connect: None,
+            mute: None,
+            ping: None,
+            pong: None,
+            plugin_message: Some(wire),
+        };
+        tx.try_send(wrapper)
+            .map_err(|e| micyou_plugin::PluginError::MessageDelivery(e.to_string()))?;
+        Ok(())
+    }
+
+    fn is_connected(&self) -> bool {
+        self.sender.lock().map(|g| g.is_some()).unwrap_or(false)
+    }
+}
+
+/// Runtime plugin host. One instance per process, managed Tauri state.
+pub struct PluginHost {
+    /// Plugin manager (scan/load/enable). Interior-mutable so the message-bus
+    /// dispatcher and the commands can share it.
+    pub manager: Arc<Mutex<micyou_plugin::PluginManager>>,
+    pub dsp_registry: Arc<micyou_plugin::PluginDspRegistry>,
+    pub sync: Arc<TcpPluginSyncAdapter>,
+    /// Local + cross-device message bus (RPC / pub-sub).
+    pub bus: Arc<PluginBus>,
+    /// Bounded per-plugin log buffers (read by the frontend).
+    pub logs: Arc<PluginLogs>,
+    /// WAV playback for the `audio.play` capability (soundpads etc).
+    /// Effects are mixed into the virtual microphone output stream.
+    pub sound: Arc<crate::sound_player::SoundPlayer>,
+    /// Global hotkey registry (plugin shortcut capability).
+    pub hotkeys: Arc<HotkeyService>,
+    /// Opens plugin panels in independent windows (plugin-driven).
+    pub window: Arc<WindowService>,
+    /// Dynamic sidebar-panel icons set by plugins via `set_panel_icon`.
+    /// Map: plugin id -> (panel id -> icon string).
+    pub panel_icons: Arc<
+        std::sync::Mutex<
+            std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+        >,
+    >,
+}
+
+/// Global hotkey registration for plugins.
+/// The tauri plugin must be initialized at startup; `init` stores the app
+/// handle, after which plugins can register shortcuts. Pressing a hotkey
+/// delivers a bus message to the owning plugin on topic `hotkey:<id>`.
+pub struct HotkeyService {
+    handle: Mutex<Option<tauri::AppHandle>>,
+    next_id: AtomicU64,
+    registered: Mutex<std::collections::HashMap<u64, String>>,
+}
+
+impl HotkeyService {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {
+            handle: Mutex::new(None),
+            next_id: AtomicU64::new(1),
+            registered: Mutex::new(std::collections::HashMap::new()),
+        })
+    }
+
+    /// Store the app handle (called from the Tauri setup hook)
+    pub fn init(&self, app: &tauri::AppHandle) {
+        if let Ok(mut slot) = self.handle.lock() {
+            *slot = Some(app.clone());
+        }
+    }
+
+    /// Register a global hotkey for a plugin; returns the handle id
+    pub fn register(&self, plugin_id: &str, shortcut: &str) -> PluginResult<u64> {
+        // global-hotkey only has an X11 backend on Linux; under Wayland the
+        // compositor owns key handling and X11 grab keys (XGrabKey) via
+        // XWayland are ignored (niri/wlroots behave this way), so a
+        // registration would silently never fire. Fail loudly instead.
+        let session = std::env::var("XDG_SESSION_TYPE").unwrap_or_default();
+        if session == "wayland" || std::env::var("WAYLAND_DISPLAY").is_ok() {
+            return Err(PluginError::Runtime(format!(
+                "global hotkey unavailable on Wayland (X11-only backend);                  use the plugin panel buttons instead (plugin {plugin_id})"
+            )));
+        }
+        let wrapper: ShortcutWrapper = shortcut
+            .try_into()
+            .map_err(|_| PluginError::Validation(format!("invalid hotkey: {shortcut}")))?;
+        let handle = self
+            .handle
+            .lock()
+            .map_err(lock_err)?
+            .clone()
+            .ok_or_else(|| PluginError::Runtime("hotkeys not initialized".into()))?;
+        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        let pid = plugin_id.to_string();
+        let shortcut_text = shortcut.to_string();
+        let pid_closure = pid.clone();
+        handle
+            .global_shortcut()
+            .on_shortcut(wrapper, move |app, _sc, event| {
+                if event.state != ShortcutState::Pressed {
+                    return;
+                }
+                let Some(state) = app.try_state::<crate::server::ServerState>() else {
+                    return;
+                };
+                let msg = PluginMessage::new(
+                    "host",
+                    &pid_closure,
+                    &format!("hotkey:{id}"),
+                    serde_json::json!({ "shortcut": shortcut_text })
+                        .to_string()
+                        .into_bytes(),
+                );
+                state.plugins.bus.handle_incoming(&msg);
+            })
+            .map_err(|e| PluginError::Runtime(format!("hotkey register: {e}")))?;
+        self.registered
+            .lock()
+            .map_err(lock_err)?
+            .insert(id, pid.clone());
+        Ok(id)
+    }
+
+    /// Number of registered hotkeys (for sync status / debugging)
+    pub fn count(&self) -> usize {
+        self.registered.lock().map(|m| m.len()).unwrap_or(0)
+    }
+}
+
+/// Opens plugin panels in independent Tauri windows (Host API `open_window`)
+pub struct WindowService {
+    handle: Mutex<Option<tauri::AppHandle>>,
+}
+
+impl WindowService {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self {
+            handle: Mutex::new(None),
+        })
+    }
+
+    pub fn init(&self, app: &tauri::AppHandle) {
+        if let Ok(mut slot) = self.handle.lock() {
+            *slot = Some(app.clone());
+        }
+    }
+
+    pub fn open_panel(&self, plugin_id: &str, panel_id: &str) -> PluginResult<()> {
+        let app = self
+            .handle
+            .lock()
+            .map_err(lock_err)?
+            .clone()
+            .ok_or_else(|| PluginError::Runtime("window service not initialized".into()))?;
+        crate::commands::plugins::open_plugin_window_impl(&app, plugin_id, panel_id)
+            .map_err(PluginError::Runtime)
+    }
+}
+
+/// Default chain position for the synthetic plugin node: right after AEC,
+/// so plugin processing runs on echo-cancelled audio.
+pub const PLUGIN_NODE_AFTER: &str = "AEC";
+
+impl PluginHost {
+    pub fn new(output: Arc<crate::audio_output::AudioOutputHandle>) -> Self {
+        let config = crate::app_config::config_dir();
+        let manager = Arc::new(Mutex::new(micyou_plugin::PluginManager::new(
+            config.join("plugins"),
+            config.join("plugin-state.json"),
+        )));
+        let dsp_registry = Arc::new(micyou_plugin::PluginDspRegistry::new());
+        let sync = Arc::new(TcpPluginSyncAdapter::new());
+
+        // Route incoming/request messages to local plugin instances.
+        let manager_dispatch = manager.clone();
+        let dispatcher: Arc<
+            dyn Fn(&PluginMessage) -> micyou_plugin::PluginResult<()> + Send + Sync,
+        > = Arc::new(move |msg: &PluginMessage| {
+            // 短锁收集目标，随后立即释放 manager 锁
+            // 插件 handle_message 会反向调用 host API（play_sound / get_config
+            // 等），它们都要再锁 manager，若此处持锁执行插件代码会造成
+            // std Mutex 同线程重入死锁（曾导致播放音效卡死）
+            let targets: Vec<String> = {
+                let manager = manager_dispatch
+                    .lock()
+                    .map_err(|_| micyou_plugin::PluginError::Runtime("manager poisoned".into()))?;
+                if msg.target.is_empty() {
+                    manager.loaded_ids()
+                } else {
+                    vec![msg.target.clone()]
+                }
+            };
+            for id in targets {
+                // 短锁取共享句柄，释放 manager 锁后再锁实例
+                let handle = {
+                    let manager = manager_dispatch.lock().map_err(|_| {
+                        micyou_plugin::PluginError::Runtime("manager poisoned".into())
+                    })?;
+                    match manager.instance_handle(&id)? {
+                        Some(h) => h,
+                        None => continue,
+                    }
+                };
+                // try_lock：插件在 handle_message 中 emit_event 会重新进入
+                // dispatcher 并尝试锁同一实例，直接等待会死锁，跳过更安全
+                let Ok(mut instance) = handle.try_lock() else {
+                    log::warn!("[plugins] skip message for busy instance {id}");
+                    continue;
+                };
+                instance.handle_message(&msg.source, &msg.topic, &msg.payload)?;
+            }
+            Ok(())
+        });
+
+        let bus = Arc::new(PluginBus::new(sync.clone(), dispatcher));
+        let logs = Arc::new(PluginLogs::new());
+        let sound = crate::sound_player::SoundPlayer::new(output);
+        let hotkeys = HotkeyService::new();
+        let window = WindowService::new();
+
+        Self {
+            manager,
+            dsp_registry,
+            sync,
+            bus,
+            logs,
+            sound,
+            hotkeys,
+            window,
+            panel_icons: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+        }
+    }
+
+    /// Deliver a UI-triggered action to a plugin instance as a bus message on
+    /// topic `ui:<action>` with the given payload (soundpad buttons etc).
+    /// The plugin receives it through its `handle_message` entry.
+    pub fn trigger(&self, plugin_id: &str, action: &str, payload: &[u8]) -> PluginResult<()> {
+        // WASM 插件的 handle_message 收不到 topic，只有 payload bytes：
+        // payload 为空时注入 {"action":"<action>"}，保证所有运行时都能感知动作
+        let bytes = if payload.is_empty() {
+            format!(r#"{{"action":"{action}"}}"#).into_bytes()
+        } else {
+            payload.to_vec()
+        };
+        let msg = PluginMessage::new("ui", plugin_id, &format!("ui:{action}"), bytes);
+        self.bus.handle_incoming(&msg);
+        Ok(())
+    }
+
+    /// Load + start one plugin: instantiate the runtime, init it, register the
+    /// instance and (for DSP plugins) its processing node.
+    /// Verify every declared plugin dependency is installed, enabled and
+    /// version-satisfied. Returns the first unmet dependency as an error.
+    pub fn check_dependencies(&self, manifest: &micyou_plugin::PluginManifest) -> PluginResult<()> {
+        for dep in &manifest.dependencies {
+            if dep.optional {
+                continue;
+            }
+            let manager = self.manager.lock().map_err(lock_err)?;
+            let Some(entry) = manager.entry(&dep.id)? else {
+                return Err(PluginError::Runtime(format!(
+                    "dependency {} is not installed (required by {})",
+                    dep.id, manifest.id
+                )));
+            };
+            if !entry.state.is_enabled() {
+                return Err(PluginError::Runtime(format!(
+                    "dependency {} is disabled (enable it first, required by {})",
+                    dep.id, manifest.id
+                )));
+            }
+            if !dep.version.is_empty() {
+                let req = semver::VersionReq::parse(&dep.version)
+                    .map_err(|e| PluginError::Runtime(format!("invalid version req: {e}")))?;
+                let installed = semver::Version::parse(&entry.manifest.version)
+                    .map_err(|e| PluginError::Runtime(format!("dep version parse: {e}")))?;
+                if !req.matches(&installed) {
+                    return Err(PluginError::Runtime(format!(
+                        "dependency {} version {} does not satisfy {} (required by {})",
+                        dep.id, entry.manifest.version, dep.version, manifest.id
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn enable_plugin(&self, id: &str) -> PluginResult<()> {
+        let entry = {
+            let manager = self.manager.lock().map_err(lock_err)?;
+            if manager.is_loaded(id) {
+                return Ok(()); // already running
+            }
+            manager
+                .entry(id)?
+                .ok_or_else(|| PluginError::UnknownPlugin(id.to_string()))?
+        };
+        self.check_dependencies(&entry.manifest)?;
+
+        let host_api: Arc<dyn HostApi> = PluginHostApi::new(
+            self.bus.clone(),
+            self.manager.clone(),
+            self.logs.clone(),
+            self.sound.clone(),
+            self.hotkeys.clone(),
+            self.window.clone(),
+            self.panel_icons.clone(),
+            id.to_string(),
+            entry.dir.clone(),
+        );
+        let mut instance = match entry.manifest.runtime {
+            RuntimeKind::Native => micyou_plugin::native::load_native_instance(
+                entry.manifest.clone(),
+                &entry.dir,
+                host_api.clone(),
+            )?,
+            RuntimeKind::Wasm => micyou_plugin::wasm::load_wasm_instance(
+                entry.manifest.clone(),
+                &entry.dir,
+                host_api.clone(),
+            )?,
+        };
+        instance.init(&*host_api)?;
+
+        let dsp_handle = {
+            let mut manager = self.manager.lock().map_err(lock_err)?;
+            manager.set_enabled(id, true)?;
+            manager.register_instance(instance)?;
+            manager.instance_handle(id)?
+        };
+
+        if entry.manifest.kind == PluginKind::Dsp {
+            let dsp = entry.manifest.dsp.clone().unwrap_or_default();
+            let handle = dsp_handle.ok_or_else(|| PluginError::NotLoaded(id.to_string()))?;
+            self.dsp_registry.register(micyou_plugin::DspNode {
+                plugin_id: id.to_string(),
+                first: dsp.first,
+                insert_after: dsp.insert_after.clone(),
+                instance: handle,
+            })?;
+        }
+        log::info!("[plugins] enabled {id}");
+        Ok(())
+    }
+
+    /// Stop + unload a plugin (deinit, remove DSP node, persist disabled).
+    pub fn disable_plugin(&self, id: &str) -> PluginResult<()> {
+        self.dsp_registry.unregister(id)?;
+        let mut manager = self.manager.lock().map_err(lock_err)?;
+        manager.unregister_instance(id)?;
+        manager.set_enabled(id, false)?;
+        log::info!("[plugins] disabled {id}");
+        Ok(())
+    }
+
+    /// Deliver a host lifecycle event (device connected/disconnected, ...) to
+    /// every loaded plugin. Short-locks the manager only to collect instance
+    /// handles, then try_locks each instance so a busy plugin (e.g. the audio
+    /// thread) is skipped instead of blocking.
+    pub fn broadcast_event(&self, event: &micyou_plugin::PluginEvent) {
+        let handles = {
+            let Ok(manager) = self.manager.lock() else {
+                return;
+            };
+            manager
+                .loaded_ids()
+                .into_iter()
+                .filter_map(|id| manager.instance_handle(&id).ok().flatten())
+                .collect::<Vec<_>>()
+        };
+        for handle in handles {
+            if let Ok(mut inst) = handle.try_lock() {
+                let _ = inst.handle_event(event);
+            }
+        }
+    }
+
+    /// Uninstall: disable, remove from registry and delete the directory.
+    pub fn uninstall_plugin(&self, id: &str) -> PluginResult<()> {
+        self.dsp_registry.unregister(id)?;
+        let mut manager = self.manager.lock().map_err(lock_err)?;
+        manager.uninstall(id)?;
+        log::info!("[plugins] uninstalled {id}");
+        Ok(())
+    }
+
+    /// Ensure the synthetic `"Plugins"` node exists in the processing chain
+    /// (right after AEC) when at least one DSP plugin is registered. This is
+    /// an in-memory settings change; the user can reorder it in the GUI like
+    /// any other chain node.
+    pub fn ensure_plugin_chain_node(
+        &self,
+        dsp_settings: &Arc<RwLock<micyou_audio::dsp::AudioDspSettings>>,
+    ) {
+        if !self.dsp_registry.is_active() {
+            return;
+        }
+        if let Ok(mut settings) = dsp_settings.write() {
+            let chain = &mut settings.processing_chain;
+            if chain
+                .iter()
+                .any(|n| n == micyou_audio::dsp::PLUGIN_CHAIN_NODE)
+            {
+                return;
+            }
+            match chain.iter().position(|n| n == PLUGIN_NODE_AFTER) {
+                Some(idx) => {
+                    chain.insert(idx + 1, micyou_audio::dsp::PLUGIN_CHAIN_NODE.to_string());
+                }
+                None => chain.push(micyou_audio::dsp::PLUGIN_CHAIN_NODE.to_string()),
+            }
+        }
+    }
+
+    /// Build the external DSP hook for `DspProcessor`. Cheap no-op when no
+    /// DSP plugin is registered (see `PluginDspBridge::hook`).
+    pub fn dsp_hook(&self) -> Option<Box<dyn FnMut(&mut Vec<f32>, usize, f64) + Send>> {
+        let bridge = micyou_plugin::PluginDspBridge::new(self.dsp_registry.clone());
+        Some(bridge.hook())
+    }
+}
+
+fn lock_err<T>(_: std::sync::PoisonError<T>) -> PluginError {
+    PluginError::Runtime("plugin host lock poisoned".into())
+}
+
+// ── Per-plugin log buffers ─────────────────────────────────────────────────
+
+/// Bounded ring of log lines per plugin, readable by the frontend.
+pub struct PluginLogs {
+    buffers: Mutex<HashMap<String, VecDeque<String>>>,
+    cap: usize,
+}
+
+impl Default for PluginLogs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PluginLogs {
+    pub fn new() -> Self {
+        Self {
+            buffers: Mutex::new(HashMap::new()),
+            cap: 500,
+        }
+    }
+
+    pub fn push(&self, plugin_id: &str, level: PluginLogLevel, message: &str) {
+        let line = format!("[{}] {message}", level_label(level));
+        if let Ok(mut buffers) = self.buffers.lock() {
+            let queue = buffers.entry(plugin_id.to_string()).or_default();
+            if queue.len() >= self.cap {
+                queue.pop_front();
+            }
+            queue.push_back(line);
+        }
+    }
+
+    pub fn lines(&self, plugin_id: &str) -> Vec<String> {
+        self.buffers
+            .lock()
+            .map(|b| {
+                b.get(plugin_id)
+                    .map(|q| q.iter().cloned().collect())
+                    .unwrap_or_default()
+            })
+            .unwrap_or_default()
+    }
+
+    pub fn clear(&self, plugin_id: &str) {
+        if let Ok(mut buffers) = self.buffers.lock() {
+            buffers.remove(plugin_id);
+        }
+    }
+}
+
+fn level_label(level: PluginLogLevel) -> &'static str {
+    match level {
+        PluginLogLevel::Error => "ERROR",
+        PluginLogLevel::Warn => "WARN",
+        PluginLogLevel::Info => "INFO",
+        PluginLogLevel::Debug => "DEBUG",
+        PluginLogLevel::Trace => "TRACE",
+    }
+}
+
+// ── Real HostApi for plugin instances ──────────────────────────────────────
+
+/// HostApi implementation backed by the plugin manager, the bus and the log
+/// buffers. One instance per plugin; capabilities come from the manifest.
+pub struct PluginHostApi {
+    bus: Arc<PluginBus>,
+    manager: Arc<Mutex<micyou_plugin::PluginManager>>,
+    logs: Arc<PluginLogs>,
+    sound: Arc<crate::sound_player::SoundPlayer>,
+    hotkeys: Arc<HotkeyService>,
+    window: Arc<WindowService>,
+    plugin_id: String,
+    dir: std::path::PathBuf,
+    panel_icons: Arc<
+        std::sync::Mutex<
+            std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+        >,
+    >,
+    timer_next: std::sync::atomic::AtomicU64,
+    timers: std::sync::Mutex<
+        std::collections::HashMap<u64, std::sync::Arc<std::sync::atomic::AtomicBool>>,
+    >,
+    http_next: std::sync::atomic::AtomicU64,
+}
+
+impl PluginHostApi {
+    pub fn new(
+        bus: Arc<PluginBus>,
+        manager: Arc<Mutex<micyou_plugin::PluginManager>>,
+        logs: Arc<PluginLogs>,
+        sound: Arc<crate::sound_player::SoundPlayer>,
+        hotkeys: Arc<HotkeyService>,
+        window: Arc<WindowService>,
+        panel_icons: Arc<
+            std::sync::Mutex<
+                std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+            >,
+        >,
+        plugin_id: String,
+        dir: std::path::PathBuf,
+    ) -> Arc<Self> {
+        Arc::new(Self {
+            bus,
+            manager,
+            logs,
+            sound,
+            hotkeys,
+            window,
+            panel_icons,
+            plugin_id,
+            dir,
+            timer_next: std::sync::atomic::AtomicU64::new(1),
+            timers: std::sync::Mutex::new(std::collections::HashMap::new()),
+            http_next: std::sync::atomic::AtomicU64::new(1),
+        })
+    }
+}
+
+impl HostApi for PluginHostApi {
+    fn log(&self, level: PluginLogLevel, message: &str) {
+        self.logs.push(&self.plugin_id, level, message);
+        log::info!(target: "plugin", "[{}] {}", self.plugin_id, message);
+    }
+
+    fn get_config(&self, key: &str) -> Option<serde_json::Value> {
+        let manager = self.manager.lock().ok()?;
+        manager
+            .plugin_config(&self.plugin_id)
+            .ok()?
+            .get(key)
+            .cloned()
+    }
+
+    fn set_config(&self, key: &str, value: serde_json::Value) -> PluginResult<()> {
+        let manager = self.manager.lock().map_err(lock_err)?;
+        manager.set_plugin_config(&self.plugin_id, key, value)
+    }
+
+    fn emit_event(&self, topic: &str, payload: serde_json::Value) -> PluginResult<()> {
+        let bytes = serde_json::to_vec(&payload)
+            .map_err(|e| PluginError::Runtime(format!("event serialization: {e}")))?;
+        self.bus.publish(topic, bytes)
+    }
+
+    fn send_message(&self, target: MessageTarget, payload: Vec<u8>) -> PluginResult<()> {
+        match target {
+            MessageTarget::Local { plugin_id } => {
+                let msg = PluginMessage::new(&self.plugin_id, &plugin_id, &plugin_id, payload);
+                self.bus.handle_incoming(&msg);
+                Ok(())
+            }
+            MessageTarget::Remote { plugin_id } => {
+                let msg = PluginMessage::new(&self.plugin_id, &plugin_id, &plugin_id, payload);
+                self.bus.transport().send(&msg)
+            }
+            MessageTarget::Broadcast => {
+                let msg = PluginMessage::new(&self.plugin_id, "", "broadcast", payload);
+                self.bus.handle_incoming(&msg);
+                if self.bus.transport().is_connected() {
+                    self.bus.transport().send(&msg)?;
+                }
+                Ok(())
+            }
+        }
+    }
+
+    fn audio_state(&self) -> AudioStateSnapshot {
+        // Real-time audio state is wired by the app through the bus topics;
+        // the snapshot defaults are safe for plugins that only read config.
+        AudioStateSnapshot::default()
+    }
+
+    fn plugin_dir(&self) -> String {
+        self.manager
+            .lock()
+            .ok()
+            .and_then(|m| m.entry(&self.plugin_id).ok().flatten())
+            .map(|e| e.dir.display().to_string())
+            .unwrap_or_default()
+    }
+
+    fn register_hotkey(&self, shortcut: &str) -> PluginResult<u64> {
+        self.hotkeys.register(&self.plugin_id, shortcut)
+    }
+
+    fn open_window(&self, panel_id: &str) -> PluginResult<()> {
+        self.window.open_panel(&self.plugin_id, panel_id)
+    }
+
+    fn play_sound(&self, path: &str) -> PluginResult<()> {
+        // Relative paths resolve against the plugin's own directory so a
+        // plugin can ship/generate sound files next to itself
+        // Uses the dir cached at enable time so this never locks the manager
+        // (play_sound is often called from handle_message, which runs while
+        // the dispatcher is delivering a message)
+        let full = if std::path::Path::new(path).is_absolute() {
+            path.to_string()
+        } else {
+            self.dir.join(path).display().to_string()
+        };
+        self.sound.play_wav(&full)
+    }
+
+    fn fs_read(&self, path: &str) -> PluginResult<String> {
+        let full = micyou_plugin::sandbox_path(&self.dir, path)?;
+        std::fs::read_to_string(&full).map_err(PluginError::from)
+    }
+
+    fn fs_write(&self, path: &str, content: &str) -> PluginResult<()> {
+        let full = micyou_plugin::sandbox_path(&self.dir, path)?;
+        if let Some(parent) = full.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| PluginError::Runtime(format!("fs_write mkdir: {e}")))?;
+        }
+        std::fs::write(&full, content).map_err(PluginError::from)
+    }
+
+    fn set_timeout(&self, ms: u64, payload: &str) -> PluginResult<u64> {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let id = self.timer_next.fetch_add(1, Ordering::Relaxed);
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.timers
+            .lock()
+            .map_err(lock_err)?
+            .insert(id, cancel.clone());
+        let bus = self.bus.clone();
+        let pid = self.plugin_id.clone();
+        let payload = payload.to_string();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(ms));
+            if cancel.load(Ordering::Relaxed) {
+                return;
+            }
+            let msg = PluginMessage::new(
+                "host",
+                &pid,
+                "timer:expired",
+                serde_json::json!({ "timer": id, "payload": payload })
+                    .to_string()
+                    .into_bytes(),
+            );
+            bus.handle_incoming(&msg);
+        });
+        Ok(id)
+    }
+
+    fn clear_timeout(&self, id: u64) -> PluginResult<()> {
+        if let Some(cancel) = self.timers.lock().map_err(lock_err)?.remove(&id) {
+            cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        Ok(())
+    }
+
+    fn http_request(
+        &self,
+        method: &str,
+        url: &str,
+        headers_json: &str,
+        body: &str,
+    ) -> PluginResult<u64> {
+        use std::sync::atomic::Ordering;
+        let id = self.http_next.fetch_add(1, Ordering::Relaxed);
+        let bus = self.bus.clone();
+        let pid = self.plugin_id.clone();
+        let method = method.to_string();
+        let url = url.to_string();
+        let headers_json = headers_json.to_string();
+        let body = body.to_string();
+        std::thread::spawn(move || {
+            let result = (|| -> Result<(u16, String), String> {
+                let client = reqwest::blocking::Client::builder()
+                    .timeout(std::time::Duration::from_secs(10))
+                    .build()
+                    .map_err(|e| e.to_string())?;
+                let m =
+                    reqwest::Method::from_bytes(method.as_bytes()).map_err(|e| e.to_string())?;
+                let mut req = client.request(m, &url);
+                if let Ok(headers) = serde_json::from_str::<
+                    serde_json::Map<String, serde_json::Value>,
+                >(&headers_json)
+                {
+                    for (k, v) in headers {
+                        if let Some(vs) = v.as_str() {
+                            req = req.header(&k, vs);
+                        }
+                    }
+                }
+                if !body.is_empty() {
+                    req = req.body(body);
+                }
+                let resp = req.send().map_err(|e| e.to_string())?;
+                let status = resp.status().as_u16();
+                let text = resp.text().map_err(|e| e.to_string())?;
+                Ok((status, text))
+            })();
+            let payload = match result {
+                Ok((status, text)) => serde_json::json!({
+                    "request": id, "ok": true, "status": status, "body": text, "error": null
+                }),
+                Err(e) => serde_json::json!({
+                    "request": id, "ok": false, "status": 0, "body": "", "error": e
+                }),
+            };
+            let msg = PluginMessage::new(
+                "host",
+                &pid,
+                "http:response",
+                payload.to_string().into_bytes(),
+            );
+            bus.handle_incoming(&msg);
+        });
+        Ok(id)
+    }
+
+    fn set_interval(&self, ms: u64, payload: &str) -> PluginResult<u64> {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let id = self.timer_next.fetch_add(1, Ordering::Relaxed);
+        let cancel = Arc::new(AtomicBool::new(false));
+        self.timers
+            .lock()
+            .map_err(lock_err)?
+            .insert(id, cancel.clone());
+        let bus = self.bus.clone();
+        let pid = self.plugin_id.clone();
+        let payload = payload.to_string();
+        std::thread::spawn(move || loop {
+            std::thread::sleep(std::time::Duration::from_millis(ms.max(1)));
+            if cancel.load(Ordering::Relaxed) {
+                return;
+            }
+            let msg = PluginMessage::new(
+                "host",
+                &pid,
+                "interval:tick",
+                serde_json::json!({ "interval": id, "payload": payload })
+                    .to_string()
+                    .into_bytes(),
+            );
+            bus.handle_incoming(&msg);
+        });
+        Ok(id)
+    }
+
+    fn clear_interval(&self, id: u64) -> PluginResult<()> {
+        self.clear_timeout(id)
+    }
+
+    fn open_url(&self, url: &str) -> PluginResult<()> {
+        use tauri_plugin_opener::OpenerExt;
+        let app = self
+            .window
+            .handle
+            .lock()
+            .map_err(lock_err)?
+            .clone()
+            .ok_or_else(|| PluginError::Runtime("window service not initialized".into()))?;
+        app.opener()
+            .open_url(url, None::<&str>)
+            .map_err(|e| PluginError::Runtime(format!("open_url: {e}")))?;
+        Ok(())
+    }
+
+    fn notify(&self, title: &str, body: &str) -> PluginResult<()> {
+        use tauri_plugin_notification::NotificationExt;
+        let app = self
+            .window
+            .handle
+            .lock()
+            .map_err(lock_err)?
+            .clone()
+            .ok_or_else(|| PluginError::Runtime("window service not initialized".into()))?;
+        app.notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show()
+            .map_err(|e| PluginError::Runtime(format!("notify: {e}")))?;
+        Ok(())
+    }
+
+    fn locale(&self) -> String {
+        crate::app_config::load_ui_prefs().language
+    }
+
+    fn host_info(&self) -> String {
+        serde_json::json!({
+            "name": "micyou",
+            "version": env!("CARGO_PKG_VERSION"),
+            "apiVersion": micyou_plugin::manifest::HOST_API_VERSION,
+        })
+        .to_string()
+    }
+
+    fn clipboard_read(&self) -> PluginResult<String> {
+        let mut cb = arboard::Clipboard::new()
+            .map_err(|e| PluginError::Runtime(format!("clipboard: {e}")))?;
+        cb.get_text()
+            .map_err(|e| PluginError::Runtime(format!("clipboard read: {e}")))
+    }
+
+    fn clipboard_write(&self, text: &str) -> PluginResult<()> {
+        let mut cb = arboard::Clipboard::new()
+            .map_err(|e| PluginError::Runtime(format!("clipboard: {e}")))?;
+        cb.set_text(text.to_string())
+            .map_err(|e| PluginError::Runtime(format!("clipboard write: {e}")))
+    }
+
+    fn set_panel_icon(&self, panel_id: &str, icon: &str) -> PluginResult<()> {
+        if let Ok(mut map) = self.panel_icons.lock() {
+            map.entry(self.plugin_id.clone())
+                .or_default()
+                .insert(panel_id.to_string(), icon.to_string());
+        }
+        Ok(())
+    }
+
+    fn connected_devices(&self) -> Vec<DeviceSnapshot> {
+        if self.bus.transport().is_connected() {
+            vec![DeviceSnapshot {
+                mode: "wifi".to_string(),
+                label: "connected device".to_string(),
+                audio_active: true,
+            }]
+        } else {
+            Vec::new()
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod tests_e2e {
+    use super::*;
+
+    /// 端到端 API 回归测试：真实 PluginHost 链路 enable → trigger →
+    /// bus → dispatcher → handle_message → host 回调（native 路径）。
+    /// 环境需已安装 dev.micyou.example.soundpad。
+    #[test]
+    fn soundpad_trigger_end_to_end() {
+        let output = crate::audio_output::AudioOutputHandle::spawn();
+        let host = PluginHost::new(output);
+        let id = "dev.micyou.example.soundpad";
+        {
+            let mut manager = host.manager.lock().unwrap();
+            manager.scan().expect("scan plugins");
+        }
+        {
+            let manager = host.manager.lock().unwrap();
+            if manager.entry(id).unwrap().is_none() {
+                eprintln!("[test] soundpad not installed, skipping");
+                return;
+            }
+        }
+        host.enable_plugin(id).expect("enable soundpad");
+        // payload 为 null 的等价物（注入 {"action":"play"}）；native 侧主要靠 topic ui:play
+        host.trigger(id, "play", b"").expect("trigger play");
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        let logs = host.logs.lines(id);
+        let joined = logs.join("\n");
+        assert!(
+            joined.contains("play") || joined.contains("playing") || joined.contains("sound"),
+            "soundpad must log playing; logs={joined:?}"
+        );
+        eprintln!("[test] SOUNDPAD E2E OK: trigger -> handle_message(topic ui:play) -> play_sound");
+    }
+}

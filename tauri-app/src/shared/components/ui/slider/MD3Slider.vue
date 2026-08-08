@@ -26,7 +26,7 @@ const emits = defineEmits<{
       <SliderRange class="absolute h-full bg-primary transition-colors duration-100 ease-out" />
     </SliderTrack>
     <SliderThumb class="block focus-visible:outline-none relative w-1.5 h-10 border-0 outline-none">
-      <div class="w-full h-full rounded-full bg-primary shadow-md ring-offset-background transition-[transform,background-color,box-shadow] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+      <div class="w-full h-full rounded-full bg-primary shadow-md ring-offset-background transition-[transform,background-color,box-shadow] duration-300 ease-out">
       </div>
     </SliderThumb>
   </SliderRoot>

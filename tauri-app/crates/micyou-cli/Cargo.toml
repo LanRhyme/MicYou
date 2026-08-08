@@ -20,6 +20,10 @@ micyou-audio = { path = "../micyou-audio", features = [
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1.52.3", features = ["full"] }
+zip = "2.2"
+micyou-plugin = { path = "../micyou-plugin" }
+wat = "1"
+semver = "1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2.169"

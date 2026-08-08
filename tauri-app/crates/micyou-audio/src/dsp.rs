@@ -1050,7 +1050,17 @@ pub struct DspProcessor {
     accum_buffer: Vec<f32>,
     output_buffer: Vec<f32>,
     to_process_buf: Vec<f32>,
+    /// Optional external DSP stage injected by the host (plugin system).
+    /// Invoked when the processing chain reaches the synthetic `"Plugins"`
+    /// node. Kept as a closure so `micyou-audio` stays independent of the
+    /// plugin crate (no dependency cycle).
+    external_hook: Option<Box<dyn FnMut(&mut Vec<f32>, usize, f64) + Send>>,
 }
+
+/// Synthetic processing-chain node name that invokes the external plugin DSP
+/// stage. The host inserts it into `AudioDspSettings.processing_chain` at the
+/// desired position (default: right after AEC).
+pub const PLUGIN_CHAIN_NODE: &str = "Plugins";
 
 const RNNOISE_FRAME_SIZE: usize = 480;
 
@@ -1101,7 +1111,16 @@ impl DspProcessor {
             accum_buffer: Vec::new(),
             output_buffer: vec![0.0; 960],
             to_process_buf: Vec::new(),
+            external_hook: None,
         }
+    }
+
+    /// Attach the external plugin DSP stage (see `PLUGIN_CHAIN_NODE`).
+    pub fn set_external_hook(
+        &mut self,
+        hook: Option<Box<dyn FnMut(&mut Vec<f32>, usize, f64) + Send>>,
+    ) {
+        self.external_hook = hook;
     }
 
     /// Process a chunk of f32 PCM audio in-place.
@@ -1190,6 +1209,13 @@ impl DspProcessor {
                 }
                 "VAD" if settings.vad_enabled => {
                     self.apply_vad(&mut to_process, settings.vad_threshold);
+                }
+                PLUGIN_CHAIN_NODE => {
+                    // External plugin DSP stage (may be absent). Runs in chain
+                    // position; the host decides where the synthetic node sits.
+                    if let Some(hook) = &mut self.external_hook {
+                        hook(&mut to_process, channels.max(1), queued_ms);
+                    }
                 }
                 _ => {}
             }
@@ -1780,6 +1806,64 @@ fn soft_clip(sample: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plugin_hook_runs_when_chain_contains_plugin_node() {
+        let settings = Arc::new(RwLock::new(AudioDspSettings {
+            processing_chain: vec![
+                "AEC".to_string(),
+                PLUGIN_CHAIN_NODE.to_string(),
+                "Amplifier".to_string(),
+            ],
+            ..Default::default()
+        }));
+        let mut processor = DspProcessor::new(settings, None);
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(0usize));
+        let calls_clone = calls.clone();
+        processor.set_external_hook(Some(Box::new(
+            move |data: &mut Vec<f32>, channels: usize, _queued_ms: f64| {
+                assert_eq!(channels, 1);
+                for sample in data.iter_mut() {
+                    *sample += 0.5; // visible marker: plugin output
+                }
+                *calls_clone.lock().unwrap() += 1;
+            },
+        )));
+
+        let mut data = vec![0.1f32; 960];
+        processor.process(&mut data, 1, 10.0);
+        assert_eq!(
+            *calls.lock().unwrap(),
+            1,
+            "hook must run once per chain pass"
+        );
+        // Amplifier(0dB) + soft clip: plugin marker survives in output
+        assert!(
+            data.iter().any(|s| (*s - 0.6).abs() < 0.001),
+            "plugin output must reach the final buffer"
+        );
+    }
+
+    #[test]
+    fn plugin_hook_skipped_when_chain_has_no_plugin_node() {
+        let settings = Arc::new(RwLock::new(AudioDspSettings::default()));
+        let mut processor = DspProcessor::new(settings, None);
+        let calls = std::sync::Arc::new(std::sync::Mutex::new(0usize));
+        let calls_clone = calls.clone();
+        processor.set_external_hook(Some(Box::new(
+            move |_data: &mut Vec<f32>, _ch: usize, _q: f64| {
+                *calls_clone.lock().unwrap() += 1;
+            },
+        )));
+
+        let mut data = vec![0.1f32; 960];
+        processor.process(&mut data, 1, 10.0);
+        assert_eq!(
+            *calls.lock().unwrap(),
+            0,
+            "hook must not run without the Plugins node"
+        );
+    }
 
     #[test]
     fn unsupported_noise_reduction_type_uses_default() {

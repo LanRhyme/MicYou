@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>Soundpad</title>
+<style>
+  /* 宿主注入当前主题 HSL CSS 变量（--primary / --surface 等），
+     与软件 Material 3 风格完全一致并自动跟随主题 */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: hsl(var(--surface));
+    color: hsl(var(--on-surface));
+    padding: 20px;
+    font-size: 14px;
+  }
+
+  /* 卡片：与软件卡片同款（surface-bright + border + 大圆角） */
+  .card {
+    background: hsl(var(--surface-bright));
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    padding: 16px;
+  }
+  .card + .card { margin-top: 14px; }
+
+  /* 页头 */
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .head h2 { font-size: 18px; font-weight: 700; color: hsl(var(--primary)); }
+  .head .badge {
+    font-size: 11px; padding: 4px 10px; border-radius: 9999px;
+    background: hsl(var(--primary-container)); color: hsl(var(--on-primary-container));
+    font-weight: 600;
+  }
+
+  /* 状态行 */
+  .row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: hsl(var(--on-surface-variant)); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: hsl(var(--outline)); }
+  .dot.on { background: hsl(var(--tertiary)); }
+
+  /* 音效按钮网格 */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .snd {
+    border: none; border-radius: 9999px; padding: 12px 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    background: hsl(var(--surface-container));
+    color: hsl(var(--on-surface-variant));
+    transition: transform 0.06s ease, background 0.15s ease;
+  }
+  .snd:hover { background: hsl(var(--surface-variant)); }
+  .snd:active { transform: scale(0.95); }
+  .snd.playing { background: hsl(var(--primary)); color: hsl(var(--on-primary)); }
+
+  /* 主按钮：与软件 primary 按钮同款（圆角胶囊） */
+  .primary {
+    border: none; border-radius: 9999px; padding: 9px 18px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    background: hsl(var(--primary)); color: hsl(var(--on-primary));
+    transition: filter 0.15s ease;
+  }
+  .primary:hover { filter: brightness(0.94); }
+  .primary:active { transform: scale(0.98); }
+
+  .kbd {
+    font-family: ui-monospace, monospace; font-size: 11px;
+    background: hsl(var(--surface-variant)); border: 1px solid hsl(var(--outline));
+    border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px;
+  }
+  .hint { font-size: 12px; color: hsl(var(--on-surface-variant)); margin-top: 12px; }
+  .empty { font-size: 13px; color: hsl(var(--on-surface-variant)); padding: 8px 0; }
+  .err { color: hsl(var(--error)); font-size: 12px; margin-top: 10px; }
+  .loading { color: hsl(var(--on-surface-variant)); font-size: 13px; }
+  .spacer { flex: 1; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <h2 id="title">Soundpad</h2>
+    <span class="badge" id="badge">示例插件</span>
+  </div>
+
+  <div class="card">
+    <div class="row"><span class="dot" id="dot"></span><span id="status">…</span></div>
+    <div class="grid" id="sounds"><div class="loading">正在读取音效配置…</div></div>
+    <div class="hint" id="hotkeyHint"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <span id="openWinLabel">打开状态窗口</span>
+      <span class="spacer"></span>
+      <button class="primary" id="statbtn">状态</button>
+    </div>
+    <div class="hint" id="winHint"></div>
+  </div>
+
+  <div id="err" class="err"></div>
+
+<script>
+// ── 与宿主（设置对话框或独立窗口）的 postMessage 桥 ─────────────────────
+function call(api, args) {
+  return new Promise((resolve, reject) => {
+    const id = Math.random().toString(36).slice(2);
+    const onMsg = (e) => {
+      if (e.data && e.data.__micyou === 1 && e.data.id === id) {
+        window.removeEventListener('message', onMsg);
+        e.data.ok ? resolve(e.data.value) : reject(new Error(e.data.error));
+      }
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ __micyou: 1, id, api, args: args || {} }, '*');
+  });
+}
+
+// 本地化：根据宿主语言切换文案（locale API）
+const T = {
+  'zh-CN': {
+    title: 'Soundpad 音效板', badge: '示例插件', loading: '正在读取音效配置…',
+    status: (n) => '已连接宿主 · ' + n + ' 个音效', err: '无法读取配置',
+    empty: '没有音效，启用插件时已自动生成示例音效（在插件配置里可改）',
+    hotkey: '全局快捷键 Ctrl+Shift+S 播放第一个音效',
+    openWin: '打开状态窗口', statBtn: '状态', winHint: '插件可自主打开多个独立窗口，每个显示不同页面',
+  },
+  en: {
+    title: 'Soundpad', badge: 'Example plugin', loading: 'Loading sounds…',
+    status: (n) => 'Host connected · ' + n + ' sounds', err: 'Cannot read config',
+    empty: 'No sounds. Example sounds are generated on first enable (editable in config)',
+    hotkey: 'Global hotkey Ctrl+Shift+S plays the first sound',
+    openWin: 'Open stats window', statBtn: 'Stats', winHint: 'Plugins can open multiple independent windows, each showing a different page',
+  },
+};
+let t = T.en;
+const localeP = call('locale').catch(() => 'en');
+localeP.then((lang) => {
+  t = String(lang).startsWith('zh') ? T['zh-CN'] : T.en;
+  document.getElementById('title').textContent = t.title;
+  document.getElementById('badge').textContent = t.badge;
+  document.getElementById('hotkeyHint').innerHTML = t.hotkey;
+  document.getElementById('openWinLabel').textContent = t.openWin;
+  document.getElementById('statbtn').textContent = t.statBtn;
+  document.getElementById('winHint').textContent = t.winHint;
+  if (statusEl.textContent === '…') setStatus(t.loading, false);
+});
+
+const dot = document.getElementById('dot');
+const statusEl = document.getElementById('status');
+const errEl = document.getElementById('err');
+
+function setStatus(text, on) {
+  statusEl.textContent = text;
+  dot.className = 'dot' + (on ? ' on' : '');
+}
+
+async function init() {
+  try {
+    const cfg = await call('get_config', {});
+    const sounds = (cfg && Array.isArray(cfg.sounds)) ? cfg.sounds : [];
+    renderButtons(sounds);
+    setStatus(t.status(sounds.length), true);
+  } catch (e) {
+    setStatus(t.err, false);
+    errEl.textContent = String(e);
+  }
+}
+
+function renderButtons(sounds) {
+  const box = document.getElementById('sounds');
+  box.replaceChildren();
+  if (!sounds.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = t.empty;
+    box.appendChild(empty);
+    return;
+  }
+  for (const s of sounds) {
+    const b = document.createElement('button');
+    b.className = 'snd';
+    b.textContent = s.label || s.id;
+    b.onclick = async () => {
+      b.classList.add('playing');
+      try {
+        await call('play', { id: s.id });
+      } catch (e) {
+        errEl.textContent = String(e);
+      }
+      setTimeout(() => b.classList.remove('playing'), 200);
+    };
+    box.appendChild(b);
+  }
+}
+
+// 插件自主开窗：由插件 handle_message(ui:open_window) 处理
+// 每个 ui.panels 页面都可独立开窗，本页演示打开第二个页面（stats）
+document.getElementById('statbtn').addEventListener('click', async () => {
+  try {
+    await call('open_window', { panel: 'stats' });
+  } catch (e) {
+    errEl.textContent = String(e);
+  }
+});
+
+init();
+</script>
+</body>
+</html>

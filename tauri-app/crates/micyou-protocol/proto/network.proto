@@ -9,6 +9,24 @@ message MessageWrapper {
     reserved 4;
     PingMessage ping = 5;                     // Ping for latency
     PongMessage pong = 6;                     // Pong for latency
+    // Cross-device plugin messaging (see docs/plugins/api-reference.md).
+    // Unknown to legacy clients: proto3 skips it, so the wire stays compatible.
+    PluginMessage pluginMessage = 7;
+}
+
+// Cross-device plugin message: request/response and one-way events between
+// plugins on the phone and the desktop. `correlationId` pairs a request with
+// its response (0 = one-way); `target` is the receiving plugin id ("" =
+// broadcast); `errorCode` mirrors the plugin error codes (0 = ok).
+message PluginMessage {
+    string source = 1;       // plugin id of the sender
+    string target = 2;       // plugin id of the receiver, "" = broadcast
+    string topic = 3;        // message topic
+    bytes payload = 4;       // plugin-defined payload
+    uint64 correlationId = 5;
+    bool isResponse = 6;
+    int32 errorCode = 7;     // 0 = ok
+    string errorMessage = 8;
 }
 
 message ConnectMessage {
