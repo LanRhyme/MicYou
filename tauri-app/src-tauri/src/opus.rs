@@ -48,18 +48,29 @@ impl Decoder {
     /// sized for at least the expected frame (e.g. `sample_rate/50 * channels`).
     /// Returns the number of samples per channel decoded, or an error string.
     pub fn decode_float(&mut self, input: &[u8], output: &mut [f32]) -> Result<usize, String> {
-        self.raw
-            .decode_float(input, output, false)
-            .map_err(|e| e.to_string())
+        catch_decode(|| self.raw.decode_float(input, output, false))
     }
 
     /// Feed packet-loss concealment for a missing 20 ms frame. Returns the
     /// number of samples per channel synthesized, or an error string.
     pub fn decode_plc(&mut self, output: &mut [f32]) -> Result<usize, String> {
         // An empty packet triggers the decoder's packet-loss concealment.
-        self.raw
-            .decode_float(&[], output, false)
-            .map_err(|e| e.to_string())
+        catch_decode(|| self.raw.decode_float(&[], output, false))
+    }
+}
+
+/// Wrap the third-party decoder call so a panic (e.g. arithmetic overflow on a
+/// corrupted Opus frame in debug builds) surfaces as an `Err` instead of taking
+/// down the audio thread. Callers should rebuild the decoder after an error.
+fn catch_decode<F, E>(f: F) -> Result<usize, String>
+where
+    F: FnOnce() -> Result<usize, E>,
+    E: std::fmt::Display,
+{
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+        Ok(Ok(n)) => Ok(n),
+        Ok(Err(e)) => Err(e.to_string()),
+        Err(_) => Err("opus decoder panicked".to_string()),
     }
 }
 

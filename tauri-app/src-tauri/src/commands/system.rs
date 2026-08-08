@@ -631,6 +631,8 @@ pub async fn start_server_inner(
                                         Err(e) => {
                                             eprintln!("[Audio] Opus decode error: {}", e);
                                             pcm_f32.clear();
+                                            // 解码器内部状态可能已被损坏帧弄脏，重建避免带病解码
+                                            opus_decoder = None;
                                         }
                                     }
                                 } else {

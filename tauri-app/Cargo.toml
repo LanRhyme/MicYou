@@ -8,7 +8,14 @@ members = [
   "crates/micyou-plugin/fixtures/native",
   "crates/micyou-cli",
   "crates/micyou-tui",
+  "crates/opus-decoder",
 ]
+
+# Vendored fork of opus-decoder 0.1.1: guards the CELT collapse-mask computation
+# against corrupted frames that otherwise trigger a u8 shift-left overflow panic.
+# Patch source: crates/opus-decoder/src/celt/vq.rs
+[patch.crates-io]
+opus-decoder = { path = "crates/opus-decoder" }
 
 [workspace.package]
 version = "2.0.0"
