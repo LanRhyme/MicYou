@@ -78,8 +78,11 @@ data class AudioPacketMessageOrdered(
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class MuteMessage(
+    // 必须带默认值：PC 端（prost，proto3）发送 isMuted=false 时不会编码该字段，
+    // 导致 mute 子消息为空；若无默认值，kotlinx-protobuf 解码会抛
+    // MissingFieldException，整条消息被丢弃（表现为「电脑端取消静音无法同步手机端」）。
     @ProtoNumber(1)
-    val isMuted: Boolean
+    val isMuted: Boolean = false
 )
 
 @OptIn(ExperimentalSerializationApi::class)
