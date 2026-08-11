@@ -45,7 +45,9 @@
                 :class="currentSection === section.id ? 'text-primary' : ''"
                 >{{ section.panelIcon }}</span
               >
-              <span class="font-medium text-sm">{{ section.name }}</span>
+              <span class="font-medium text-sm">{{
+                section.nameKey ? $t(section.nameKey) : section.name
+              }}</span>
             </button>
           </template>
         </div>
@@ -1524,7 +1526,9 @@ async function switchToTui() {
 
 interface SettingsSection {
   id: string;
-  name: string;
+  /** 静态名称（插件面板等非 i18n 来源）；base 分区改用 nameKey 以支持热切换语言 */
+  name?: string;
+  nameKey?: string;
   icon: typeof SettingsIcon;
   panelIcon?: string;
   pluginId?: string;
@@ -1533,12 +1537,12 @@ interface SettingsSection {
 }
 
 const baseSections: SettingsSection[] = [
-  { id: 'general', name: t('settings.categories.general'), icon: SettingsIcon },
-  { id: 'appearance', name: t('settings.categories.appearance'), icon: Palette },
-  { id: 'audio', name: t('settings.categories.audio'), icon: Mic },
-  { id: 'equalizer', name: t('settings.equalizer.title'), icon: SlidersHorizontal },
-  { id: 'plugins', name: t('settings.categories.plugins'), icon: Puzzle },
-  { id: 'about', name: t('settings.categories.about'), icon: Info },
+  { id: 'general', nameKey: 'settings.categories.general', icon: SettingsIcon },
+  { id: 'appearance', nameKey: 'settings.categories.appearance', icon: Palette },
+  { id: 'audio', nameKey: 'settings.categories.audio', icon: Mic },
+  { id: 'equalizer', nameKey: 'settings.equalizer.title', icon: SlidersHorizontal },
+  { id: 'plugins', nameKey: 'settings.categories.plugins', icon: Puzzle },
+  { id: 'about', nameKey: 'settings.categories.about', icon: Info },
 ];
 
 // 插件面板：每个声明 ui.panels 的插件在侧边栏拥有专属页面
@@ -1597,9 +1601,11 @@ const sections = computed(() => {
 
 const contentRef = ref<HTMLElement | null>(null);
 const currentSection = ref('general');
-const currentSectionName = computed(
-  () => sections.value.find((s) => s.id === currentSection.value)?.name,
-);
+const currentSectionName = computed(() => {
+  const s = sections.value.find((x) => x.id === currentSection.value);
+  if (!s) return '';
+  return s.nameKey ? t(s.nameKey) : (s.name ?? '');
+});
 
 // ── 插件面板（sandbox iframe + postMessage bridge）─────────────────────
 const panelHtml = ref('');
