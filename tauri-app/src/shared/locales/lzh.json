@@ -126,7 +126,7 @@
     "customCss": {
       "title": "自定 CSS",
       "desc": "入 CSS 码以饰应用。",
-      "placeholder": "/* 例：\nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
+      "placeholder": "/* 例：\nbody {'{'}\n  font-family: 'Comic Sans MS' !important;\n{'}'}\n*/",
       "editBtn": "编 CSS",
       "loadFromFile": "从档载入",
       "clear": "清之",

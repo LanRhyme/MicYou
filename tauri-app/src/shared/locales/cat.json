@@ -126,7 +126,7 @@
     "customCss": {
       "title": "自定义 CSS 喵~",
       "desc": "输入自定义 CSS 代码来全局样式化应用喵~",
-      "placeholder": "/* 例如: \nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
+      "placeholder": "/* 例如: \nbody {'{'}\n  font-family: 'Comic Sans MS' !important;\n{'}'}\n*/",
       "editBtn": "编辑自定义 CSS 喵~",
       "loadFromFile": "从文件加载喵~",
       "clear": "清除 CSS 喵~",

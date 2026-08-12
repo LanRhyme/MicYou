@@ -126,7 +126,7 @@
     "customCss": {
       "title": "自訂 CSS",
       "desc": "在這裡輸入自訂的 CSS 程式碼，將即時套用到整個應用程式中",
-      "placeholder": "/* 例如：\nbody { \n  font-family: 'Comic Sans MS' !important;\n} \n*/",
+      "placeholder": "/* 例如：\nbody {'{'}\n  font-family: 'Comic Sans MS' !important;\n{'}'}\n*/",
       "editBtn": "編輯自訂 CSS",
       "loadFromFile": "從檔案匯入",
       "clear": "清空程式碼",
