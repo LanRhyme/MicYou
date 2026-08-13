@@ -236,6 +236,29 @@ export function clearInstalledTheme() {
   installedThemeControlsColor.value = true;
 }
 
+// Reset every theme field to DEFAULT_THEME (single source of truth) and tear
+// down any installed theme package. The applyTheme watchEffect recomputes CSS
+// + writes theme.json; SettingsDialog calls saveUiPrefs() afterwards to sync
+// ui.json. No second copy of defaults lives here.
+export function resetThemeToDefaults() {
+  themeMode.value = DEFAULT_THEME.themeMode;
+  themeColor.value = DEFAULT_THEME.themeColor;
+  uiStyle.value = DEFAULT_THEME.uiStyle;
+  customH.value = DEFAULT_THEME.customH;
+  customS.value = DEFAULT_THEME.customS;
+  customL.value = DEFAULT_THEME.customL;
+  customVariant.value = DEFAULT_THEME.customVariant;
+  customCss.value = DEFAULT_THEME.customCss;
+  customCssEnabled.value = DEFAULT_THEME.customCssEnabled;
+  const id = installedThemeId.value;
+  if (id) {
+    clearInstalledTheme();
+    void invoke('remove_installed_theme', { themeId: id }).catch((e) =>
+      console.warn('Failed to remove installed theme:', e),
+    );
+  }
+}
+
 export function useTheme() {
   void initializeSystemAccent();
 
@@ -272,6 +295,7 @@ export function useTheme() {
     installedThemeCss,
     installedThemeControlsColor,
     clearInstalledTheme,
+    resetThemeToDefaults,
     systemAccent,
     systemAccentLoading,
   };

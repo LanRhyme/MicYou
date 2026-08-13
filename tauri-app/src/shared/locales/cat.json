@@ -279,12 +279,31 @@
       "cliRunning": "CLI 模式正在运行喵 (PID {pid})，请先在终端里停掉喵~",
       "tuiRunningShort": "TUI 运行中喵~",
       "tuiRunning": "TUI 模式正在运行喵 (PID {pid})，请先在终端里停掉喵~"
+    },
+    "restoreDefaults": {
+      "label": "恢复默认设置喵~",
+      "desc": "把音频、DSP 和偏好重置为默认值喵~",
+      "button": "恢复默认喵~",
+      "title": "恢复默认设置喵？",
+      "confirmDesc": "这会把所有音频/DSP 设置和偏好重置为默认值喵。继续吗喵？",
+      "success": "设置已恢复为默认值喵~",
+      "failed": "恢复设置失败喵~"
+    },
+    "restoreTheme": {
+      "label": "恢复默认主题喵~",
+      "desc": "把主题颜色、模式和自定义重置为默认值喵~",
+      "button": "恢复默认喵~",
+      "title": "恢复默认主题喵？",
+      "confirmDesc": "这会把主题颜色、模式和自定义 CSS 重置为默认值喵。继续吗喵？",
+      "success": "主题已恢复为默认值喵~",
+      "failed": "恢复主题失败喵~"
     }
   },
   "dialogs": {
     "close": "关闭喵~",
     "cancel": "取消喵~",
     "apply": "应用喵~",
+    "confirm": "确认喵~",
     "contributors": {
       "title": "贡献者喵~ 💖",
       "loading": "正在加载贡献者喵... (・_・)",

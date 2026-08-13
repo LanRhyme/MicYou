@@ -518,6 +518,22 @@
                     </button>
                   </div>
                 </div>
+
+                <!-- Restore default settings -->
+                <div class="rounded-2xl bg-surface-variant/20 border border-outline/10 p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-sm font-bold text-foreground">{{ $t('settings.restoreDefaults.label') }}</p>
+                      <p class="text-xs text-on-surface-variant mt-0.5">{{ $t('settings.restoreDefaults.desc') }}</p>
+                    </div>
+                    <button
+                      class="shrink-0 rounded-full bg-error/10 px-4 py-2 text-sm font-medium text-error transition-colors hover:bg-error/20"
+                      @click="restoreDefaultSettings"
+                    >
+                      {{ $t('settings.restoreDefaults.button') }}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- APPEARANCE SECTION -->
@@ -767,6 +783,22 @@
                   >
                     {{ $t('settings.theme.catalogButton') }}
                   </button>
+                </div>
+
+                <!-- Restore default theme -->
+                <div class="rounded-2xl bg-surface-variant/20 border border-outline/10 p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-sm font-bold text-foreground">{{ $t('settings.restoreTheme.label') }}</p>
+                      <p class="text-xs text-on-surface-variant mt-0.5">{{ $t('settings.restoreTheme.desc') }}</p>
+                    </div>
+                    <button
+                      class="shrink-0 rounded-full bg-error/10 px-4 py-2 text-sm font-medium text-error transition-colors hover:bg-error/20"
+                      @click="restoreDefaultTheme"
+                    >
+                      {{ $t('settings.restoreTheme.button') }}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1326,6 +1358,66 @@
     </div>
   </Transition>
 
+  <!-- Restore defaults: confirm dialog (mirrors App.vue IP switch confirm style) -->
+  <Transition
+    enter-active-class="transition ease-out duration-200"
+    enter-from-class="opacity-0"
+    enter-to-class="opacity-100"
+    leave-active-class="transition ease-in duration-150"
+    leave-from-class="opacity-100"
+    leave-to-class="opacity-0"
+  >
+    <div v-if="restoreConfirmTarget" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div class="bg-surface rounded-2xl shadow-2xl border border-outline/10 p-6 w-80">
+        <h3 class="text-sm font-bold text-foreground mb-2">
+          {{ $t(restoreConfirmTarget === 'settings' ? 'settings.restoreDefaults.title' : 'settings.restoreTheme.title') }}
+        </h3>
+        <p class="text-xs text-on-surface-variant mb-5">
+          {{ $t(restoreConfirmTarget === 'settings' ? 'settings.restoreDefaults.confirmDesc' : 'settings.restoreTheme.confirmDesc') }}
+        </p>
+        <div class="flex justify-end gap-2">
+          <button
+            class="px-4 py-2 text-xs font-medium text-on-surface-variant hover:bg-surface-variant/50 rounded-lg transition-colors"
+            @click="restoreConfirmTarget = null"
+          >
+            {{ $t('dialogs.cancel') }}
+          </button>
+          <button
+            class="px-4 py-2 text-xs font-medium text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+            @click="confirmRestore"
+          >
+            {{ $t('dialogs.confirm') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Transition>
+
+  <!-- Restore defaults: result dialog -->
+  <Transition
+    enter-active-class="transition ease-out duration-200"
+    enter-from-class="opacity-0"
+    enter-to-class="opacity-100"
+    leave-active-class="transition ease-in duration-150"
+    leave-from-class="opacity-100"
+    leave-to-class="opacity-0"
+  >
+    <div v-if="restoreResult" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div class="bg-surface rounded-2xl shadow-2xl border border-outline/10 p-6 w-80">
+        <h3 class="text-sm font-bold text-foreground mb-2">{{ restoreResult.title }}</h3>
+        <p class="text-xs text-on-surface-variant mb-5">{{ restoreResult.message }}</p>
+        <div class="flex justify-end gap-2">
+          <button
+            class="px-4 py-2 text-xs font-medium text-on-primary bg-primary hover:bg-primary/90 rounded-lg transition-colors"
+            @click="restoreResult = null"
+          >
+            {{ $t('dialogs.close') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Transition>
+
   <ContributorsDialog :isOpen="showContributors" @close="showContributors = false" />
   <SponsorsDialog :isOpen="showSponsors" @close="showSponsors = false" />
   <LicensesDialog :isOpen="showLicenses" @close="showLicenses = false" />
@@ -1349,7 +1441,7 @@
 
 <script setup lang="ts">
 import MD3Slider from '@/shared/components/ui/slider/MD3Slider.vue';
-import { ref, computed, watch, reactive, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useColorMode, useStorage } from '@vueuse/core';
 import { invoke } from '@tauri-apps/api/core';
@@ -1391,7 +1483,7 @@ import { usePlugins } from '@/features/plugins/composables/usePlugins';
 import { usePluginPanelBridge } from '@/shared/composables/usePluginPanelBridge';
 import ThemeSelector from '@/features/theme/components/ThemeSelector.vue';
 import CustomColorPicker from '@/features/theme/components/CustomColorPicker.vue';
-import { useTheme } from '@/features/theme/composables/useTheme';
+import { useTheme, DEFAULT_THEME } from '@/features/theme/composables/useTheme';
 
 onMounted(() => {
   window.addEventListener('message', onPanelMessage);
@@ -1437,6 +1529,7 @@ const {
   installedThemeId,
   installedThemeControlsColor,
   clearInstalledTheme,
+  resetThemeToDefaults,
 } = useTheme();
 const themePackageActive = computed(() =>
   Boolean(installedThemeId.value && installedThemeControlsColor.value),
@@ -2180,13 +2273,118 @@ const saveSettings = () => {
   syncSettingsToBackend();
 };
 
+// Autosave: any change to `settings` persists + syncs to backend. Suppressed
+// during "restore defaults" so a single batched mutation produces exactly one
+// save (see doRestoreDefaultSettings).
+const suppressAutosave = ref(false);
 watch(
   settings,
   () => {
+    if (suppressAutosave.value) return;
     saveSettings();
   },
   { deep: true },
 );
+
+// In-app confirm + result dialog state for restore actions (mirrors the
+// IP switch confirm dialog style in App.vue — no native confirm()/alert()).
+const restoreConfirmTarget = ref<'settings' | 'theme' | null>(null);
+const restoreResult = ref<{ title: string; message: string } | null>(null);
+
+function restoreDefaultSettings() {
+  restoreConfirmTarget.value = 'settings';
+}
+
+function restoreDefaultTheme() {
+  restoreConfirmTarget.value = 'theme';
+}
+
+async function confirmRestore() {
+  const target = restoreConfirmTarget.value;
+  restoreConfirmTarget.value = null;
+  if (target === 'settings') {
+    await doRestoreDefaultSettings();
+  } else if (target === 'theme') {
+    await doRestoreDefaultTheme();
+  }
+}
+
+async function doRestoreDefaultSettings() {
+  try {
+    // Reset UI preferences (persisted via useStorage -> localStorage)
+    closeBehavior.value = null;
+    startMinimized.value = false;
+    notificationsEnabled.value = true;
+    autoStream.value = false;
+    pocketMode.value = false;
+
+    // Batch the settings mutation under suppressAutosave so the deep watcher
+    // does not fire an extra save; then flush exactly one real save.
+    suppressAutosave.value = true;
+    try {
+      const defaults = DEFAULT_AUDIO_SETTINGS();
+      // Full reset: drop keys no longer in defaults (avoid stale residue from
+      // renamed/removed fields), then overwrite. Init and reset share one source.
+      Object.keys(settings).forEach((k) => {
+        if (!(k in defaults)) delete (settings as Record<string, unknown>)[k];
+      });
+      Object.assign(settings, defaults);
+      // Platform normalization (AEC pinning is runtime, not a "default")
+      settings.processingChain = isAecSupported
+        ? ['AEC', ...settings.processingChain.filter((i) => i !== 'AEC')]
+        : settings.processingChain.filter((i) => i !== 'AEC');
+      if (!isAecSupported) settings.aecEnabled = false;
+    } finally {
+      suppressAutosave.value = false;
+    }
+    await nextTick(); // let the suppressed (no-op) watcher flush pass
+    saveSettings(); // exactly one real persist + backend sync
+
+    // Disable OS-level autostart if currently enabled
+    if (autostartEnabled.value) {
+      try {
+        await disableAutostart();
+        autostartEnabled.value = false;
+      } catch (e) {
+        console.error('Failed to disable autostart on reset:', e);
+      }
+    }
+
+    restoreResult.value = {
+      title: t('settings.restoreDefaults.title'),
+      message: t('settings.restoreDefaults.success'),
+    };
+  } catch (e) {
+    console.error('Failed to restore default settings:', e);
+    restoreResult.value = {
+      title: t('settings.restoreDefaults.title'),
+      message: t('settings.restoreDefaults.failed'),
+    };
+  }
+}
+
+async function doRestoreDefaultTheme() {
+  try {
+    // colorMode lives in SettingsDialog (useColorMode); theme fields live in
+    // useTheme. resetThemeToDefaults reuses DEFAULT_THEME so no second copy.
+    colorMode.value = DEFAULT_THEME.colorMode as typeof colorMode.value;
+    resetThemeToDefaults();
+    // Sync ui.json (themeColor preset) — saveUiPrefs reads the freshly reset
+    // themeMode/themeColor, so call it after resetThemeToDefaults.
+    saveUiPrefs();
+
+    restoreResult.value = {
+      title: t('settings.restoreTheme.title'),
+      message: t('settings.restoreTheme.success'),
+    };
+  } catch (e) {
+    console.error('Failed to restore default theme:', e);
+    restoreResult.value = {
+      title: t('settings.restoreTheme.title'),
+      message: t('settings.restoreTheme.failed'),
+    };
+  }
+}
 
 function resetMonitoringData() {
   audioLevel.value = 0;

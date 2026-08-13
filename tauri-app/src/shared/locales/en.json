@@ -281,12 +281,31 @@
       "cliRunning": "CLI mode is running (PID {pid}) - stop it in the terminal before switching",
       "tuiRunningShort": "TUI running",
       "tuiRunning": "TUI mode is running (PID {pid}) - stop it in the terminal before switching"
+    },
+    "restoreDefaults": {
+      "label": "Restore default settings",
+      "desc": "Reset audio, DSP and preferences to their defaults",
+      "button": "Restore defaults",
+      "title": "Restore default settings?",
+      "confirmDesc": "This will reset all audio/DSP settings and preferences to defaults. Continue?",
+      "success": "Settings restored to defaults",
+      "failed": "Failed to restore settings"
+    },
+    "restoreTheme": {
+      "label": "Restore default theme",
+      "desc": "Reset theme color, mode and customizations to defaults",
+      "button": "Restore defaults",
+      "title": "Restore default theme?",
+      "confirmDesc": "This will reset theme color, mode and custom CSS to defaults. Continue?",
+      "success": "Theme restored to defaults",
+      "failed": "Failed to restore theme"
     }
   },
   "dialogs": {
     "close": "Close",
     "cancel": "Cancel",
     "apply": "Apply",
+    "confirm": "Confirm",
     "contributors": {
       "title": "Contributors",
       "loading": "Loading contributors...",

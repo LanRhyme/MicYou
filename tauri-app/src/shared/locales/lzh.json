@@ -279,12 +279,31 @@
       "cliRunning": "CLI 模式运行中 (PID {pid})，先于终端止之",
       "tuiRunningShort": "TUI 运行中",
       "tuiRunning": "TUI 模式运行中 (PID {pid})，先于终端止之"
+    },
+    "restoreDefaults": {
+      "label": "复默认之设",
+      "desc": "音频、DSP 及偏好皆归于默认",
+      "button": "复默认",
+      "title": "复默认之设乎？",
+      "confirmDesc": "音频、DSP 及偏好将尽归默认。可乎？",
+      "success": "设已复默认",
+      "failed": "复设未成"
+    },
+    "restoreTheme": {
+      "label": "复默认之题",
+      "desc": "题色、模式及自定皆归于默认",
+      "button": "复默认",
+      "title": "复默认之题乎？",
+      "confirmDesc": "题色、模式及自定 CSS 将尽归默认。可乎？",
+      "success": "题已复默认",
+      "failed": "复题未成"
     }
   },
   "dialogs": {
     "close": "闭",
     "cancel": "止",
     "apply": "用",
+    "confirm": "可",
     "contributors": {
       "title": "贡献者",
       "loading": "载贡献者中...",

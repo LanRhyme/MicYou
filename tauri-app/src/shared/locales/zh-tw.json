@@ -279,12 +279,31 @@
       "cliRunning": "CLI 模式正在執行 (PID {pid})，請先在終端機中停止",
       "tuiRunningShort": "TUI 執行中",
       "tuiRunning": "TUI 模式正在執行 (PID {pid})，請先在終端機中停止"
+    },
+    "restoreDefaults": {
+      "label": "還原預設設定",
+      "desc": "將音訊、DSP 及偏好設定重置為預設值",
+      "button": "還原預設",
+      "title": "還原預設設定？",
+      "confirmDesc": "這將把所有音訊/DSP 設定和偏好重置為預設值。是否繼續？",
+      "success": "設定已還原為預設值",
+      "failed": "還原設定失敗"
+    },
+    "restoreTheme": {
+      "label": "還原預設主題",
+      "desc": "將主題色彩、模式及自訂重置為預設值",
+      "button": "還原預設",
+      "title": "還原預設主題？",
+      "confirmDesc": "這將把主題色彩、模式和自訂 CSS 重置為預設值。是否繼續？",
+      "success": "主題已還原為預設值",
+      "failed": "還原主題失敗"
     }
   },
   "dialogs": {
     "close": "關閉",
     "cancel": "取消",
     "apply": "套用",
+    "confirm": "確認",
     "contributors": {
       "title": "貢獻者",
       "loading": "正在載入貢獻者...",

@@ -281,12 +281,31 @@
       "cliRunning": "CLI 模式正在运行 (PID {pid})，请在终端中停止后再切换",
       "tuiRunningShort": "TUI 运行中",
       "tuiRunning": "TUI 模式正在运行 (PID {pid})，请在终端中停止后再切换"
+    },
+    "restoreDefaults": {
+      "label": "恢复默认设置",
+      "desc": "将音频、DSP 及偏好设置重置为默认值",
+      "button": "恢复默认",
+      "title": "恢复默认设置？",
+      "confirmDesc": "这将把所有音频/DSP 设置和偏好重置为默认值。是否继续？",
+      "success": "设置已恢复为默认值",
+      "failed": "恢复设置失败"
+    },
+    "restoreTheme": {
+      "label": "恢复默认主题",
+      "desc": "将主题颜色、模式及自定义重置为默认值",
+      "button": "恢复默认",
+      "title": "恢复默认主题？",
+      "confirmDesc": "这将把主题颜色、模式和自定义 CSS 重置为默认值。是否继续？",
+      "success": "主题已恢复为默认值",
+      "failed": "恢复主题失败"
     }
   },
   "dialogs": {
     "close": "关闭",
     "cancel": "取消",
     "apply": "应用",
+    "confirm": "确认",
     "contributors": {
       "title": "贡献者",
       "loading": "正在加载贡献者...",
