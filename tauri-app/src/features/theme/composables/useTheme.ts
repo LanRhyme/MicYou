@@ -240,7 +240,9 @@ export function clearInstalledTheme() {
 // down any installed theme package. The applyTheme watchEffect recomputes CSS
 // + writes theme.json; SettingsDialog calls saveUiPrefs() afterwards to sync
 // ui.json. No second copy of defaults lives here.
-export function resetThemeToDefaults() {
+// Returns true if an installed theme package existed but its backend removal
+// failed (frontend is already cleared) — caller surfaces a partial-success.
+export async function resetThemeToDefaults(): Promise<boolean> {
   themeMode.value = DEFAULT_THEME.themeMode;
   themeColor.value = DEFAULT_THEME.themeColor;
   uiStyle.value = DEFAULT_THEME.uiStyle;
@@ -253,10 +255,14 @@ export function resetThemeToDefaults() {
   const id = installedThemeId.value;
   if (id) {
     clearInstalledTheme();
-    void invoke('remove_installed_theme', { themeId: id }).catch((e) =>
-      console.warn('Failed to remove installed theme:', e),
-    );
+    try {
+      await invoke('remove_installed_theme', { themeId: id });
+    } catch (e) {
+      console.warn('Failed to remove installed theme:', e);
+      return true; // installed-theme package removal failed (frontend already cleared)
+    }
   }
+  return false;
 }
 
 export function useTheme() {

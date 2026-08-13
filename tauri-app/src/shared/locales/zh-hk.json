@@ -287,7 +287,8 @@
       "title": "還原預設設定？",
       "confirmDesc": "咁會將所有音訊/DSP 設定同偏好重置為預設值。要繼續嗎？",
       "success": "設定已還原為預設值",
-      "failed": "還原設定失敗"
+      "failed": "還原設定失敗",
+      "autostartFailed": "設定已還原，但未能關閉開機自啟"
     },
     "restoreTheme": {
       "label": "還原預設主題",
@@ -296,7 +297,8 @@
       "title": "還原預設主題？",
       "confirmDesc": "咁會將主題色、模式同自訂 CSS 重置為預設值。要繼續嗎？",
       "success": "主題已還原為預設值",
-      "failed": "還原主題失敗"
+      "failed": "還原主題失敗",
+      "partialSuccess": "主題已還原，但未能移除已安裝主題包"
     }
   },
   "dialogs": {

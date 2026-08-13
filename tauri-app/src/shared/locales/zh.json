@@ -289,7 +289,8 @@
       "title": "恢复默认设置？",
       "confirmDesc": "这将把所有音频/DSP 设置和偏好重置为默认值。是否继续？",
       "success": "设置已恢复为默认值",
-      "failed": "恢复设置失败"
+      "failed": "恢复设置失败",
+      "autostartFailed": "设置已恢复，但未能关闭开机自启"
     },
     "restoreTheme": {
       "label": "恢复默认主题",
@@ -298,7 +299,8 @@
       "title": "恢复默认主题？",
       "confirmDesc": "这将把主题颜色、模式和自定义 CSS 重置为默认值。是否继续？",
       "success": "主题已恢复为默认值",
-      "failed": "恢复主题失败"
+      "failed": "恢复主题失败",
+      "partialSuccess": "主题已恢复，但未能移除已安装主题包"
     }
   },
   "dialogs": {

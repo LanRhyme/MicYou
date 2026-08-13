@@ -2310,6 +2310,7 @@ async function confirmRestore() {
 }
 
 async function doRestoreDefaultSettings() {
+  let autostartFailed = false;
   try {
     // Reset UI preferences (persisted via useStorage -> localStorage)
     closeBehavior.value = null;
@@ -2318,43 +2319,47 @@ async function doRestoreDefaultSettings() {
     autoStream.value = false;
     pocketMode.value = false;
 
-    // Batch the settings mutation under suppressAutosave so the deep watcher
-    // does not fire an extra save; then flush exactly one real save.
+    // Batch the settings mutation under suppressAutosave; release AFTER the
+    // deep watcher's batched flush (nextTick) so it runs as a no-op, yielding
+    // exactly one real save below. Releasing in `finally` before nextTick
+    // would let the watcher fire a second save (race fixed per review).
     suppressAutosave.value = true;
-    try {
-      const defaults = DEFAULT_AUDIO_SETTINGS();
-      // Full reset: drop keys no longer in defaults (avoid stale residue from
-      // renamed/removed fields), then overwrite. Init and reset share one source.
-      Object.keys(settings).forEach((k) => {
-        if (!(k in defaults)) delete (settings as Record<string, unknown>)[k];
-      });
-      Object.assign(settings, defaults);
-      // Platform normalization (AEC pinning is runtime, not a "default")
-      settings.processingChain = isAecSupported
-        ? ['AEC', ...settings.processingChain.filter((i) => i !== 'AEC')]
-        : settings.processingChain.filter((i) => i !== 'AEC');
-      if (!isAecSupported) settings.aecEnabled = false;
-    } finally {
-      suppressAutosave.value = false;
-    }
-    await nextTick(); // let the suppressed (no-op) watcher flush pass
+    const defaults = DEFAULT_AUDIO_SETTINGS();
+    // Full reset: drop keys no longer in defaults (avoid stale residue from
+    // renamed/removed fields), then overwrite. Init and reset share one source.
+    Object.keys(settings).forEach((k) => {
+      if (!(k in defaults)) delete (settings as Record<string, unknown>)[k];
+    });
+    Object.assign(settings, defaults);
+    // Platform normalization (AEC pinning is runtime, not a "default")
+    settings.processingChain = isAecSupported
+      ? ['AEC', ...settings.processingChain.filter((i) => i !== 'AEC')]
+      : settings.processingChain.filter((i) => i !== 'AEC');
+    if (!isAecSupported) settings.aecEnabled = false;
+    await nextTick(); // watcher flushes while still suppressed → no-op
+    suppressAutosave.value = false;
     saveSettings(); // exactly one real persist + backend sync
 
-    // Disable OS-level autostart if currently enabled
+    // Disable OS-level autostart if currently enabled; surface failure
+    // (previously swallowed → UI falsely showed full success)
     if (autostartEnabled.value) {
       try {
         await disableAutostart();
         autostartEnabled.value = false;
       } catch (e) {
+        autostartFailed = true;
         console.error('Failed to disable autostart on reset:', e);
       }
     }
 
     restoreResult.value = {
       title: t('settings.restoreDefaults.title'),
-      message: t('settings.restoreDefaults.success'),
+      message: autostartFailed
+        ? t('settings.restoreDefaults.autostartFailed')
+        : t('settings.restoreDefaults.success'),
     };
   } catch (e) {
+    suppressAutosave.value = false; // release on failure too (avoid leak)
     console.error('Failed to restore default settings:', e);
     restoreResult.value = {
       title: t('settings.restoreDefaults.title'),
@@ -2368,14 +2373,19 @@ async function doRestoreDefaultTheme() {
     // colorMode lives in SettingsDialog (useColorMode); theme fields live in
     // useTheme. resetThemeToDefaults reuses DEFAULT_THEME so no second copy.
     colorMode.value = DEFAULT_THEME.colorMode as typeof colorMode.value;
-    resetThemeToDefaults();
+    // Await backend removal of an installed theme package; resetThemeToDefaults
+    // returns true if that removal failed (frontend already cleared) so we can
+    // surface a partial-success instead of a silent inconsistency.
+    const themeRemoveFailed = await resetThemeToDefaults();
     // Sync ui.json (themeColor preset) — saveUiPrefs reads the freshly reset
     // themeMode/themeColor, so call it after resetThemeToDefaults.
     saveUiPrefs();
 
     restoreResult.value = {
       title: t('settings.restoreTheme.title'),
-      message: t('settings.restoreTheme.success'),
+      message: themeRemoveFailed
+        ? t('settings.restoreTheme.partialSuccess')
+        : t('settings.restoreTheme.success'),
     };
   } catch (e) {
     console.error('Failed to restore default theme:', e);

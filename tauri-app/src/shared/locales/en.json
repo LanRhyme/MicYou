@@ -289,7 +289,8 @@
       "title": "Restore default settings?",
       "confirmDesc": "This will reset all audio/DSP settings and preferences to defaults. Continue?",
       "success": "Settings restored to defaults",
-      "failed": "Failed to restore settings"
+      "failed": "Failed to restore settings",
+      "autostartFailed": "Settings restored, but failed to disable autostart"
     },
     "restoreTheme": {
       "label": "Restore default theme",
@@ -298,7 +299,8 @@
       "title": "Restore default theme?",
       "confirmDesc": "This will reset theme color, mode and custom CSS to defaults. Continue?",
       "success": "Theme restored to defaults",
-      "failed": "Failed to restore theme"
+      "failed": "Failed to restore theme",
+      "partialSuccess": "Theme restored, but failed to remove installed theme package"
     }
   },
   "dialogs": {

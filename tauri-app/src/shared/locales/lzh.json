@@ -287,7 +287,8 @@
       "title": "复默认之设乎？",
       "confirmDesc": "音频、DSP 及偏好将尽归默认。可乎？",
       "success": "设已复默认",
-      "failed": "复设未成"
+      "failed": "复设未成",
+      "autostartFailed": "设虽复，然开机自启未止"
     },
     "restoreTheme": {
       "label": "复默认之题",
@@ -296,7 +297,8 @@
       "title": "复默认之题乎？",
       "confirmDesc": "题色、模式及自定 CSS 将尽归默认。可乎？",
       "success": "题已复默认",
-      "failed": "复题未成"
+      "failed": "复题未成",
+      "partialSuccess": "题虽复，然旧题包未除"
     }
   },
   "dialogs": {
