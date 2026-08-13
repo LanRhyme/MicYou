@@ -1753,7 +1753,10 @@ watch(currentLanguage, (newLang) => {
 });
 
 // Reactive Settings State
-const settings = reactive({
+// Single source of truth for audio / DSP default values. Both the `settings`
+// reactive init and "restore defaults" reference this — add a field here and
+// both stay in sync, no second copy to keep aligned by hand.
+const DEFAULT_AUDIO_SETTINGS = () => ({
   audioDevice: 'auto',
   gain: 0,
   aecEnabled: false,
@@ -1776,6 +1779,8 @@ const settings = reactive({
     gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   },
 });
+
+const settings = reactive(DEFAULT_AUDIO_SETTINGS());
 
 const audioDevices = ref<string[]>([]);
 const hasVBCable = computed(() =>
