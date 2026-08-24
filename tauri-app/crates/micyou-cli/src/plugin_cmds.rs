@@ -190,8 +190,26 @@ fn validate(dir: &str) -> Result<(), String> {
         .map_err(|e| format!("read {}: {e}", manifest_path.display()))?;
     let manifest = micyou_plugin::PluginManifest::from_json(&text)
         .map_err(|e| format!("invalid plugin.json: {e}"))?;
-    let entry = manifest.entry_path(Path::new(dir));
-    let entry_ok = entry.exists();
+    
+    let base_path = Path::new(dir).join(&manifest.entry);
+
+    let entry_ok = if base_path.extension().is_none() {
+        base_path.with_extension("dll").exists()
+            || base_path.with_extension("so").exists()
+            || base_path.with_extension("dylib").exists()
+    } else {
+        base_path.exists()
+    };
+
+    let entry_display_path = if base_path.extension().is_none() {
+        if base_path.with_extension("dll").exists() { base_path.with_extension("dll") }
+        else if base_path.with_extension("so").exists() { base_path.with_extension("so") }
+        else if base_path.with_extension("dylib").exists() { base_path.with_extension("dylib") }
+        else { base_path.clone() }
+    } else {
+        base_path.clone()
+    };
+
     println!(
         "OK  id={} name={} version={} runtime={:?}",
         manifest.id, manifest.name, manifest.version, manifest.runtime
@@ -202,9 +220,14 @@ fn validate(dir: &str) -> Result<(), String> {
         manifest.kind, manifest.platforms, manifest.arches
     );
     if entry_ok {
-        println!("    entry={} (exists)", entry.display());
+        println!("    entry={} (exists)", entry_display_path.display());
     } else {
-        return Err(format!("entry artifact missing: {}", entry.display()));
+        let hint = if base_path.extension().is_none() {
+            format!(" (expected {}.dll, {}.so, or {}.dylib)", base_path.display(), base_path.display(), base_path.display())
+        } else {
+            "".to_string()
+        };
+        return Err(format!("entry artifact missing: {}{}", entry_display_path.display(), hint));
     }
     Ok(())
 }
@@ -711,7 +734,7 @@ fn create(
         let mut plugin_json = NATIVE_PLUGIN_JSON
             .replace("dev.micyou.example.mynative", id)
             .replace("My Native Plugin", &display_name)
-            .replace("mynative", last)
+            .replace("\"entry\": \"mynative\"", &format!("\"entry\": \"{last}\""))
             .replace("\"utility\"", kind_json);
         if !capabilities.is_empty() {
             // 模板默认 capabilities 数组：整体替换（粗粒度但够用）
@@ -892,10 +915,19 @@ fn install(dir: &str) -> Result<(), String> {
         copied += 1;
     }
     // 入口产物必须存在
-    if !target.join(&manifest.entry).exists() {
+    let base_path = target.join(&manifest.entry);
+    let entry_exists = if base_path.extension().is_none() {
+        base_path.with_extension("dll").exists()
+            || base_path.with_extension("so").exists()
+            || base_path.with_extension("dylib").exists()
+    } else {
+        base_path.exists()
+    };
+
+    if !entry_exists {
         return Err(format!(
-            "entry artifact missing: {} (build it first)",
-            target.join(&manifest.entry).display()
+            "entry artifact missing in {} (build it first)",
+            target.display()
         ));
     }
     println!(
