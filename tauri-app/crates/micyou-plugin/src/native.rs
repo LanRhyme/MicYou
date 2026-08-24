@@ -70,6 +70,7 @@ impl NativePlugin {
         plugin_dir: &Path,
         host: Arc<dyn HostApi>,
     ) -> PluginResult<Self> {
+        let entry = manifest.entry_path(plugin_dir);
         if !entry.exists() {
             return Err(PluginError::NotFound(format!(
                 "Entry artifact not found: {}. For cross-platform native plugins, ensure the base name matches '{}' and the file has the correct platform suffix (.so/.dylib/.dll) without 'lib' prefix.", 
