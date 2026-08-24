@@ -5,7 +5,7 @@
   "author": "MicYou",
   "description": "示例音效板：按钮面板 + 专属设置页（postMessage 桥）+ 全局快捷键（Ctrl+Shift+S），音效经虚拟麦克风输出流播放",
   "runtime": "native",
-  "entry": "libmicyou_example_native_soundpad.so",
+  "entry": "libmicyou_example_native_soundpad",
   "platforms": [
     "linux",
     "windows",

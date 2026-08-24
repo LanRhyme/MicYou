@@ -190,7 +190,7 @@ fn validate(dir: &str) -> Result<(), String> {
         .map_err(|e| format!("read {}: {e}", manifest_path.display()))?;
     let manifest = micyou_plugin::PluginManifest::from_json(&text)
         .map_err(|e| format!("invalid plugin.json: {e}"))?;
-    let entry = Path::new(dir).join(&manifest.entry);
+    let entry = manifest.entry_path(Path::new(dir));
     let entry_ok = entry.exists();
     println!(
         "OK  id={} name={} version={} runtime={:?}",
@@ -546,7 +546,7 @@ const NATIVE_PLUGIN_JSON: &str = r#"{
   "description": "A native cdylib plugin scaffold",
   "license": "MIT",
   "runtime": "native",
-  "entry": "libmicyou_example_mynative.so",
+  "entry": "mynative",
   "platforms": ["linux", "windows", "macos"],
   "arches": ["x86_64", "aarch64"],
   "apiVersion": 1,
@@ -711,7 +711,7 @@ fn create(
         let mut plugin_json = NATIVE_PLUGIN_JSON
             .replace("dev.micyou.example.mynative", id)
             .replace("My Native Plugin", &display_name)
-            .replace("libmicyou_example_mynative.so", &format!("lib{last}.so"))
+            .replace("mynative", last)
             .replace("\"utility\"", kind_json);
         if !capabilities.is_empty() {
             // 模板默认 capabilities 数组：整体替换（粗粒度但够用）
@@ -785,6 +785,15 @@ fn create(
         "created {runtime} plugin skeleton in {}/  \n  next: `micyou-cli plugin dev {out_dir}` (watch) or `micyou-cli plugin install {out_dir}`",
         dir.display()
     );
+    if runtime == "native" {
+        println!(
+            "\n⚠️  [Cross-Platform Notice]\n\
+             For native plugins, the host auto-appends platform extensions (.dll/.so/.dylib).\n\
+             Ensure your build/packaging script removes the 'lib' prefix from Linux/macOS outputs:\n\
+               - Expected: {last}.so / {last}.dylib / {last}.dll\n\
+               - NOT: lib{last}.so"
+        );
+    }
     Ok(())
 }
 
@@ -843,6 +852,19 @@ native 插件拥有宿主完整权限，用于实时 DSP、硬件与深度系统
 
 ## 能力
 按需声明 capabilities；process() 内禁止调用宿主 API（实时安全）
+
+### 构建与跨平台打包
+
+由于宿主支持单 ZIP 包跨平台分发，它会自动根据操作系统为 `entry` 补全后缀（.dll / .so / .dylib）。
+因此，在打包发布前，**必须去除 Linux 和 macOS 产物的 `lib` 前缀**：
+
+```bash
+cargo build --release
+# Linux: 将 lib<name>.so 重命名为 <name>.so
+mv target/release/lib<name>.so target/release/<name>.so
+# macOS: 将 lib<name>.dylib 重命名为 <name>.dylib
+mv target/release/lib<name>.dylib target/release/<name>.dylib
+# Windows 产物默认为 <name>.dll，无需处理
 "#;
 
 fn write_file(dir: &Path, name: &str, content: &str) -> Result<(), String> {
