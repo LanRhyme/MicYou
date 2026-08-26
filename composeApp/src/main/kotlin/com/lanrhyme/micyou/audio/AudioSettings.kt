@@ -15,6 +15,8 @@
 
 package com.lanrhyme.micyou.audio
 
+import android.os.Build
+
 enum class SampleRate(val value: Int) {
     Rate16000(16000),
     Rate44100(44100),
@@ -48,10 +50,44 @@ internal data class ResolvedAudioFormat(
     val bytesPerSample: Int = captureFormat.bitsPerSample / Byte.SIZE_BITS
 }
 
+/**
+ * 返回当前设备可用的音频格式列表（用于设置 UI）。
+ * - PCM_24BIT 始终不显示（运行时降级为 PCM_16BIT）
+ * - PCM_FLOAT 在 API < 23 时不显示（AudioRecord.read(float[]) 需要 API 23+）
+ */
+fun availableAudioFormats(): List<AudioFormat> {
+    val supportsFloat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+    return AudioFormat.entries.filter { format ->
+        when (format) {
+            AudioFormat.PCM_24BIT -> false
+            AudioFormat.PCM_FLOAT -> supportsFloat
+            else -> true
+        }
+    }
+}
+
+/**
+ * 返回当前设备的安全默认格式。
+ * - API < 23: PCM_16BIT
+ * - API >= 23: PCM_FLOAT
+ */
+fun defaultAudioFormat(): AudioFormat {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) AudioFormat.PCM_FLOAT
+    else AudioFormat.PCM_16BIT
+}
+
 internal fun resolveAudioFormat(requestedFormat: AudioFormat): ResolvedAudioFormat {
-    val resolvedFormat = when (requestedFormat) {
+    var resolvedFormat = when (requestedFormat) {
         AudioFormat.PCM_24BIT -> AudioFormat.PCM_16BIT
         else -> requestedFormat
+    }
+    // [API 21+ 兼容] PCM_FLOAT 在 API < 23 设备上无法使用：
+    // - AudioRecord.read(float[], int, int)         → API 23
+    // - AudioRecord.read(float[], int, int, int)    → API 23
+    // - AudioTrack.write(float[], ...)              → API 21，但在部分 API 21-22 厂商 ROM 上崩溃
+    // 统一在 API < 23 时把 PCM_FLOAT 降级为 PCM_16BIT，避免 NoSuchMethodError。
+    if (resolvedFormat == AudioFormat.PCM_FLOAT && Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+        resolvedFormat = AudioFormat.PCM_16BIT
     }
     return ResolvedAudioFormat(
         captureFormat = resolvedFormat,

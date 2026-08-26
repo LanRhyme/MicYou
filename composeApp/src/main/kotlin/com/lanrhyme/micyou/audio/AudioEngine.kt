@@ -19,6 +19,7 @@ import com.lanrhyme.micyou.R
 import android.content.Intent
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.SystemClock
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
@@ -873,8 +874,23 @@ class AudioEngine constructor() {
                             var readBytes = 0
                             val audioData: ByteArray
 
+                            // [API 21+ 兼容] AudioRecord.read(float[], int, int, int) 是 API 23+ 才有的，
+                            // 低版本用 ByteBuffer 间接读取 float PCM 数据。
                             if (androidAudioFormat == android.media.AudioFormat.ENCODING_PCM_FLOAT && floatBuffer != null) {
-                                val readFloats = recorder.read(floatBuffer, 0, floatBuffer.size, AudioRecord.READ_NON_BLOCKING)
+                                val readFloats = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    recorder.read(floatBuffer, 0, floatBuffer.size, AudioRecord.READ_NON_BLOCKING)
+                                } else {
+                                    // API < 23: 用 ByteBuffer 间接读取 float PCM
+                                    val byteBuf = ByteBuffer.allocateDirect(floatBuffer.size * 4)
+                                    val readBytes = recorder.read(byteBuf, floatBuffer.size * 4)
+                                    if (readBytes > 0) {
+                                        byteBuf.rewind()
+                                        byteBuf.asFloatBuffer().get(floatBuffer, 0, readBytes / 4)
+                                        readBytes / 4
+                                    } else {
+                                        readBytes // 负值或 0 直接返回
+                                    }
+                                }
                                 if (readFloats > 0) {
                                     readBytes = readFloats * 4
                                     audioData = ByteArray(readBytes)
@@ -883,7 +899,13 @@ class AudioEngine constructor() {
                                     audioData = ByteArray(0)
                                 }
                             } else {
-                                readBytes = recorder.read(buffer, 0, buffer.size, AudioRecord.READ_NON_BLOCKING)
+                                // [API 21+ 兼容] AudioRecord.read(byte[], int, int, int) 带 READ_NON_BLOCKING 是 API 23+ 才有的，
+                                // 低版本用 3 参数的阻塞版本（无 readMode 参数）。
+                                readBytes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    recorder.read(buffer, 0, buffer.size, AudioRecord.READ_NON_BLOCKING)
+                                } else {
+                                    recorder.read(buffer, 0, buffer.size)
+                                }
                                 audioData = if (readBytes > 0) buffer.copyOfRange(0, readBytes) else ByteArray(0)
                             }
 

@@ -109,8 +109,9 @@ import com.lanrhyme.micyou.animation.rememberGlowAnimation
 import com.lanrhyme.micyou.animation.rememberPulseAnimation
 import com.lanrhyme.micyou.animation.rememberRotationAnimation
 import com.lanrhyme.micyou.animation.rememberWaveAnimation
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.rememberHazeState
+import com.lanrhyme.micyou.ui.compose.material3.*
+import com.lanrhyme.micyou.ui.compose.haze.HazeState
+import com.lanrhyme.micyou.ui.compose.haze.rememberHazeState
 import kotlinx.coroutines.delay
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource

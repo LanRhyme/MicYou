@@ -40,10 +40,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
+import com.lanrhyme.micyou.ui.compose.haze.HazeState
+import com.lanrhyme.micyou.ui.compose.haze.HazeStyle
+import com.lanrhyme.micyou.ui.compose.haze.HazeTint
+import com.lanrhyme.micyou.ui.compose.haze.hazeEffect
 
 /**
  * Material 3 Expressive 组件样式

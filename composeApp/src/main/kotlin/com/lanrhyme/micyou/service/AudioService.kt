@@ -153,15 +153,29 @@ class AudioService : Service() {
         scheduleRestart()
     }
 
+    // [API 21+ 兼容] setExactAndAllowWhileIdle() 是 API 23+ 才有的，
+    // 低版本用 setExact() 替代（虽不支持空闲时精确唤醒，但兼容模式 targetSdk 29 不需要 Doze 模式适配）。
     private fun scheduleRestart() {
-        val alarm = getSystemService(AlarmManager::class.java)
+        val alarm = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val triggerAt = System.currentTimeMillis() + RESTART_DELAY_MS
-        alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, restartPendingIntent())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, restartPendingIntent())
+        } else {
+            alarm.setExact(AlarmManager.RTC_WAKEUP, triggerAt, restartPendingIntent())
+        }
     }
 
     private fun cancelRestartAlarm() {
-        val alarm = getSystemService(AlarmManager::class.java)
+        val alarm = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         alarm.cancel(restartPendingIntent())
+    }
+
+    // [API 21+ 兼容] PendingIntent.FLAG_IMMUTABLE 是 API 23+ 才有的常量，
+    // 低版本只用 FLAG_UPDATE_CURRENT（默认行为即不可变）。
+    private fun pendingIntentFlags(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    } else {
+        PendingIntent.FLAG_UPDATE_CURRENT
     }
 
     private fun restartPendingIntent(): PendingIntent =
@@ -169,7 +183,7 @@ class AudioService : Service() {
             this,
             0,
             Intent(this, RestartReceiver::class.java).apply { action = ACTION_START },
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            pendingIntentFlags()
         )
 
     private fun writeWifiLockFlag(useWifiLock: Boolean) {
@@ -209,7 +223,7 @@ class AudioService : Service() {
                 this,
                 0,
                 disconnectIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                pendingIntentFlags()
             )
         } else {
             val openApp = Intent(this, MainActivity::class.java).apply {
@@ -219,7 +233,7 @@ class AudioService : Service() {
                 this,
                 1,
                 openApp,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                pendingIntentFlags()
             )
         }
 
@@ -275,7 +289,7 @@ class AudioService : Service() {
                 channelName,
                 NotificationManager.IMPORTANCE_LOW
             )
-            val manager = getSystemService(NotificationManager::class.java)
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(serviceChannel)
         }
     }

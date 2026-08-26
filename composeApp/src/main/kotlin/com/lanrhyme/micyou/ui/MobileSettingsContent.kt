@@ -66,6 +66,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import com.lanrhyme.micyou.ui.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -88,15 +89,16 @@ import com.lanrhyme.micyou.theme.ExpressiveSettingsBoxItem
 import com.lanrhyme.micyou.theme.ExpressiveSettingsDropdownItem
 import com.lanrhyme.micyou.theme.ExpressiveSettingsSwitchItem
 import com.lanrhyme.micyou.theme.PaletteStyle
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.rememberHazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
+import com.lanrhyme.micyou.ui.compose.haze.HazeState
+import com.lanrhyme.micyou.ui.background.rememberHazeState
+import com.lanrhyme.micyou.ui.compose.haze.HazeStyle
+import com.lanrhyme.micyou.ui.compose.haze.HazeTint
+import com.lanrhyme.micyou.ui.compose.haze.hazeChild
+import com.lanrhyme.micyou.ui.compose.haze.haze
 import androidx.compose.ui.res.stringResource
 import com.lanrhyme.micyou.audio.AudioFormat
 import com.lanrhyme.micyou.audio.ChannelCount
+import com.lanrhyme.micyou.audio.availableAudioFormats
 import com.lanrhyme.micyou.audio.getAudioSourceOptions
 import com.lanrhyme.micyou.audio.SampleRate
 import com.lanrhyme.micyou.theme.isDynamicColorSupported
@@ -165,7 +167,7 @@ fun MobileSettingsPage(
                     if (state.backgroundSettings.hasCustomBackground) Color.Transparent
                     else backgroundColor
                 )
-                .hazeSource(state = topBarHazeState)
+                .haze(state = topBarHazeState)
         ) {
         LazyColumn(
             modifier = Modifier
@@ -205,7 +207,7 @@ fun MobileSettingsPage(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .hazeEffect(
+                .hazeChild(
                     state = topBarHazeState,
                     style = HazeStyle(
                         backgroundColor = topBarBackgroundColor,
@@ -726,11 +728,12 @@ private fun LazyListScope.audioSettingsItems(
 
         // 音频格式
         items.add { isFirst, isLast ->
+            val formats = availableAudioFormats()
             ExpressiveAudioDropdownItem(
                 headline = stringResource(R.string.audioFormatLabel),
                 selected = state.audioFormat.label,
-                options = AudioFormat.entries.map { it.label },
-                onSelect = { index -> viewModel.setAudioFormat(AudioFormat.entries[index]) },
+                options = formats.map { it.label },
+                onSelect = { index -> viewModel.setAudioFormat(formats[index]) },
                 enabled = manualSettingsEnabled,
                 isFirst = isFirst,
                 isLast = isLast,
