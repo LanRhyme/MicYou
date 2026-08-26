@@ -2,6 +2,8 @@ package com.lanrhyme.micyou
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.lanrhyme.micyou.plugin.PluginHost
+import com.lanrhyme.micyou.plugin.PluginInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -67,6 +69,9 @@ data class AppUiState(
     
     val amplification: Float = 0.0f,
 
+    // Android only: Audio source selection (stored as string to avoid enum dependency)
+    val androidAudioSourceName: String = "Unprocessed",
+
     val audioConfigRevision: Int = 0,
 
     val enableStreamingNotification: Boolean = true,
@@ -103,8 +108,15 @@ data class AppUiState(
     // Floating Window Settings (Desktop only)
     val floatingWindowEnabled: Boolean = false,
     
-    // First Launch Dialog
-    val showFirstLaunchDialog: Boolean = false
+    // System Title Bar (Desktop only)
+    val useSystemTitleBar: Boolean = false,
+    val showFirstLaunchDialog: Boolean = false,
+    
+    val plugins: List<PluginInfo> = emptyList(),
+    
+    // Plugin Sync Warning
+    val showPluginSyncWarning: Boolean = false,
+    val missingPlugins: List<MissingPluginInfo> = emptyList()
 )
 
 enum class CloseAction(val label: String) {
@@ -120,9 +132,72 @@ class MainViewModel : ViewModel() {
     val audioLevels = audioEngine.audioLevels
     private val settings = SettingsFactory.getSettings()
     private val updateChecker = UpdateChecker()
+    private var pluginManager: PluginManagerProvider? = null
+    private lateinit var pluginHost: PluginHost
 
     init {
-        // Load settings
+        // Load settings first to get the language
+        val initialLanguage = try { 
+            AppLanguage.valueOf(settings.getString("language", AppLanguage.System.name)) 
+        } catch(e: Exception) { 
+            AppLanguage.System 
+        }
+        
+        // Create plugin host
+        pluginHost = createPluginHost(
+            audioEngine = audioEngine,
+            showSnackbarCallback = { message ->
+                _uiState.update { it.copy(snackbarMessage = message) }
+            },
+            showNotificationCallback = { title, message ->
+                Logger.i("PluginHost", "Notification: $title - $message")
+            }
+        )
+        
+        // Create plugin manager with language provider
+        pluginManager = createPluginManager(
+            pluginsDirPath = getPluginsDirPath(),
+            pluginHost = pluginHost,
+            appLanguageProvider = { 
+                val lang = _uiState.value.language
+                when (lang) {
+                    AppLanguage.Chinese -> "zh"
+                    AppLanguage.ChineseTraditional -> "zh-TW"
+                    AppLanguage.Cantonese -> "zh-HK"
+                    AppLanguage.English -> "en"
+                    AppLanguage.ChineseCat -> "cat"
+                    AppLanguage.ChineseHard -> "zh_hard"
+                    AppLanguage.System -> {
+                        val locale = java.util.Locale.getDefault().toLanguageTag()
+                        when {
+                            locale.startsWith("zh-HK") -> "zh-HK"
+                            locale.startsWith("zh-TW") || locale.startsWith("zh-Hant") -> "zh-TW"
+                            locale.startsWith("zh") -> "zh"
+                            else -> "en"
+                        }
+                    }
+                }
+            },
+            appStringProvider = { key ->
+                val strings = getStrings(_uiState.value.language)
+                // Use reflection to get the string value from AppStrings
+                try {
+                    val field = AppStrings::class.java.getDeclaredField(key)
+                    field.get(strings) as? String ?: key
+                } catch (e: Exception) {
+                    key
+                }
+            }
+        )
+        
+        pluginManager?.let { pm ->
+            viewModelScope.launch {
+                pm.plugins.collect { pluginList ->
+                    _uiState.update { it.copy(plugins = pluginList) }
+                }
+            }
+        }
+        // Load other settings
         val savedModeName = settings.getString("connection_mode", ConnectionMode.Wifi.name)
         val savedMode = when (savedModeName) {
             "WifiUdp" -> ConnectionMode.Bluetooth
@@ -135,9 +210,8 @@ class MainViewModel : ViewModel() {
         val savedThemeModeName = settings.getString("theme_mode", ThemeMode.System.name)
         val savedThemeMode = try { ThemeMode.valueOf(savedThemeModeName) } catch(e: Exception) { ThemeMode.System }
         
-        val savedSeedColor = settings.getLong("seed_color", 0xFF4285F4)
-        
-        val savedMonitoring = settings.getBoolean("monitoring_enabled", false)
+        val savedMonitoring = false
+        settings.putBoolean("monitoring_enabled", false)
 
         val savedSampleRateName = settings.getString("sample_rate", SampleRate.Rate48000.name)
         val savedSampleRate = try { SampleRate.valueOf(savedSampleRateName) } catch(e: Exception) { SampleRate.Rate48000 }
@@ -145,8 +219,10 @@ class MainViewModel : ViewModel() {
         val savedChannelCountName = settings.getString("channel_count", ChannelCount.Stereo.name)
         val savedChannelCount = try { ChannelCount.valueOf(savedChannelCountName) } catch(e: Exception) { ChannelCount.Stereo }
 
-        val savedAudioFormatName = settings.getString("audio_format", AudioFormat.PCM_FLOAT.name)
-        val savedAudioFormat = try { AudioFormat.valueOf(savedAudioFormatName) } catch(e: Exception) { AudioFormat.PCM_FLOAT }
+        val savedAudioFormatName = settings.getString("audio_format", defaultAudioFormat().name)
+        val savedAudioFormat = try { AudioFormat.valueOf(savedAudioFormatName) } catch(e: Exception) { defaultAudioFormat() }
+        // 校验已保存的格式在当前设备是否可用，不可用则回退到安全默认值
+        val effectiveAudioFormat = if (availableAudioFormats().contains(savedAudioFormat)) savedAudioFormat else defaultAudioFormat()
 
         val savedNS = settings.getBoolean("enable_ns", false)
         val savedNSTypeName = settings.getString("ns_type", NoiseReductionType.Ulunas.name)
@@ -160,8 +236,10 @@ class MainViewModel : ViewModel() {
         
         val savedDereverb = settings.getBoolean("enable_dereverb", false)
         val savedDereverbLevel = settings.getFloat("dereverb_level", 0.5f)
-        
+
         val savedAmplification = settings.getFloat("amplification", 0.0f)
+
+        val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Unprocessed")
 
         val savedEnableStreamingNotification = settings.getBoolean("enable_streaming_notification", true)
         val savedKeepScreenOn = settings.getBoolean("keep_screen_on", false)
@@ -169,10 +247,9 @@ class MainViewModel : ViewModel() {
         
         val savedAutoStart = settings.getBoolean("auto_start", false)
 
-        val savedLanguageName = settings.getString("language", AppLanguage.System.name)
-        val savedLanguage = try { AppLanguage.valueOf(savedLanguageName) } catch(e: Exception) { AppLanguage.System }
-
         val savedUseDynamicColor = settings.getBoolean("use_dynamic_color", false)
+        val savedSeedColor = settings.getLong("seed_color", 0xFF4285F4)
+
         val savedBluetoothAddress = settings.getString("bluetooth_address", "")
         val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
         val savedMinimizeToTray = settings.getBoolean("minimize_to_tray", true)
@@ -198,10 +275,10 @@ class MainViewModel : ViewModel() {
         
         val savedFloatingWindowEnabled = settings.getBoolean("floating_window_enabled", false)
         val savedAutoCheckUpdate = settings.getBoolean("auto_check_update", true)
+        val savedUseSystemTitleBar = settings.getBoolean("use_system_title_bar", false)
         
         val hasLaunchedBefore = settings.getBoolean("has_launched_before", false)
-        val isDesktop = getPlatform().type == PlatformType.Desktop
-        val shouldShowFirstLaunchDialog = !hasLaunchedBefore && isDesktop
+        val shouldShowFirstLaunchDialog = !hasLaunchedBefore
         if (shouldShowFirstLaunchDialog) {
             settings.putBoolean("has_launched_before", true)
         }
@@ -216,7 +293,7 @@ class MainViewModel : ViewModel() {
                 monitoringEnabled = savedMonitoring,
                 sampleRate = savedSampleRate,
                 channelCount = savedChannelCount,
-                audioFormat = savedAudioFormat,
+                audioFormat = effectiveAudioFormat,
                 enableNS = savedNS,
                 nsType = savedNSType,
                 enableAGC = savedAGC,
@@ -226,11 +303,12 @@ class MainViewModel : ViewModel() {
                 enableDereverb = savedDereverb,
                 dereverbLevel = savedDereverbLevel,
                 amplification = savedAmplification,
+                androidAudioSourceName = savedAndroidAudioSourceName,
                 autoStart = savedAutoStart,
                 enableStreamingNotification = savedEnableStreamingNotification,
                 keepScreenOn = savedKeepScreenOn,
                 oledPureBlack = savedOledPureBlack,
-                language = savedLanguage,
+                language = initialLanguage,
                 useDynamicColor = savedUseDynamicColor,
                 bluetoothAddress = savedBluetoothAddress,
                 isAutoConfig = savedIsAutoConfig,
@@ -247,6 +325,7 @@ class MainViewModel : ViewModel() {
                 ),
                 floatingWindowEnabled = savedFloatingWindowEnabled,
                 autoCheckUpdate = savedAutoCheckUpdate,
+                useSystemTitleBar = savedUseSystemTitleBar,
                 showFirstLaunchDialog = shouldShowFirstLaunchDialog
             ) 
         }
@@ -268,6 +347,9 @@ class MainViewModel : ViewModel() {
         
         viewModelScope.launch {
             audioEngine.lastError.collect { error ->
+                if (error != null) {
+                    Logger.e("MainViewModel", "AudioEngine error: $error")
+                }
                 _uiState.update { it.copy(errorMessage = error) }
             }
         }
@@ -468,6 +550,11 @@ class MainViewModel : ViewModel() {
     fun setFloatingWindowEnabled(enabled: Boolean) {
         _uiState.update { it.copy(floatingWindowEnabled = enabled) }
         settings.putBoolean("floating_window_enabled", enabled)
+    }
+
+    fun setUseSystemTitleBar(enabled: Boolean) {
+        _uiState.update { it.copy(useSystemTitleBar = enabled) }
+        settings.putBoolean("use_system_title_bar", enabled)
     }
 
     fun handleCloseRequest(onExit: () -> Unit, onHide: () -> Unit) {
@@ -715,7 +802,14 @@ class MainViewModel : ViewModel() {
         settings.putFloat("amplification", amp)
         updateAudioEngineConfig()
     }
-    
+
+    fun setAndroidAudioSource(sourceName: String) {
+        _uiState.update { it.copy(androidAudioSourceName = sourceName) }
+        settings.putString("android_audio_source", sourceName)
+        // Call Android-specific method to update audio source
+        audioEngine.setAudioSource(sourceName)
+    }
+
     fun setAutoStart(enabled: Boolean) {
         _uiState.update { it.copy(autoStart = enabled) }
         settings.putBoolean("auto_start", enabled)
@@ -803,5 +897,39 @@ class MainViewModel : ViewModel() {
         BackgroundImagePicker.pickImage { path ->
             path?.let { setBackgroundImage(it) }
         }
+    }
+    
+    fun importPlugin(filePath: String, onResult: (Result<PluginInfo>) -> Unit) {
+        viewModelScope.launch {
+            val result = pluginManager?.importPlugin(filePath) 
+                ?: Result.failure(Exception("Plugins not supported on this platform"))
+            onResult(result)
+        }
+    }
+    
+    fun enablePlugin(pluginId: String) {
+        viewModelScope.launch {
+            pluginManager?.enablePlugin(pluginId)
+        }
+    }
+    
+    fun disablePlugin(pluginId: String) {
+        viewModelScope.launch {
+            pluginManager?.disablePlugin(pluginId)
+        }
+    }
+    
+    fun deletePlugin(pluginId: String) {
+        viewModelScope.launch {
+            pluginManager?.deletePlugin(pluginId)
+        }
+    }
+    
+    fun getPluginUIProvider(pluginId: String): Any? {
+        return pluginManager?.getPluginUIProvider(pluginId)
+    }
+    
+    fun getPluginSettingsProvider(pluginId: String): Any? {
+        return pluginManager?.getPluginSettingsProvider(pluginId)
     }
 }

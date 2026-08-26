@@ -29,14 +29,15 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
-val composeVersion = libs.versions.composeMultiplatform.get()
-val composeMaterial3Version = libs.versions.composeMaterial3.get()
+val androidCompat = project.hasProperty("micyou.androidCompat")
+val composeVersion = if (androidCompat) libs.versions.compat.composeMultiplatform.get() else libs.versions.composeMultiplatform.get()
+val composeMaterial3Version = if (androidCompat) libs.versions.compat.composeMaterial3.get() else libs.versions.composeMaterial3.get()
 
 configurations.configureEach {
     resolutionStrategy.eachDependency {
         if (requested.group == "org.jetbrains.compose" || requested.group.startsWith("org.jetbrains.compose.")) {
             val name = requested.name
-            if (name == "material-icons-extended" || name == "material-icons-extended-desktop" || 
+            if (name == "material-icons-extended" || name == "material-icons-extended-desktop" ||
                 name == "material-icons-core" || name == "material-icons-core-desktop" ||
                 name == "material") {
                 useVersion("1.7.3")
@@ -46,6 +47,18 @@ configurations.configureEach {
                 useVersion(composeVersion)
             } else {
                 useVersion(composeVersion)
+            }
+        }
+        if (androidCompat) {
+            when {
+                requested.group == "androidx.activity" -> useVersion(libs.versions.compat.androidx.activity.get())
+                requested.group == "androidx.lifecycle" -> useVersion(libs.versions.compat.androidx.lifecycle.get())
+                requested.group == "androidx.core" -> useVersion(libs.versions.compat.androidx.core.get())
+                requested.group == "io.ktor" -> useVersion(libs.versions.compat.ktor.get())
+                requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-coroutines") ->
+                    useVersion(libs.versions.compat.kotlinx.coroutines.get())
+                requested.group == "org.jetbrains.kotlinx" && requested.name.startsWith("kotlinx-serialization") ->
+                    useVersion(libs.versions.compat.kotlinx.serialization.get())
             }
         }
     }
@@ -111,10 +124,13 @@ android {
 
     defaultConfig {
         applicationId = "com.lanrhyme.micyou"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
+        minSdk = (if (androidCompat) libs.versions.compat.android.minSdk.get() else libs.versions.android.minSdk.get()).toInt()
+        targetSdk = (if (androidCompat) libs.versions.compat.android.targetSdk.get() else libs.versions.android.targetSdk.get()).toInt()
         versionCode = project.property("project.version.code").toString().toInt()
         versionName = project.property("project.version").toString()
+        if (androidCompat) {
+            multiDexEnabled = true
+        }
     }
 
     buildFeatures {
@@ -151,12 +167,19 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        if (androidCompat) {
+            isCoreLibraryDesugaringEnabled = true
+        }
     }
 }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
     debugImplementation(libs.compose.uiTooling)
+    if (androidCompat) {
+        coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:${libs.versions.compat.desugarJdkLibs.get()}")
+        implementation("androidx.multidex:multidex:${libs.versions.compat.multidex.get()}")
+    }
 }
 
 compose.desktop {

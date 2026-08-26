@@ -4,6 +4,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import com.lanrhyme.micyou.platform.FirewallManager
 import com.lanrhyme.micyou.platform.PlatformInfo
+import com.lanrhyme.micyou.platform.WindowsAccentColorExtractor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
@@ -60,7 +61,7 @@ class JVMPlatform: Platform {
 actual fun getPlatform(): Platform = JVMPlatform()
 
 actual fun uninstallVBCable() {
-    VBCableManager.uninstallVBCable()
+    VirtualAudioDeviceManager.uninstallVBCable()
 }
 
 actual fun getAppVersion(): String {
@@ -98,7 +99,40 @@ actual suspend fun addFirewallRule(port: Int, protocol: String): Result<Unit> =
         }
     }
 
+actual fun isDynamicColorSupported(): Boolean {
+    // 目前只为 Windows 提供莫奈取色
+    return PlatformInfo.isWindows
+}
+
+actual fun getDynamicSeedColor(): Long? {
+    // 目前只为 Windows 提供动态种子色
+    if (!PlatformInfo.isWindows) {
+        return null
+    }
+    return WindowsAccentColorExtractor.getAccentColor()?.value?.toLong()
+}
+
 @Composable
 actual fun getDynamicColorScheme(isDark: Boolean): ColorScheme? {
-    return null
+    // 目前只为 Windows 提供莫奈取色
+    if (!PlatformInfo.isWindows) {
+        return null
+    }
+
+    // 每次都重新获取颜色，确保启动时能获取最新的系统主题色
+    val seedColor = WindowsAccentColorExtractor.getAccentColor()
+
+    // 如果无法获取系统主题色，返回 null 使用默认主题
+    val color = seedColor ?: return null
+
+    Logger.d("Platform", "Using Windows accent color: $color")
+
+    // 使用现有的颜色方案生成器
+    return generateColorScheme(color, isDark)
 }
+
+actual fun getAudioSourceOptions(): List<AudioSourceOption> = emptyList()
+
+actual fun availableAudioFormats(): List<AudioFormat> = AudioFormat.entries.toList()
+
+actual fun defaultAudioFormat(): AudioFormat = AudioFormat.PCM_FLOAT

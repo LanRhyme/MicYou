@@ -1,28 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- FOREGROUND_SERVICE_MICROPHONE 需要 API 34+，使用 tools:ignore 忽略低版本警告 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:ignore="HighApiLevel" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <!-- Bluetooth Permissions -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!-- BLUETOOTH_CONNECT/SCAN 需要 API 31+，使用 tools:ignore 忽略低版本警告 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:ignore="HighApiLevel" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:ignore="HighApiLevel" />
 
     <!-- Update install permission -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
+        android:name=".MicYouApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        tools:overrideLibrary="dev.chrisbanes.haze">
         <activity
             android:exported="true"
             android:name=".MainActivity"
@@ -36,15 +41,16 @@
 
         <service
             android:name=".AudioService"
-            android:foregroundServiceType="microphone"
             android:exported="false" />
 
+        <!-- TileService 需要 API 24+，在低版本设备上不会被使用 -->
         <service
             android:name=".MicYouTileService"
             android:label="@string/qs_tile_label"
             android:icon="@drawable/ic_qs_mic"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
+            android:exported="true"
+            tools:ignore="HighApiLevel">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>

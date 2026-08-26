@@ -6,6 +6,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
+import android.os.Build
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.aSocket
@@ -25,6 +26,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -95,10 +97,21 @@ actual class AudioEngine actual constructor() {
     private var enableNS: Boolean = false
     @Volatile
     private var enableAGC: Boolean = false
+    @Volatile
+    private var audioSource: AndroidAudioSource = AndroidAudioSource.Mic
 
     private var noiseSuppressor: NoiseSuppressor? = null
     private var automaticGainControl: AutomaticGainControl? = null
-    
+
+    // Saved connection params for restart
+    private var savedIp: String = ""
+    private var savedPort: Int = 0
+    private var savedMode: ConnectionMode = ConnectionMode.Wifi
+    private var savedSampleRate: SampleRate = SampleRate.Rate44100
+    private var savedChannelCount: ChannelCount = ChannelCount.Mono
+    private var savedAudioFormat: com.lanrhyme.micyou.AudioFormat = com.lanrhyme.micyou.AudioFormat.PCM_16BIT
+    private var isRunning: Boolean = false
+
     private val CHECK_1 = "MicYouCheck1"
     private val CHECK_2 = "MicYouCheck2"
 
@@ -114,6 +127,15 @@ actual class AudioEngine actual constructor() {
         if (!isClient) return
         Logger.i("AudioEngine", "Starting Android AudioEngine: mode=$mode, ip=$ip, port=$port, sampleRate=${sampleRate.value}, channels=${channelCount.label}, format=${audioFormat.label}")
         _lastError.value = null
+
+        // Save connection params for potential restart
+        savedIp = ip
+        savedPort = port
+        savedMode = mode
+        savedSampleRate = sampleRate
+        savedChannelCount = channelCount
+        savedAudioFormat = audioFormat
+        isRunning = true
 
         val jobToJoin = startStopMutex.withLock {
             val currentJob = job
@@ -143,39 +165,37 @@ actual class AudioEngine actual constructor() {
                         val androidAudioFormat = when(audioFormat) {
                             com.lanrhyme.micyou.AudioFormat.PCM_8BIT -> AudioFormat.ENCODING_PCM_8BIT
                             com.lanrhyme.micyou.AudioFormat.PCM_16BIT -> AudioFormat.ENCODING_PCM_16BIT
-                            com.lanrhyme.micyou.AudioFormat.PCM_FLOAT -> AudioFormat.ENCODING_PCM_FLOAT
+                            // AudioRecord.read(float[], ...) 重载均为 API 23+，API < 23 降级为 PCM_16BIT 避免 NoSuchMethodError
+                            com.lanrhyme.micyou.AudioFormat.PCM_FLOAT ->
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) AudioFormat.ENCODING_PCM_FLOAT
+                                else AudioFormat.ENCODING_PCM_16BIT
                             else -> AudioFormat.ENCODING_PCM_16BIT // Default fallback
                         }
                         
                         val minBufSize = AudioRecord.getMinBufferSize(androidSampleRate, androidChannelConfig, androidAudioFormat)
 
                         try {
-                            val useProcessing = enableNS || enableAGC
-                            // 如果启用了处理，优先使用 MIC，因为 UNPROCESSED 可能会绕过系统效果
-                            val preferredSource = if (useProcessing) MediaRecorder.AudioSource.MIC else MediaRecorder.AudioSource.UNPROCESSED
+                            // 使用用户选择的音频源
+                            val sourceId = audioSource.sourceId
 
-                            Logger.d("AudioEngine", "Initializing AudioRecord with source $preferredSource")
+                            Logger.d("AudioEngine", "Initializing AudioRecord with source ${audioSource.name} (id=$sourceId)")
                             recorder = try {
                                 AudioRecord(
-                                    preferredSource,
+                                    sourceId,
                                     androidSampleRate,
                                     androidChannelConfig,
                                     androidAudioFormat,
                                     minBufSize * 2
                                 )
                             } catch (e: Exception) {
-                                Logger.w("AudioEngine", "Preferred source $preferredSource failed, falling back to MIC: ${e.message}")
-                                if (preferredSource != MediaRecorder.AudioSource.MIC) {
-                                    AudioRecord(
-                                        MediaRecorder.AudioSource.MIC,
-                                        androidSampleRate,
-                                        androidChannelConfig,
-                                        androidAudioFormat,
-                                        minBufSize * 2
-                                    )
-                                } else {
-                                    throw e
-                                }
+                                Logger.w("AudioEngine", "${audioSource.name} failed, falling back to MIC: ${e.message}")
+                                AudioRecord(
+                                    MediaRecorder.AudioSource.MIC,
+                                    androidSampleRate,
+                                    androidChannelConfig,
+                                    androidAudioFormat,
+                                    minBufSize * 2
+                                )
                             }
                         } catch (e: SecurityException) {
                             Logger.e("AudioEngine", "Record permission denied", e)
@@ -370,7 +390,8 @@ actual class AudioEngine actual constructor() {
                             var readBytes = 0
                             val audioData: ByteArray
 
-                            if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT && floatBuffer != null) {
+                            if (androidAudioFormat == AudioFormat.ENCODING_PCM_FLOAT && floatBuffer != null
+                                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                 val readFloats = recorder.read(floatBuffer, 0, floatBuffer.size, AudioRecord.READ_BLOCKING)
                                 if (readFloats > 0) {
                                     readBytes = readFloats * 4
@@ -410,7 +431,9 @@ actual class AudioEngine actual constructor() {
                         throw e
                     } catch (e: Exception) {
                         if (isActive && !isNormalDisconnect(e)) {
-                            Logger.e("AudioEngine", "Connection lost", e)
+                            Logger.e("AudioEngine", "Connection error: ${e.javaClass.simpleName}: ${e.message}", e)
+                            ErrorLogger.logError("AudioEngine", "Connection error: ${e.javaClass.simpleName}: ${e.message}", e)
+                            
                             _state.value = StreamState.Error
                             
                             val errorMsg = when {
@@ -461,6 +484,7 @@ actual class AudioEngine actual constructor() {
         job?.cancel()
         job = null
         _state.value = StreamState.Idle
+        isRunning = false
 
         val context = ContextHelper.getContext()
         if (context != null) {
@@ -505,14 +529,51 @@ actual class AudioEngine actual constructor() {
         dereverbLevel: Float,
         amplification: Float
     ) {
+        val nsChanged = this.enableNS != enableNS
+        val agcChanged = this.enableAGC != enableAGC
+
         this.enableNS = enableNS
         this.enableAGC = enableAGC
-        
+
         try {
             noiseSuppressor?.enabled = enableNS
             automaticGainControl?.enabled = enableAGC
         } catch (e: Exception) {
             println("Error updating audio effects: ${e.message}")
+        }
+
+        // Restart audio stream if hardware processing state changed and stream is running
+        if ((nsChanged || agcChanged) && isRunning && _state.value == StreamState.Streaming) {
+            Logger.i("AudioEngine", "Hardware processing changed, restarting audio stream...")
+            CoroutineScope(Dispatchers.IO).launch {
+                stop()
+                delay(500)
+                start(savedIp, savedPort, savedMode, true, savedSampleRate, savedChannelCount, savedAudioFormat)
+            }
+        }
+    }
+
+    actual fun setAudioSource(sourceName: String) {
+        val source = try {
+            AndroidAudioSource.valueOf(sourceName)
+        } catch (e: Exception) {
+            AndroidAudioSource.Mic
+        }
+
+        // Only restart if source actually changed and engine is running
+        if (this.audioSource != source) {
+            this.audioSource = source
+            Logger.d("AudioEngine", "Audio source changed to: ${source.name}")
+
+            // Restart audio stream if currently running
+            if (isRunning && _state.value == StreamState.Streaming) {
+                Logger.i("AudioEngine", "Restarting audio stream with new source...")
+                CoroutineScope(Dispatchers.IO).launch {
+                    stop()
+                    delay(500) // Wait for cleanup
+                    start(savedIp, savedPort, savedMode, true, savedSampleRate, savedChannelCount, savedAudioFormat)
+                }
+            }
         }
     }
 

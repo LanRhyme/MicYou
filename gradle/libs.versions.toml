@@ -23,6 +23,23 @@ composenativetray = "1.1.0"
 onnxruntime = "1.14.0"
 jtransforms = "3.2"
 
+# Android 低版本兼容模式版本（启用: -Pmicyou.androidCompat=true）
+compat-android-minSdk = "21"
+compat-android-targetSdk = "29"
+compat-composeMultiplatform = "1.7.3"
+compat-composeMaterial3 = "1.7.3"
+compat-kotlin = "2.1.20"
+compat-kotlinx-coroutines = "1.9.0"
+compat-kotlinx-serialization = "1.7.3"
+compat-ktor = "3.0.3"
+compat-androidx-activity = "1.8.2"
+compat-androidx-appcompat = "1.6.1"
+compat-androidx-core = "1.12.0"
+compat-androidx-lifecycle = "2.8.0"
+compat-androidx-espresso = "3.5.1"
+compat-multidex = "2.0.1"
+compat-desugarJdkLibs = "2.1.4"
+
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
@@ -60,7 +77,7 @@ androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 composeHotReload = { id = "org.jetbrains.compose.hot-reload", version.ref = "composeHotReload" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
-composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
