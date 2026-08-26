@@ -235,6 +235,7 @@ composeApp/src/
 - 兼容版 release 构建关闭了代码混淆，包体积较大
 - haze 效果在兼容模式下降级为半透明背景，无实时模糊
 - filekit 库在兼容模式下未降级，如遇 minSdk 冲突可在 resolutionStrategy 中补充 force
+- PC 端监控面板的抖动、丢包率、采样率、比特率统计仅在 WiFi（UDP）模式下可用，USB/TCP 模式下这些值始终为 0（上游原版行为，非兼容模式导致）
 
 ---
 
