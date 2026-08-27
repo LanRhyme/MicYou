@@ -36,7 +36,7 @@ cargo run -p micyou-cli -- plugin bump <dir> [版本]        # manifest 版本�
 {
   "id": "dev.micyou.myplugin",        // 反向域名，必须含点
   "runtime": "wasm",                  // wasm 优先；native 需 arches
-  "entry": "main.wasm",               // 构建产物
+  "entry": "main.wasm",               // WASM 构建产物（Native 跨平台建议填无后缀无 lib 前缀的基础名，如 "my_plugin"）
   "kind": "utility",                  // utility | dsp（处理链节点）| ui
   "capabilities": ["config.read", "config.write"],
   "ui": { "label": "...", "panels": [{ "id": "p", "label": "...", "entry": "panel.html", "sidebar": true }] },
@@ -90,6 +90,7 @@ WASM 插件用字符串包含判断即可
     重编译后必须同步复制到安装目录，否则测的是旧产物
 11. **i18n 7 语言**：新增 UI key 必须同步 en/zh/zh-hk/zh-tw/zh-ss/cat/lzh
 12. **设置页插件空白排查**：先确认组件真的 import 了（vue-tsc 不检查未注册组件）
+13. **Native 跨平台产物命名与 `lib` 前缀**：为实现单 ZIP 包跨平台分发，`entry` 字段应省略后缀（如 `"my_plugin"`），宿主会自动补全 `.dll/.so/.dylib`。因此 Linux/macOS 下的编译产物**必须重命名去掉 `lib` 前缀**（即使用 `my_plugin.so` 而不是 `libmy_plugin.so`），否则宿主拼接路径后会因找不到文件而报 `not found` 错误。
 
 ## 测试与验证
 
