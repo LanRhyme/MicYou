@@ -19,7 +19,7 @@
 ```text
 <插件目录>/
 ├── plugin.json          # 清单（必需）
-├── <entry>              # 入口产物：libxxx.so / xxx.wasm（与清单 entry 一致）
+├── <entry>              # 入口产物：xxx.dll / xxx.so / xxx.dylib / xxx.wasm（与清单 entry 一致，Native 跨平台建议省略后缀与 lib 前缀）
 └── assets/              # 可选私有资源
 ```
 
@@ -39,7 +39,7 @@
 | `author` | string | 否 | 作者 |
 | `description` | string | 否 | 描述 |
 | `runtime` | string | 是 | `native` 或 `wasm` |
-| `entry` | string | 是 | 入口文件名（相对插件目录） |
+| `entry` | string | 是 | 入口文件名（相对插件目录）。Native 插件跨平台分发时建议**省略后缀与 `lib` 前缀**（如填 `my_plugin`），宿主会自动补全当前平台的后缀（.dll/.so/.dylib） |
 | `platforms` | string[] | 否 | `linux` / `windows` / `macos` / `android`，空 = 全部 |
 | `apiVersion` | number | 否 | Host API 版本，默认 1；与宿主不一致拒绝加载 |
 | `capabilities` | string[] | 否 | 申请的能力，见 [API 参考](api-reference.md#权限清单) |
@@ -58,7 +58,7 @@
   "author": "MicYou",
   "description": "可配置增益的 DSP 节点",
   "runtime": "native",
-  "entry": "libmicyou_example_native_gain.so",
+  "entry": "micyou_example_native_gain",
   "platforms": ["linux", "windows", "macos"],
   "apiVersion": 1,
   "capabilities": ["dsp.node", "config.read"],
@@ -148,7 +148,7 @@ micyou-cli plugin package ./myplugin -o out.zip       # 打包为可导入 zip
 | `repository` | string | | 源码仓库 |
 | `keywords` | string[] | | 搜索关键词 |
 | `runtime` | string | ✅ | `wasm` \| `native` |
-| `entry` | string | ✅ | 入口产物文件名（相对插件目录） |
+| `entry` | string | ✅ | 入口产物文件名。Native 跨平台建议省略后缀与 `lib` 前缀（如 `my_plugin`），宿主自动补全平台后缀 |
 | `platforms` | string[] | | 支持系统，空 = 全部（linux / windows / macos / android） |
 | `arches` | string[] | | **native 插件支持的 CPU 架构**（x86_64 / aarch64 / i686 / armv7 / riscv64），空 = 全部 |
 | `apiVersion` | number | ✅ | 宿主 API 版本（当前 1） |
@@ -297,6 +297,22 @@ pub unsafe extern "C" fn micyou_plugin_process(
 ### 用 C 编写
 
 C 插件直接 `#include "micyou_plugin_abi.h"` 实现符号即可，导出宏已处理各平台（`MPL_EXPORT`）
+
+### 跨平台产物命名规范
+
+为了实现单 ZIP 包跨平台分发（Windows/Linux/macOS），宿主支持在 `entry` 字段省略后缀，并在加载时根据当前操作系统自动补全（`.dll` / `.so` / `.dylib`）。
+
+**规范要求**：
+1. `plugin.json` 中的 `entry` 填写**不带后缀的基础名**（如 `"entry": "my_plugin"`）。
+2. 构建产物必须**统一去除 Linux/macOS 传统的 `lib` 前缀**。
+
+| 平台 | 期望的构建产物文件名 |
+| --- | --- |
+| Windows | `my_plugin.dll` |
+| Linux | `my_plugin.so` (而非 `libmy_plugin.so`) |
+| macOS | `my_plugin.dylib` (而非 `libmy_plugin.dylib`) |
+
+> 打包 ZIP 时，将这三个产物与 `plugin.json` 一同放入根目录，即可实现一次发布，全平台自动适配。
 
 ## 编写 WASM 插件
 

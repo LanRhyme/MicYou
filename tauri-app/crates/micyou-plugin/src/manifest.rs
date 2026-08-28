@@ -489,7 +489,24 @@ impl PluginManifest {
 
     /// Entry artifact path resolved against the plugin directory.
     pub fn entry_path(&self, plugin_dir: &Path) -> PathBuf {
-        plugin_dir.join(&self.entry)
+        let mut entry = self.entry.clone();
+
+        if self.runtime == RuntimeKind::Native {
+            let path = Path::new(&entry);
+            if path.extension().is_none() {
+                let ext = match () {
+                    #[cfg(target_os = "linux")] _ => "so",
+                    #[cfg(target_os = "macos")] _ => "dylib",
+                    #[cfg(target_os = "windows")] _ => "dll",
+                    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))] _ => "",
+                };
+                if !ext.is_empty() {
+                    entry = format!("{}.{}", entry, ext);
+                }
+            }
+        }
+        
+        plugin_dir.join(entry)
     }
 }
 
@@ -606,6 +623,34 @@ mod tests {
             manifest.entry_path(Path::new("/opt/micyou/plugins/dev.micyou.eq")),
             PathBuf::from("/opt/micyou/plugins/dev.micyou.eq/libmicyou_eq.so")
         );
+    }
+
+    #[test]
+    fn entry_path_auto_appends_platform_extension_for_native() {
+        let json = r#"{
+            "id": "dev.micyou.cross", "name": "Cross", "version": "1.0.0",
+            "runtime": "native", "entry": "my_plugin"
+        }"#;
+        let manifest = PluginManifest::from_json(json).unwrap();
+        let path = manifest.entry_path(Path::new("/plugins/dev.micyou.cross"));
+        
+        #[cfg(target_os = "linux")]
+        assert_eq!(path, PathBuf::from("/plugins/dev.micyou.cross/my_plugin.so"));
+        #[cfg(target_os = "macos")]
+        assert_eq!(path, PathBuf::from("/plugins/dev.micyou.cross/my_plugin.dylib"));
+        #[cfg(target_os = "windows")]
+        assert_eq!(path, PathBuf::from("/plugins/dev.micyou.cross/my_plugin.dll"));
+    }
+
+    #[test]
+    fn entry_path_ignores_wasm_runtime() {
+        let json = r#"{
+            "id": "dev.micyou.wasm_test", "name": "Wasm", "version": "1.0.0",
+            "runtime": "wasm", "entry": "my_plugin"
+        }"#;
+        let manifest = PluginManifest::from_json(json).unwrap();
+        let path = manifest.entry_path(Path::new("/plugins/dev.micyou.wasm_test"));
+        assert_eq!(path, PathBuf::from("/plugins/dev.micyou.wasm_test/my_plugin"));
     }
 
     #[test]

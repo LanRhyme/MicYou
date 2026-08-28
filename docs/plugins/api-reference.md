@@ -177,6 +177,9 @@ WASM 导入签名：`(panel_id_ptr: i32, icon_ptr: i32) -> ()`
 
 ## Plugin API（插件向宿主实现的接口）
 
+> **跨平台入口加载（Entry Auto-Extension）**
+> 对于 `runtime: "native"` 的插件，若 manifest 中的 `entry` 字段无扩展名，宿主在加载时会自动根据当前操作系统补全后缀（Windows: `.dll`, Linux: `.so`, macOS: `.dylib`）。此机制要求开发者在编译时去除 Linux/macOS 产物的 `lib` 前缀，以保证单 ZIP 包跨平台分发时文件名一致。WASM 插件不受此影响。
+
 ### Native（C ABI 符号）
 
 | 符号 | 必需 | 说明 |
@@ -241,7 +244,7 @@ message PluginMessage {
 | 码 | 含义 |
 | --- | --- |
 | 0 | ok |
-| 1 | not found（入口产物缺失） |
+| 1 | not found（入口产物缺失。跨平台 Native 插件请确认已去除 `lib` 前缀，且 `entry` 字段未写死特定平台后缀） |
 | 2 | invalid manifest |
 | 3 | validation failed（清单语义校验） |
 | 4 | unknown plugin |
