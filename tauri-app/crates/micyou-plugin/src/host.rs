@@ -98,11 +98,13 @@ pub struct DeviceSnapshot {
 
 /// Target of a cross-device plugin message.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase")]
 pub enum MessageTarget {
     /// A plugin on the same host.
+    #[serde(rename_all = "camelCase")]
     Local { plugin_id: String },
     /// A plugin on the connected remote device.
+    #[serde(rename_all = "camelCase")]
     Remote { plugin_id: String },
     /// Broadcast to all hosts (local + remote) subscribed to the topic.
     Broadcast,
