@@ -16,6 +16,7 @@
 package com.lanrhyme.micyou.viewmodel
 
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,6 +31,8 @@ import com.lanrhyme.micyou.audio.AudioEngine
 import com.lanrhyme.micyou.audio.AudioFormat
 import com.lanrhyme.micyou.audio.ChannelCount
 import com.lanrhyme.micyou.audio.SampleRate
+import com.lanrhyme.micyou.audio.availableAudioFormats
+import com.lanrhyme.micyou.audio.defaultAudioFormat
 import com.lanrhyme.micyou.network.calculateUdpPort
 import com.lanrhyme.micyou.network.ConnectionErrorDetails
 import com.lanrhyme.micyou.network.ConnectionErrorHelper
@@ -52,7 +55,7 @@ data class AudioStreamUiState(
     val errorMessage: String? = null,
     val sampleRate: SampleRate = SampleRate.Rate48000,
     val channelCount: ChannelCount = ChannelCount.Stereo,
-    val audioFormat: AudioFormat = AudioFormat.PCM_FLOAT,
+    val audioFormat: AudioFormat = defaultAudioFormat(),
     val isMuted: Boolean = false,
     val isAutoConfig: Boolean = true,
     // Error Dialog State
@@ -68,7 +71,20 @@ data class AudioStreamUiState(
 class AudioStreamViewModel : ViewModel() {
     private val _audioEngine = AudioEngine()
     val audioEngine: AudioEngine get() = _audioEngine
-    private val auxiliaryScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val viewModelCoroutineExceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Logger.e("AudioStreamViewModel", "Unhandled coroutine error (${throwable.javaClass.simpleName}): ${throwable.message}", throwable)
+        if (throwable !is kotlinx.coroutines.CancellationException) {
+            _uiState.update {
+                it.copy(
+                    streamState = StreamState.Error,
+                    errorMessage = "未处理错误: ${throwable.javaClass.simpleName} - ${throwable.message}",
+                    showErrorDialog = true,
+                    errorDetails = null
+                )
+            }
+        }
+    }
+    private val auxiliaryScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + viewModelCoroutineExceptionHandler)
     private val closed = AtomicBoolean(false)
     private val closeLock = Any()
     private var closeJob: Job? = null
@@ -110,8 +126,10 @@ class AudioStreamViewModel : ViewModel() {
     val savedSampleRate = try { SampleRate.valueOf(savedSampleRateName) } catch(e: Exception) { SampleRate.Rate48000 }
     val savedChannelCountName = settings.getString("channel_count", ChannelCount.Stereo.name)
     val savedChannelCount = try { ChannelCount.valueOf(savedChannelCountName) } catch(e: Exception) { ChannelCount.Stereo }
-    val savedAudioFormatName = settings.getString("audio_format", AudioFormat.PCM_FLOAT.name)
-    val savedAudioFormat = try { AudioFormat.valueOf(savedAudioFormatName) } catch(e: Exception) { AudioFormat.PCM_FLOAT }
+    val savedAudioFormatName = settings.getString("audio_format", defaultAudioFormat().name)
+    val savedAudioFormat = try { AudioFormat.valueOf(savedAudioFormatName) } catch(e: Exception) { defaultAudioFormat() }
+    // 校验已保存的格式在当前设备是否可用，不可用则回退到安全默认值
+    val effectiveAudioFormat = if (availableAudioFormats().contains(savedAudioFormat)) savedAudioFormat else defaultAudioFormat()
 
     val savedAndroidAudioSourceName = settings.getString("android_audio_source", "Mic")
     val savedIsAutoConfig = settings.getBoolean("is_auto_config", true)
@@ -124,7 +142,7 @@ class AudioStreamViewModel : ViewModel() {
                 port = savedPort,
                 sampleRate = savedSampleRate,
                 channelCount = savedChannelCount,
-                audioFormat = savedAudioFormat,
+                audioFormat = effectiveAudioFormat,
                 androidAudioSourceName = savedAndroidAudioSourceName,
                 isAutoConfig = savedIsAutoConfig
             )
@@ -253,19 +271,26 @@ class AudioStreamViewModel : ViewModel() {
         } catch (e: kotlinx.coroutines.CancellationException) {
             Logger.i("AudioStreamViewModel", "Stream start cancelled by user")
             return
-        } catch (e: Exception) {
-            Logger.e("AudioStreamViewModel", "Failed to start stream", e)
+        } catch (t: Throwable) {
+            // ⚠️ 捕获 Throwable（包含 NoSuchMethodError/NoClassDefFoundError 等 Error）
+            Logger.e("AudioStreamViewModel", "Failed to start stream (catch Throwable): ${t.javaClass.name}", t)
 
-            val errorType = ConnectionErrorHelper.analyzeError(e, mode)
+            val cause = if (t is Exception) t else Exception("${t.javaClass.simpleName}: ${t.message}", t)
+            val errorType = ConnectionErrorHelper.analyzeError(cause, mode)
             val savedLanguageName = settings.getString("language", AppLanguage.System.name)
             val language = try {
                 AppLanguage.valueOf(savedLanguageName)
             } catch (ex: Exception) {
                 AppLanguage.System
             }
+            val rawMessage = when (t) {
+                is NoSuchMethodError -> "系统 API 不兼容 (NoSuchMethod): ${t.message}"
+                is NoClassDefFoundError -> "运行类缺失 (NoClassDef): ${t.message}"
+                else -> t.message ?: "Unknown error"
+            }
             val errorDetails = ConnectionErrorHelper.generateErrorDetails(
                 type = errorType,
-                originalMessage = e.message ?: "Unknown error",
+                originalMessage = rawMessage,
                 mode = mode,
                 port = port,
                 ip = ip

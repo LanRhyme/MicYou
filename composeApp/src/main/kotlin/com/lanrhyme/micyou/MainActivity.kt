@@ -167,7 +167,13 @@ class MainActivity : ComponentActivity() {
                 val idleIntent = Intent(this, AudioService::class.java).apply {
                     action = AudioService.ACTION_START_IDLE
                 }
-                startForegroundService(idleIntent)
+                // [API 21+ 兼容] startForegroundService() 是 API 26+ 才有的，
+                // 低版本用 startService() 启动前台服务（service 内部会调用 startForeground()）。
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(idleIntent)
+                } else {
+                    startService(idleIntent)
+                }
             } catch (_: Exception) {
                 // 空闲保活失败不阻塞启动
             }

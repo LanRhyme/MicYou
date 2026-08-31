@@ -1,4 +1,5 @@
 [versions]
+# === 原版版本（与上游 v2.0.1 一致，不传 -P 参数时使用）===
 agp = "9.3.1"
 android-compileSdk = "36"
 android-buildTools = "36.1.0"
@@ -14,6 +15,26 @@ kotlinx-datetime = "0.8.0"
 ktor = "3.5.0"
 kotlinx-serialization = "1.11.0"
 materialKolor = "5.0.0-alpha07"
+
+# === 兼容模式版本（启用: -Pmicyou.androidCompat=true）===
+# 兼容 Android 5.0+ (API 21+) 的降级版本
+compat-agp = "8.9.1"
+compat-android-compileSdk = "36"
+compat-android-buildTools = "36.0.0"
+compat-android-minSdk = "21"
+compat-android-targetSdk = "29"
+compat-androidx-activity = "1.8.2"
+compat-androidx-core = "1.12.0"
+compat-androidx-lifecycle = "2.8.0"
+compat-compose-bom = "2024.09.00"
+compat-kotlin = "2.1.20"
+compat-kotlinx-coroutines = "1.9.0"
+compat-kotlinx-datetime = "0.7.1"
+compat-ktor = "3.0.3"
+compat-kotlinx-serialization = "1.7.3"
+compat-materialKolor = "1.7.1"
+compat-multidex = "2.0.1"
+compat-desugarJdkLibs = "2.1.4"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
@@ -48,3 +69,4 @@ androidApplication = { id = "com.android.application", version.ref = "agp" }
 androidLibrary = { id = "com.android.library", version.ref = "agp" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

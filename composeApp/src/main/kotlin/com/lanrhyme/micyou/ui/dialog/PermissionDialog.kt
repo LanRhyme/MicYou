@@ -20,7 +20,6 @@ import com.lanrhyme.micyou.R
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.LocalActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -110,8 +109,7 @@ fun hasAllRequiredPermissions(permissions: List<PermissionState>): Boolean {
 @Composable
 fun AndroidPermissionManagementSection(cardOpacity: Float) {
     var showPermissionDialog by remember { mutableStateOf(false) }
-    val activity = (LocalActivity.current as? ComponentActivity)
-        ?: (LocalContext.current as? ComponentActivity)
+    val activity = (LocalContext.current as? ComponentActivity)
         ?: return
 
     // Use rememberLauncherForActivityResult to handle permission requests
@@ -182,8 +180,7 @@ fun PermissionDialog(
     onDismiss: () -> Unit,
     onRequestPermissions: (List<String>) -> Unit
 ) {
-    val realActivity = activity ?: LocalActivity.current as? ComponentActivity
-        ?: (LocalContext.current as? ComponentActivity)
+    val realActivity = activity ?: (LocalContext.current as? ComponentActivity)
         ?: return
     var currentPermissions by remember { mutableStateOf(permissions) }
     var refreshKey by remember { mutableStateOf(0) }
