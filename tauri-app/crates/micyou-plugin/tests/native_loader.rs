@@ -12,6 +12,8 @@ use micyou_plugin::plugin::{AudioFrameCtx, PluginEvent, PluginRuntime};
 use micyou_plugin::{PluginLogLevel, PluginResult};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 // ── Mock host ──────────────────────────────────────────────────────────────
 
@@ -154,13 +156,49 @@ fn fixture_dylib() -> PathBuf {
         Ok(dir) => PathBuf::from(dir).join("debug"),
         Err(_) => workspace_root().join("target").join("debug"),
     };
-    let prefix = "libmicyou_plugin_fixture_native";
+
+    // Cargo replaces hyphens with underscores in the output file name.
+    let base_name = "micyou_plugin_fixture_native";
+
+    // Determine the exact file name based on the target OS.
+    // Windows: my_crate.dll (No 'lib' prefix)
+    // macOS:   libmy_crate.dylib
+    // Linux:   libmy_crate.so
+    let exact_file_name = if cfg!(target_os = "windows") {
+        format!("{}.dll", base_name)
+    } else if cfg!(target_os = "macos") {
+        format!("lib{}.dylib", base_name)
+    } else {
+        format!("lib{}.so", base_name)
+    };
+
+    // 1. Try exact match in target/debug (Fastest and most reliable)
+    let direct_path = target_dir.join(&exact_file_name);
+    if direct_path.exists() {
+        return direct_path;
+    }
+
+    // 2. Try exact match in target/debug/deps
+    let deps_path = target_dir.join("deps").join(&exact_file_name);
+    if deps_path.exists() {
+        return deps_path;
+    }
+
+    // 3. Fallback to broad search in case Cargo appended hashes or used slightly different naming
     let mut candidates: Vec<PathBuf> = Vec::new();
     for root in [target_dir.clone(), target_dir.join("deps")] {
         if let Ok(entries) = std::fs::read_dir(&root) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with(prefix)
+                
+                // Fix: Dynamically determine the valid prefix based on the OS
+                let valid_prefix = if cfg!(target_os = "windows") {
+                    name.starts_with(base_name)
+                } else {
+                    name.starts_with(&format!("lib{}", base_name))
+                };
+
+                if valid_prefix
                     && (name.ends_with(".so") || name.ends_with(".dylib") || name.ends_with(".dll"))
                 {
                     candidates.push(entry.path());
@@ -168,6 +206,7 @@ fn fixture_dylib() -> PathBuf {
             }
         }
     }
+    
     candidates.sort();
     candidates.into_iter().next().unwrap_or_else(|| {
         panic!(
@@ -201,15 +240,16 @@ fn fixture_manifest() -> PluginManifest {
         ..Default::default()
     }
 }
+static COPY_MUTEX: Mutex<()> = Mutex::new(());
 
 /// Build a plugin directory with the manifest + the artifact.
 /// Returns (temp dir, artifact path, manifest with the correct entry name).
 fn stage_fixture() -> (tempfile_dir::TempDir, PathBuf, PluginManifest) {
+    let _lock = COPY_MUTEX.lock().unwrap();
+
     let dir = tempfile_dir::TempDir::new("micyou-native-fixture");
     let dylib = fixture_dylib();
-    // Copy the dylib so the loader opens the staged copy (isolated from cargo).
-    // Tests must open the SAME staged file for helpers: dlopen deduplicates by
-    // path, so helper symbols and the plugin instance share one data segment.
+    
     let ext = dylib
         .extension()
         .unwrap_or_default()
@@ -217,7 +257,19 @@ fn stage_fixture() -> (tempfile_dir::TempDir, PathBuf, PluginManifest) {
         .to_string();
     let entry_name = format!("fixture_native.{ext}");
     let staged_path = dir.path().join(&entry_name);
-    std::fs::copy(&dylib, &staged_path).unwrap();
+    let mut attempts = 0;
+    loop {
+        match std::fs::copy(&dylib, &staged_path) {
+            Ok(_) => break,
+            Err(e) if e.raw_os_error() == Some(32) && attempts < 5 => {
+                // Error 32: The process cannot access the file because it is being used by another process.
+                attempts += 1;
+                thread::sleep(Duration::from_millis(100));
+            }
+            Err(e) => panic!("Failed to copy fixture dylib after retries: {}", e),
+        }
+    }
+
     let mut manifest = fixture_manifest();
     manifest.entry = entry_name;
     std::fs::write(

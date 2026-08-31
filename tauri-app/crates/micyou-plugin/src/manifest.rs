@@ -645,7 +645,7 @@ mod tests {
     #[test]
     fn entry_path_ignores_wasm_runtime() {
         let json = r#"{
-            "id": "dev.micyou.wasm_test", "name": "Wasm", "version": "1.0.0",
+            "id": "dev.micyou.wasm-test", "name": "Wasm", "version": "1.0.0",
             "runtime": "wasm", "entry": "my_plugin"
         }"#;
         let manifest = PluginManifest::from_json(json).unwrap();
