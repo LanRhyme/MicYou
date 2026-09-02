@@ -268,7 +268,12 @@
       "licensesDesc": "开源软件许可协议",
       "licensesBtn": "开源协议",
       "logsDesc": "导出调试日志文件",
-      "logsBtn": "导出日志",
+      "logsBtn": "运行日志",
+      "openLogDir": "打开日志目录",
+      "copyLog": "复制日志内容",
+      "copyLogPath": "复制路径",
+      "copied": "已复制",
+      "exportLog": "导出日志",
       "introTitle": "软件介绍",
       "introText": "MicYou 是一款开源的麦克风工具，可以将您的 Android 设备变成电脑的高质量麦克风，支持 Wi-Fi 和 USB 连接，提供低延迟的音频传输体验"
     },

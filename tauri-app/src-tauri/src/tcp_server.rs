@@ -481,7 +481,7 @@ async fn handle_client(
         connection_id,
         &active_connection,
         &active_audio_session,
-        plugins.bus.clone(),
+        plugins.clone(),
         addr.ip(),
     )
     .await?;
@@ -581,7 +581,7 @@ async fn handle_client(
     });
     let task_guard = TaskGuard::new(vec![writer_task, ping_task, monitor_task]);
 
-    let plugin_bus_reader = plugins.bus.clone();
+    let plugins_reader = plugins.clone();
     let reader = async {
         loop {
             let mut header = [0u8; FRAME_HEADER_LEN];
@@ -610,7 +610,7 @@ async fn handle_client(
                 connection_id,
                 &active_connection,
                 &active_audio_session,
-                plugin_bus_reader.clone(),
+                plugins_reader.clone(),
                 addr.ip(),
             )
             .await?;
@@ -648,7 +648,7 @@ async fn handle_message(
     connection_id: u64,
     active_connection: &SharedActiveConnection,
     active_audio_session: &SharedActiveAudioSession,
-    plugin_bus: Arc<micyou_plugin::PluginBus>,
+    plugins: Arc<crate::plugins::PluginHost>,
     peer_ip: std::net::IpAddr,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(audio) = msg.audio_packet {
@@ -716,6 +716,7 @@ async fn handle_message(
     if let Some(mute) = msg.mute {
         let is_muted = mute.is_muted.unwrap_or(false);
         stats.set_muted(is_muted);
+        plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted: is_muted });
         run_if_active(active_connection, takeover_token, connection_id, || {
             println!("Received mute state: {}", is_muted);
             events.mute_state_changed(is_muted);
@@ -726,7 +727,7 @@ async fn handle_message(
         // Cross-device plugin message: route to the bus (local plugins via the
         // dispatcher, pending RPCs via correlation id).
         let logical = micyou_plugin::sync::from_wire(&plugin_message);
-        plugin_bus.handle_incoming(&logical);
+        plugins.bus.handle_incoming(&logical);
     }
     Ok(())
 }

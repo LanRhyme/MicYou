@@ -126,6 +126,8 @@ typedef struct mpl_host_api {
     /* Set the settings-sidebar panel icon: plugin-dir-relative image file
      * name or short text/emoji. No capability required. */
     mpl_result_t (*set_panel_icon)(void *ctx, const char *panel_id, const char *icon);
+    /* Set host mute state (0 = unmute, 1 = mute; requires control.intercept). */
+    mpl_result_t (*set_muted)(void *ctx, uint32_t muted);
 } mpl_host_api_t;
 
 /* Static plugin identity. The id/version must match the manifest. */

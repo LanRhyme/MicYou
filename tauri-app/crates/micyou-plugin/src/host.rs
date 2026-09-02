@@ -216,6 +216,11 @@ pub trait HostApi: Send + Sync {
     /// relative to the plugin directory (PNG/SVG) or a short text/emoji.
     /// No capability required; the host only renders what the plugin declares.
     fn set_panel_icon(&self, panel_id: &str, icon: &str) -> PluginResult<()>;
+
+    /// Set host mute state (requires `control.intercept` capability).
+    fn set_muted(&self, _muted: bool) -> PluginResult<()> {
+        Err(PluginError::Runtime("set_muted not supported".into()))
+    }
 }
 
 #[cfg(test)]

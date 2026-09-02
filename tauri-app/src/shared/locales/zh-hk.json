@@ -266,7 +266,12 @@
       "licensesDesc": "開源軟件授權",
       "licensesBtn": "開源授權",
       "logsDesc": "匯出應用程式日誌嚟除錯",
-      "logsBtn": "匯出日誌",
+      "logsBtn": "運行日誌",
+      "openLogDir": "開啟日誌目錄",
+      "copyLog": "複製日誌內容",
+      "copyLogPath": "複製路徑",
+      "copied": "已複製",
+      "exportLog": "匯出日誌",
       "introTitle": "軟件介紹",
       "introText": "MicYou 係一個開源嘅咪高峰工具，可以將你嘅 Android 裝置變做電腦嘅高質素咪高峰，支援 Wi-Fi (TCP) 同 USB 連線，畀到低延遲嘅音訊傳輸體驗。"
     },

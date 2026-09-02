@@ -89,6 +89,7 @@ pub fn update_audio_settings(
                 .map_err(|e| format!("Failed to persist settings: {e}"))?;
             // Only update live state after validation and persistence succeed.
             *current = settings;
+            state.plugins.broadcast_event(&micyou_plugin::PluginEvent::DspSettingsChanged);
             Ok("Settings updated".to_string())
         }
         Err(e) => Err(format!("Failed to update settings: {}", e)),
@@ -136,6 +137,7 @@ pub async fn set_mute_state(
     is_muted: bool,
 ) -> Result<(), String> {
     state.network_stats.set_muted(is_muted);
+    state.plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted: is_muted });
     let _ = app.emit("mute-state-changed", is_muted);
 
     let mute_msg = micyou_protocol::micyou::MessageWrapper {

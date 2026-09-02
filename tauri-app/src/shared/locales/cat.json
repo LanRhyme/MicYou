@@ -266,7 +266,12 @@
       "licensesDesc": "开源软件许可证喵~",
       "licensesBtn": "许可证喵~",
       "logsDesc": "导出调试日志喵~",
-      "logsBtn": "导出日志喵~",
+      "logsBtn": "运行日志喵~",
+      "openLogDir": "打开日志目录喵~",
+      "copyLog": "复制日志内容喵~",
+      "copyLogPath": "复制路径喵~",
+      "copied": "复制好啦喵~",
+      "exportLog": "导出日志文件喵~",
       "introTitle": "简介喵~",
       "introText": "MicYou 是一个开源麦克风工具喵~可以把你的安卓设备变成电脑的高质量麦克风喵！支持 Wi-Fi 和 USB 连接，提供低延迟音频传输喵~ (≧∇≦)/"
     },

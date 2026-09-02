@@ -9,6 +9,7 @@ use std::sync::{Arc, Mutex};
 struct DirectHost {
     config: Mutex<std::collections::HashMap<String, serde_json::Value>>,
     logs: Mutex<Vec<String>>,
+    muted_state: Mutex<bool>,
 }
 impl HostApi for DirectHost {
     fn log(&self, _level: PluginLogLevel, message: &str) {
@@ -21,6 +22,10 @@ impl HostApi for DirectHost {
     fn emit_event(&self, _t: &str, _p: serde_json::Value) -> micyou_plugin::PluginResult<()> { Ok(()) }
     fn send_message(&self, _t: MessageTarget, _p: Vec<u8>) -> micyou_plugin::PluginResult<()> { Ok(()) }
     fn audio_state(&self) -> AudioStateSnapshot { AudioStateSnapshot::default() }
+    fn set_muted(&self, muted: bool) -> PluginResult<()> {
+        *self.muted_state.lock().unwrap() = muted;
+        Ok(())
+    }
     fn play_sound(&self, _path: &str) -> PluginResult<()> { Ok(()) }
     fn plugin_dir(&self) -> String { "/tmp/plugin-dir".to_string() }
     fn register_hotkey(&self, _s: &str) -> PluginResult<u64> { Ok(7) }
@@ -134,4 +139,29 @@ fn release_host_ctx_keeps_arc_alive() {
         abi::release_host_ctx(raw as *mut c_void);
     }
     assert!(Arc::strong_count(&host) >= 1);
+}
+
+#[test]
+fn set_muted_respects_control_intercept_capability() {
+    let host = Arc::new(DirectHost::default());
+    let ctx_with_cap = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![micyou_plugin::capabilities::CONTROL_INTERCEPT.to_string()],
+    });
+    let table = abi::host_table_for(ctx_with_cap);
+    let res = unsafe { (table.set_muted)(table.ctx, 1) };
+    assert_eq!(res, mpl_result_t::MPL_OK);
+    assert_eq!(*host.muted_state.lock().unwrap(), true);
+
+    let ctx_no_cap = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![],
+    });
+    let table2 = abi::host_table_for(ctx_no_cap);
+    let res2 = unsafe { (table2.set_muted)(table2.ctx, 0) };
+    assert_eq!(res2, mpl_result_t::MPL_ERR_PERMISSION);
+    assert_eq!(*host.muted_state.lock().unwrap(), true);
+
+    unsafe { abi::release_host_ctx(table.ctx) };
+    unsafe { abi::release_host_ctx(table2.ctx) };
 }

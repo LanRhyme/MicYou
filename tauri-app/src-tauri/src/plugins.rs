@@ -130,6 +130,9 @@ pub struct PluginHost {
             std::collections::HashMap<String, std::collections::HashMap<String, String>>,
         >,
     >,
+    pub mute_handler: Arc<
+        Mutex<Option<Arc<dyn Fn(bool) -> micyou_plugin::PluginResult<()> + Send + Sync>>>,
+    >,
 }
 
 /// Global hotkey registration for plugins.
@@ -317,6 +320,41 @@ impl PluginHost {
             hotkeys,
             window,
             panel_icons: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+            mute_handler: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    /// Register a callback to set the host mute state.
+    pub fn set_mute_handler(
+        &self,
+        handler: Arc<dyn Fn(bool) -> micyou_plugin::PluginResult<()> + Send + Sync>,
+    ) {
+        if let Ok(mut slot) = self.mute_handler.lock() {
+            *slot = Some(handler);
+        }
+    }
+
+    /// Scan plugins directory and enable all plugins marked enabled in state.
+    pub fn load_saved_plugins(&self) {
+        let report = self
+            .manager
+            .lock()
+            .map(|mut m| m.scan())
+            .unwrap_or_else(|_| Ok(micyou_plugin::ScanReport::default()));
+        match report {
+            Ok(report) => {
+                for entry in report.discovered {
+                    if entry.state.is_enabled() {
+                        if let Err(e) = self.enable_plugin(&entry.manifest.id) {
+                            log::warn!(
+                                "[plugins] failed to start {}: {e}",
+                                entry.manifest.id
+                            );
+                        }
+                    }
+                }
+            }
+            Err(e) => log::warn!("[plugins] scan failed: {e}"),
         }
     }
 
@@ -394,6 +432,7 @@ impl PluginHost {
             self.hotkeys.clone(),
             self.window.clone(),
             self.panel_icons.clone(),
+            self.mute_handler.clone(),
             id.to_string(),
             entry.dir.clone(),
         );
@@ -592,6 +631,9 @@ pub struct PluginHostApi {
             std::collections::HashMap<String, std::collections::HashMap<String, String>>,
         >,
     >,
+    mute_handler: Arc<
+        Mutex<Option<Arc<dyn Fn(bool) -> micyou_plugin::PluginResult<()> + Send + Sync>>>,
+    >,
     timer_next: std::sync::atomic::AtomicU64,
     timers: std::sync::Mutex<
         std::collections::HashMap<u64, std::sync::Arc<std::sync::atomic::AtomicBool>>,
@@ -612,6 +654,9 @@ impl PluginHostApi {
                 std::collections::HashMap<String, std::collections::HashMap<String, String>>,
             >,
         >,
+        mute_handler: Arc<
+            Mutex<Option<Arc<dyn Fn(bool) -> micyou_plugin::PluginResult<()> + Send + Sync>>>,
+        >,
         plugin_id: String,
         dir: std::path::PathBuf,
     ) -> Arc<Self> {
@@ -623,6 +668,7 @@ impl PluginHostApi {
             hotkeys,
             window,
             panel_icons,
+            mute_handler,
             plugin_id,
             dir,
             timer_next: std::sync::atomic::AtomicU64::new(1),
@@ -928,6 +974,15 @@ impl HostApi for PluginHostApi {
                 .insert(panel_id.to_string(), icon.to_string());
         }
         Ok(())
+    }
+
+    fn set_muted(&self, muted: bool) -> PluginResult<()> {
+        let slot = self.mute_handler.lock().map_err(lock_err)?;
+        if let Some(handler) = slot.as_ref() {
+            handler(muted)
+        } else {
+            Err(PluginError::Runtime("mute handler not registered".into()))
+        }
     }
 
     fn connected_devices(&self) -> Vec<DeviceSnapshot> {

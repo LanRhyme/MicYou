@@ -170,6 +170,7 @@ pub struct mpl_host_api_t {
         panel_id: *const c_char,
         icon: *const c_char,
     ) -> mpl_result_t,
+    pub set_muted: unsafe extern "C" fn(ctx: *mut c_void, muted: u32) -> mpl_result_t,
 }
 
 // The table travels inside `NativePlugin` which is `Send`; the raw `ctx`
@@ -657,6 +658,19 @@ unsafe extern "C" fn shim_set_panel_icon(
     }
 }
 
+unsafe extern "C" fn shim_set_muted(ctx: *mut c_void, muted: u32) -> mpl_result_t {
+    unsafe {
+        let ctx = &*(ctx as *const NativeHostCtx);
+        if !has_capability(ctx, crate::manifest::capabilities::CONTROL_INTERCEPT) {
+            return mpl_result_t::MPL_ERR_PERMISSION;
+        }
+        match ctx.host.set_muted(muted != 0) {
+            Ok(()) => mpl_result_t::MPL_OK,
+            Err(_) => mpl_result_t::MPL_ERR_RUNTIME,
+        }
+    }
+}
+
 unsafe extern "C" fn shim_clipboard_write(ctx: *mut c_void, text: *const c_char) -> mpl_result_t {
     unsafe {
         let ctx = &*(ctx as *const NativeHostCtx);
@@ -757,6 +771,7 @@ pub fn host_table_for(ctx: Arc<NativeHostCtx>) -> mpl_host_api_t {
         clipboard_read: shim_clipboard_read,
         clipboard_write: shim_clipboard_write,
         set_panel_icon: shim_set_panel_icon,
+        set_muted: shim_set_muted,
     }
 }
 

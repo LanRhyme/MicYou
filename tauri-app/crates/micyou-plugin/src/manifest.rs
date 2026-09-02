@@ -120,6 +120,10 @@ pub mod capabilities {
     pub const CLIPBOARD_READ: &str = "clipboard.read";
     /// Write to the system clipboard.
     pub const CLIPBOARD_WRITE: &str = "clipboard.write";
+    /// Observe host control plane signals (read-only: mute, devices, dsp changes).
+    pub const CONTROL_OBSERVE: &str = "control.observe";
+    /// Intercept or mutate host control plane signals.
+    pub const CONTROL_INTERCEPT: &str = "control.intercept";
 }
 
 /// All capability identifiers the host currently recognizes.
@@ -138,6 +142,8 @@ pub const KNOWN_CAPABILITIES: &[&str] = &[
     capabilities::OPEN_URL,
     capabilities::CLIPBOARD_READ,
     capabilities::CLIPBOARD_WRITE,
+    capabilities::CONTROL_OBSERVE,
+    capabilities::CONTROL_INTERCEPT,
 ];
 
 /// Native platform tags used in `PluginManifest.platforms`.

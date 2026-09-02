@@ -497,6 +497,40 @@ pub async fn start_server_inner(
         }
     }
 
+    // Wire mute control handler from plugins into the server state + transport
+    let stats_clone = state.network_stats.clone();
+    let events_clone = events.clone();
+    let active_conn_clone = state.active_connection.clone();
+    let plugins_clone = state.plugins.clone();
+    state.plugins.set_mute_handler(std::sync::Arc::new(move |muted: bool| {
+        stats_clone.set_muted(muted);
+        events_clone.mute_state_changed(muted);
+        plugins_clone.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted });
+        let mute_msg = micyou_protocol::micyou::MessageWrapper {
+            audio_packet: None,
+            connect: None,
+            mute: Some(micyou_protocol::micyou::MuteMessage { is_muted: Some(muted) }),
+            ping: None,
+            pong: None,
+            plugin_message: None,
+        };
+        let tx = {
+            let lock = active_conn_clone.try_lock();
+            if let Ok(guard) = lock {
+                guard.as_ref().map(|conn| conn.sender.clone())
+            } else {
+                None
+            }
+        };
+        if let Some(tx) = tx {
+            let _ = tx.try_send(mute_msg);
+        }
+        Ok(())
+    }));
+
+    // Scan & load active plugins across GUI, CLI and TUI
+    state.plugins.load_saved_plugins();
+
     let dsp_settings = state.dsp_settings.clone();
     // Make sure the synthetic "Plugins" node is in the chain when DSP
     // plugins are registered (runtime-only change, user can reorder).

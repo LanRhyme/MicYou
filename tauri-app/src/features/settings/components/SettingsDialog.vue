@@ -1383,18 +1383,49 @@
                   </div>
                   <div class="h-px bg-border mx-4"></div>
 
-                  <div
-                    @click="exportLog"
-                    class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer"
-                  >
-                    <Download class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
-                    <div class="flex-1">
-                      <h4 class="text-sm font-medium text-on-surface">
-                        {{ $t('settings.about.logsBtn') }}
-                      </h4>
-                      <p class="text-xs text-on-surface-variant">
-                        {{ $t('settings.about.logsDesc') }}
-                      </p>
+                  <div class="p-4 flex flex-col gap-3">
+                    <div class="flex items-center gap-4">
+                      <FileText class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+                      <div class="flex-1 min-w-0">
+                        <h4 class="text-sm font-medium text-on-surface">
+                          {{ $t('settings.about.logsBtn') }}
+                        </h4>
+                        <p class="text-xs text-on-surface-variant truncate font-mono select-all" :title="logPath">
+                          {{ logPath || $t('settings.about.logsDesc') }}
+                        </p>
+                      </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        @click="openLogDir"
+                        class="px-3 py-1.5 text-xs font-medium bg-surface-variant hover:bg-surface-variant/80 text-on-surface rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <FolderOpen class="w-3.5 h-3.5" />
+                        {{ $t('settings.about.openLogDir') }}
+                      </button>
+                      <button
+                        @click="copyLogContent"
+                        class="px-3 py-1.5 text-xs font-medium bg-surface-variant hover:bg-surface-variant/80 text-on-surface rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Check v-if="copiedLog" class="w-3.5 h-3.5 text-primary" />
+                        <Copy v-else class="w-3.5 h-3.5" />
+                        {{ copiedLog ? $t('settings.about.copied') : $t('settings.about.copyLog') }}
+                      </button>
+                      <button
+                        @click="copyLogPath"
+                        class="px-3 py-1.5 text-xs font-medium bg-surface-variant hover:bg-surface-variant/80 text-on-surface rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Check v-if="copiedPath" class="w-3.5 h-3.5 text-primary" />
+                        <Copy v-else class="w-3.5 h-3.5" />
+                        {{ copiedPath ? $t('settings.about.copied') : $t('settings.about.copyLogPath') }}
+                      </button>
+                      <button
+                        @click="exportLog"
+                        class="px-3 py-1.5 text-xs font-medium bg-surface-variant hover:bg-surface-variant/80 text-on-surface rounded-lg transition-colors flex items-center gap-1.5"
+                      >
+                        <Download class="w-3.5 h-3.5" />
+                        {{ $t('settings.about.exportLog') }}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1529,6 +1560,9 @@ import {
   LayoutPanelTop,
   AlertTriangle,
   CheckCircle2,
+  FolderOpen,
+  Copy,
+  Check,
 } from '@lucide/vue';
 import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
@@ -1548,6 +1582,7 @@ onMounted(() => {
   window.addEventListener('message', onPanelMessage);
   // 侧边栏插件面板项依赖插件列表，对话框挂载即刷新（未进插件页也可见）
   pluginsState.refresh().then(() => loadPanelIcons());
+  loadLogPath();
 });
 onUnmounted(() => window.removeEventListener('message', onPanelMessage));
 import {
@@ -2159,6 +2194,54 @@ const openDialog = async (name: string) => {
     } catch (e: any) {
       alert(t('dialogs.update.failed', { error: e.message }));
     }
+  }
+};
+
+const logPath = ref('');
+const copiedLog = ref(false);
+const copiedPath = ref(false);
+
+const loadLogPath = async () => {
+  try {
+    logPath.value = await invoke<string>('get_log_path');
+  } catch (e) {
+    console.error('Failed to get log path:', e);
+  }
+};
+
+const openLogDir = async () => {
+  try {
+    await invoke('open_log_dir');
+  } catch (e: any) {
+    alert(t('dialogs.logs.failed', { error: e.toString() }));
+  }
+};
+
+const copyLogContent = async () => {
+  try {
+    const content = await invoke<string>('get_log_content');
+    await navigator.clipboard.writeText(content);
+    copiedLog.value = true;
+    setTimeout(() => {
+      copiedLog.value = false;
+    }, 2000);
+  } catch (e: any) {
+    alert(t('dialogs.logs.failed', { error: e.toString() }));
+  }
+};
+
+const copyLogPath = async () => {
+  try {
+    if (!logPath.value) {
+      logPath.value = await invoke<string>('get_log_path');
+    }
+    await navigator.clipboard.writeText(logPath.value);
+    copiedPath.value = true;
+    setTimeout(() => {
+      copiedPath.value = false;
+    }, 2000);
+  } catch (e: any) {
+    alert(t('dialogs.logs.failed', { error: e.toString() }));
   }
 };
 

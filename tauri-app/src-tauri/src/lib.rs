@@ -131,27 +131,12 @@ pub fn run() {
                 let state = app.state::<server::ServerState>();
                 state.plugins.hotkeys.init(app.handle());
                 state.plugins.window.init(app.handle());
-                let plugins = state.plugins.clone();
-                let report = plugins
-                    .manager
-                    .lock()
-                    .map(|mut m| m.scan())
-                    .unwrap_or_else(|_| Ok(micyou_plugin::ScanReport::default()));
-                match report {
-                    Ok(report) => {
-                        for entry in report.discovered {
-                            if entry.state.is_enabled() {
-                                if let Err(e) = plugins.enable_plugin(&entry.manifest.id) {
-                                    log::warn!(
-                                        "[plugins] failed to start {}: {e}",
-                                        entry.manifest.id
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => log::warn!("[plugins] scan failed: {e}"),
-                }
+            }
+
+            // Scan & enable active plugins on startup
+            {
+                let plugins = app.state::<server::ServerState>().plugins.clone();
+                plugins.load_saved_plugins();
             }
 
             // Acquire the GUI mode lock so the CLI/TUI knows the GUI is running.
@@ -216,6 +201,9 @@ pub fn run() {
             commands::stop_server,
             commands::about::get_sponsors,
             commands::about::export_log,
+            commands::about::get_log_path,
+            commands::about::get_log_content,
+            commands::about::open_log_dir,
             commands::about::get_app_version,
             commands::set_tray_strings,
             commands::set_tray_state,

@@ -969,6 +969,28 @@ fn register_host_functions(linker: &mut Linker<WasmHostCtx>) {
             },
         )
         .unwrap();
+
+    // set_muted(muted: i32) -> result code
+    linker
+        .func_wrap(
+            WASM_IMPORT_MODULE,
+            "set_muted",
+            |caller: wasmi::Caller<'_, WasmHostCtx>,
+             muted: i32|
+             -> Result<i32, wasmi::Error> {
+                caller
+                    .data()
+                    .require(crate::manifest::capabilities::CONTROL_INTERCEPT)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                caller
+                    .data()
+                    .host
+                    .set_muted(muted != 0)
+                    .map(|_| mpl_result_t::MPL_OK as i32)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))
+            },
+        )
+        .unwrap();
 }
 
 fn export_memory(caller: &wasmi::Caller<'_, WasmHostCtx>) -> Result<Memory, wasmi::Error> {
