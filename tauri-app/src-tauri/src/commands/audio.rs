@@ -16,7 +16,7 @@
 use crate::server::ServerState;
 use cpal::traits::{DeviceTrait, HostTrait};
 use micyou_audio::dsp::AudioDspSettings;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 #[derive(serde::Serialize)]
 pub struct PipeWireStatus {
@@ -131,14 +131,17 @@ pub fn save_server_prefs(prefs: crate::app_config::ServerPrefs) -> Result<String
 
 #[tauri::command]
 pub async fn set_mute_state(
-    _app: AppHandle,
+    app: AppHandle,
     state: State<'_, ServerState>,
     is_muted: bool,
 ) -> Result<(), String> {
+    state.network_stats.set_muted(is_muted);
+    let _ = app.emit("mute-state-changed", is_muted);
+
     let mute_msg = micyou_protocol::micyou::MessageWrapper {
         audio_packet: None,
         connect: None,
-        mute: Some(micyou_protocol::micyou::MuteMessage { is_muted }),
+        mute: Some(micyou_protocol::micyou::MuteMessage { is_muted: Some(is_muted) }),
         ping: None,
         pong: None,
         plugin_message: None,
@@ -149,11 +152,33 @@ pub async fn set_mute_state(
         lock.as_ref().map(|connection| connection.sender.clone())
     };
     if let Some(tx) = tx {
-        tx.send(mute_msg).await.map_err(|e| e.to_string())?;
-        Ok(())
-    } else {
-        Err("No active connection".to_string())
+        let _ = tx.send(mute_msg).await;
     }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamingStatus {
+    pub is_server_running: bool,
+    pub is_connected: bool,
+    pub is_muted: bool,
+}
+
+#[tauri::command]
+pub async fn get_streaming_status(state: State<'_, ServerState>) -> Result<StreamingStatus, String> {
+    let lifecycle = state.lifecycle.lock().await;
+    let is_server_running = matches!(lifecycle.phase(), crate::server::ServerLifecyclePhase::Running);
+    let is_connected = {
+        let lock = state.active_connection.lock().await;
+        lock.is_some()
+    };
+    let is_muted = state.network_stats.is_muted();
+    Ok(StreamingStatus {
+        is_server_running,
+        is_connected,
+        is_muted,
+    })
 }
 
 #[tauri::command]
@@ -166,6 +191,7 @@ pub async fn set_monitoring(
     state
         .is_monitoring
         .store(enabled, std::sync::atomic::Ordering::Relaxed);
+    state.audio_output.set_monitoring(enabled);
     let _ = app.emit("monitoring-enabled-changed", enabled);
     Ok(())
 }

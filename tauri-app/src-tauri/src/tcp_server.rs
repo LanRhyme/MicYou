@@ -553,23 +553,27 @@ async fn handle_client(
             let buffer_duration = if mode == "usb" { 5 } else { 30 };
             events_emit.audio_metrics(stats_emit.to_metrics(buffer_duration));
             if mode == "wifi" {
-                let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as u64;
-                let tcp_time = stats_emit.get_tcp_connected_time();
-                let last_udp = stats_emit.get_last_udp_time();
-                if tcp_time > 0 && now.saturating_sub(tcp_time) > 5000 {
-                    let time_since_udp = if last_udp == 0 {
-                        now.saturating_sub(tcp_time)
-                    } else {
-                        now.saturating_sub(last_udp)
-                    };
-                    if time_since_udp > 10000 && !warning_fired {
-                        events_emit.udp_audio_warning();
-                        warning_fired = true;
-                    } else if time_since_udp < 5000 && warning_fired {
-                        warning_fired = false;
+                if stats_emit.is_muted() {
+                    warning_fired = false;
+                } else {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis() as u64;
+                    let tcp_time = stats_emit.get_tcp_connected_time();
+                    let last_udp = stats_emit.get_last_udp_time();
+                    if tcp_time > 0 && now.saturating_sub(tcp_time) > 5000 {
+                        let time_since_udp = if last_udp == 0 {
+                            now.saturating_sub(tcp_time)
+                        } else {
+                            now.saturating_sub(last_udp)
+                        };
+                        if time_since_udp > 10000 && !warning_fired {
+                            events_emit.udp_audio_warning();
+                            warning_fired = true;
+                        } else if time_since_udp < 5000 && warning_fired {
+                            warning_fired = false;
+                        }
                     }
                 }
             }
@@ -710,9 +714,11 @@ async fn handle_message(
         }
     }
     if let Some(mute) = msg.mute {
+        let is_muted = mute.is_muted.unwrap_or(false);
+        stats.set_muted(is_muted);
         run_if_active(active_connection, takeover_token, connection_id, || {
-            println!("Received mute state: {}", mute.is_muted);
-            events.mute_state_changed(mute.is_muted);
+            println!("Received mute state: {}", is_muted);
+            events.mute_state_changed(is_muted);
         })
         .await;
     }

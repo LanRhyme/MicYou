@@ -154,8 +154,7 @@ impl ServerLifecycleState {
         }
     }
 
-    #[cfg(test)]
-    fn phase(&self) -> ServerLifecyclePhase {
+    pub fn phase(&self) -> ServerLifecyclePhase {
         self.phase
     }
 }

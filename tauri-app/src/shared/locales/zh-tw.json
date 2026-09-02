@@ -191,7 +191,11 @@
       "title": "輸出裝置",
       "desc": "麥克風的聲音應該在哪裡播放？",
       "auto": "自動",
-      "routingActive": "虛擬音訊路由已啟用，音訊將被轉發到虛擬裝置"
+      "routingActive": "虛擬音訊路由已啟用，音訊將被轉發到虛擬裝置",
+      "physicalWarningTitle": "目前選擇的是實體播放裝置",
+      "physicalWarningDesc": "手機麥克風的聲音將直接從喇叭/揚聲器播放。若手機與喇叭處於同一環境，極易產生嚴重回音或嘯叫。建議安裝並選擇虛擬音訊裝置（如 VB-Cable）。",
+      "noVirtualDeviceTitle": "未偵測到虛擬音訊裝置",
+      "noVirtualDeviceDesc": "目前自動回落到系統預設喇叭播放。若與手機處於同一環境可能產生回音，建議安裝並設定虛擬音訊驅動程式（如 VB-Cable）。"
     },
     "spectrum": {
       "title": "即時頻譜",
@@ -306,6 +310,12 @@
     "cancel": "取消",
     "apply": "套用",
     "confirm": "確認",
+    "monitoringWarning": {
+      "title": "開啟監聽提示",
+      "desc": "此功能最好佩戴耳機使用，使用外放揚聲器可能會造成聲音循環與嘯叫。",
+      "dontAskAgain": "不再提示",
+      "confirm": "開啟監聽"
+    },
     "contributors": {
       "title": "貢獻者",
       "loading": "正在載入貢獻者...",
@@ -356,7 +366,8 @@
     },
     "udpWarning": {
       "title": "防火牆封鎖了 UDP 音訊連線",
-      "desc": "手機端已成功連線，但電腦端未收到任何 UDP 音訊資料。這通常是因為 Windows 防火牆封鎖了 UDP 連接埠 ({port})。\n\n請在防火牆中允許 MicYou 程式的網路存取，或嘗試以系統管理員身分重新執行程式。"
+      "desc": "手機端已成功連線，但電腦端未收到任何 UDP 音訊資料。這通常是因為 Windows 防火牆封鎖了 UDP 連接埠 ({port})。\n\n請在防火牆中允許 MicYou 程式的網路存取，或嘗試以系統管理員身分重新執行程式。",
+      "allowButton": "一鍵放行防火牆 (TCP & UDP)"
     }
   },
   "tray": {
@@ -390,6 +401,10 @@
   "autostart": {
     "title": "開機自啟",
     "desc": "登入電腦時自動啟動 MicYou"
+  },
+  "floatingWindow": {
+    "title": "桌面懸浮窗",
+    "desc": "在螢幕上顯示始終置頂的麥克風狀態懸浮球，支援點擊靜音與拖曳"
   },
   "notifications": {
     "title": "系統通知",

@@ -28,6 +28,8 @@ pub mod network;
 pub mod opus;
 #[cfg(target_os = "linux")]
 pub mod pipewire;
+#[cfg(target_os = "linux")]
+pub mod layer_shell;
 pub mod plugins;
 pub mod sound_player;
 pub mod server;
@@ -220,8 +222,15 @@ pub fn run() {
             commands::show_main_window,
             commands::minimize_main_window,
             commands::hide_main_window,
+            commands::show_floating_window,
+            commands::hide_floating_window,
+            commands::toggle_floating_window,
+            commands::is_floating_window_visible,
+            commands::move_floating_window_delta,
+            commands::allow_firewall,
             commands::exit_app,
             commands::set_mute_state,
+            commands::get_streaming_status,
             commands::set_monitoring,
             commands::set_spectrum_streaming,
             commands::get_web_status,
@@ -237,6 +246,7 @@ pub fn run() {
             commands::mode::switch_to_tui,
             commands::mode::save_ui_prefs,
             commands::mode::save_theme_colors,
+            commands::mode::get_theme_colors,
             commands::get_audio_settings,
             commands::server_prefs_exists,
             commands::get_server_prefs,

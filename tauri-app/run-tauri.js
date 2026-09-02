@@ -11,6 +11,14 @@ const env = { ...process.env };
 // strip pass is both safe and portable across rolling and CI distributions.
 if (process.platform === 'linux' && env.NO_STRIP === undefined) env.NO_STRIP = '1';
 
+if (process.argv.includes('dev')) {
+  try {
+    if (process.platform === 'linux' || process.platform === 'darwin') {
+      spawnSync('fuser', ['-k', '1420/tcp'], { stdio: 'ignore' });
+    }
+  } catch {}
+}
+
 const result = spawnSync(process.execPath, [cli, ...process.argv.slice(2)], {
   cwd: appDir,
   env,

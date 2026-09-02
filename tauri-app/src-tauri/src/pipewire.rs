@@ -518,23 +518,14 @@ fn destroy_node(node_id: &str, description: &str) {
 }
 
 fn destroy_node_by_name(node_name: &str, description: &str) {
-    match Command::new("pw-cli").args(["destroy", node_name]).output() {
-        Ok(output) => {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            if output.status.success() || stderr.contains("not found") || stderr.contains("No such")
-            {
-                log::debug!(
-                    "[PipeWire] {} destroyed or not found (name: {})",
-                    description,
-                    node_name
-                );
-            } else {
-                log::warn!("[PipeWire] Failed to destroy {}: {}", description, stderr);
-            }
-        }
-        Err(e) => {
-            log::error!("[PipeWire] Error destroying {}: {}", description, e);
-        }
+    if let Some(id) = find_node_id_by_name(node_name) {
+        destroy_node(&id, description);
+    } else {
+        log::debug!(
+            "[PipeWire] {} node ID not found for destruction (name: {})",
+            description,
+            node_name
+        );
     }
 }
 

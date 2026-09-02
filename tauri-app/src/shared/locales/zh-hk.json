@@ -191,7 +191,11 @@
       "title": "輸出裝置",
       "desc": "咪高峰嘅聲音應該喺邊度播？",
       "auto": "自動",
-      "routingActive": "虛擬音訊傳輸已啟用，音訊會傳去虛擬裝置"
+      "routingActive": "虛擬音訊傳輸已啟用，音訊會傳去虛擬裝置",
+      "physicalWarningTitle": "目前揀咗實體播放裝置",
+      "physicalWarningDesc": "手機咪高峰嘅聲音會直接喺喇叭播放。如果手機同喇叭喺同一個環境，好易產生嚴重回音或嘯叫。建議安裝並揀選虛擬音訊裝置（例如 VB-Cable）。",
+      "noVirtualDeviceTitle": "未偵測到虛擬音訊裝置",
+      "noVirtualDeviceDesc": "目前自動回落到系統預設喇叭播放。如果同手機喺同一個環境可能產生回音，建議安裝並設定虛擬音訊驅動（例如 VB-Cable）。"
     },
     "spectrum": {
       "title": "即時頻譜",
@@ -306,6 +310,12 @@
     "cancel": "取消",
     "apply": "套用",
     "confirm": "確認",
+    "monitoringWarning": {
+      "title": "開啟監聽提示",
+      "desc": "呢個功能最好戴耳機使用，用外置喇叭可能會造成聲音循環同嘯叫。",
+      "dontAskAgain": "唔再提示",
+      "confirm": "開啟監聽"
+    },
     "contributors": {
       "title": "貢獻者",
       "loading": "載入緊貢獻者...",
@@ -356,7 +366,8 @@
     },
     "udpWarning": {
       "title": "防火牆擋住咗 UDP 音訊連線",
-      "desc": "手機端已經成功連接，但電腦端收唔到任何 UDP 音訊數據。呢個通常係因為 Windows 防火牆擋住咗 UDP 埠口 ({port})\n\n請喺防火牆度允許 MicYou 程式使用網路，或者試吓以管理員身份重新行過個程式。"
+      "desc": "手機端已經成功連接，但電腦端收唔到任何 UDP 音訊數據。呢個通常係因為 Windows 防火牆擋住咗 UDP 埠口 ({port})\n\n請喺防火牆度允許 MicYou 程式使用網路，或者試吓以管理員身份重新行過個程式。",
+      "allowButton": "一鍵放行防火牆 (TCP & UDP)"
     }
   },
   "tray": {
@@ -390,6 +401,10 @@
   "autostart": {
     "title": "開機自啟",
     "desc": "登入電腦嗰陣自動啟動 MicYou"
+  },
+  "floatingWindow": {
+    "title": "桌面懸浮窗",
+    "desc": "喺螢幕上面顯示永遠置頂嘅咪高峰狀態懸浮波，支援點擊靜音同拖曳"
   },
   "notifications": {
     "title": "系統通知",

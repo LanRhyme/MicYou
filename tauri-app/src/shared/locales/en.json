@@ -193,7 +193,11 @@
       "title": "Output Device",
       "desc": "Where should the microphone audio be played?",
       "auto": "Auto",
-      "routingActive": "Virtual audio routing is active. Audio will be forwarded to the virtual device."
+      "routingActive": "Virtual audio routing is active. Audio will be forwarded to the virtual device.",
+      "physicalWarningTitle": "Physical playback device selected",
+      "physicalWarningDesc": "Microphone audio will be played directly through speakers. If your phone and speakers share the same environment, this may cause severe acoustic feedback or howling. Using a virtual audio device (such as VB-Cable) is strongly recommended.",
+      "noVirtualDeviceTitle": "No virtual audio device detected",
+      "noVirtualDeviceDesc": "Automatically falling back to the default speaker. If your phone and speakers are in the same environment, echo may occur. Installing and configuring a virtual audio device (e.g. VB-Cable) is recommended."
     },
     "spectrum": {
       "title": "Real-Time Spectrum",
@@ -308,6 +312,12 @@
     "cancel": "Cancel",
     "apply": "Apply",
     "confirm": "Confirm",
+    "monitoringWarning": {
+      "title": "Audio Monitoring Notice",
+      "desc": "This feature is best used with headphones. Playing audio through speakers may cause acoustic feedback and howling.",
+      "dontAskAgain": "Do not show again",
+      "confirm": "Enable Monitoring"
+    },
     "contributors": {
       "title": "Contributors",
       "loading": "Loading contributors...",
@@ -358,7 +368,8 @@
     },
     "udpWarning": {
       "title": "Firewall Blocked UDP Connection",
-      "desc": "The mobile app connected successfully, but the PC didn't receive any UDP audio data. This is usually because Windows Firewall is blocking the UDP port ({port}).\n\nPlease allow network access for MicYou in your firewall, or try running the app as Administrator."
+      "desc": "The mobile app connected successfully, but the PC didn't receive any UDP audio data. This is usually because Windows Firewall is blocking the UDP port ({port}).\n\nPlease allow network access for MicYou in your firewall, or try running the app as Administrator.",
+      "allowButton": "Allow via Firewall (TCP & UDP)"
     }
   },
   "tray": {
@@ -392,6 +403,10 @@
   "autostart": {
     "title": "Run at Startup",
     "desc": "Automatically start MicYou when you log in to your computer."
+  },
+  "floatingWindow": {
+    "title": "Desktop Floating Window",
+    "desc": "Show an always-on-top floating mic overlay on the desktop with click-to-mute and dragging"
   },
   "notifications": {
     "title": "Notifications",

@@ -242,6 +242,39 @@
                   </button>
                 </div>
 
+                <!-- Desktop Floating Window -->
+                <div
+                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
+                >
+                  <div>
+                    <h4 class="font-bold text-on-surface">{{ $t('floatingWindow.title') }}</h4>
+                    <p class="text-xs text-on-surface-variant">{{ $t('floatingWindow.desc') }}</p>
+                  </div>
+                  <button
+                    @click="toggleFloatingWindow"
+                    class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                    :class="
+                      floatingWindowEnabled
+                        ? 'border-primary bg-primary'
+                        : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                    "
+                  >
+                    <div
+                      class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                      :class="floatingWindowEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                    >
+                      <span
+                        class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                        :class="
+                          floatingWindowEnabled
+                            ? 'h-6 w-6 bg-on-primary'
+                            : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                        "
+                      />
+                    </div>
+                  </button>
+                </div>
+
                 <!-- Notifications -->
                 <div
                   class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
@@ -376,18 +409,42 @@
                       </SelectContent>
                     </Select>
                   </div>
-                  <p
-                    v-if="
-                      settings.audioDevice === 'auto' ||
-                      (settings.audioDevice &&
-                        (settings.audioDevice.includes('CABLE Input') ||
-                          settings.audioDevice.toLowerCase().includes('blackhole') ||
-                          settings.audioDevice.toLowerCase().includes('micyou')))
-                    "
-                    class="text-xs text-green-400 font-medium"
+                  <!-- Status / Routing Active -->
+                  <div
+                    v-if="isVirtualDeviceSelected"
+                    class="flex items-center gap-1.5 text-xs text-green-400 font-medium"
                   >
-                    {{ $t('settings.audioOutput.routingActive') }}
-                  </p>
+                    <CheckCircle2 class="w-3.5 h-3.5 shrink-0" />
+                    <span>{{ $t('settings.audioOutput.routingActive') }}</span>
+                  </div>
+
+                  <!-- Explicit Physical Speaker Warning -->
+                  <div
+                    v-else-if="isExplicitPhysicalDevice"
+                    class="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 space-y-1 text-xs text-amber-400"
+                  >
+                    <div class="flex items-center gap-1.5 font-bold">
+                      <AlertTriangle class="w-4 h-4 shrink-0 text-amber-400" />
+                      <span>{{ $t('settings.audioOutput.physicalWarningTitle') }}</span>
+                    </div>
+                    <p class="text-on-surface-variant leading-relaxed">
+                      {{ $t('settings.audioOutput.physicalWarningDesc') }}
+                    </p>
+                  </div>
+
+                  <!-- Auto Fallback to Physical Speaker Warning -->
+                  <div
+                    v-else-if="isAutoFallbackToPhysical"
+                    class="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 space-y-1 text-xs text-amber-400"
+                  >
+                    <div class="flex items-center gap-1.5 font-bold">
+                      <AlertTriangle class="w-4 h-4 shrink-0 text-amber-400" />
+                      <span>{{ $t('settings.audioOutput.noVirtualDeviceTitle') }}</span>
+                    </div>
+                    <p class="text-on-surface-variant leading-relaxed">
+                      {{ $t('settings.audioOutput.noVirtualDeviceDesc') }}
+                    </p>
+                  </div>
                 </div>
 
                 <!-- Virtual Audio Device Management (macOS: BlackHole, Windows: VB-Cable) -->
@@ -1470,6 +1527,8 @@ import {
   Ban,
   Puzzle,
   LayoutPanelTop,
+  AlertTriangle,
+  CheckCircle2,
 } from '@lucide/vue';
 import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
@@ -1541,9 +1600,24 @@ const closeBehavior = useStorage<'ask' | 'hide' | 'exit' | null>(
   null,
 );
 const startMinimized = useStorage<boolean>('micyou_start_minimized', false);
+const floatingWindowEnabled = useStorage<boolean>('micyou_floating_window_enabled', false);
 const notificationsEnabled = useStorage<boolean>('micyou_notifications', true);
 const autoStream = useStorage<boolean>('micyou_auto_stream', false);
 const autostartEnabled = ref(false);
+
+const toggleFloatingWindow = async () => {
+  const newVal = !floatingWindowEnabled.value;
+  floatingWindowEnabled.value = newVal;
+  try {
+    if (newVal) {
+      await invoke('show_floating_window');
+    } else {
+      await invoke('hide_floating_window');
+    }
+  } catch (e) {
+    console.error('toggle_floating_window failed:', e);
+  }
+};
 
 const applyCustomColor = (color: { h: number; s: number; l: number }) => {
   customH.value = color.h;
@@ -1890,6 +1964,34 @@ const isLinux =
   typeof navigator !== 'undefined' &&
   /Linux/.test(navigator.platform || navigator.userAgent) &&
   !/Android/.test(navigator.userAgent);
+const isWindows = !isMacOS && !isLinux;
+
+const isVirtualDeviceSelected = computed(() => {
+  if (!settings.audioDevice || settings.audioDevice === 'auto') {
+    if (isWindows) return hasVBCable.value;
+    if (isMacOS) return hasBlackHole.value;
+    if (isLinux) return pipewireStatus.value.available;
+    return false;
+  }
+  const dev = settings.audioDevice.toLowerCase();
+  return (
+    dev.includes('cable input') ||
+    dev.includes('cable') ||
+    dev.includes('blackhole') ||
+    dev.includes('micyou')
+  );
+});
+
+const isExplicitPhysicalDevice = computed(() => {
+  if (!settings.audioDevice || settings.audioDevice === 'auto') return false;
+  return !isVirtualDeviceSelected.value;
+});
+
+const isAutoFallbackToPhysical = computed(() => {
+  if (settings.audioDevice && settings.audioDevice !== 'auto') return false;
+  return !isVirtualDeviceSelected.value;
+});
+
 const isAecSupported = !isMacOS;
 const aecRuntimeAvailable = ref(true);
 const pipewireStatus = ref<{ available: boolean; setup: boolean; device_exists: boolean }>({

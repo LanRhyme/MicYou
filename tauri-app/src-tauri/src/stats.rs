@@ -14,7 +14,7 @@
  */
 
 use serde::Serialize;
-use std::sync::atomic::{AtomicI64, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering};
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +37,7 @@ pub struct NetworkStats {
     pub tcp_connected_time_ms: AtomicU64,
     pub bitrate: AtomicU32,
     pub sample_rate: AtomicU32,
+    pub is_muted: AtomicBool,
 }
 
 impl Default for NetworkStats {
@@ -50,6 +51,7 @@ impl Default for NetworkStats {
             tcp_connected_time_ms: AtomicU64::new(0),
             bitrate: AtomicU32::new(0),
             sample_rate: AtomicU32::new(0),
+            is_muted: AtomicBool::new(false),
         }
     }
 }
@@ -98,6 +100,13 @@ impl NetworkStats {
     }
     pub fn get_tcp_connected_time(&self) -> u64 {
         self.tcp_connected_time_ms.load(Ordering::Relaxed)
+    }
+
+    pub fn set_muted(&self, muted: bool) {
+        self.is_muted.store(muted, Ordering::Relaxed);
+    }
+    pub fn is_muted(&self) -> bool {
+        self.is_muted.load(Ordering::Relaxed)
     }
 
     pub fn set_audio_info(&self, sample_rate: u32, bitrate: u32) {

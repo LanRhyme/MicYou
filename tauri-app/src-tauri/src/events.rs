@@ -68,9 +68,7 @@ impl ServerEvents for TauriEventSink {
         let _ = self.0.emit("mute-state-changed", is_muted);
     }
     fn audio_level(&self, level: u32) {
-        if let Some(main_window) = self.0.get_webview_window("main") {
-            let _ = main_window.emit("audio-level", level);
-        }
+        let _ = self.0.emit("audio-level", level);
     }
     fn audio_spectrum(&self, raw: Vec<f32>, processed: Vec<f32>) {
         if let Some(main_window) = self.0.get_webview_window("main") {
