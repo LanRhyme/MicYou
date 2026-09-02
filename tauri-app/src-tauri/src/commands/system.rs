@@ -1333,14 +1333,6 @@ pub const FLOATING_WINDOW_LABEL: &str = "floating-window";
 #[tauri::command]
 pub fn show_floating_window(app: AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
-        #[cfg(target_os = "linux")]
-        {
-            if let Ok(gtk_win) = win.gtk_window() {
-                use gtk::prelude::*;
-                gtk_win.show_all();
-                return Ok(());
-            }
-        }
         let _ = win.unminimize();
         win.show().map_err(|e| e.to_string())?;
         return Ok(());
@@ -1352,45 +1344,26 @@ pub fn show_floating_window(app: AppHandle) -> Result<(), String> {
         tauri::WebviewUrl::App("index.html#/floating-window".into()),
     )
     .title("MicYou Overlay")
-    .inner_size(36.0, 36.0)
+    .inner_size(44.0, 44.0)
     .min_inner_size(36.0, 36.0)
     .decorations(false)
     .transparent(true)
     .always_on_top(true)
     .skip_taskbar(true)
     .resizable(false)
-    .shadow(false)
-    .visible(false);
+    .shadow(false);
 
     let win = builder.build().map_err(|e| e.to_string())?;
 
     // Default position at top-right corner of current monitor
-    let (initial_x, initial_y) = if let Ok(Some(monitor)) = win.current_monitor() {
+    if let Ok(Some(monitor)) = win.current_monitor() {
         let size = monitor.size();
         let scale = monitor.scale_factor();
-        let x = ((size.width as f64 / scale) - 96.0).max(60.0) as i32;
-        let y = 60i32;
-        (x, y)
-    } else {
-        (100, 60)
-    };
-
-    LAYER_MARGIN_LEFT.store(initial_x, std::sync::atomic::Ordering::Relaxed);
-    LAYER_MARGIN_TOP.store(initial_y, std::sync::atomic::Ordering::Relaxed);
-
-    #[cfg(target_os = "linux")]
-    {
-        if let Ok(gtk_win) = win.gtk_window() {
-            let used_layer_shell = crate::layer_shell::linux_layer_shell::setup_layer_shell(&gtk_win, initial_y, initial_x);
-            if !used_layer_shell {
-                use gtk::prelude::*;
-                gtk_win.show_all();
-            }
-            return Ok(());
-        }
+        let x = ((size.width as f64 / scale) - 96.0).max(60.0);
+        let y = 60.0;
+        let _ = win.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
     }
 
-    let _ = win.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(initial_x as f64, initial_y as f64)));
     win.show().map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -1398,14 +1371,6 @@ pub fn show_floating_window(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn hide_floating_window(app: AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
-        #[cfg(target_os = "linux")]
-        {
-            if let Ok(gtk_win) = win.gtk_window() {
-                use gtk::prelude::*;
-                gtk_win.hide();
-                return Ok(());
-            }
-        }
         win.hide().map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -1437,30 +1402,9 @@ pub fn is_floating_window_visible(app: AppHandle) -> Result<bool, String> {
     }
 }
 
-static LAYER_MARGIN_TOP: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(60);
-static LAYER_MARGIN_LEFT: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(100);
-
 #[tauri::command]
 pub fn move_floating_window_delta(app: AppHandle, delta_x: f64, delta_y: f64) -> Result<(), String> {
     if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
-        #[cfg(target_os = "linux")]
-        {
-            if let Ok(gtk_win) = win.gtk_window() {
-                let current_top = LAYER_MARGIN_TOP.load(std::sync::atomic::Ordering::Relaxed);
-                let current_left = LAYER_MARGIN_LEFT.load(std::sync::atomic::Ordering::Relaxed);
-
-                let new_top = (current_top as f64 + delta_y).round().max(0.0) as i32;
-                let new_left = (current_left as f64 + delta_x).round().max(0.0) as i32;
-
-                LAYER_MARGIN_TOP.store(new_top, std::sync::atomic::Ordering::Relaxed);
-                LAYER_MARGIN_LEFT.store(new_left, std::sync::atomic::Ordering::Relaxed);
-
-                if crate::layer_shell::linux_layer_shell::update_layer_shell_margin(&gtk_win, new_top, new_left) {
-                    return Ok(());
-                }
-            }
-        }
-
         if let Ok(pos) = win.outer_position() {
             let _ = win.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(
                 pos.x + delta_x as i32,

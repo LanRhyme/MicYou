@@ -28,8 +28,6 @@ pub mod network;
 pub mod opus;
 #[cfg(target_os = "linux")]
 pub mod pipewire;
-#[cfg(target_os = "linux")]
-pub mod layer_shell;
 pub mod plugins;
 pub mod sound_player;
 pub mod server;
