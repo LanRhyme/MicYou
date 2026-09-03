@@ -4,6 +4,29 @@
 
 ---
 
+## Issue #325
+
+- **标题**: [Bug]: 手机端 -- 删除IP 的时候，删除到最后一个数字，删除不掉，而且光标会跳到数字前面
+- **链接**: https://github.com/LanRhyme/MicYou/issues/325
+- **类型**: Bug
+- **影响平台**: Android
+- **原因分析**: `AudioStreamViewModel.setIp` 在接收到空输入时使用了 `ip.ifBlank { _uiState.value.ipAddress }`，导致用户清空输入框时状态值被重置为删除前的最后一位字符，使得 Compose BasicTextField 内部状态检测到值未变，光标被迫跳至首位
+- **修复方案**:
+  1. `setIp` 允许空字符串，正常更新 `_uiState` 中的 `ipAddress` 为用户输入（包括空字符串），使输入框可完整清空
+  2. 仅在 `ip.isNotBlank()` 时持久化保存至 `settings`，避免持久化空字符串
+  3. `startStreamInternal` 维持原有的空 IP 错误提示与拦截机制
+- **涉及文件**:
+  - `composeApp/src/main/kotlin/com/lanrhyme/micyou/viewmodel/AudioStreamViewModel.kt`
+- **状态**: 待验证 / 待关闭
+- **建议关闭留言**:
+  ```markdown
+  Fixed in branch `fix/issue-fixes`
+  - Allowed blank string in `AudioStreamViewModel.setIp` so users can delete all characters in the IP input field
+  - Persist to preferences only when non-blank
+  ```
+
+---
+
 ## Issue #323
 
 - **标题**: [Bug]: Transparent window on launch (fixed with WEBKIT_DISABLE_DMABUF_RENDERER=1)
