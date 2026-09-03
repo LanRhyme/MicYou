@@ -119,8 +119,70 @@
   ```markdown
   Fixed in branch `fix/issue-fixes`
   - Restored the legacy v1 circular floating mic window / overlay with crisp SVG visualizer, rotating waveform bars, and mute slash animation
-  - Added Linux Wayland Layer Shell support (overlay layer)
   - Added click-to-mute, dragging, and double-click to focus main window
   - Added Windows Firewall TCP & UDP one-click rule addition
   - Added Desktop Floating Window toggle in Settings with multi-language support
   ```
+
+---
+
+## Issue #308
+
+- **标题**: 将插件系统从Tauri GUI 的专属生命周期解耦，使CLI与TUI能使用插件系统
+- **链接**: https://github.com/LanRhyme/MicYou/issues/308
+- **类型**: Feat
+- **影响平台**: All platforms (CLI / TUI / Desktop Core)
+- **原因分析**: 插件生命周期过去绑定在 GUI 运行时中，CLI 与 TUI 作为独立前端无法复用已启用的插件，导致插件生态在非 GUI 场景下失效
+- **修复方案**:
+  1. 在 `PluginHost` 中新增 `load_saved_plugins()` 方法，自动扫描并加载启用状态的插件
+  2. 在 `start_server_inner` 统一启动流中调用 `load_saved_plugins()`，使 GUI、CLI 和 TUI 均具备插件运行能力
+  3. 在 `micyou-cli` 中新增 `plugin enable` 与 `plugin disable` 子命令，支持命令行管理
+- **涉及文件**:
+  - `tauri-app/src-tauri/src/plugins.rs`
+  - `tauri-app/src-tauri/src/commands/system.rs`
+  - `tauri-app/crates/micyou-cli/src/plugin_cmds.rs`
+- **状态**: 待验证 / 待关闭
+
+---
+
+## Issue #309
+
+- **标题**: 扩展插件能力边界：引入控制面信令的观察与拦截机制
+- **链接**: https://github.com/LanRhyme/MicYou/issues/309
+- **类型**: Feat
+- **影响平台**: All platforms (Plugin Host / C ABI / WASM)
+- **原因分析**: 插件缺乏对宿主控制面（静音、耳返监听、DSP 设置等）的系统性读写能力与一致的变更感知事件
+- **修复方案**:
+  1. 引入成对的控制面读写接口（`get_muted` / `set_muted`、`get_monitoring` / `set_monitoring`、`get_dsp_settings` / `set_dsp_settings`），严格区分 `control.observe` 与 `control.intercept` 权限
+  2. 扩展 C ABI（`mpl_host_api_t`）与 WASM Linker，规范 Strict Append-Only 布局与 ABI 版本控制策略（`MPL_ABI_VERSION = 1`, `MPL_API_VERSION = 2`）
+  3. 扩充 `MonitoringChanged` 事件，形成标准化的控制面事件总线
+  4. 宿主通过 `ControlPlaneHandlers` 全面贯通音频引擎、网络信令与配置持久化
+- **涉及文件**:
+  - `tauri-app/crates/micyou-plugin/include/micyou_plugin_abi.h`
+  - `tauri-app/crates/micyou-plugin/src/abi.rs`
+  - `tauri-app/crates/micyou-plugin/src/host.rs`
+  - `tauri-app/crates/micyou-plugin/src/wasm.rs`
+  - `tauri-app/crates/micyou-plugin/src/plugin.rs`
+  - `tauri-app/crates/micyou-plugin/src/native.rs`
+  - `tauri-app/src-tauri/src/plugins.rs`
+  - `tauri-app/src-tauri/src/commands/system.rs`
+- **状态**: 待验证 / 待关闭
+
+---
+
+## Issue #310
+
+- **标题**: 优化插件开发日志体验：支持文本选中、崩溃日志落盘与官方日志预制件
+- **链接**: https://github.com/LanRhyme/MicYou/issues/310
+- **类型**: Feat
+- **影响平台**: Desktop GUI / Plugin DX
+- **原因分析**: 插件运行日志排查困难，缺少对日志物理路径的直接查看、一键打开与文件导出能力
+- **修复方案**:
+  1. 后端新增 `get_log_path`、`get_log_content` 和 `open_log_dir` 命令
+  2. 设置页面展示日志实际物理路径，支持一键打开目录、复制路径、复制内容与导出日志文件
+  3. 补齐全套 7 种语言的多语言翻译
+- **涉及文件**:
+  - `tauri-app/src-tauri/src/commands/about.rs`
+  - `tauri-app/src/features/settings/components/SettingsDialog.vue`
+  - `tauri-app/src/shared/locales/*.json`
+- **状态**: 待验证 / 待关闭
