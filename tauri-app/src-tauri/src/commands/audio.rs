@@ -194,6 +194,7 @@ pub async fn set_monitoring(
         .is_monitoring
         .store(enabled, std::sync::atomic::Ordering::Relaxed);
     state.audio_output.set_monitoring(enabled);
+    state.plugins.broadcast_event(&micyou_plugin::PluginEvent::MonitoringChanged { enabled });
     let _ = app.emit("monitoring-enabled-changed", enabled);
     Ok(())
 }

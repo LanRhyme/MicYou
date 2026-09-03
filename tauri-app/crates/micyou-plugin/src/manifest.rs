@@ -25,9 +25,12 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+/// Minimum supported Host API version.
+pub const MIN_SUPPORTED_API_VERSION: u32 = 1;
+
 /// Host API version this plugin system speaks. Plugins declare the version
 /// they were built against; the host rejects incompatible ones.
-pub const HOST_API_VERSION: u32 = 1;
+pub const HOST_API_VERSION: u32 = 2;
 
 /// Plugin directory layout: the manifest file name.
 pub const MANIFEST_FILE_NAME: &str = "plugin.json";
@@ -400,7 +403,7 @@ impl PluginManifest {
         if self.entry.is_empty() {
             return Err(PluginError::Validation("entry must not be empty".into()));
         }
-        if self.api_version != HOST_API_VERSION {
+        if self.api_version < MIN_SUPPORTED_API_VERSION || self.api_version > HOST_API_VERSION {
             return Err(PluginError::ApiVersionMismatch {
                 plugin: self.api_version,
                 host: HOST_API_VERSION,
@@ -541,7 +544,7 @@ mod tests {
         assert_eq!(manifest.id, "dev.micyou.eq");
         assert_eq!(manifest.runtime, RuntimeKind::Native);
         assert_eq!(manifest.kind, PluginKind::Dsp);
-        assert_eq!(manifest.api_version, HOST_API_VERSION);
+        assert_eq!(manifest.api_version, 1);
         assert_eq!(manifest.capabilities, vec!["dsp.node", "config.read"]);
         assert_eq!(
             manifest.dsp.as_ref().unwrap().insert_after.as_deref(),
@@ -593,7 +596,7 @@ mod tests {
             result,
             PluginError::ApiVersionMismatch {
                 plugin: 99,
-                host: 1
+                host: HOST_API_VERSION
             }
         ));
     }

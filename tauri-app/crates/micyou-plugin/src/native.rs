@@ -79,7 +79,9 @@ impl NativePlugin {
         }
 
         unsafe {
-            if manifest.api_version != crate::manifest::HOST_API_VERSION {
+            if manifest.api_version < crate::manifest::MIN_SUPPORTED_API_VERSION
+                || manifest.api_version > crate::manifest::HOST_API_VERSION
+            {
                 return Err(PluginError::ApiVersionMismatch {
                     plugin: manifest.api_version,
                     host: crate::manifest::HOST_API_VERSION,
@@ -106,7 +108,9 @@ impl NativePlugin {
                     info.abi_version
                 )));
             }
-            if info.api_version != crate::manifest::HOST_API_VERSION {
+            if info.api_version < crate::manifest::MIN_SUPPORTED_API_VERSION
+                || info.api_version > crate::manifest::HOST_API_VERSION
+            {
                 return Err(PluginError::ApiVersionMismatch {
                     plugin: info.api_version,
                     host: crate::manifest::HOST_API_VERSION,
@@ -235,6 +239,7 @@ impl PluginRuntime for NativePlugin {
             PluginEvent::DeviceConnected { .. } => "device_connected",
             PluginEvent::DeviceDisconnected => "device_disconnected",
             PluginEvent::MuteChanged { .. } => "mute_changed",
+            PluginEvent::MonitoringChanged { .. } => "monitoring_changed",
             PluginEvent::DspSettingsChanged => "dsp_settings_changed",
             PluginEvent::StateChanged { .. } => "state_changed",
         })

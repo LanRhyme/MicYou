@@ -37,6 +37,7 @@ pub trait ServerEvents: Send + Sync + 'static {
     fn web_client_count(&self, count: u32);
     fn install_progress(&self, message: String);
     fn aec_status_changed(&self, status: AecStatus);
+    fn monitoring_state_changed(&self, _enabled: bool) {}
 }
 
 #[derive(serde::Serialize, Clone, Debug)]
@@ -87,5 +88,9 @@ impl ServerEvents for TauriEventSink {
 
     fn aec_status_changed(&self, status: AecStatus) {
         let _ = self.0.emit("aec-status-changed", status);
+    }
+
+    fn monitoring_state_changed(&self, enabled: bool) {
+        let _ = self.0.emit("monitoring-enabled-changed", enabled);
     }
 }

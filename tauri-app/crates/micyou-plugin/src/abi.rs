@@ -171,6 +171,16 @@ pub struct mpl_host_api_t {
         icon: *const c_char,
     ) -> mpl_result_t,
     pub set_muted: unsafe extern "C" fn(ctx: *mut c_void, muted: u32) -> mpl_result_t,
+    pub get_muted: unsafe extern "C" fn(ctx: *mut c_void, out_muted: *mut u32) -> mpl_result_t,
+    pub set_monitoring: unsafe extern "C" fn(ctx: *mut c_void, enabled: u32) -> mpl_result_t,
+    pub get_monitoring: unsafe extern "C" fn(ctx: *mut c_void, out_enabled: *mut u32) -> mpl_result_t,
+    pub get_dsp_settings: unsafe extern "C" fn(
+        ctx: *mut c_void,
+        out: *mut c_char,
+        out_size: *mut u32,
+    ) -> mpl_result_t,
+    pub set_dsp_settings:
+        unsafe extern "C" fn(ctx: *mut c_void, settings_json: *const c_char) -> mpl_result_t,
 }
 
 // The table travels inside `NativePlugin` which is `Send`; the raw `ctx`
@@ -671,6 +681,97 @@ unsafe extern "C" fn shim_set_muted(ctx: *mut c_void, muted: u32) -> mpl_result_
     }
 }
 
+unsafe extern "C" fn shim_get_muted(ctx: *mut c_void, out_muted: *mut u32) -> mpl_result_t {
+    unsafe {
+        let ctx = &*(ctx as *const NativeHostCtx);
+        if !has_capability(ctx, crate::manifest::capabilities::CONTROL_OBSERVE) {
+            return mpl_result_t::MPL_ERR_PERMISSION;
+        }
+        let Some(out) = out_muted.as_mut() else {
+            return mpl_result_t::MPL_ERR_INVALID_ARG;
+        };
+        match ctx.host.get_muted() {
+            Ok(muted) => {
+                *out = if muted { 1 } else { 0 };
+                mpl_result_t::MPL_OK
+            }
+            Err(_) => mpl_result_t::MPL_ERR_RUNTIME,
+        }
+    }
+}
+
+unsafe extern "C" fn shim_set_monitoring(ctx: *mut c_void, enabled: u32) -> mpl_result_t {
+    unsafe {
+        let ctx = &*(ctx as *const NativeHostCtx);
+        if !has_capability(ctx, crate::manifest::capabilities::CONTROL_INTERCEPT) {
+            return mpl_result_t::MPL_ERR_PERMISSION;
+        }
+        match ctx.host.set_monitoring(enabled != 0) {
+            Ok(()) => mpl_result_t::MPL_OK,
+            Err(_) => mpl_result_t::MPL_ERR_RUNTIME,
+        }
+    }
+}
+
+unsafe extern "C" fn shim_get_monitoring(ctx: *mut c_void, out_enabled: *mut u32) -> mpl_result_t {
+    unsafe {
+        let ctx = &*(ctx as *const NativeHostCtx);
+        if !has_capability(ctx, crate::manifest::capabilities::CONTROL_OBSERVE) {
+            return mpl_result_t::MPL_ERR_PERMISSION;
+        }
+        let Some(out) = out_enabled.as_mut() else {
+            return mpl_result_t::MPL_ERR_INVALID_ARG;
+        };
+        match ctx.host.get_monitoring() {
+            Ok(enabled) => {
+                *out = if enabled { 1 } else { 0 };
+                mpl_result_t::MPL_OK
+            }
+            Err(_) => mpl_result_t::MPL_ERR_RUNTIME,
+        }
+    }
+}
+
+unsafe extern "C" fn shim_get_dsp_settings(
+    ctx: *mut c_void,
+    out: *mut c_char,
+    out_size: *mut u32,
+) -> mpl_result_t {
+    unsafe {
+        let ctx = &*(ctx as *const NativeHostCtx);
+        if !has_capability(ctx, crate::manifest::capabilities::CONTROL_OBSERVE) {
+            return mpl_result_t::MPL_ERR_PERMISSION;
+        }
+        let (Some(out), Some(out_size)) = (out.as_mut(), out_size.as_mut()) else {
+            return mpl_result_t::MPL_ERR_INVALID_ARG;
+        };
+        match ctx.host.get_dsp_settings() {
+            Ok(json) => write_json_to_buf(&json, out, out_size),
+            Err(_) => mpl_result_t::MPL_ERR_RUNTIME,
+        }
+    }
+}
+
+unsafe extern "C" fn shim_set_dsp_settings(
+    ctx: *mut c_void,
+    settings_json: *const c_char,
+) -> mpl_result_t {
+    unsafe {
+        let ctx = &*(ctx as *const NativeHostCtx);
+        if !has_capability(ctx, crate::manifest::capabilities::CONTROL_INTERCEPT) {
+            return mpl_result_t::MPL_ERR_PERMISSION;
+        }
+        if settings_json.is_null() {
+            return mpl_result_t::MPL_ERR_INVALID_ARG;
+        }
+        let json_str = CStr::from_ptr(settings_json).to_string_lossy();
+        match ctx.host.set_dsp_settings(&json_str) {
+            Ok(()) => mpl_result_t::MPL_OK,
+            Err(_) => mpl_result_t::MPL_ERR_RUNTIME,
+        }
+    }
+}
+
 unsafe extern "C" fn shim_clipboard_write(ctx: *mut c_void, text: *const c_char) -> mpl_result_t {
     unsafe {
         let ctx = &*(ctx as *const NativeHostCtx);
@@ -772,6 +873,11 @@ pub fn host_table_for(ctx: Arc<NativeHostCtx>) -> mpl_host_api_t {
         clipboard_write: shim_clipboard_write,
         set_panel_icon: shim_set_panel_icon,
         set_muted: shim_set_muted,
+        get_muted: shim_get_muted,
+        set_monitoring: shim_set_monitoring,
+        get_monitoring: shim_get_monitoring,
+        get_dsp_settings: shim_get_dsp_settings,
+        set_dsp_settings: shim_set_dsp_settings,
     }
 }
 

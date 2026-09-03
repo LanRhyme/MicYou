@@ -497,36 +497,121 @@ pub async fn start_server_inner(
         }
     }
 
-    // Wire mute control handler from plugins into the server state + transport
+    // Wire control plane handlers from plugins into the server state + transport
     let stats_clone = state.network_stats.clone();
     let events_clone = events.clone();
     let active_conn_clone = state.active_connection.clone();
     let plugins_clone = state.plugins.clone();
-    state.plugins.set_mute_handler(std::sync::Arc::new(move |muted: bool| {
-        stats_clone.set_muted(muted);
-        events_clone.mute_state_changed(muted);
-        plugins_clone.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted });
-        let mute_msg = micyou_protocol::micyou::MessageWrapper {
-            audio_packet: None,
-            connect: None,
-            mute: Some(micyou_protocol::micyou::MuteMessage { is_muted: Some(muted) }),
-            ping: None,
-            pong: None,
-            plugin_message: None,
-        };
-        let tx = {
-            let lock = active_conn_clone.try_lock();
-            if let Ok(guard) = lock {
-                guard.as_ref().map(|conn| conn.sender.clone())
-            } else {
-                None
+    let is_monitoring_clone = state.is_monitoring.clone();
+    let audio_output_clone = state.audio_output.clone();
+    let dsp_settings_clone = state.dsp_settings.clone();
+
+    state.plugins.set_control_handlers(crate::plugins::ControlPlaneHandlers {
+        get_muted: Some(std::sync::Arc::new({
+            let stats = stats_clone.clone();
+            move || Ok(stats.is_muted())
+        })),
+        set_muted: Some(std::sync::Arc::new({
+            let stats = stats_clone.clone();
+            let events = events_clone.clone();
+            let conn = active_conn_clone.clone();
+            let plugins = plugins_clone.clone();
+            move |muted: bool| {
+                stats.set_muted(muted);
+                events.mute_state_changed(muted);
+                plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted });
+                let mute_msg = micyou_protocol::micyou::MessageWrapper {
+                    audio_packet: None,
+                    connect: None,
+                    mute: Some(micyou_protocol::micyou::MuteMessage { is_muted: Some(muted) }),
+                    ping: None,
+                    pong: None,
+                    plugin_message: None,
+                };
+                let tx = {
+                    let lock = conn.try_lock();
+                    if let Ok(guard) = lock {
+                        guard.as_ref().map(|conn| conn.sender.clone())
+                    } else {
+                        None
+                    }
+                };
+                if let Some(tx) = tx {
+                    let _ = tx.try_send(mute_msg);
+                }
+                Ok(())
             }
-        };
-        if let Some(tx) = tx {
-            let _ = tx.try_send(mute_msg);
-        }
-        Ok(())
-    }));
+        })),
+        get_monitoring: Some(std::sync::Arc::new({
+            let mon = is_monitoring_clone.clone();
+            move || Ok(mon.load(std::sync::atomic::Ordering::Relaxed))
+        })),
+        set_monitoring: Some(std::sync::Arc::new({
+            let mon = is_monitoring_clone.clone();
+            let output = audio_output_clone.clone();
+            let events = events_clone.clone();
+            let plugins = plugins_clone.clone();
+            move |enabled: bool| {
+                mon.store(enabled, std::sync::atomic::Ordering::Relaxed);
+                output.set_monitoring(enabled);
+                events.monitoring_state_changed(enabled);
+                plugins.broadcast_event(&micyou_plugin::PluginEvent::MonitoringChanged { enabled });
+                Ok(())
+            }
+        })),
+        get_dsp_settings: Some(std::sync::Arc::new({
+            let dsp = dsp_settings_clone.clone();
+            move || {
+                let guard = dsp.read().map_err(|_| {
+                    micyou_plugin::PluginError::Runtime("dsp settings lock error".into())
+                })?;
+                serde_json::to_string(&*guard).map_err(|e| {
+                    micyou_plugin::PluginError::Runtime(format!("dsp serialize error: {e}"))
+                })
+            }
+        })),
+        set_dsp_settings: Some(std::sync::Arc::new({
+            let dsp = dsp_settings_clone.clone();
+            let plugins = plugins_clone.clone();
+            move |settings_json: &str| {
+                let current = {
+                    let guard = dsp.read().map_err(|_| {
+                        micyou_plugin::PluginError::Runtime("dsp settings lock error".into())
+                    })?;
+                    guard.clone()
+                };
+                let mut val = serde_json::to_value(&current).map_err(|e| {
+                    micyou_plugin::PluginError::Validation(format!("serialize current dsp: {e}"))
+                })?;
+                if let Ok(patch_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(settings_json) {
+                    if let Some(obj) = val.as_object_mut() {
+                        for (k, v) in patch_map {
+                            obj.insert(k, v);
+                        }
+                    }
+                } else if let Ok(direct) = serde_json::from_str::<micyou_audio::dsp::AudioDspSettings>(settings_json) {
+                    val = serde_json::to_value(&direct).map_err(|e| {
+                        micyou_plugin::PluginError::Validation(format!("serialize direct dsp: {e}"))
+                    })?;
+                } else {
+                    return Err(micyou_plugin::PluginError::Validation("invalid dsp json".into()));
+                }
+                let mut updated: micyou_audio::dsp::AudioDspSettings = serde_json::from_value(val).map_err(|e| {
+                    micyou_plugin::PluginError::Validation(format!("parse updated dsp: {e}"))
+                })?;
+                updated.normalize();
+                {
+                    let mut guard = dsp.write().map_err(|_| {
+                        micyou_plugin::PluginError::Runtime("dsp settings lock error".into())
+                    })?;
+                    *guard = updated.clone();
+                }
+                let _ = crate::app_config::save_dsp_settings(&updated);
+                plugins.broadcast_event(&micyou_plugin::PluginEvent::DspSettingsChanged);
+                Ok(())
+            }
+        })),
+    });
 
     // Scan & load active plugins across GUI, CLI and TUI
     state.plugins.load_saved_plugins();
