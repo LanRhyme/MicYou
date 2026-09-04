@@ -137,15 +137,7 @@
   - `tauri-app/src/shared/components/UdpWarningDialog.vue`
   - `tauri-app/src/App.vue`
   - `tauri-app/src/shared/locales/*.json`
-- **状态**: 待验证 / 待关闭
-- **建议关闭留言**:
-  ```markdown
-  Fixed in branch `fix/issue-fixes`
-  - Restored the legacy v1 circular floating mic window / overlay with crisp SVG visualizer, rotating waveform bars, and mute slash animation
-  - Added click-to-mute, dragging, and double-click to focus main window
-  - Added Windows Firewall TCP & UDP one-click rule addition
-  - Added Desktop Floating Window toggle in Settings with multi-language support
-  ```
+- **状态**: 挂起 / 暂不关闭（悬浮窗功能由于多平台合成器兼容性与交互问题暂行禁用，待后续版本进一步重构完善，本次 PR 不自动关闭）
 
 ---
 

@@ -242,39 +242,6 @@
                   </button>
                 </div>
 
-                <!-- Desktop Floating Window -->
-                <div
-                  class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
-                >
-                  <div>
-                    <h4 class="font-bold text-on-surface">{{ $t('floatingWindow.title') }}</h4>
-                    <p class="text-xs text-on-surface-variant">{{ $t('floatingWindow.desc') }}</p>
-                  </div>
-                  <button
-                    @click="toggleFloatingWindow"
-                    class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-                    :class="
-                      floatingWindowEnabled
-                        ? 'border-primary bg-primary'
-                        : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
-                    "
-                  >
-                    <div
-                      class="relative flex items-center justify-center transition-transform duration-300 ease-out"
-                      :class="floatingWindowEnabled ? 'translate-x-[26px]' : 'translate-x-[4px]'"
-                    >
-                      <span
-                        class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
-                        :class="
-                          floatingWindowEnabled
-                            ? 'h-6 w-6 bg-on-primary'
-                            : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
-                        "
-                      />
-                    </div>
-                  </button>
-                </div>
-
                 <!-- Notifications -->
                 <div
                   class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 flex items-center justify-between shadow-sm border border-white/5"
@@ -1635,24 +1602,9 @@ const closeBehavior = useStorage<'ask' | 'hide' | 'exit' | null>(
   null,
 );
 const startMinimized = useStorage<boolean>('micyou_start_minimized', false);
-const floatingWindowEnabled = useStorage<boolean>('micyou_floating_window_enabled', false);
 const notificationsEnabled = useStorage<boolean>('micyou_notifications', true);
 const autoStream = useStorage<boolean>('micyou_auto_stream', false);
 const autostartEnabled = ref(false);
-
-const toggleFloatingWindow = async () => {
-  const newVal = !floatingWindowEnabled.value;
-  floatingWindowEnabled.value = newVal;
-  try {
-    if (newVal) {
-      await invoke('show_floating_window');
-    } else {
-      await invoke('hide_floating_window');
-    }
-  } catch (e) {
-    console.error('toggle_floating_window failed:', e);
-  }
-};
 
 const applyCustomColor = (color: { h: number; s: number; l: number }) => {
   customH.value = color.h;

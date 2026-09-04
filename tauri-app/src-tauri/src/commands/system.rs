@@ -1416,66 +1416,25 @@ pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
 pub const FLOATING_WINDOW_LABEL: &str = "floating-window";
 
 #[tauri::command]
-pub fn show_floating_window(app: AppHandle) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
-        let _ = win.unminimize();
-        win.show().map_err(|e| e.to_string())?;
-        return Ok(());
-    }
-
-    let builder = tauri::WebviewWindowBuilder::new(
-        &app,
-        FLOATING_WINDOW_LABEL,
-        tauri::WebviewUrl::App("index.html#/floating-window".into()),
-    )
-    .title("MicYou Overlay")
-    .inner_size(44.0, 44.0)
-    .min_inner_size(36.0, 36.0)
-    .decorations(false)
-    .transparent(true)
-    .always_on_top(true)
-    .skip_taskbar(true)
-    .resizable(false)
-    .shadow(false);
-
-    let win = builder.build().map_err(|e| e.to_string())?;
-
-    // Default position at top-right corner of current monitor
-    if let Ok(Some(monitor)) = win.current_monitor() {
-        let size = monitor.size();
-        let scale = monitor.scale_factor();
-        let x = ((size.width as f64 / scale) - 96.0).max(60.0);
-        let y = 60.0;
-        let _ = win.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)));
-    }
-
-    win.show().map_err(|e| e.to_string())?;
+pub fn show_floating_window(_app: AppHandle) -> Result<(), String> {
+    // Temporarily disabled (Issue #307 postponed)
+    log::info!("Floating window is temporarily disabled");
     Ok(())
 }
 
 #[tauri::command]
 pub fn hide_floating_window(app: AppHandle) -> Result<(), String> {
     if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
-        win.hide().map_err(|e| e.to_string())?;
+        let _ = win.hide();
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn toggle_floating_window(app: AppHandle) -> Result<bool, String> {
-    if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
-        if win.is_visible().unwrap_or(false) {
-            win.hide().map_err(|e| e.to_string())?;
-            return Ok(false);
-        } else {
-            let _ = win.unminimize();
-            win.show().map_err(|e| e.to_string())?;
-            return Ok(true);
-        }
-    }
-
-    show_floating_window(app)?;
-    Ok(true)
+pub fn toggle_floating_window(_app: AppHandle) -> Result<bool, String> {
+    // Temporarily disabled (Issue #307 postponed)
+    log::info!("Floating window is temporarily disabled");
+    Ok(false)
 }
 
 #[tauri::command]

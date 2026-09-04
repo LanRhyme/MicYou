@@ -164,19 +164,10 @@ useTray(
   streamingRef,
 );
 
-const floatingWindowEnabled = useStorage<boolean>('micyou_floating_window_enabled', false);
-
 // Auto-hide window on startup if start minimized is configured in preferences
 onMounted(async () => {
   if (win.isHidden.value) {
     void win.hideMainWindow();
-  }
-  if (floatingWindowEnabled.value) {
-    try {
-      await invoke('show_floating_window');
-    } catch (e) {
-      console.error('Failed to show floating window on startup:', e);
-    }
   }
 });
 
