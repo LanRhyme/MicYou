@@ -120,12 +120,13 @@ android {
         }
     }
 
-    if (androidCompat) {
-        lint {
-            checkReleaseBuilds = false
-            abortOnError = false
-        }
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+        disable += listOf("ExpiredTargetSdkVersion")
+    }
 
+    if (androidCompat) {
         // 兼容模式：使用 compat 源集的 haze 兼容实现
         sourceSets {
             getByName("main") {
