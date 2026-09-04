@@ -54,18 +54,6 @@ const dotY = computed(() => 50 + 35 * Math.sin(smoothedLevel.value * Math.PI * 2
         :cx="dotX" 
         :cy="dotY" 
         r="1.6" fill="currentColor" class="text-primary" />
-
-        <!-- Static ticks: the arc and endpoint provide the dynamic level feedback. -->
-      <circle
-        cx="50"
-        cy="50"
-        r="39"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-dasharray="0.8 3.28"
-        class="opacity-30 text-primary"
-      />
     </svg>
     
     <!-- Slot for the central element -->

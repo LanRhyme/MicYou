@@ -37,6 +37,7 @@ pub trait ServerEvents: Send + Sync + 'static {
     fn web_client_count(&self, count: u32);
     fn install_progress(&self, message: String);
     fn aec_status_changed(&self, status: AecStatus);
+    fn monitoring_state_changed(&self, _enabled: bool) {}
 }
 
 #[derive(serde::Serialize, Clone, Debug)]
@@ -68,9 +69,7 @@ impl ServerEvents for TauriEventSink {
         let _ = self.0.emit("mute-state-changed", is_muted);
     }
     fn audio_level(&self, level: u32) {
-        if let Some(main_window) = self.0.get_webview_window("main") {
-            let _ = main_window.emit("audio-level", level);
-        }
+        let _ = self.0.emit("audio-level", level);
     }
     fn audio_spectrum(&self, raw: Vec<f32>, processed: Vec<f32>) {
         if let Some(main_window) = self.0.get_webview_window("main") {
@@ -89,5 +88,9 @@ impl ServerEvents for TauriEventSink {
 
     fn aec_status_changed(&self, status: AecStatus) {
         let _ = self.0.emit("aec-status-changed", status);
+    }
+
+    fn monitoring_state_changed(&self, enabled: bool) {
+        let _ = self.0.emit("monitoring-enabled-changed", enabled);
     }
 }

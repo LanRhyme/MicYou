@@ -39,9 +39,14 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "..\target\release\micyou.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "binaries\micyou-cli-x86_64-pc-windows-msvc.exe"; DestDir: "{app}"; DestName: "micyou-cli.exe"; Flags: ignoreversion
 Source: "binaries\micyou-tui-x86_64-pc-windows-msvc.exe"; DestDir: "{app}"; DestName: "micyou-tui.exe"; Flags: ignoreversion
+Source: "resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "libs\onnxruntime.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "libs\onnxruntime.dll"; DestDir: "{app}\resources"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "com.lanrhyme.micyou"
+Name: "{autoprograms}\{#MyAppName} TUI"; Filename: "{app}\micyou-tui.exe"; IconFilename: "{app}\{#MyAppExeName}"; AppUserModelID: "com.lanrhyme.micyou"
+Name: "{autoprograms}\{#MyAppName} CLI"; Filename: "{app}\micyou-cli.exe"; IconFilename: "{app}\{#MyAppExeName}"; AppUserModelID: "com.lanrhyme.micyou"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; AppUserModelID: "com.lanrhyme.micyou"
 
 [Run]

@@ -255,6 +255,7 @@ fn find_ort_runtime(resource_root: Option<&std::path::Path>) -> Option<std::path
         candidates.push(root.join(filename));
         if let Some(parent) = root.parent() {
             candidates.push(parent.join("libs").join(filename));
+            candidates.push(parent.join(filename));
         }
     }
 
@@ -263,6 +264,8 @@ fn find_ort_runtime(resource_root: Option<&std::path::Path>) -> Option<std::path
         .ok()
         .and_then(|p| p.parent().map(std::path::Path::to_path_buf))
     {
+        candidates.push(exe_dir.join(filename));
+        candidates.push(exe_dir.join("resources").join(filename));
         candidates.push(exe_dir.join("libs").join(filename));
         if let Some(prefix) = exe_dir.parent() {
             candidates.push(
@@ -270,6 +273,13 @@ fn find_ort_runtime(resource_root: Option<&std::path::Path>) -> Option<std::path
                     .join("lib")
                     .join("micyou")
                     .join("libs")
+                    .join(filename),
+            );
+            candidates.push(
+                prefix
+                    .join("lib")
+                    .join("micyou")
+                    .join("resources")
                     .join(filename),
             );
         }
@@ -486,6 +496,125 @@ pub async fn start_server_inner(
             }
         }
     }
+
+    // Wire control plane handlers from plugins into the server state + transport
+    let stats_clone = state.network_stats.clone();
+    let events_clone = events.clone();
+    let active_conn_clone = state.active_connection.clone();
+    let plugins_clone = state.plugins.clone();
+    let is_monitoring_clone = state.is_monitoring.clone();
+    let audio_output_clone = state.audio_output.clone();
+    let dsp_settings_clone = state.dsp_settings.clone();
+
+    state.plugins.set_control_handlers(crate::plugins::ControlPlaneHandlers {
+        get_muted: Some(std::sync::Arc::new({
+            let stats = stats_clone.clone();
+            move || Ok(stats.is_muted())
+        })),
+        set_muted: Some(std::sync::Arc::new({
+            let stats = stats_clone.clone();
+            let events = events_clone.clone();
+            let conn = active_conn_clone.clone();
+            let plugins = plugins_clone.clone();
+            move |muted: bool| {
+                stats.set_muted(muted);
+                events.mute_state_changed(muted);
+                plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted });
+                let mute_msg = micyou_protocol::micyou::MessageWrapper {
+                    audio_packet: None,
+                    connect: None,
+                    mute: Some(micyou_protocol::micyou::MuteMessage { is_muted: Some(muted) }),
+                    ping: None,
+                    pong: None,
+                    plugin_message: None,
+                };
+                let tx = {
+                    let lock = conn.try_lock();
+                    if let Ok(guard) = lock {
+                        guard.as_ref().map(|conn| conn.sender.clone())
+                    } else {
+                        None
+                    }
+                };
+                if let Some(tx) = tx {
+                    let _ = tx.try_send(mute_msg);
+                }
+                Ok(())
+            }
+        })),
+        get_monitoring: Some(std::sync::Arc::new({
+            let mon = is_monitoring_clone.clone();
+            move || Ok(mon.load(std::sync::atomic::Ordering::Relaxed))
+        })),
+        set_monitoring: Some(std::sync::Arc::new({
+            let mon = is_monitoring_clone.clone();
+            let output = audio_output_clone.clone();
+            let events = events_clone.clone();
+            let plugins = plugins_clone.clone();
+            move |enabled: bool| {
+                mon.store(enabled, std::sync::atomic::Ordering::Relaxed);
+                output.set_monitoring(enabled);
+                events.monitoring_state_changed(enabled);
+                plugins.broadcast_event(&micyou_plugin::PluginEvent::MonitoringChanged { enabled });
+                Ok(())
+            }
+        })),
+        get_dsp_settings: Some(std::sync::Arc::new({
+            let dsp = dsp_settings_clone.clone();
+            move || {
+                let guard = dsp.read().map_err(|_| {
+                    micyou_plugin::PluginError::Runtime("dsp settings lock error".into())
+                })?;
+                serde_json::to_string(&*guard).map_err(|e| {
+                    micyou_plugin::PluginError::Runtime(format!("dsp serialize error: {e}"))
+                })
+            }
+        })),
+        set_dsp_settings: Some(std::sync::Arc::new({
+            let dsp = dsp_settings_clone.clone();
+            let plugins = plugins_clone.clone();
+            move |settings_json: &str| {
+                let current = {
+                    let guard = dsp.read().map_err(|_| {
+                        micyou_plugin::PluginError::Runtime("dsp settings lock error".into())
+                    })?;
+                    guard.clone()
+                };
+                let mut val = serde_json::to_value(&current).map_err(|e| {
+                    micyou_plugin::PluginError::Validation(format!("serialize current dsp: {e}"))
+                })?;
+                if let Ok(patch_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(settings_json) {
+                    if let Some(obj) = val.as_object_mut() {
+                        for (k, v) in patch_map {
+                            obj.insert(k, v);
+                        }
+                    }
+                } else if let Ok(direct) = serde_json::from_str::<micyou_audio::dsp::AudioDspSettings>(settings_json) {
+                    val = serde_json::to_value(&direct).map_err(|e| {
+                        micyou_plugin::PluginError::Validation(format!("serialize direct dsp: {e}"))
+                    })?;
+                } else {
+                    return Err(micyou_plugin::PluginError::Validation("invalid dsp json".into()));
+                }
+                let mut updated: micyou_audio::dsp::AudioDspSettings = serde_json::from_value(val).map_err(|e| {
+                    micyou_plugin::PluginError::Validation(format!("parse updated dsp: {e}"))
+                })?;
+                updated.normalize();
+                {
+                    let mut guard = dsp.write().map_err(|_| {
+                        micyou_plugin::PluginError::Runtime("dsp settings lock error".into())
+                    })?;
+                    *guard = updated.clone();
+                }
+                let _ = crate::app_config::save_dsp_settings(&updated);
+                plugins.broadcast_event(&micyou_plugin::PluginEvent::DspSettingsChanged);
+                Ok(())
+            }
+        })),
+    });
+
+    // Scan & load active plugins across GUI, CLI and TUI
+    state.plugins.load_saved_plugins();
 
     let dsp_settings = state.dsp_settings.clone();
     // Make sure the synthetic "Plugins" node is in the chain when DSP
@@ -1282,6 +1411,85 @@ pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
     let win = main_window(&app)?;
     win.hide().map_err(|e| e.to_string())?;
     Ok(())
+}
+
+pub const FLOATING_WINDOW_LABEL: &str = "floating-window";
+
+#[tauri::command]
+pub fn show_floating_window(_app: AppHandle) -> Result<(), String> {
+    // Temporarily disabled (Issue #307 postponed)
+    log::info!("Floating window is temporarily disabled");
+    Ok(())
+}
+
+#[tauri::command]
+pub fn hide_floating_window(app: AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
+        let _ = win.hide();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn toggle_floating_window(_app: AppHandle) -> Result<bool, String> {
+    // Temporarily disabled (Issue #307 postponed)
+    log::info!("Floating window is temporarily disabled");
+    Ok(false)
+}
+
+#[tauri::command]
+pub fn is_floating_window_visible(app: AppHandle) -> Result<bool, String> {
+    if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
+        Ok(win.is_visible().unwrap_or(false))
+    } else {
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+pub fn move_floating_window_delta(app: AppHandle, delta_x: f64, delta_y: f64) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
+        if let Ok(pos) = win.outer_position() {
+            let _ = win.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(
+                pos.x + delta_x as i32,
+                pos.y + delta_y as i32,
+            )));
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn allow_firewall() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_str = exe_path.to_string_lossy();
+        
+        let script = format!(
+            "netsh advfirewall firewall add rule name=\"MicYou App (TCP-In)\" dir=in action=allow program=\"{}\" protocol=TCP enable=yes; netsh advfirewall firewall add rule name=\"MicYou App (UDP-In)\" dir=in action=allow program=\"{}\" protocol=UDP enable=yes",
+            exe_str, exe_str
+        );
+        
+        let status = std::process::Command::new("powershell")
+            .args([
+                "-Command",
+                &format!("Start-Process cmd -ArgumentList '/c {}' -Verb RunAs -WindowStyle Hidden", script),
+            ])
+            .status()
+            .map_err(|e| e.to_string())?;
+            
+        if status.success() {
+            log::info!(target: "system", "Successfully requested firewall permission on Windows");
+            Ok(())
+        } else {
+            Err("Failed to execute firewall rule addition".to_string())
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        Ok(())
+    }
 }
 
 #[tauri::command]

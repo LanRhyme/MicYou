@@ -394,6 +394,7 @@ pub fn save_ui_prefs(language: String, theme_color: String) -> Result<(), String
 /// Export the current GUI theme colors to theme.json for the TUI.
 #[tauri::command]
 pub fn save_theme_colors(
+    app: AppHandle,
     primary: String,
     secondary: String,
     tertiary: String,
@@ -402,7 +403,7 @@ pub fn save_theme_colors(
     on_surface: String,
     error: String,
 ) -> Result<(), String> {
-    crate::app_config::save_theme_colors(&crate::app_config::ThemeColors {
+    let colors = crate::app_config::ThemeColors {
         primary,
         secondary,
         tertiary,
@@ -410,7 +411,16 @@ pub fn save_theme_colors(
         surface_variant,
         on_surface,
         error,
-    })
+    };
+    use tauri::Emitter;
+    let _ = app.emit("theme-colors-changed", &colors);
+    crate::app_config::save_theme_colors(&colors)
+}
+
+/// Retrieve the current exported theme colors.
+#[tauri::command]
+pub fn get_theme_colors() -> crate::app_config::ThemeColors {
+    crate::app_config::load_theme_colors()
 }
 
 #[cfg(test)]

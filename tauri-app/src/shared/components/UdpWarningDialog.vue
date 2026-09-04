@@ -36,8 +36,14 @@
         <!-- Actions -->
         <div class="px-8 pb-8 flex flex-col gap-3 relative z-10">
           <button 
+            @click="handleAllowFirewall" 
+            class="w-full py-3.5 rounded-xl bg-primary hover:bg-primary/90 text-on-primary font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all duration-300 hover:scale-[0.98] active:scale-95"
+          >
+            {{ $t('dialogs.udpWarning.allowButton') }}
+          </button>
+          <button 
             @click="close" 
-            class="w-full py-3.5 rounded-xl bg-error hover:bg-error/90 text-on-error font-bold shadow-lg shadow-error/20 hover:shadow-error/40 transition-all duration-300 hover:scale-[0.98] active:scale-95"
+            class="w-full py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-medium transition-all duration-300 hover:scale-[0.98] active:scale-95 text-sm"
           >
             {{ $t('dialogs.close') }}
           </button>
@@ -50,6 +56,7 @@
 
 <script setup lang="ts">
 import { ShieldAlert as ShieldAlertIcon } from '@lucide/vue'
+import { invoke } from '@tauri-apps/api/core'
 
 defineProps<{
   show: boolean
@@ -59,6 +66,15 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
+
+async function handleAllowFirewall() {
+  try {
+    await invoke('allow_firewall')
+  } catch (e) {
+    console.error('allow_firewall failed:', e)
+  }
+  emit('close')
+}
 
 const close = () => {
   emit('close')

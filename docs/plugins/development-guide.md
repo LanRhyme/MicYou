@@ -611,7 +611,7 @@ await call('play', { id: 'beep' });
 | 插件 id | 反向域名，如 `dev.yourname.eq`，必须含点，小写字母数字与连字符 |
 | 运行时 | 逻辑/面板/定时/网络/文件用 **wasm**（沙箱安全）；实时 DSP、系统级集成用 **native**（需声明 arches） |
 | kind | utility（工具）/ dsp（处理链节点）/ ui（纯面板） |
-| capabilities | 只声明需要的：config.read/write、audio.state、device.list、network.io、open.url、clipboard.read/write、fs.read/write、audio.play |
+| capabilities | 只声明需要的：control.observe/intercept、config.read/write、audio.state、device.list、network.io、open.url、clipboard.read/write、fs.read/write、audio.play |
 | 依赖 | 如依赖其他插件，声明 dependencies（id + semver 范围） |
 
 ### 第 1 步：生成骨架

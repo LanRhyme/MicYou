@@ -9,6 +9,9 @@ use std::sync::{Arc, Mutex};
 struct DirectHost {
     config: Mutex<std::collections::HashMap<String, serde_json::Value>>,
     logs: Mutex<Vec<String>>,
+    muted_state: Mutex<bool>,
+    monitoring_state: Mutex<bool>,
+    dsp_state: Mutex<String>,
 }
 impl HostApi for DirectHost {
     fn log(&self, _level: PluginLogLevel, message: &str) {
@@ -21,6 +24,32 @@ impl HostApi for DirectHost {
     fn emit_event(&self, _t: &str, _p: serde_json::Value) -> micyou_plugin::PluginResult<()> { Ok(()) }
     fn send_message(&self, _t: MessageTarget, _p: Vec<u8>) -> micyou_plugin::PluginResult<()> { Ok(()) }
     fn audio_state(&self) -> AudioStateSnapshot { AudioStateSnapshot::default() }
+    fn get_muted(&self) -> PluginResult<bool> {
+        Ok(*self.muted_state.lock().unwrap())
+    }
+    fn set_muted(&self, muted: bool) -> PluginResult<()> {
+        *self.muted_state.lock().unwrap() = muted;
+        Ok(())
+    }
+    fn get_monitoring(&self) -> PluginResult<bool> {
+        Ok(*self.monitoring_state.lock().unwrap())
+    }
+    fn set_monitoring(&self, enabled: bool) -> PluginResult<()> {
+        *self.monitoring_state.lock().unwrap() = enabled;
+        Ok(())
+    }
+    fn get_dsp_settings(&self) -> PluginResult<String> {
+        let s = self.dsp_state.lock().unwrap();
+        if s.is_empty() {
+            Ok(r#"{"gain":0.0,"nsEnabled":false}"#.into())
+        } else {
+            Ok(s.clone())
+        }
+    }
+    fn set_dsp_settings(&self, settings_json: &str) -> PluginResult<()> {
+        *self.dsp_state.lock().unwrap() = settings_json.to_string();
+        Ok(())
+    }
     fn play_sound(&self, _path: &str) -> PluginResult<()> { Ok(()) }
     fn plugin_dir(&self) -> String { "/tmp/plugin-dir".to_string() }
     fn register_hotkey(&self, _s: &str) -> PluginResult<u64> { Ok(7) }
@@ -134,4 +163,138 @@ fn release_host_ctx_keeps_arc_alive() {
         abi::release_host_ctx(raw as *mut c_void);
     }
     assert!(Arc::strong_count(&host) >= 1);
+}
+
+#[test]
+fn set_muted_respects_control_intercept_capability() {
+    let host = Arc::new(DirectHost::default());
+    let ctx_with_cap = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![micyou_plugin::capabilities::CONTROL_INTERCEPT.to_string()],
+    });
+    let table = abi::host_table_for(ctx_with_cap);
+    let res = unsafe { (table.set_muted)(table.ctx, 1) };
+    assert_eq!(res, mpl_result_t::MPL_OK);
+    assert_eq!(*host.muted_state.lock().unwrap(), true);
+
+    let ctx_no_cap = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![],
+    });
+    let table2 = abi::host_table_for(ctx_no_cap);
+    let res2 = unsafe { (table2.set_muted)(table2.ctx, 0) };
+    assert_eq!(res2, mpl_result_t::MPL_ERR_PERMISSION);
+    assert_eq!(*host.muted_state.lock().unwrap(), true);
+
+    unsafe { abi::release_host_ctx(table.ctx) };
+    unsafe { abi::release_host_ctx(table2.ctx) };
+}
+
+#[test]
+fn get_muted_respects_control_observe_capability() {
+    let host = Arc::new(DirectHost::default());
+    *host.muted_state.lock().unwrap() = true;
+
+    let ctx_with_cap = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![micyou_plugin::capabilities::CONTROL_OBSERVE.to_string()],
+    });
+    let table = abi::host_table_for(ctx_with_cap);
+    let mut out_muted = 0u32;
+    let res = unsafe { (table.get_muted)(table.ctx, &mut out_muted) };
+    assert_eq!(res, mpl_result_t::MPL_OK);
+    assert_eq!(out_muted, 1);
+
+    let ctx_no_cap = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![],
+    });
+    let table2 = abi::host_table_for(ctx_no_cap);
+    let mut out_muted2 = 0u32;
+    let res2 = unsafe { (table2.get_muted)(table2.ctx, &mut out_muted2) };
+    assert_eq!(res2, mpl_result_t::MPL_ERR_PERMISSION);
+
+    unsafe { abi::release_host_ctx(table.ctx) };
+    unsafe { abi::release_host_ctx(table2.ctx) };
+}
+
+#[test]
+fn monitoring_respects_capabilities() {
+    let host = Arc::new(DirectHost::default());
+
+    let ctx_full = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![
+            micyou_plugin::capabilities::CONTROL_OBSERVE.to_string(),
+            micyou_plugin::capabilities::CONTROL_INTERCEPT.to_string(),
+        ],
+    });
+    let table = abi::host_table_for(ctx_full);
+
+    // Set monitoring
+    let res = unsafe { (table.set_monitoring)(table.ctx, 1) };
+    assert_eq!(res, mpl_result_t::MPL_OK);
+    assert_eq!(*host.monitoring_state.lock().unwrap(), true);
+
+    // Get monitoring
+    let mut out_enabled = 0u32;
+    let res = unsafe { (table.get_monitoring)(table.ctx, &mut out_enabled) };
+    assert_eq!(res, mpl_result_t::MPL_OK);
+    assert_eq!(out_enabled, 1);
+
+    let ctx_no_cap = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![],
+    });
+    let table2 = abi::host_table_for(ctx_no_cap);
+    let res_set = unsafe { (table2.set_monitoring)(table2.ctx, 0) };
+    assert_eq!(res_set, mpl_result_t::MPL_ERR_PERMISSION);
+
+    let res_get = unsafe { (table2.get_monitoring)(table2.ctx, &mut out_enabled) };
+    assert_eq!(res_get, mpl_result_t::MPL_ERR_PERMISSION);
+
+    unsafe { abi::release_host_ctx(table.ctx) };
+    unsafe { abi::release_host_ctx(table2.ctx) };
+}
+
+#[test]
+fn dsp_settings_respects_capabilities() {
+    let host = Arc::new(DirectHost::default());
+
+    let ctx_full = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![
+            micyou_plugin::capabilities::CONTROL_OBSERVE.to_string(),
+            micyou_plugin::capabilities::CONTROL_INTERCEPT.to_string(),
+        ],
+    });
+    let table = abi::host_table_for(ctx_full);
+
+    // Set DSP settings
+    let json_input = std::ffi::CString::new(r#"{"gain":6.0,"nsEnabled":true}"#).unwrap();
+    let res = unsafe { (table.set_dsp_settings)(table.ctx, json_input.as_ptr()) };
+    assert_eq!(res, mpl_result_t::MPL_OK);
+    assert_eq!(*host.dsp_state.lock().unwrap(), r#"{"gain":6.0,"nsEnabled":true}"#);
+
+    // Get DSP settings
+    let mut buf = [0i8; 128];
+    let mut size = buf.len() as u32;
+    let res = unsafe { (table.get_dsp_settings)(table.ctx, buf.as_mut_ptr(), &mut size) };
+    assert_eq!(res, mpl_result_t::MPL_OK);
+    let s = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }.to_str().unwrap();
+    assert!(s.contains("gain"));
+
+    let ctx_no_cap = Arc::new(NativeHostCtx {
+        host: host.clone(),
+        capabilities: vec![],
+    });
+    let table2 = abi::host_table_for(ctx_no_cap);
+    let res_set = unsafe { (table2.set_dsp_settings)(table2.ctx, json_input.as_ptr()) };
+    assert_eq!(res_set, mpl_result_t::MPL_ERR_PERMISSION);
+
+    let res_get = unsafe { (table2.get_dsp_settings)(table2.ctx, buf.as_mut_ptr(), &mut size) };
+    assert_eq!(res_get, mpl_result_t::MPL_ERR_PERMISSION);
+
+    unsafe { abi::release_host_ctx(table.ctx) };
+    unsafe { abi::release_host_ctx(table2.ctx) };
 }

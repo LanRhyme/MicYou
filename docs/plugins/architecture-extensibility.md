@@ -76,11 +76,12 @@ RePlugin / Shadow / VirtualAPK 等动态插件框架面向「应用级插件化�
 | 前端管理界面 | ✅（Vue） | 规划 | Compose 面板 |
 | `network.io` / `fs.read` | 预留 | 预留 | — |
 
-## 版本兼容策略
+## 版本兼容与解耦策略
 
-- **Host API 版本**（`apiVersion`）：插件声明构建时版本，宿主不匹配即拒绝加载（错误码 7），未来新增能力只加不减，保持向后兼容
-- **ABI 版本**（Native）：`MPL_ABI_VERSION` 保护结构体布局；破坏性变更升级 ABI 版本，旧插件按新版本头重新构建
-- **Host 函数表追加式演进**：`mpl_host_api_t` 新字段只能追加在 `ctx` 之后，禁止插入中间——旧布局插件读取正确偏移不受影响（实测修复过插入字段导致的段错误）
+- **Host API 版本**（`apiVersion`）：宿主支持版本区间协商（当前 `MIN_SUPPORTED_API_VERSION = 1`，`HOST_API_VERSION = 2`），声明为 v1 或 v2 的插件均可平滑加载，超出支持范围才会拒绝加载（错误码 7）
+- **ABI 版本**（Native）：`MPL_ABI_VERSION`（当前为 1）保护结构体基础布局；破坏性变更才会升级 ABI 版本
+- **Host 函数表追加式演进**：`mpl_host_api_t` 新字段（如 API v2 的控制面系列接口）严格追加在 `ctx` 之后，禁止插入中间——旧版 Native 插件读取已有字段的偏移保持不变，无需重新编译
+- **生命周期解耦**：插件运行时与 GUI 界面彻底解耦，无论在 GUI、CLI 还是 TUI 启动服务端，核心启动流程均会自动加载并执行已启用的插件，支持无头环境运行
 - **minHostVersion**：插件声明所需最低宿主 API 版本（semver），major 超过宿主版本即拒绝加载
 - **WASM 导入表**：新增导入不影响不引用它的旧插件；导入签名不匹配的调用在宿主侧报错而非崩溃
 - **线协议**：`MessageWrapper` 采用 proto3 未知字段兼容——旧客户端不识别 `pluginMessage` 字段时自动跳过，新字段只在双方都支持时生效

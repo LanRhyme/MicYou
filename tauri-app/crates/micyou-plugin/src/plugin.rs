@@ -57,6 +57,10 @@ pub enum PluginEvent {
     MuteChanged {
         muted: bool,
     },
+    /// Monitoring (ear-return) state changed.
+    MonitoringChanged {
+        enabled: bool,
+    },
     /// The DSP settings changed (chain reordered, a node toggled).
     DspSettingsChanged,
     /// The plugin was enabled or disabled while the host kept running.

@@ -100,6 +100,10 @@ winreg = "0.52"
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = { version = "0.18", default-features = false }
+glib = "0.18"
+
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"
 window-vibrancy = "0.7"

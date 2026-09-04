@@ -30,6 +30,7 @@ import PocketLayout from './features/pocket/components/PocketLayout.vue';
 import CustomBackground from './shared/components/CustomBackground.vue';
 import CloseConfirmDialog from './shared/components/CloseConfirmDialog.vue';
 import UdpWarningDialog from './shared/components/UdpWarningDialog.vue';
+import MonitoringWarningDialog from './shared/components/MonitoringWarningDialog.vue';
 
 // Raw asset content and animation utilities
 import appIconSvg from './shared/assets/app_icon.svg?raw';
@@ -164,7 +165,7 @@ useTray(
 );
 
 // Auto-hide window on startup if start minimized is configured in preferences
-onMounted(() => {
+onMounted(async () => {
   if (win.isHidden.value) {
     void win.hideMainWindow();
   }
@@ -633,6 +634,13 @@ onUnmounted(() => {
       :show="audio.showUdpWarning.value"
       :port="Number(server.serverPort.value) + 1"
       @close="audio.showUdpWarning.value = false"
+    />
+
+    <MonitoringWarningDialog
+      :show="audio.showMonitoringWarning.value"
+      @confirm="audio.handleMonitoringWarningConfirm"
+      @cancel="audio.handleMonitoringWarningCancel"
+      @update:show="val => audio.showMonitoringWarning.value = val"
     />
 
     <CloseConfirmDialog v-model:show="win.showCloseConfirm.value" @select="win.handleCloseSelect" />

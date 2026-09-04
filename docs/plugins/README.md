@@ -31,6 +31,9 @@ MicYou 插件系统允许第三方为桌面端与（未来）安卓端扩展能�
 
 | 类别 | API | 能力 |
 | --- | --- | --- |
+| 控制面 | `get_muted` / `set_muted` | control.observe / control.intercept |
+| 控制面 | `get_monitoring` / `set_monitoring` | control.observe / control.intercept |
+| 控制面 | `get_dsp_settings` / `set_dsp_settings` | control.observe / control.intercept |
 | 日志 | `log` | 无 |
 | 配置 | `get_config` / `set_config` | config.read / config.write |
 | 事件 | `emit_event` | event.emit |
@@ -46,7 +49,7 @@ MicYou 插件系统允许第三方为桌面端与（未来）安卓端扩展能�
 | 环境 | `locale` / `host_info` / `plugin_dir` | 无 |
 | UI | `open_window` / 专属设置页（iframe 桥） | 无 |
 | 快捷键 | `register_hotkey` | 无（仅 X11） |
-| 宿主事件 | 设备连接/断开 → `handle_event` | 无 |
+| 宿主事件 | 设备连接/断开、静音、监听、DSP变更 → `handle_event` | 无（静音与监听等控制面事件需 control.observe） |
 | 依赖联动 | `dependencies`（前置插件声明） | 无 |
 
 ## 安装与更新
@@ -54,6 +57,7 @@ MicYou 插件系统允许第三方为桌面端与（未来）安卓端扩展能�
 - 导入 zip 前展示**权限预览**（能力清单/作者/许可），确认后才安装
 - manifest 声明 `updateUrl` 后可**检查更新**（semver 对比）并一键更新
 - manifest `configSchema` 声明字段后宿主**自动生成配置表单**（滑杆/开关/下拉）
+- 插件生命周期与 GUI 界面解耦，CLI 与 TUI 服务端启动时均能自动加载并运行已启用插件
 
 ## 开发工具
 
@@ -67,6 +71,8 @@ micyou-cli plugin dev ./myplugin                # 监听变更自动重装（开
 micyou-cli plugin package ./myplugin -o out.zip
 micyou-cli plugin bump ./myplugin               # 版本 patch +1
 micyou-cli plugin list                          # 列出已安装插件（id/版本/运行时/状态）
+micyou-cli plugin enable <id>                   # 启用指定插件
+micyou-cli plugin disable <id>                  # 禁用指定插件
 
 应用内：设置-插件 → 插件市场（浏览 MicYou-Plugins 仓库：封面图/运行时/能力/平台/架构，
 安装前展示能力确认，一键安装；插件 zip 由各插件仓库 CI 打包发布 GitHub Release，

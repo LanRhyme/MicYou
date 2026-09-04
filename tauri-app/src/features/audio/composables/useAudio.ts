@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import { useStorage } from '@vueuse/core';
 
 /**
  * Interface representing the real-time audio statistics from the audio engine
@@ -37,6 +38,10 @@ export function useAudio() {
   // Flag indicating if the UDP port fallback warning should be displayed
   const showUdpWarning = ref(false);
 
+  // Flag and storage for earback / monitoring warning dialog
+  const showMonitoringWarning = ref(false);
+  const dontShowMonitoringWarning = useStorage('micyou_dont_show_monitoring_warning', false);
+
   let unlistenAudioLevel: UnlistenFn | null = null;
   let unlistenAudioMetrics: UnlistenFn | null = null;
   let unlistenMuteState: UnlistenFn | null = null;
@@ -58,17 +63,43 @@ export function useAudio() {
   }
 
   /**
-   * Toggles real-time audio monitoring / earback
+   * Direct execution of monitoring state change
    */
-  async function toggleMonitoringEnabled() {
-    const newVal = !isMonitoringEnabled.value;
-    isMonitoringEnabled.value = newVal;
+  async function executeSetMonitoring(enabled: boolean) {
+    isMonitoringEnabled.value = enabled;
     try {
-      await invoke('set_monitoring', { enabled: newVal });
+      await invoke('set_monitoring', { enabled });
     } catch (e) {
       console.error('set_monitoring failed:', e);
-      isMonitoringEnabled.value = !newVal;
+      isMonitoringEnabled.value = !enabled;
     }
+  }
+
+  /**
+   * Toggles real-time audio monitoring / earback with warning prompt on enable
+   */
+  function toggleMonitoringEnabled() {
+    if (isMonitoringEnabled.value) {
+      void executeSetMonitoring(false);
+    } else {
+      if (dontShowMonitoringWarning.value) {
+        void executeSetMonitoring(true);
+      } else {
+        showMonitoringWarning.value = true;
+      }
+    }
+  }
+
+  function handleMonitoringWarningConfirm(dontAskAgain: boolean) {
+    if (dontAskAgain) {
+      dontShowMonitoringWarning.value = true;
+    }
+    showMonitoringWarning.value = false;
+    void executeSetMonitoring(true);
+  }
+
+  function handleMonitoringWarningCancel() {
+    showMonitoringWarning.value = false;
   }
 
   /**
@@ -101,7 +132,9 @@ export function useAudio() {
 
     // Listen for warnings if UDP traffic is blocked and falls back to TCP
     unlistenUdpWarning = await listen('udp_audio_warning', () => {
-      showUdpWarning.value = true;
+      if (!isMuted.value) {
+        showUdpWarning.value = true;
+      }
     });
   });
 
@@ -120,8 +153,11 @@ export function useAudio() {
     audioMetrics,
     showMonitoringPanel,
     showUdpWarning,
+    showMonitoringWarning,
     toggleMute,
     toggleMonitoringEnabled,
+    handleMonitoringWarningConfirm,
+    handleMonitoringWarningCancel,
     toggleMonitoring,
   };
 }

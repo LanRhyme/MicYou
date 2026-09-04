@@ -21,10 +21,13 @@ fn configure_renderer() {
         || std::env::var("MICYOU_RENDERER")
             .is_ok_and(|value| value.eq_ignore_ascii_case("software"));
 
-    if software_requested {
-        // Compatibility fallback for drivers/compositors where WebKitGTK's
-        // accelerated DMA-BUF path produces a blank window or crashes.
+    // Compatibility fallback for drivers/compositors where WebKitGTK's
+    // accelerated DMA-BUF path produces a blank/transparent window or crashes (Issue #323).
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
+    if software_requested {
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         eprintln!("[Renderer] Software rendering fallback enabled");
     }

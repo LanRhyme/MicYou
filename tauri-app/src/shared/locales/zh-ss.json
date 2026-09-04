@@ -189,9 +189,13 @@
     },
     "audioOutput": {
       "title": "输出设备",
-      "desc": "麦克风的声音应该在哪里播放？",
+      "desc": "麦克风的声音该搁哪儿放？",
       "auto": "自动",
-      "routingActive": "虚拟音频路由已激活，音频将被转发到虚拟设备"
+      "routingActive": "虚拟音频路由已激活，声音直接整到虚拟设备里头",
+      "physicalWarningTitle": "当前选的是物理大喇叭",
+      "physicalWarningDesc": "手机麦克风的声音会直接从大喇叭里放出来。要是手机和大喇叭在同一屋里，极易搞出严重回声甚至啸叫。强烈建议整一个虚拟音频设备（比如 VB-Cable）。",
+      "noVirtualDeviceTitle": "没找着虚拟音频设备",
+      "noVirtualDeviceDesc": "当前自动掉回到系统默认大喇叭放音了。要是跟手机在同一屋里容易有回声，建议赶紧整一个虚拟音频驱动（比如 VB-Cable）。"
     },
     "spectrum": {
       "title": "实时频谱（原始 vs 处理后）项",
@@ -262,7 +266,12 @@
       "licensesDesc": "开源软件许可协议",
       "licensesBtn": "开源许可证书",
       "logsDesc": "出口应用日志记录为了调试用",
-      "logsBtn": "出口日志记录项目",
+      "logsBtn": "运行日志记录项目",
+      "openLogDir": "开放日志记录目录",
+      "copyLog": "誊写日志记录内涵",
+      "copyLogPath": "誊写路径",
+      "copied": "已誊写完毕",
+      "exportLog": "出口日志记录档案",
       "introTitle": "软件介绍项",
       "introText": "麦克风你是一个打开来源微型手机工具那转弯你的安卓设备进入一个高质量微型手机为了你的计算机。 基于在安卓麦克风， 它支持 无线保真度 (传输控制协定)， 蓝色牙齿， 和 通用串行总线式 联系, 提供低延迟声音的传播。"
     },
@@ -306,6 +315,12 @@
     "cancel": "取消",
     "apply": "应用",
     "confirm": "确认项",
+    "monitoringWarning": {
+      "title": "开启监听提醒",
+      "desc": "这功能最好戴着耳机使，用大喇叭外放极容易整出啸叫和大回音。",
+      "dontAskAgain": "别再提醒了",
+      "confirm": "整上监听"
+    },
     "contributors": {
       "title": "贡献者们们",
       "loading": "正在加载贡献者...",
@@ -356,7 +371,8 @@
     },
     "udpWarning": {
       "title": "UDP 音讯警告",
-      "desc": "手机端已成功连接，但电脑端未能收到任何 UDP 音频数据，这通常是因为 Windows 防火墙拦截了 UDP 端口 ({port})\n\n请在防火墙中允许 MicYou 程序的网络访问，或者尝试以管理员身份重新运行程序"
+      "desc": "手机端已成功连接，但电脑端未能收到任何 UDP 音频数据，这通常是因为 Windows 防火墙拦截了 UDP 端口 ({port})\n\n请在防火墙中允许 MicYou 程序的网络访问，或者尝试以管理员身份重新运行程序",
+      "allowButton": "一键放行防火墙 (TCP & UDP)"
     }
   },
   "tray": {
@@ -390,6 +406,10 @@
   "autostart": {
     "title": "开机自启",
     "desc": "登录电脑时自动启动 MicYou"
+  },
+  "floatingWindow": {
+    "title": "桌面悬浮球",
+    "desc": "在屏幕上整一个永远飘着的麦克风状态悬浮球，点一下就静音，想拖哪拖哪"
   },
   "notifications": {
     "title": "系统通知",

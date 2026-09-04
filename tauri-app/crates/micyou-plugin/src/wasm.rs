@@ -110,7 +110,9 @@ impl WasmPlugin {
         wasm_bytes: Vec<u8>,
         host: Arc<dyn HostApi>,
     ) -> PluginResult<Self> {
-        if manifest.api_version != crate::manifest::HOST_API_VERSION {
+        if manifest.api_version < crate::manifest::MIN_SUPPORTED_API_VERSION
+            || manifest.api_version > crate::manifest::HOST_API_VERSION
+        {
             return Err(PluginError::ApiVersionMismatch {
                 plugin: manifest.api_version,
                 host: crate::manifest::HOST_API_VERSION,
@@ -965,6 +967,135 @@ fn register_host_functions(linker: &mut Linker<WasmHostCtx>) {
                     .data()
                     .host
                     .clipboard_write(&text)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))
+            },
+        )
+        .unwrap();
+
+    // set_muted(muted: i32) -> result code
+    linker
+        .func_wrap(
+            WASM_IMPORT_MODULE,
+            "set_muted",
+            |caller: wasmi::Caller<'_, WasmHostCtx>,
+             muted: i32|
+             -> Result<i32, wasmi::Error> {
+                caller
+                    .data()
+                    .require(crate::manifest::capabilities::CONTROL_INTERCEPT)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                caller
+                    .data()
+                    .host
+                    .set_muted(muted != 0)
+                    .map(|_| mpl_result_t::MPL_OK as i32)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))
+            },
+        )
+        .unwrap();
+
+    // get_muted() -> i32 (0 or 1)
+    linker
+        .func_wrap(
+            WASM_IMPORT_MODULE,
+            "get_muted",
+            |caller: wasmi::Caller<'_, WasmHostCtx>| -> Result<i32, wasmi::Error> {
+                caller
+                    .data()
+                    .require(crate::manifest::capabilities::CONTROL_OBSERVE)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                let muted = caller
+                    .data()
+                    .host
+                    .get_muted()
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                Ok(if muted { 1 } else { 0 })
+            },
+        )
+        .unwrap();
+
+    // set_monitoring(enabled: i32) -> result code
+    linker
+        .func_wrap(
+            WASM_IMPORT_MODULE,
+            "set_monitoring",
+            |caller: wasmi::Caller<'_, WasmHostCtx>,
+             enabled: i32|
+             -> Result<i32, wasmi::Error> {
+                caller
+                    .data()
+                    .require(crate::manifest::capabilities::CONTROL_INTERCEPT)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                caller
+                    .data()
+                    .host
+                    .set_monitoring(enabled != 0)
+                    .map(|_| mpl_result_t::MPL_OK as i32)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))
+            },
+        )
+        .unwrap();
+
+    // get_monitoring() -> i32 (0 or 1)
+    linker
+        .func_wrap(
+            WASM_IMPORT_MODULE,
+            "get_monitoring",
+            |caller: wasmi::Caller<'_, WasmHostCtx>| -> Result<i32, wasmi::Error> {
+                caller
+                    .data()
+                    .require(crate::manifest::capabilities::CONTROL_OBSERVE)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                let enabled = caller
+                    .data()
+                    .host
+                    .get_monitoring()
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                Ok(if enabled { 1 } else { 0 })
+            },
+        )
+        .unwrap();
+
+    // get_dsp_settings() -> ptr
+    linker
+        .func_wrap(
+            WASM_IMPORT_MODULE,
+            "get_dsp_settings",
+            |mut caller: wasmi::Caller<'_, WasmHostCtx>| -> Result<i32, wasmi::Error> {
+                caller
+                    .data()
+                    .require(crate::manifest::capabilities::CONTROL_OBSERVE)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                let text = caller
+                    .data()
+                    .host
+                    .get_dsp_settings()
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                let memory = export_memory(&caller)?;
+                write_str_to_memory(&mut caller, &memory, &text)
+            },
+        )
+        .unwrap();
+
+    // set_dsp_settings(ptr: i32) -> result code
+    linker
+        .func_wrap(
+            WASM_IMPORT_MODULE,
+            "set_dsp_settings",
+            |mut caller: wasmi::Caller<'_, WasmHostCtx>,
+             ptr: i32|
+             -> Result<i32, wasmi::Error> {
+                caller
+                    .data()
+                    .require(crate::manifest::capabilities::CONTROL_INTERCEPT)
+                    .map_err(|e| wasmi::Error::new(e.to_string()))?;
+                let memory = export_memory(&caller)?;
+                let settings_json = read_str_from_memory(&mut caller, &memory, ptr)?;
+                caller
+                    .data()
+                    .host
+                    .set_dsp_settings(&settings_json)
+                    .map(|_| mpl_result_t::MPL_OK as i32)
                     .map_err(|e| wasmi::Error::new(e.to_string()))
             },
         )

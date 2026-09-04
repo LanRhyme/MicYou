@@ -39,8 +39,15 @@ extern "C" {
 #define MPL_EXPORT __attribute__((visibility("default")))
 #endif
 
+/*
+ * ABI versioning rules:
+ * - MPL_ABI_VERSION: incremented ONLY on binary-incompatible struct/calling
+ *   convention breaks requiring full recompilation of plugins.
+ * - MPL_API_VERSION: incremented on backwards-compatible API additions (new
+ *   methods appended to mpl_host_api_t, new capabilities, or new event types).
+ */
 #define MPL_ABI_VERSION 1u
-#define MPL_API_VERSION 1u
+#define MPL_API_VERSION 2u
 
 /* Result codes returned by every plugin function */
 typedef enum mpl_result {
@@ -126,6 +133,18 @@ typedef struct mpl_host_api {
     /* Set the settings-sidebar panel icon: plugin-dir-relative image file
      * name or short text/emoji. No capability required. */
     mpl_result_t (*set_panel_icon)(void *ctx, const char *panel_id, const char *icon);
+    /* Set host mute state (0 = unmute, 1 = mute; requires control.intercept). */
+    mpl_result_t (*set_muted)(void *ctx, uint32_t muted);
+    /* Get host mute state (out_muted receives 0 or 1; requires control.observe). */
+    mpl_result_t (*get_muted)(void *ctx, uint32_t *out_muted);
+    /* Set audio monitoring / ear-return (0 = off, 1 = on; requires control.intercept). */
+    mpl_result_t (*set_monitoring)(void *ctx, uint32_t enabled);
+    /* Get audio monitoring / ear-return (out_enabled receives 0 or 1; requires control.observe). */
+    mpl_result_t (*get_monitoring)(void *ctx, uint32_t *out_enabled);
+    /* Read DSP settings as JSON string (requires control.observe). String output contract. */
+    mpl_result_t (*get_dsp_settings)(void *ctx, char *out, uint32_t *out_size);
+    /* Update DSP settings from JSON string (requires control.intercept). */
+    mpl_result_t (*set_dsp_settings)(void *ctx, const char *settings_json);
 } mpl_host_api_t;
 
 /* Static plugin identity. The id/version must match the manifest. */

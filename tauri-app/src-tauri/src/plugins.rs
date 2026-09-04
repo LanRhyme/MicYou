@@ -105,6 +105,17 @@ impl PluginSyncTransport for TcpPluginSyncAdapter {
     }
 }
 
+/// Control plane callbacks wired from the host server.
+#[derive(Clone, Default)]
+pub struct ControlPlaneHandlers {
+    pub get_muted: Option<Arc<dyn Fn() -> micyou_plugin::PluginResult<bool> + Send + Sync>>,
+    pub set_muted: Option<Arc<dyn Fn(bool) -> micyou_plugin::PluginResult<()> + Send + Sync>>,
+    pub get_monitoring: Option<Arc<dyn Fn() -> micyou_plugin::PluginResult<bool> + Send + Sync>>,
+    pub set_monitoring: Option<Arc<dyn Fn(bool) -> micyou_plugin::PluginResult<()> + Send + Sync>>,
+    pub get_dsp_settings: Option<Arc<dyn Fn() -> micyou_plugin::PluginResult<String> + Send + Sync>>,
+    pub set_dsp_settings: Option<Arc<dyn Fn(&str) -> micyou_plugin::PluginResult<()> + Send + Sync>>,
+}
+
 /// Runtime plugin host. One instance per process, managed Tauri state.
 pub struct PluginHost {
     /// Plugin manager (scan/load/enable). Interior-mutable so the message-bus
@@ -130,6 +141,7 @@ pub struct PluginHost {
             std::collections::HashMap<String, std::collections::HashMap<String, String>>,
         >,
     >,
+    pub control_handlers: Arc<Mutex<ControlPlaneHandlers>>,
 }
 
 /// Global hotkey registration for plugins.
@@ -317,6 +329,48 @@ impl PluginHost {
             hotkeys,
             window,
             panel_icons: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
+            control_handlers: Arc::new(Mutex::new(ControlPlaneHandlers::default())),
+        }
+    }
+
+    /// Register control plane callbacks from the host server.
+    pub fn set_control_handlers(&self, handlers: ControlPlaneHandlers) {
+        if let Ok(mut slot) = self.control_handlers.lock() {
+            *slot = handlers;
+        }
+    }
+
+    /// Register a callback to set the host mute state (backwards compatibility).
+    pub fn set_mute_handler(
+        &self,
+        handler: Arc<dyn Fn(bool) -> micyou_plugin::PluginResult<()> + Send + Sync>,
+    ) {
+        if let Ok(mut slot) = self.control_handlers.lock() {
+            slot.set_muted = Some(handler);
+        }
+    }
+
+    /// Scan plugins directory and enable all plugins marked enabled in state.
+    pub fn load_saved_plugins(&self) {
+        let report = self
+            .manager
+            .lock()
+            .map(|mut m| m.scan())
+            .unwrap_or_else(|_| Ok(micyou_plugin::ScanReport::default()));
+        match report {
+            Ok(report) => {
+                for entry in report.discovered {
+                    if entry.state.is_enabled() {
+                        if let Err(e) = self.enable_plugin(&entry.manifest.id) {
+                            log::warn!(
+                                "[plugins] failed to start {}: {e}",
+                                entry.manifest.id
+                            );
+                        }
+                    }
+                }
+            }
+            Err(e) => log::warn!("[plugins] scan failed: {e}"),
         }
     }
 
@@ -394,6 +448,7 @@ impl PluginHost {
             self.hotkeys.clone(),
             self.window.clone(),
             self.panel_icons.clone(),
+            self.control_handlers.clone(),
             id.to_string(),
             entry.dir.clone(),
         );
@@ -592,6 +647,7 @@ pub struct PluginHostApi {
             std::collections::HashMap<String, std::collections::HashMap<String, String>>,
         >,
     >,
+    control_handlers: Arc<Mutex<ControlPlaneHandlers>>,
     timer_next: std::sync::atomic::AtomicU64,
     timers: std::sync::Mutex<
         std::collections::HashMap<u64, std::sync::Arc<std::sync::atomic::AtomicBool>>,
@@ -612,6 +668,7 @@ impl PluginHostApi {
                 std::collections::HashMap<String, std::collections::HashMap<String, String>>,
             >,
         >,
+        control_handlers: Arc<Mutex<ControlPlaneHandlers>>,
         plugin_id: String,
         dir: std::path::PathBuf,
     ) -> Arc<Self> {
@@ -623,6 +680,7 @@ impl PluginHostApi {
             hotkeys,
             window,
             panel_icons,
+            control_handlers,
             plugin_id,
             dir,
             timer_next: std::sync::atomic::AtomicU64::new(1),
@@ -928,6 +986,60 @@ impl HostApi for PluginHostApi {
                 .insert(panel_id.to_string(), icon.to_string());
         }
         Ok(())
+    }
+
+    fn get_muted(&self) -> PluginResult<bool> {
+        let handlers = self.control_handlers.lock().map_err(lock_err)?;
+        if let Some(handler) = handlers.get_muted.as_ref() {
+            handler()
+        } else {
+            Err(PluginError::Runtime("get_muted handler not registered".into()))
+        }
+    }
+
+    fn set_muted(&self, muted: bool) -> PluginResult<()> {
+        let handlers = self.control_handlers.lock().map_err(lock_err)?;
+        if let Some(handler) = handlers.set_muted.as_ref() {
+            handler(muted)
+        } else {
+            Err(PluginError::Runtime("set_muted handler not registered".into()))
+        }
+    }
+
+    fn get_monitoring(&self) -> PluginResult<bool> {
+        let handlers = self.control_handlers.lock().map_err(lock_err)?;
+        if let Some(handler) = handlers.get_monitoring.as_ref() {
+            handler()
+        } else {
+            Err(PluginError::Runtime("get_monitoring handler not registered".into()))
+        }
+    }
+
+    fn set_monitoring(&self, enabled: bool) -> PluginResult<()> {
+        let handlers = self.control_handlers.lock().map_err(lock_err)?;
+        if let Some(handler) = handlers.set_monitoring.as_ref() {
+            handler(enabled)
+        } else {
+            Err(PluginError::Runtime("set_monitoring handler not registered".into()))
+        }
+    }
+
+    fn get_dsp_settings(&self) -> PluginResult<String> {
+        let handlers = self.control_handlers.lock().map_err(lock_err)?;
+        if let Some(handler) = handlers.get_dsp_settings.as_ref() {
+            handler()
+        } else {
+            Err(PluginError::Runtime("get_dsp_settings handler not registered".into()))
+        }
+    }
+
+    fn set_dsp_settings(&self, settings_json: &str) -> PluginResult<()> {
+        let handlers = self.control_handlers.lock().map_err(lock_err)?;
+        if let Some(handler) = handlers.set_dsp_settings.as_ref() {
+            handler(settings_json)
+        } else {
+            Err(PluginError::Runtime("set_dsp_settings handler not registered".into()))
+        }
     }
 
     fn connected_devices(&self) -> Vec<DeviceSnapshot> {

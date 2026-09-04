@@ -224,7 +224,7 @@ class AudioStreamViewModel : ViewModel() {
     private suspend fun startStreamInternal() {
         Logger.i("AudioStreamViewModel", "Starting stream")
         val mode = _uiState.value.mode
-        val ip = _uiState.value.ipAddress
+        val ip = _uiState.value.ipAddress.trim()
 
         // 端口验证：确保端口在有效范围内 (1-65535)
         val rawPort = _uiState.value.port.toIntOrNull()
@@ -372,13 +372,15 @@ class AudioStreamViewModel : ViewModel() {
 
         _uiState.update {
             it.copy(
-                ipAddress = ip.ifBlank { _uiState.value.ipAddress }
+                ipAddress = ip
             )
         }
-        settings.putString("ip_address", ip.ifBlank { _uiState.value.ipAddress })
+        if (ip.isNotBlank()) {
+            settings.putString("ip_address", ip.trim())
+        }
 
         // 如果要求重启流（IP 切换时），先停止再启动
-        if (restartStream && wasRunning) {
+        if (restartStream && wasRunning && ip.isNotBlank()) {
             auxiliaryScope.launch(Dispatchers.IO) {
                 try {
                     _audioEngine.stopAndWait()

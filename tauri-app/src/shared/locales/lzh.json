@@ -191,7 +191,11 @@
       "title": "输出装置",
       "desc": "音频当于何处播放乎？",
       "auto": "自动",
-      "routingActive": "虚拟音频路由已启，音频将转至虚拟装置。"
+      "routingActive": "虚拟音频路由已启，音频将转至虚拟装置。",
+      "physicalWarningTitle": "所择者乃实体扬声之器",
+      "physicalWarningDesc": "微音器之声直出于扬声器。若两者同处一室，恐起大鸣回响。宜设虚拟音具（如 VB-Cable）以避之。",
+      "noVirtualDeviceTitle": "未察得虚拟音具",
+      "noVirtualDeviceDesc": "今退而用官定本设扬声器。若与微音器相近，恐生回声，宜速设虚拟音具（如 VB-Cable）。"
     },
     "spectrum": {
       "title": "实时频谱",
@@ -261,8 +265,13 @@
       "sponsorsBtn": "赞助者",
       "licensesDesc": "开源许可证",
       "licensesBtn": "许可证",
-      "logsDesc": "出日志",
-      "logsBtn": "出日志",
+      "logsDesc": "出日志以析疑",
+      "logsBtn": "日志",
+      "openLogDir": "开日志所",
+      "copyLog": "誊日志",
+      "copyLogPath": "誊日志所径",
+      "copied": "已誊",
+      "exportLog": "出日志牍",
       "introTitle": "简介",
       "introText": "MicYou 者，开源麦克风之具也。可使安卓装置变为电脑之高品质麦克风，以 Wi-Fi 或 USB 相连，音频传输延迟极低。"
     },
@@ -306,6 +315,12 @@
     "cancel": "止",
     "apply": "用",
     "confirm": "可",
+    "monitoringWarning": {
+      "title": "啟聽之諫",
+      "desc": "此術宜戴耳機而用之。若由外放揚聲器出聲，恐起循環大鳴之嘯。",
+      "dontAskAgain": "勿復相告",
+      "confirm": "啟聽"
+    },
     "contributors": {
       "title": "贡献者",
       "loading": "载贡献者中...",
@@ -356,7 +371,8 @@
     },
     "udpWarning": {
       "title": "防火墙阻 UDP 连接",
-      "desc": "移动应用已连成，然电脑未收 UDP 音频数据。此常因 Windows 防火墙阻 UDP 端口（{port}）。\n\n请于防火墙中许 MicYou 网络访问，或以管理员运行之。"
+      "desc": "移动应用已连成，然电脑未收 UDP 音频数据。此常因 Windows 防火墙阻 UDP 端口（{port}）。\n\n请于防火墙中许 MicYou 网络访问，或以管理员运行之。",
+      "allowButton": "一鍵許過防火墻 (TCP & UDP)"
     }
   },
   "tray": {
@@ -390,6 +406,10 @@
   "autostart": {
     "title": "开机自启",
     "desc": "登电脑时自启 MicYou。"
+  },
+  "floatingWindow": {
+    "title": "案頭懸窗",
+    "desc": "於屏面顯常居其上之聲波浮珠，按之可噤聲，引之可隨意移"
   },
   "notifications": {
     "title": "通知",

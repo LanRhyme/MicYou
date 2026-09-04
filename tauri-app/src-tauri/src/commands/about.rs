@@ -111,3 +111,34 @@ pub fn export_log(app: tauri::AppHandle) -> Result<(), String> {
 
     Ok(())
 }
+
+#[tauri::command]
+pub fn get_log_path(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
+    let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    let log_file = log_dir.join("micyou.log");
+    Ok(log_file.display().to_string())
+}
+
+#[tauri::command]
+pub fn get_log_content(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
+    let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    let log_file = log_dir.join("micyou.log");
+    if !log_file.exists() {
+        return Ok(String::new());
+    }
+    std::fs::read_to_string(&log_file).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn open_log_dir(app: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
+    use tauri_plugin_opener::OpenerExt;
+    let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&log_dir).map_err(|e| e.to_string())?;
+    app.opener()
+        .open_path(log_dir.display().to_string(), None::<&str>)
+        .map_err(|e| format!("open log dir: {e}"))?;
+    Ok(log_dir.display().to_string())
+}

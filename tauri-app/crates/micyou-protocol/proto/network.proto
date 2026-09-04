@@ -35,7 +35,7 @@ message ConnectMessage {
 }
 
 message MuteMessage {
-    bool isMuted = 1;
+    optional bool isMuted = 1;
 }
 
 message PingMessage {

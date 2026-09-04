@@ -481,7 +481,7 @@ async fn handle_client(
         connection_id,
         &active_connection,
         &active_audio_session,
-        plugins.bus.clone(),
+        plugins.clone(),
         addr.ip(),
     )
     .await?;
@@ -553,23 +553,27 @@ async fn handle_client(
             let buffer_duration = if mode == "usb" { 5 } else { 30 };
             events_emit.audio_metrics(stats_emit.to_metrics(buffer_duration));
             if mode == "wifi" {
-                let now = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as u64;
-                let tcp_time = stats_emit.get_tcp_connected_time();
-                let last_udp = stats_emit.get_last_udp_time();
-                if tcp_time > 0 && now.saturating_sub(tcp_time) > 5000 {
-                    let time_since_udp = if last_udp == 0 {
-                        now.saturating_sub(tcp_time)
-                    } else {
-                        now.saturating_sub(last_udp)
-                    };
-                    if time_since_udp > 10000 && !warning_fired {
-                        events_emit.udp_audio_warning();
-                        warning_fired = true;
-                    } else if time_since_udp < 5000 && warning_fired {
-                        warning_fired = false;
+                if stats_emit.is_muted() {
+                    warning_fired = false;
+                } else {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis() as u64;
+                    let tcp_time = stats_emit.get_tcp_connected_time();
+                    let last_udp = stats_emit.get_last_udp_time();
+                    if tcp_time > 0 && now.saturating_sub(tcp_time) > 5000 {
+                        let time_since_udp = if last_udp == 0 {
+                            now.saturating_sub(tcp_time)
+                        } else {
+                            now.saturating_sub(last_udp)
+                        };
+                        if time_since_udp > 10000 && !warning_fired {
+                            events_emit.udp_audio_warning();
+                            warning_fired = true;
+                        } else if time_since_udp < 5000 && warning_fired {
+                            warning_fired = false;
+                        }
                     }
                 }
             }
@@ -577,7 +581,7 @@ async fn handle_client(
     });
     let task_guard = TaskGuard::new(vec![writer_task, ping_task, monitor_task]);
 
-    let plugin_bus_reader = plugins.bus.clone();
+    let plugins_reader = plugins.clone();
     let reader = async {
         loop {
             let mut header = [0u8; FRAME_HEADER_LEN];
@@ -606,7 +610,7 @@ async fn handle_client(
                 connection_id,
                 &active_connection,
                 &active_audio_session,
-                plugin_bus_reader.clone(),
+                plugins_reader.clone(),
                 addr.ip(),
             )
             .await?;
@@ -644,7 +648,7 @@ async fn handle_message(
     connection_id: u64,
     active_connection: &SharedActiveConnection,
     active_audio_session: &SharedActiveAudioSession,
-    plugin_bus: Arc<micyou_plugin::PluginBus>,
+    plugins: Arc<crate::plugins::PluginHost>,
     peer_ip: std::net::IpAddr,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(audio) = msg.audio_packet {
@@ -710,9 +714,12 @@ async fn handle_message(
         }
     }
     if let Some(mute) = msg.mute {
+        let is_muted = mute.is_muted.unwrap_or(false);
+        stats.set_muted(is_muted);
+        plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted: is_muted });
         run_if_active(active_connection, takeover_token, connection_id, || {
-            println!("Received mute state: {}", mute.is_muted);
-            events.mute_state_changed(mute.is_muted);
+            println!("Received mute state: {}", is_muted);
+            events.mute_state_changed(is_muted);
         })
         .await;
     }
@@ -720,7 +727,7 @@ async fn handle_message(
         // Cross-device plugin message: route to the bus (local plugins via the
         // dispatcher, pending RPCs via correlation id).
         let logical = micyou_plugin::sync::from_wire(&plugin_message);
-        plugin_bus.handle_incoming(&logical);
+        plugins.bus.handle_incoming(&logical);
     }
     Ok(())
 }

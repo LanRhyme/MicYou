@@ -88,6 +88,16 @@ pub enum PluginAction {
     },
     /// 列出已安装插件（id、版本、运行时、状态）
     List,
+    /// 启用指定插件
+    Enable {
+        /// 插件 ID（如 dev.micyou.example.soundpad）
+        id: String,
+    },
+    /// 禁用指定插件
+    Disable {
+        /// 插件 ID（如 dev.micyou.example.soundpad）
+        id: String,
+    },
 }
 
 pub fn run(action: PluginAction) -> Result<(), String> {
@@ -115,6 +125,8 @@ pub fn run(action: PluginAction) -> Result<(), String> {
         PluginAction::Dev { dir, interval } => dev(&dir, interval),
         PluginAction::Bump { dir, version } => bump(&dir, version.as_deref()),
         PluginAction::List => list_installed(),
+        PluginAction::Enable { id } => enable_plugin(&id),
+        PluginAction::Disable { id } => disable_plugin(&id),
     }
 }
 
@@ -181,6 +193,26 @@ fn list_installed() -> Result<(), String> {
         );
     }
     println!("共 {} 个插件", total);
+    Ok(())
+}
+
+fn enable_plugin(id: &str) -> Result<(), String> {
+    let plugins_dir = crate::config::config_dir().join("plugins");
+    let state_path = crate::config::config_dir().join("plugin-state.json");
+    let mut manager = micyou_plugin::PluginManager::new(plugins_dir, state_path);
+    manager.scan().map_err(|e| e.to_string())?;
+    manager.set_enabled(id, true).map_err(|e| e.to_string())?;
+    println!("已启用插件: {id}");
+    Ok(())
+}
+
+fn disable_plugin(id: &str) -> Result<(), String> {
+    let plugins_dir = crate::config::config_dir().join("plugins");
+    let state_path = crate::config::config_dir().join("plugin-state.json");
+    let mut manager = micyou_plugin::PluginManager::new(plugins_dir, state_path);
+    manager.scan().map_err(|e| e.to_string())?;
+    manager.set_enabled(id, false).map_err(|e| e.to_string())?;
+    println!("已禁用插件: {id}");
     Ok(())
 }
 

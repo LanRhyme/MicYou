@@ -3,7 +3,6 @@ import java.io.File
 
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
 }
@@ -17,6 +16,10 @@ val androidCompat = compatLevel != null
 val isApi21Compat = compatLevel == "api21"
 // 预留更低级别，当前未实现
 // val isApi19Compat = compatLevel == "api19"
+
+if (androidCompat) {
+    apply(plugin = "org.jetbrains.kotlin.android")
+}
 
 val aifadianApiToken: String = run {
     val localProps = Properties()

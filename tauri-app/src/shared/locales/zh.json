@@ -193,7 +193,11 @@
       "title": "输出设备",
       "desc": "麦克风的声音应该在哪里播放？",
       "auto": "自动",
-      "routingActive": "虚拟音频路由已激活，音频将被转发到虚拟设备"
+      "routingActive": "虚拟音频路由已激活，音频将被转发到虚拟设备",
+      "physicalWarningTitle": "当前选择的是物理播放设备",
+      "physicalWarningDesc": "手机麦克风的声音将直接从音响/扬声器播放。若手机与扬声器处于同一环境，极易产生严重回声或啸叫。建议安装并选择虚拟音频设备（如 VB-Cable）。",
+      "noVirtualDeviceTitle": "未检测到虚拟音频设备",
+      "noVirtualDeviceDesc": "当前自动回落到系统默认扬声器播放。若与手机处于同一环境可能产生回声，建议安装并配置虚拟音频驱动（如 VB-Cable）。"
     },
     "spectrum": {
       "title": "实时频谱",
@@ -264,7 +268,12 @@
       "licensesDesc": "开源软件许可协议",
       "licensesBtn": "开源协议",
       "logsDesc": "导出调试日志文件",
-      "logsBtn": "导出日志",
+      "logsBtn": "运行日志",
+      "openLogDir": "打开日志目录",
+      "copyLog": "复制日志内容",
+      "copyLogPath": "复制路径",
+      "copied": "已复制",
+      "exportLog": "导出日志",
       "introTitle": "软件介绍",
       "introText": "MicYou 是一款开源的麦克风工具，可以将您的 Android 设备变成电脑的高质量麦克风，支持 Wi-Fi 和 USB 连接，提供低延迟的音频传输体验"
     },
@@ -308,6 +317,12 @@
     "cancel": "取消",
     "apply": "应用",
     "confirm": "确认",
+    "monitoringWarning": {
+      "title": "开启监听提示",
+      "desc": "此功能最好佩戴耳机使用，使用外放扬声器可能会造成声音循环与啸叫。",
+      "dontAskAgain": "不再提示",
+      "confirm": "开启监听"
+    },
     "contributors": {
       "title": "贡献者",
       "loading": "正在加载贡献者...",
@@ -358,7 +373,8 @@
     },
     "udpWarning": {
       "title": "防火墙阻止了 UDP 音频连接",
-      "desc": "手机端已成功连接，但电脑端未能收到任何 UDP 音频数据，这通常是因为 Windows 防火墙拦截了 UDP 端口 ({port})\n\n请在防火墙中允许 MicYou 程序的网络访问，或者尝试以管理员身份重新运行程序"
+      "desc": "手机端已成功连接，但电脑端未能收到任何 UDP 音频数据，这通常是因为 Windows 防火墙拦截了 UDP 端口 ({port})\n\n请在防火墙中允许 MicYou 程序的网络访问，或者尝试以管理员身份重新运行程序",
+      "allowButton": "一键放行防火墙 (TCP & UDP)"
     }
   },
   "tray": {
@@ -392,6 +408,10 @@
   "autostart": {
     "title": "开机自启",
     "desc": "登录电脑时自动启动 MicYou"
+  },
+  "floatingWindow": {
+    "title": "桌面悬浮窗",
+    "desc": "在屏幕上显示始终置顶的麦克风状态悬浮球，支持点击静音与拖拽"
   },
   "notifications": {
     "title": "系统通知",

@@ -216,6 +216,36 @@ pub trait HostApi: Send + Sync {
     /// relative to the plugin directory (PNG/SVG) or a short text/emoji.
     /// No capability required; the host only renders what the plugin declares.
     fn set_panel_icon(&self, panel_id: &str, icon: &str) -> PluginResult<()>;
+
+    /// Get host mute state (requires `control.observe` capability).
+    fn get_muted(&self) -> PluginResult<bool> {
+        Err(PluginError::Runtime("get_muted not supported".into()))
+    }
+
+    /// Set host mute state (requires `control.intercept` capability).
+    fn set_muted(&self, _muted: bool) -> PluginResult<()> {
+        Err(PluginError::Runtime("set_muted not supported".into()))
+    }
+
+    /// Get host audio monitoring / ear-return state (requires `control.observe` capability).
+    fn get_monitoring(&self) -> PluginResult<bool> {
+        Err(PluginError::Runtime("get_monitoring not supported".into()))
+    }
+
+    /// Set host audio monitoring / ear-return state (requires `control.intercept` capability).
+    fn set_monitoring(&self, _enabled: bool) -> PluginResult<()> {
+        Err(PluginError::Runtime("set_monitoring not supported".into()))
+    }
+
+    /// Get current DSP settings as a JSON string (requires `control.observe` capability).
+    fn get_dsp_settings(&self) -> PluginResult<String> {
+        Err(PluginError::Runtime("get_dsp_settings not supported".into()))
+    }
+
+    /// Update DSP settings from a JSON string (requires `control.intercept` capability).
+    fn set_dsp_settings(&self, _settings_json: &str) -> PluginResult<()> {
+        Err(PluginError::Runtime("set_dsp_settings not supported".into()))
+    }
 }
 
 #[cfg(test)]

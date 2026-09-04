@@ -417,6 +417,9 @@ impl AudioOutputManager {
                         }
                     }
                 }
+                if cable_device.is_none() {
+                    log::warn!("[Audio] VB-Cable not detected, falling back to default device. Note: Playing microphone audio through physical speakers may cause acoustic feedback.");
+                }
                 cable_device.or_else(|| host.default_output_device())
             }
             #[cfg(target_os = "macos")]
@@ -431,6 +434,9 @@ impl AudioOutputManager {
                             }
                         }
                     }
+                }
+                if blackhole_device.is_none() {
+                    log::warn!("[Audio] BlackHole not detected, falling back to default device. Note: Playing microphone audio through physical speakers may cause acoustic feedback.");
                 }
                 blackhole_device.or_else(|| host.default_output_device())
             }

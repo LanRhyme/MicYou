@@ -41,6 +41,13 @@ typedef struct mpl_host_api {
     mpl_result_t (*clipboard_read)(void *ctx, char *out, uint32_t *out_size);
     mpl_result_t (*clipboard_write)(void *ctx, const char *text);
     mpl_result_t (*set_panel_icon)(void *ctx, const char *panel_id, const char *icon);
+    /* API Version 2: 控制面信令（追加式演进） */
+    mpl_result_t (*get_muted)(void *ctx, uint32_t *out_muted);
+    mpl_result_t (*set_muted)(void *ctx, uint32_t muted);
+    mpl_result_t (*get_monitoring)(void *ctx, uint32_t *out_enabled);
+    mpl_result_t (*set_monitoring)(void *ctx, uint32_t enabled);
+    mpl_result_t (*get_dsp_settings)(void *ctx, char *out, uint32_t *out_size);
+    mpl_result_t (*set_dsp_settings)(void *ctx, const char *settings_json);
 } mpl_host_api_t;
 ```
 
@@ -73,6 +80,12 @@ typedef struct mpl_host_api {
 | `clipboard_read` | `() -> i32` | 读剪贴板（需 clipboard.read） |
 | `clipboard_write` | `(text_ptr: i32) -> ()` | 写剪贴板（需 clipboard.write） |
 | `set_panel_icon` | `(panel_id_ptr: i32, icon_ptr: i32) -> ()` | 设置设置侧边栏面板图标 |
+| `get_muted` | `() -> i32` | 读静音状态（需 control.observe，0=未静音 1=静音） |
+| `set_muted` | `(muted: i32) -> i32` | 设静音状态（需 control.intercept，0=取消 1=静音） |
+| `get_monitoring` | `() -> i32` | 读耳返监听状态（需 control.observe，0=关 1=开） |
+| `set_monitoring` | `(enabled: i32) -> i32` | 设耳返监听状态（需 control.intercept，0=关 1=开） |
+| `get_dsp_settings` | `() -> i32` | 读当前 DSP 配置 JSON 字符串指针（需 control.observe） |
+| `set_dsp_settings` | `(json_ptr: i32) -> i32` | 覆写或局部 Patch DSP 配置（需 control.intercept） |
 
 ### 缓冲区契约（out / out_size）
 
@@ -197,7 +210,7 @@ WASM 导入签名：`(panel_id_ptr: i32, icon_ptr: i32) -> ()`
 | --- | --- | --- |
 | `memory` | 是 | 线性内存 |
 | `alloc` / `dealloc` | 是 | 内存分配（宿主写字符串 / 音频数据用） |
-| `api_version` | 否 | 返回 Host API 版本（1） |
+| `api_version` | 否 | 返回 Host API 版本（1 或 2，缺省为 2） |
 | `init` | 否 | 初始化，0 = 成功 |
 | `process` | 否 | DSP，0 = ok 1 = bypass |
 | `handle_event` | 否 | 事件（JSON 指针） |
@@ -210,8 +223,9 @@ WASM 导入签名：`(panel_id_ptr: i32, icon_ptr: i32) -> ()`
 | --- | --- |
 | `device_connected` | `{ mode, label }` |
 | `device_disconnected` | — |
-| `mute_changed` | `{ muted }` |
-| `dsp_settings_changed` | — |
+| `mute_changed` | `{ muted }`（需 control.observe） |
+| `monitoring_changed` | `{ enabled }`（需 control.observe） |
+| `dsp_settings_changed` | —（需 control.observe） |
 | `state_changed` | `{ enabled }` |
 
 ## 消息协议
@@ -277,6 +291,8 @@ Native 的 `mpl_result_t` 数值与此保持一致（0-5 子集）
 | `clipboard.write` | clipboard_write | 写入剪贴板文本 |
 | `fs.read` | fs_read | 插件目录内文件读取（沙箱） |
 | `fs.write` | fs_write | 插件目录内文件写入（沙箱，自动建父目录） |
+| `control.observe` | get_muted / get_monitoring / get_dsp_settings，并接收控制面状态事件 | 观测宿主静音、耳返及 DSP 处理链状态 |
+| `control.intercept` | set_muted / set_monitoring / set_dsp_settings | 主动接管并修改宿主静音、耳返与 DSP 滤波参数 |
 | `register_hotkey` | 无需能力 | 全局快捷键（仅 X11，触发仅通知注册的插件） |
 | 无 | set_timeout/clear_timeout/set_interval/clear_interval | 定时器（不访问资源） |
 | 无 | notify/locale/host_info/plugin_dir/open_window | 通知与环境查询 |
