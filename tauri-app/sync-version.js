@@ -7,6 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const gradlePropsPath = resolve(__dirname, '..', 'gradle.properties');
 const tauriConfigPath = resolve(__dirname, 'src-tauri', 'tauri.conf.json');
 const cargoTomlPath = resolve(__dirname, 'src-tauri', 'Cargo.toml');
+const workspaceCargoTomlPath = resolve(__dirname, 'Cargo.toml');
 const packageJsonPath = resolve(__dirname, 'package.json');
 
 function readGradleVersion() {
@@ -53,6 +54,15 @@ function updateCargoToml(version) {
   console.log(`Updated Cargo.toml: ${version}`);
 }
 
+function updateWorkspaceCargoToml(version) {
+  const content = readFileSync(workspaceCargoTomlPath, 'utf-8');
+  const updated = content.replace(/^version\s*=\s*".*"$/m, `version = "${version}"`);
+  if (updated === content) return;
+
+  writeFileSync(workspaceCargoTomlPath, updated);
+  console.log(`Updated workspace Cargo.toml: ${version}`);
+}
+
 function updatePackageJson(version) {
   const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
   if (pkg.version === version) return;
@@ -81,6 +91,7 @@ try {
   
   updateTauriConfig(semver);
   updateCargoToml(semver);
+  updateWorkspaceCargoToml(semver);
   updateCargoLock();
   updatePackageJson(semver);
   
