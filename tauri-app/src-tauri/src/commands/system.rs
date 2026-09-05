@@ -14,6 +14,7 @@
  */
 
 use serde::Serialize;
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 use std::process::Command;
 use tauri::window::Effect;
 use tauri::{AppHandle, Manager, State};
@@ -392,10 +393,10 @@ pub fn ensure_audio_output_started(
     audio_output: &std::sync::Arc<crate::audio_output::AudioOutputHandle>,
     output_device: Option<String>,
     output_buffer_ms: usize,
-    resource_dir: Option<&std::path::Path>,
+    _resource_dir: Option<&std::path::Path>,
 ) -> bool {
     #[cfg(target_os = "linux")]
-    let resolved_resource_dir = find_resource_dir(resource_dir);
+    let resolved_resource_dir = find_resource_dir(_resource_dir);
 
     // On Linux, create the PipeWire virtual sink/source before opening output.
     #[cfg(target_os = "linux")]
@@ -1307,9 +1308,8 @@ pub fn set_window_effects(app: AppHandle, enabled: bool) -> Result<(), String> {
 #[cfg(windows)]
 #[tauri::command]
 pub async fn start_window_drag(app: AppHandle) -> Result<(), String> {
-    use std::ffi::CString;
     use winapi::um::winuser::{
-        FindWindowA, GetAsyncKeyState, GetCursorPos, SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE,
+        GetAsyncKeyState, GetCursorPos, SetWindowPos, SWP_NOACTIVATE, SWP_NOSIZE,
         SWP_NOZORDER, VK_LBUTTON,
     };
 

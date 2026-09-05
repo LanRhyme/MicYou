@@ -43,6 +43,7 @@ mod headless_event_pump {
 
     #[repr(C)]
     struct POINT { x: i32, y: i32 }
+    #[allow(non_snake_case)]
     #[repr(C)]
     struct MSG {
         hwnd: *mut c_void, message: u32, wParam: usize, lParam: isize,
