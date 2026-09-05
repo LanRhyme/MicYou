@@ -494,9 +494,38 @@
                   </p>
                   <div
                     v-if="!pipewireStatus.available"
-                    class="text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg p-3 select-all"
+                    class="space-y-2.5"
                   >
-                    sudo apt install pipewire pipewire-pulse
+                    <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+                      <button
+                        v-for="distro in supportedDistros"
+                        :key="distro.id"
+                        type="button"
+                        @click="selectedDistro = distro.id"
+                        class="px-2.5 py-1 text-xs rounded-lg transition-colors font-medium cursor-pointer"
+                        :class="
+                          selectedDistro === distro.id
+                            ? 'bg-primary text-on-primary shadow-sm'
+                            : 'bg-surface-container text-on-surface-variant hover:bg-surface-variant'
+                        "
+                      >
+                        {{ distro.name }}
+                      </button>
+                    </div>
+                    <div
+                      class="text-xs text-on-surface-variant font-mono bg-surface-container rounded-lg p-3 select-all flex items-center justify-between gap-2"
+                    >
+                      <span class="break-all">{{ currentPipewireInstallCommand }}</span>
+                      <button
+                        type="button"
+                        @click="copyPipewireCommand"
+                        class="shrink-0 p-1.5 hover:bg-surface-variant rounded-md text-on-surface-variant transition-colors cursor-pointer"
+                        :title="copiedPipewire ? $t('settings.about.copied') : $t('settings.about.copyLog')"
+                      >
+                        <Check v-if="copiedPipewire" class="w-3.5 h-3.5 text-primary" />
+                        <Copy v-else class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div v-else class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
@@ -2056,11 +2085,44 @@ const isAutoFallbackToPhysical = computed(() => {
 
 const isAecSupported = !isMacOS;
 const aecRuntimeAvailable = ref(true);
-const pipewireStatus = ref<{ available: boolean; setup: boolean; device_exists: boolean }>({
+const pipewireStatus = ref<{
+  available: boolean;
+  setup: boolean;
+  device_exists: boolean;
+  install_command?: string;
+  distro?: string;
+}>({
   available: false,
   setup: false,
   device_exists: false,
 });
+const selectedDistro = ref<string>('debian');
+const copiedPipewire = ref(false);
+
+const supportedDistros = [
+  { id: 'arch', name: 'Arch / Manjaro', command: 'sudo pacman -S pipewire pipewire-pulse' },
+  { id: 'debian', name: 'Debian / Ubuntu', command: 'sudo apt install pipewire pipewire-pulse' },
+  { id: 'fedora', name: 'Fedora', command: 'sudo dnf install pipewire pipewire-pulseaudio' },
+  { id: 'opensuse', name: 'openSUSE', command: 'sudo zypper install pipewire pipewire-pulseaudio' },
+];
+
+const currentPipewireInstallCommand = computed(() => {
+  const match = supportedDistros.find((d) => d.id === selectedDistro.value);
+  if (match) return match.command;
+  return pipewireStatus.value.install_command || 'sudo apt install pipewire pipewire-pulse';
+});
+
+const copyPipewireCommand = async () => {
+  try {
+    await navigator.clipboard.writeText(currentPipewireInstallCommand.value);
+    copiedPipewire.value = true;
+    setTimeout(() => {
+      copiedPipewire.value = false;
+    }, 2000);
+  } catch (e) {
+    console.error('Failed to copy pipewire command:', e);
+  }
+};
 const vbcableInstalling = ref(false);
 const vbcableInstallProgress = ref('');
 let unlistenVbcableProgress: UnlistenFn | null = null;
@@ -2356,7 +2418,12 @@ async function checkPipeWireStatus() {
       available: boolean;
       setup: boolean;
       device_exists: boolean;
+      install_command?: string;
+      distro?: string;
     }>('check_pipewire');
+    if (pipewireStatus.value.distro && supportedDistros.some((d) => d.id === pipewireStatus.value.distro)) {
+      selectedDistro.value = pipewireStatus.value.distro;
+    }
   } catch (e) {
     console.error('Failed to check PipeWire status:', e);
   }

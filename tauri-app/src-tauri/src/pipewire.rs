@@ -551,3 +551,211 @@ pub fn device_exists() -> bool {
         Err(_) => false,
     }
 }
+
+/// Detects Linux distribution and returns `(distro_key, install_command)`.
+pub fn detect_install_info() -> (String, String) {
+    if !cfg!(target_os = "linux") {
+        return ("other".to_string(), String::new());
+    }
+
+    // 1. Check /etc/os-release or /usr/lib/os-release
+    if let Some(info) = detect_from_os_release() {
+        return info;
+    }
+
+    // 2. Fallback: check available package manager binaries on PATH or common dirs
+    if path_exists_or_on_path("pacman") {
+        (
+            "arch".to_string(),
+            "sudo pacman -S pipewire pipewire-pulse".to_string(),
+        )
+    } else if path_exists_or_on_path("apt") || path_exists_or_on_path("apt-get") {
+        (
+            "debian".to_string(),
+            "sudo apt install pipewire pipewire-pulse".to_string(),
+        )
+    } else if path_exists_or_on_path("dnf") {
+        (
+            "fedora".to_string(),
+            "sudo dnf install pipewire pipewire-pulseaudio".to_string(),
+        )
+    } else if path_exists_or_on_path("zypper") {
+        (
+            "opensuse".to_string(),
+            "sudo zypper install pipewire pipewire-pulseaudio".to_string(),
+        )
+    } else if path_exists_or_on_path("apk") {
+        (
+            "alpine".to_string(),
+            "sudo apk add pipewire pipewire-pulse".to_string(),
+        )
+    } else if path_exists_or_on_path("xbps-install") {
+        (
+            "void".to_string(),
+            "sudo xbps-install -S pipewire".to_string(),
+        )
+    } else if path_exists_or_on_path("emerge") {
+        (
+            "gentoo".to_string(),
+            "sudo emerge --ask media-video/pipewire".to_string(),
+        )
+    } else {
+        (
+            "debian".to_string(),
+            "sudo apt install pipewire pipewire-pulse".to_string(),
+        )
+    }
+}
+
+pub fn detect_install_command() -> String {
+    detect_install_info().1
+}
+
+fn path_exists_or_on_path(bin: &str) -> bool {
+    if std::path::Path::new(&format!("/usr/bin/{}", bin)).exists()
+        || std::path::Path::new(&format!("/bin/{}", bin)).exists()
+    {
+        return true;
+    }
+    if let Ok(path_var) = std::env::var("PATH") {
+        for dir in path_var.split(':') {
+            if std::path::Path::new(dir).join(bin).exists() {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn detect_from_os_release() -> Option<(String, String)> {
+    let content = std::fs::read_to_string("/etc/os-release")
+        .or_else(|_| std::fs::read_to_string("/usr/lib/os-release"))
+        .ok()?;
+    parse_os_release_info(&content)
+}
+
+pub fn parse_os_release_info(content: &str) -> Option<(String, String)> {
+    let mut id = String::new();
+    let mut id_like = String::new();
+
+    for line in content.lines() {
+        let line = line.trim();
+        if let Some(val) = line.strip_prefix("ID=") {
+            id = val.trim_matches(|c| c == '"' || c == '\'').to_lowercase();
+        } else if let Some(val) = line.strip_prefix("ID_LIKE=") {
+            id_like = val.trim_matches(|c| c == '"' || c == '\'').to_lowercase();
+        }
+    }
+
+    let is_match = |tokens: &[&str]| -> bool {
+        tokens
+            .iter()
+            .any(|&tok| id == tok || id_like.split_whitespace().any(|l| l == tok))
+    };
+
+    if is_match(&[
+        "arch",
+        "cachyos",
+        "manjaro",
+        "endeavouros",
+        "artix",
+        "garuda",
+        "parabola",
+    ]) {
+        Some((
+            "arch".to_string(),
+            "sudo pacman -S pipewire pipewire-pulse".to_string(),
+        ))
+    } else if is_match(&[
+        "debian",
+        "ubuntu",
+        "linuxmint",
+        "mint",
+        "pop",
+        "elementary",
+        "zorin",
+        "kali",
+        "deepin",
+        "raspbian",
+        "devuan",
+    ]) {
+        Some((
+            "debian".to_string(),
+            "sudo apt install pipewire pipewire-pulse".to_string(),
+        ))
+    } else if is_match(&[
+        "fedora", "rhel", "centos", "rocky", "alma", "nobara", "redhat",
+    ]) {
+        Some((
+            "fedora".to_string(),
+            "sudo dnf install pipewire pipewire-pulseaudio".to_string(),
+        ))
+    } else if is_match(&["suse", "opensuse", "opensuse-tumbleweed", "opensuse-leap"]) {
+        Some((
+            "opensuse".to_string(),
+            "sudo zypper install pipewire pipewire-pulseaudio".to_string(),
+        ))
+    } else if is_match(&["alpine"]) {
+        Some((
+            "alpine".to_string(),
+            "sudo apk add pipewire pipewire-pulse".to_string(),
+        ))
+    } else if is_match(&["void"]) {
+        Some((
+            "void".to_string(),
+            "sudo xbps-install -S pipewire".to_string(),
+        ))
+    } else if is_match(&["gentoo"]) {
+        Some((
+            "gentoo".to_string(),
+            "sudo emerge --ask media-video/pipewire".to_string(),
+        ))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_os_release_arch() {
+        let content = "NAME=\"Arch Linux\"\nID=arch\n";
+        let (distro, cmd) = parse_os_release_info(content).unwrap();
+        assert_eq!(distro, "arch");
+        assert_eq!(cmd, "sudo pacman -S pipewire pipewire-pulse");
+    }
+
+    #[test]
+    fn test_parse_os_release_cachyos() {
+        let content = "NAME=\"CachyOS\"\nID=cachyos\nID_LIKE=arch\n";
+        let (distro, cmd) = parse_os_release_info(content).unwrap();
+        assert_eq!(distro, "arch");
+        assert_eq!(cmd, "sudo pacman -S pipewire pipewire-pulse");
+    }
+
+    #[test]
+    fn test_parse_os_release_ubuntu() {
+        let content = "NAME=\"Ubuntu\"\nID=ubuntu\nID_LIKE=debian\n";
+        let (distro, cmd) = parse_os_release_info(content).unwrap();
+        assert_eq!(distro, "debian");
+        assert_eq!(cmd, "sudo apt install pipewire pipewire-pulse");
+    }
+
+    #[test]
+    fn test_parse_os_release_fedora() {
+        let content = "NAME=\"Fedora Linux\"\nID=fedora\n";
+        let (distro, cmd) = parse_os_release_info(content).unwrap();
+        assert_eq!(distro, "fedora");
+        assert_eq!(cmd, "sudo dnf install pipewire pipewire-pulseaudio");
+    }
+
+    #[test]
+    fn test_parse_os_release_opensuse() {
+        let content = "NAME=\"openSUSE Tumbleweed\"\nID=\"opensuse-tumbleweed\"\nID_LIKE=\"opensuse suse\"\n";
+        let (distro, cmd) = parse_os_release_info(content).unwrap();
+        assert_eq!(distro, "opensuse");
+        assert_eq!(cmd, "sudo zypper install pipewire pipewire-pulseaudio");
+    }
+}

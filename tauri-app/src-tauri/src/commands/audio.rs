@@ -23,15 +23,20 @@ pub struct PipeWireStatus {
     pub available: bool,
     pub setup: bool,
     pub device_exists: bool,
+    pub install_command: String,
+    pub distro: String,
 }
 
 #[cfg(target_os = "linux")]
 #[tauri::command]
 pub fn check_pipewire() -> PipeWireStatus {
+    let (distro, install_command) = crate::pipewire::detect_install_info();
     PipeWireStatus {
         available: crate::pipewire::is_available(),
         setup: crate::pipewire::is_setup(),
         device_exists: crate::pipewire::device_exists(),
+        install_command,
+        distro,
     }
 }
 
@@ -42,6 +47,8 @@ pub fn check_pipewire() -> PipeWireStatus {
         available: false,
         setup: false,
         device_exists: false,
+        install_command: String::new(),
+        distro: String::new(),
     }
 }
 

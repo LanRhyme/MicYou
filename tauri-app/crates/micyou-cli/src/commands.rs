@@ -194,6 +194,10 @@ pub fn cmd_mics() {
         }
         if !available {
             println!("  PipeWire not detected (is pipewire-pulse running?)");
+            let cmd = pipewire::detect_install_command();
+            if !cmd.is_empty() {
+                println!("  Install command: {cmd}");
+            }
         }
         let _ = setup;
     }
