@@ -30,6 +30,58 @@ use std::sync::{Arc, Mutex, RwLock};
 use tauri::Manager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState, ShortcutWrapper};
 
+// 引入全局热键底层库用于 CLI/TUI 模式
+use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::HotKey};
+
+// Windows 消息泵：用于在 CLI 无头模式下手动派发系统消息以触发全局热键
+// 使用原生 FFI 避免引入额外的 windows-sys 依赖
+#[cfg(target_os = "windows")]
+mod win_message_pump {
+    use std::ffi::c_void;
+
+    #[repr(C)]
+    struct POINT {
+        x: i32,
+        y: i32,
+    }
+
+    #[repr(C)]
+    struct MSG {
+        hwnd: *mut c_void,
+        message: u32,
+        wParam: usize,
+        lParam: isize,
+        time: u32,
+        pt: POINT,
+        lPrivate: u32,
+    }
+
+    const PM_REMOVE: u32 = 0x0001;
+
+    #[link(name = "user32")]
+    extern "system" {
+        fn PeekMessageW(lpMsg: *mut MSG, hWnd: *mut c_void, wMsgFilterMin: u32, wMsgFilterMax: u32, wRemoveMsg: u32) -> i32;
+        fn TranslateMessage(lpMsg: *const MSG) -> i32;
+        fn DispatchMessageW(lpMsg: *const MSG) -> isize;
+    }
+
+    pub fn pump() {
+        unsafe {
+            let mut msg: MSG = std::mem::zeroed();
+            while PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        }
+    }
+}
+
+// 用于主线程与消息泵线程通信的指令
+enum HeadlessCmd {
+    Register(HotKey, u32, String, u64, String), // hotkey, os_id, plugin_id, internal_id, shortcut_text
+    Stop,
+}
+
 /// TCP control-channel transport for cross-device plugin messages.
 /// The tcp_server registers the active client's message sender here; the bus
 /// pushes wire messages through it. Only one device session is active at a
@@ -152,14 +204,21 @@ pub struct HotkeyService {
     handle: Mutex<Option<tauri::AppHandle>>,
     next_id: AtomicU64,
     registered: Mutex<std::collections::HashMap<u64, String>>,
+    // --- Headless (CLI/TUI) fallback fields ---
+    bus: Option<Arc<PluginBus>>,
+    headless_hotkeys: Arc<Mutex<std::collections::HashMap<u32, (String, u64, String)>>>,
+    headless_tx: Mutex<Option<std::sync::mpsc::Sender<HeadlessCmd>>>,
 }
 
 impl HotkeyService {
-    pub fn new() -> Arc<Self> {
+    pub fn new(bus: Arc<PluginBus>) -> Arc<Self> {
         Arc::new(Self {
             handle: Mutex::new(None),
             next_id: AtomicU64::new(1),
             registered: Mutex::new(std::collections::HashMap::new()),
+            bus: Some(bus),
+            headless_hotkeys: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            headless_tx: Mutex::new(None),
         })
     }
 
@@ -179,46 +238,121 @@ impl HotkeyService {
         let session = std::env::var("XDG_SESSION_TYPE").unwrap_or_default();
         if session == "wayland" || std::env::var("WAYLAND_DISPLAY").is_ok() {
             return Err(PluginError::Runtime(format!(
-                "global hotkey unavailable on Wayland (X11-only backend);                  use the plugin panel buttons instead (plugin {plugin_id})"
+                "global hotkey unavailable on Wayland (X11-only backend); use the plugin panel buttons instead (plugin {plugin_id})"
             )));
         }
-        let wrapper: ShortcutWrapper = shortcut
-            .try_into()
-            .map_err(|_| PluginError::Validation(format!("invalid hotkey: {shortcut}")))?;
-        let handle = self
-            .handle
-            .lock()
-            .map_err(lock_err)?
-            .clone()
-            .ok_or_else(|| PluginError::Runtime("hotkeys not initialized".into()))?;
+        
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let pid = plugin_id.to_string();
-        let shortcut_text = shortcut.to_string();
-        let pid_closure = pid.clone();
-        handle
-            .global_shortcut()
-            .on_shortcut(wrapper, move |app, _sc, event| {
-                if event.state != ShortcutState::Pressed {
-                    return;
-                }
-                let Some(state) = app.try_state::<crate::server::ServerState>() else {
-                    return;
-                };
-                let msg = PluginMessage::new(
-                    "host",
-                    &pid_closure,
-                    &format!("hotkey:{id}"),
-                    serde_json::json!({ "shortcut": shortcut_text })
-                        .to_string()
-                        .into_bytes(),
-                );
-                state.plugins.bus.handle_incoming(&msg);
-            })
-            .map_err(|e| PluginError::Runtime(format!("hotkey register: {e}")))?;
-        self.registered
-            .lock()
-            .map_err(lock_err)?
-            .insert(id, pid.clone());
+        let maybe_app = self.handle.lock().map_err(lock_err)?.clone();
+
+        if let Some(app) = maybe_app {
+            // === GUI Mode: Use Tauri Plugin ===
+            let wrapper: ShortcutWrapper = shortcut
+                .try_into()
+                .map_err(|_| PluginError::Validation(format!("invalid hotkey: {shortcut}")))?;
+            let pid = plugin_id.to_string();
+            let shortcut_text = shortcut.to_string();
+            let pid_closure = pid.clone();
+            let id_closure = id;
+            app.global_shortcut()
+                .on_shortcut(wrapper, move |app, _sc, event| {
+                    if event.state != ShortcutState::Pressed {
+                        return;
+                    }
+                    let Some(state) = app.try_state::<crate::server::ServerState>() else {
+                        return;
+                    };
+                    let msg = PluginMessage::new(
+                        "host",
+                        &pid_closure,
+                        &format!("hotkey:{id_closure}"),
+                        serde_json::json!({ "shortcut": shortcut_text })
+                            .to_string()
+                            .into_bytes(),
+                    );
+                    state.plugins.bus.handle_incoming(&msg);
+                })
+                .map_err(|e| PluginError::Runtime(format!("hotkey register: {e}")))?;
+        } else {
+            // === Headless Mode (CLI/TUI): 使用独立的消息泵线程 ===
+            let mut tx_slot = self.headless_tx.lock().unwrap();
+            if tx_slot.is_none() {
+                let (tx, rx) = std::sync::mpsc::channel();
+                *tx_slot = Some(tx.clone());
+                
+                let bus = self.bus.clone().unwrap();
+                let hotkeys_map = self.headless_hotkeys.clone();
+                
+                // 启动专门的“消息泵 + 事件监听”后台线程
+                std::thread::spawn(move || {
+                    // 1. 在该线程内创建 Manager (这会创建隐藏窗口)
+                    let mgr = match GlobalHotKeyManager::new() {
+                        Ok(m) => m,
+                        Err(e) => {
+                            log::error!("[plugins] headless hotkey manager init failed: {e}");
+                            return;
+                        }
+                    };
+                    
+                    // 2. 核心消息循环
+                    loop {
+                        // A. 泵送 Windows 消息 (触发 WndProc -> 写入 GlobalHotKeyEvent channel)
+                        #[cfg(target_os = "windows")]
+                        win_message_pump::pump();
+                        
+                        // B. 处理来自外部的注册指令
+                        match rx.try_recv() {
+                            Ok(HeadlessCmd::Register(hotkey, os_id, pid, internal_id, shortcut_text)) => {
+                                if let Err(e) = mgr.register(hotkey) {
+                                    log::warn!("[plugins] headless hotkey register failed: {e}");
+                                } else if let Ok(mut map) = hotkeys_map.lock() {
+                                    map.insert(os_id, (pid, internal_id, shortcut_text));
+                                }
+                            }
+                            Ok(HeadlessCmd::Stop) => break,
+                            Err(_) => {} // 无指令
+                        }
+                        
+                        // C. 检查全局事件 channel (由 WndProc 写入)
+                        if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
+                            if event.state() == global_hotkey::HotKeyState::Pressed {
+                                let hotkey_id = event.id();
+                                if let Ok(map) = hotkeys_map.lock() {
+                                    if let Some((pid, internal_id, shortcut_text)) = map.get(&hotkey_id) {
+                                        let msg = PluginMessage::new(
+                                            "host",
+                                            pid,
+                                            &format!("hotkey:{internal_id}"),
+                                            serde_json::json!({ "shortcut": shortcut_text }).to_string().into_bytes(),
+                                        );
+                                        let _ = bus.handle_incoming(&msg);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 避免空转烧 CPU
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                    }
+                });
+            }
+
+            let tx = tx_slot.as_ref().unwrap().clone();
+            let hotkey: HotKey = shortcut.try_into()
+                .map_err(|_| PluginError::Validation(format!("invalid hotkey: {shortcut}")))?;
+            
+            let os_id = hotkey.id();
+            // 将注册指令发送给后台线程
+            tx.send(HeadlessCmd::Register(
+                hotkey, 
+                os_id, 
+                plugin_id.to_string(), 
+                id, 
+                shortcut.to_string()
+            )).map_err(|_| PluginError::Runtime("headless hotkey thread dead".into()))?;
+        }
+
+        self.registered.lock().map_err(lock_err)?.insert(id, plugin_id.to_string());
         Ok(id)
     }
 
@@ -252,7 +386,8 @@ impl WindowService {
             .lock()
             .map_err(lock_err)?
             .clone()
-            .ok_or_else(|| PluginError::Runtime("window service not initialized".into()))?;
+            // Strictly fail with a clear message in CLI/TUI mode as documented
+            .ok_or_else(|| PluginError::Runtime("open_window is not supported in headless (CLI/TUI) mode".into()))?;
         crate::commands::plugins::open_plugin_window_impl(&app, plugin_id, panel_id)
             .map_err(PluginError::Runtime)
     }
@@ -277,10 +412,6 @@ impl PluginHost {
         let dispatcher: Arc<
             dyn Fn(&PluginMessage) -> micyou_plugin::PluginResult<()> + Send + Sync,
         > = Arc::new(move |msg: &PluginMessage| {
-            // 短锁收集目标，随后立即释放 manager 锁
-            // 插件 handle_message 会反向调用 host API（play_sound / get_config
-            // 等），它们都要再锁 manager，若此处持锁执行插件代码会造成
-            // std Mutex 同线程重入死锁（曾导致播放音效卡死）
             let targets: Vec<String> = {
                 let manager = manager_dispatch
                     .lock()
@@ -292,7 +423,6 @@ impl PluginHost {
                 }
             };
             for id in targets {
-                // 短锁取共享句柄，释放 manager 锁后再锁实例
                 let handle = {
                     let manager = manager_dispatch.lock().map_err(|_| {
                         micyou_plugin::PluginError::Runtime("manager poisoned".into())
@@ -302,8 +432,6 @@ impl PluginHost {
                         None => continue,
                     }
                 };
-                // try_lock：插件在 handle_message 中 emit_event 会重新进入
-                // dispatcher 并尝试锁同一实例，直接等待会死锁，跳过更安全
                 let Ok(mut instance) = handle.try_lock() else {
                     log::warn!("[plugins] skip message for busy instance {id}");
                     continue;
@@ -316,7 +444,8 @@ impl PluginHost {
         let bus = Arc::new(PluginBus::new(sync.clone(), dispatcher));
         let logs = Arc::new(PluginLogs::new());
         let sound = crate::sound_player::SoundPlayer::new(output);
-        let hotkeys = HotkeyService::new();
+        // Pass bus to HotkeyService for headless fallback routing
+        let hotkeys = HotkeyService::new(bus.clone());
         let window = WindowService::new();
 
         Self {
@@ -378,8 +507,6 @@ impl PluginHost {
     /// topic `ui:<action>` with the given payload (soundpad buttons etc).
     /// The plugin receives it through its `handle_message` entry.
     pub fn trigger(&self, plugin_id: &str, action: &str, payload: &[u8]) -> PluginResult<()> {
-        // WASM 插件的 handle_message 收不到 topic，只有 payload bytes：
-        // payload 为空时注入 {"action":"<action>"}，保证所有运行时都能感知动作
         let bytes = if payload.is_empty() {
             format!(r#"{{"action":"{action}"}}"#).into_bytes()
         } else {
@@ -762,11 +889,6 @@ impl HostApi for PluginHostApi {
     }
 
     fn play_sound(&self, path: &str) -> PluginResult<()> {
-        // Relative paths resolve against the plugin's own directory so a
-        // plugin can ship/generate sound files next to itself
-        // Uses the dir cached at enable time so this never locks the manager
-        // (play_sound is often called from handle_message, which runs while
-        // the dispatcher is delivering a message)
         let full = if std::path::Path::new(path).is_absolute() {
             path.to_string()
         } else {
@@ -920,35 +1042,52 @@ impl HostApi for PluginHostApi {
     }
 
     fn open_url(&self, url: &str) -> PluginResult<()> {
-        use tauri_plugin_opener::OpenerExt;
-        let app = self
+        let maybe_app = self
             .window
             .handle
             .lock()
             .map_err(lock_err)?
-            .clone()
-            .ok_or_else(|| PluginError::Runtime("window service not initialized".into()))?;
-        app.opener()
-            .open_url(url, None::<&str>)
-            .map_err(|e| PluginError::Runtime(format!("open_url: {e}")))?;
+            .clone();
+
+        if let Some(app) = maybe_app {
+            // GUI Mode: Use Tauri Plugin
+            use tauri_plugin_opener::OpenerExt;
+            app.opener()
+                .open_url(url, None::<&str>)
+                .map_err(|e| PluginError::Runtime(format!("open_url: {e}")))?;
+        } else {
+            // Headless Mode (CLI/TUI): Use open crate
+            ::open::that(url)
+                .map_err(|e| PluginError::Runtime(format!("open_url (headless): {e}")))?;
+        }
         Ok(())
     }
 
     fn notify(&self, title: &str, body: &str) -> PluginResult<()> {
-        use tauri_plugin_notification::NotificationExt;
-        let app = self
+        let maybe_app = self
             .window
             .handle
             .lock()
             .map_err(lock_err)?
-            .clone()
-            .ok_or_else(|| PluginError::Runtime("window service not initialized".into()))?;
-        app.notification()
-            .builder()
-            .title(title)
-            .body(body)
-            .show()
-            .map_err(|e| PluginError::Runtime(format!("notify: {e}")))?;
+            .clone();
+
+        if let Some(app) = maybe_app {
+            // GUI Mode: Use Tauri Plugin
+            use tauri_plugin_notification::NotificationExt;
+            app.notification()
+                .builder()
+                .title(title)
+                .body(body)
+                .show()
+                .map_err(|e| PluginError::Runtime(format!("notify: {e}")))?;
+        } else {
+            // Headless Mode (CLI/TUI): Use notify-rust
+            ::notify_rust::Notification::new()
+                .summary(title)
+                .body(body)
+                .show()
+                .map_err(|e| PluginError::Runtime(format!("notify (headless): {e}")))?;
+        }
         Ok(())
     }
 
@@ -1055,7 +1194,6 @@ impl HostApi for PluginHostApi {
     }
 }
 
-
 #[cfg(test)]
 mod tests_e2e {
     use super::*;
@@ -1080,7 +1218,6 @@ mod tests_e2e {
             }
         }
         host.enable_plugin(id).expect("enable soundpad");
-        // payload 为 null 的等价物（注入 {"action":"play"}）；native 侧主要靠 topic ui:play
         host.trigger(id, "play", b"").expect("trigger play");
         std::thread::sleep(std::time::Duration::from_millis(200));
         let logs = host.logs.lines(id);
