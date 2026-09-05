@@ -33,27 +33,20 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState, ShortcutWra
 // 引入全局热键底层库用于 CLI/TUI 模式
 use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::HotKey};
 
-// Windows 消息泵：用于在 CLI 无头模式下手动派发系统消息以触发全局热键
-// 使用原生 FFI 避免引入额外的 windows-sys 依赖
+// ==========================================
+// 跨平台无头模式消息泵 (Headless Event Pump)
+// ==========================================
+
 #[cfg(target_os = "windows")]
-mod win_message_pump {
+mod headless_event_pump {
     use std::ffi::c_void;
 
     #[repr(C)]
-    struct POINT {
-        x: i32,
-        y: i32,
-    }
-
+    struct POINT { x: i32, y: i32 }
     #[repr(C)]
     struct MSG {
-        hwnd: *mut c_void,
-        message: u32,
-        wParam: usize,
-        lParam: isize,
-        time: u32,
-        pt: POINT,
-        lPrivate: u32,
+        hwnd: *mut c_void, message: u32, wParam: usize, lParam: isize,
+        time: u32, pt: POINT, lPrivate: u32,
     }
 
     const PM_REMOVE: u32 = 0x0001;
@@ -73,6 +66,38 @@ mod win_message_pump {
                 DispatchMessageW(&msg);
             }
         }
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod headless_event_pump {
+    use std::ffi::c_void;
+
+    // 链接 macOS 原生的 CoreFoundation 框架，无需引入 cocoa/objc 等重型 crate
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        fn CFRunLoopRunInMode(
+            mode: *const c_void,
+            seconds: f64,
+            returnAfterSourceHandled: u8,
+        ) -> i32;
+        
+        static kCFRunLoopDefaultMode: *const c_void;
+    }
+
+    pub fn pump() {
+        unsafe {
+            // 运行 RunLoop 10ms 以处理底层的热键硬件事件
+            CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, 0);
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+mod headless_event_pump {
+    pub fn pump() {
+        // Linux (X11) 下，global-hotkey 内部已经 spawn 了专门的线程去跑 XNextEvent 循环，
+        // 并将事件推送到 crossbeam channel。我们这里不需要额外的系统级 pump。
     }
 }
 
@@ -285,7 +310,7 @@ impl HotkeyService {
                 
                 // 启动专门的“消息泵 + 事件监听”后台线程
                 std::thread::spawn(move || {
-                    // 1. 在该线程内创建 Manager (这会创建隐藏窗口)
+                    // 1. 在该线程内创建 Manager (这会创建隐藏窗口/注册底层 Hook)
                     let mgr = match GlobalHotKeyManager::new() {
                         Ok(m) => m,
                         Err(e) => {
@@ -294,11 +319,10 @@ impl HotkeyService {
                         }
                     };
                     
-                    // 2. 核心消息循环
+                    // 2. 核心跨平台消息循环
                     loop {
-                        // A. 泵送 Windows 消息 (触发 WndProc -> 写入 GlobalHotKeyEvent channel)
-                        #[cfg(target_os = "windows")]
-                        win_message_pump::pump();
+                        // A. 跨平台消息泵 (Windows: 派发 WM_HOTKEY; macOS: 跑 CFRunLoop; Linux: 空操作)
+                        headless_event_pump::pump();
                         
                         // B. 处理来自外部的注册指令
                         match rx.try_recv() {
@@ -313,7 +337,7 @@ impl HotkeyService {
                             Err(_) => {} // 无指令
                         }
                         
-                        // C. 检查全局事件 channel (由 WndProc 写入)
+                        // C. 检查全局事件 channel 
                         if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
                             if event.state() == global_hotkey::HotKeyState::Pressed {
                                 let hotkey_id = event.id();
@@ -331,7 +355,7 @@ impl HotkeyService {
                             }
                         }
                         
-                        // 避免空转烧 CPU
+                        // 避免空转烧 CPU (Linux 下主要靠这个 sleep，Win/Mac 的 pump 也会消耗少量时间)
                         std::thread::sleep(std::time::Duration::from_millis(10));
                     }
                 });
