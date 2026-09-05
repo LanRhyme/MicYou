@@ -257,6 +257,13 @@
       "desc": "Port for Web connection mode (default: 8443)",
       "webOnly": "Switch to Web connection mode to configure this setting."
     },
+    "mirrorDownload": {
+      "title": "MirrorChyan Acceleration",
+      "desc": "Use MirrorChyan CDN mirror for high-speed update downloads",
+      "cdkLabel": "MirrorChyan CDK",
+      "cdkPlaceholder": "Enter MirrorChyan CDK",
+      "getCdk": "Get CDK"
+    },
     "about": {
       "version": "Application Version",
       "updates": "Check for updates",
@@ -344,6 +351,7 @@
     "update": {
       "checking": "Checking for updates...",
       "available": "New version available: {version}\nDo you want to open the release page?",
+      "mirrorAvailable": "New version available: {version} (MirrorChyan Mirror)\nDo you want to download now via high-speed mirror?",
       "latest": "You are using the latest version.",
       "failed": "Failed to check for updates: {error}"
     },

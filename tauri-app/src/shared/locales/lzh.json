@@ -255,6 +255,13 @@
       "desc": "网页连接之端口（默认：8443）",
       "webOnly": "切至网页模式方可配此。"
     },
+    "mirrorDownload": {
+      "title": "Mirror酱 镜像之术",
+      "desc": "以 Mirror酱 镜像载新编，瞬息可就",
+      "cdkLabel": "Mirror酱 符信 (CDK)",
+      "cdkPlaceholder": "请纳 Mirror酱 符信...",
+      "getCdk": "求取符信"
+    },
     "about": {
       "version": "应用之版",
       "updates": "查更新",
@@ -342,6 +349,7 @@
     "update": {
       "checking": "查更新中...",
       "available": "新版本可得：{version}\n欲览发布之页乎？",
+      "mirrorAvailable": "得新编：{version}（Mirror酱 高速镜像）\n欲速启舟楫载之乎？",
       "latest": "已是最新之版矣。",
       "failed": "查更新败：{error}"
     },

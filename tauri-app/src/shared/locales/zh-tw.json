@@ -255,6 +255,13 @@
       "desc": "Web 連線模式的連接埠（預設：8443）",
       "webOnly": "請切換到 Web 連線模式以設定此選項。"
     },
+    "mirrorDownload": {
+      "title": "Mirror醬 鏡像加速",
+      "desc": "使用 Mirror醬 鏡像高速下載更新，速度更快",
+      "cdkLabel": "Mirror醬 CDK",
+      "cdkPlaceholder": "請輸入 Mirror醬 CDK",
+      "getCdk": "取得 CDK"
+    },
     "about": {
       "version": "應用程式版本",
       "updates": "檢查是否有新版本",
@@ -342,6 +349,7 @@
     "update": {
       "checking": "正在檢查更新...",
       "available": "發現新版本：{version}\n您想要開啟發布頁面嗎？",
+      "mirrorAvailable": "發現新版本：{version}（Mirror醬 高速鏡像）\n是否立即開始高速下載？",
       "latest": "目前已是最新版本",
       "failed": "檢查更新失敗：{error}"
     },

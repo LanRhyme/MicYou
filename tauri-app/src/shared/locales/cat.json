@@ -255,6 +255,13 @@
       "desc": "网页连接模式的端口喵~（默认：8443）",
       "webOnly": "切换到网页连接模式才能配置此设置喵~"
     },
+    "mirrorDownload": {
+      "title": "Mirror酱 飞速镜像喵~",
+      "desc": "用 Mirror酱 镜像高速下更新，吃小鱼乾更神速喵！",
+      "cdkLabel": "Mirror酱 CDK 钥匙喵",
+      "cdkPlaceholder": "快把小鱼乾钥匙（CDK）输进来喵...",
+      "getCdk": "领取 CDK 喵"
+    },
     "about": {
       "version": "应用版本喵~",
       "updates": "检查更新喵~",
@@ -342,6 +349,7 @@
     "update": {
       "checking": "正在检查更新喵... (・_・)",
       "available": "发现新版本喵~ ✨: {version}\n要去发布页面看看喵？",
+      "mirrorAvailable": "发现新版本喵~ ✨: {version}（Mirror酱 飞速镜像）\n要立即开始飞速抓取喵？",
       "latest": "已是最新版本喵~ ✓",
       "failed": "检查更新失败喵: {error} (ToT)"
     },

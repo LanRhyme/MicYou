@@ -1336,6 +1336,69 @@
                   </div>
                   <div class="h-px bg-border mx-4"></div>
 
+                  <!-- MirrorChyan High-speed Download -->
+                  <div class="p-4 flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-4">
+                        <Zap class="w-6 h-6 text-amber-500 flex-shrink-0" />
+                        <div>
+                          <h4 class="text-sm font-medium text-on-surface">
+                            {{ $t('settings.mirrorDownload.title') }}
+                          </h4>
+                          <p class="text-xs text-on-surface-variant">
+                            {{ $t('settings.mirrorDownload.desc') }}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        @click="useMirrorDownload = !useMirrorDownload"
+                        class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+                        :class="
+                          useMirrorDownload
+                            ? 'border-primary bg-primary'
+                            : 'border-on-surface-variant bg-transparent hover:bg-on-surface-variant/10'
+                        "
+                      >
+                        <div
+                          class="relative flex items-center justify-center transition-transform duration-300 ease-out"
+                          :class="useMirrorDownload ? 'translate-x-[26px]' : 'translate-x-[4px]'"
+                        >
+                          <span
+                            class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+                            :class="
+                              useMirrorDownload
+                                ? 'h-6 w-6 bg-on-primary'
+                                : 'h-4 w-4 bg-on-surface-variant group-hover:h-5 group-hover:w-5'
+                            "
+                          />
+                        </div>
+                      </button>
+                    </div>
+
+                    <div v-if="useMirrorDownload" class="pl-10 space-y-2">
+                      <div class="flex items-center justify-between">
+                        <span class="text-xs text-on-surface-variant">
+                          {{ $t('settings.mirrorDownload.cdkLabel') }}
+                        </span>
+                        <a
+                          :href="mirrorCdkHelpUrl"
+                          target="_blank"
+                          class="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>{{ $t('settings.mirrorDownload.getCdk') }}</span>
+                          <ExternalLink class="w-3 h-3" />
+                        </a>
+                      </div>
+                      <input
+                        v-model="mirrorCdk"
+                        type="text"
+                        :placeholder="$t('settings.mirrorDownload.cdkPlaceholder')"
+                        class="w-full bg-surface-container border border-border/40 rounded-xl px-3 py-2 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div class="h-px bg-border mx-4"></div>
+
                   <div
                     @click="openDialog('Licenses')"
                     class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer"
@@ -1533,6 +1596,8 @@ import {
   FolderOpen,
   Copy,
   Check,
+  Zap,
+  ExternalLink,
 } from '@lucide/vue';
 import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
@@ -2125,6 +2190,14 @@ const showCustomCssDialog = ref(false);
 const showThemeCatalogDialog = ref(false);
 const appVersion = ref(__APP_VERSION__);
 const checkingUpdate = ref(false);
+const useMirrorDownload = useStorage('micyou_use_mirror_download', false);
+const mirrorCdk = useStorage('micyou_mirror_cdk', '');
+const mirrorCdkHelpUrl = computed(() => {
+  const l = locale.value;
+  return l.startsWith('zh') || l === 'lzh' || l === 'cat'
+    ? 'https://mirrorchyan.com/zh/get-start'
+    : 'https://mirrorchyan.com/en/get-start';
+});
 
 const updateProcessingChain = (newChain: string[]) => {
   settings.processingChain = newChain;
@@ -2142,15 +2215,22 @@ const openDialog = async (name: string) => {
     if (checkingUpdate.value) return;
     checkingUpdate.value = true;
     try {
+      const cdkParam =
+        useMirrorDownload.value && mirrorCdk.value.trim() ? mirrorCdk.value.trim() : null;
       const res = await invoke<{
         hasUpdate: boolean;
         currentVersion: string;
         latestVersion: string;
         releaseUrl: string;
         releaseNotes?: string;
-      }>('check_app_update');
+        isMirror: boolean;
+        cdkExpiredTime?: number;
+      }>('check_app_update', { cdk: cdkParam });
       if (res.hasUpdate) {
-        if (confirm(t('dialogs.update.available', { version: `v${res.latestVersion}` }))) {
+        const msg = res.isMirror
+          ? t('dialogs.update.mirrorAvailable', { version: `v${res.latestVersion}` })
+          : t('dialogs.update.available', { version: `v${res.latestVersion}` });
+        if (confirm(msg)) {
           await openUrl(res.releaseUrl);
         }
       } else {

@@ -257,6 +257,13 @@
       "desc": "Web 连接模式的端口（默认：8443）",
       "webOnly": "请切换到 Web 连接模式以配置此设置。"
     },
+    "mirrorDownload": {
+      "title": "Mirror酱 镜像加速",
+      "desc": "使用 Mirror酱 镜像高速下载更新，国内下载速度更快",
+      "cdkLabel": "Mirror酱 CDK",
+      "cdkPlaceholder": "请输入 Mirror酱 CDK",
+      "getCdk": "获取 CDK"
+    },
     "about": {
       "version": "应用程序版本",
       "updates": "检查是否有新版本",
@@ -344,6 +351,7 @@
     "update": {
       "checking": "正在检查更新...",
       "available": "发现新版本：{version}\n你想要打开发布页面吗？",
+      "mirrorAvailable": "发现新版本：{version}（Mirror酱 高速镜像）\n是否立即开始高速下载？",
       "latest": "你使用的已经是最新版本",
       "failed": "检查更新失败：{error}"
     },
