@@ -47,6 +47,11 @@ tauri-plugin-log = "2.8.0"
 tauri-plugin-dialog = "2.7.1"
 tauri-plugin-notification = "2.3.3"
 
+# CLI/TUI plugin api fallback
+open = "5"
+notify-rust = "4"
+global-hotkey = "0.8"
+
 # Core
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
