@@ -409,12 +409,14 @@ impl AudioOutputManager {
                 let mut cable_device = None;
                 if let Ok(devices) = host.output_devices() {
                     for dev in devices {
-                        if let Ok(name) = dev.name() {
-                            if name.to_lowercase().contains("cable input") {
+                            let lower = name.to_lowercase();
+                            if lower.contains("cable input")
+                                || lower.contains("vb-audio")
+                                || (lower.contains("cable") && !lower.contains("output"))
+                            {
                                 cable_device = Some(dev);
                                 break;
                             }
-                        }
                     }
                 }
                 if cable_device.is_none() {

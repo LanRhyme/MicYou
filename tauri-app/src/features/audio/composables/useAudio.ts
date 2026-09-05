@@ -47,6 +47,8 @@ export function useAudio() {
   let unlistenMuteState: UnlistenFn | null = null;
   let unlistenMonitoringState: UnlistenFn | null = null;
   let unlistenUdpWarning: UnlistenFn | null = null;
+  let unlistenDeviceDisconnected: UnlistenFn | null = null;
+  let unlistenServerStopped: UnlistenFn | null = null;
 
   /**
    * Toggles the mute state of the server-side audio engine
@@ -113,6 +115,9 @@ export function useAudio() {
     // Listen for real-time audio amplitude updates from backend
     unlistenAudioLevel = await listen<number>('audio-level', (event) => {
       audioLevel.value = event.payload;
+      if (event.payload > 0 && showUdpWarning.value) {
+        showUdpWarning.value = false;
+      }
     });
     
     // Listen for performance metrics updates from backend
@@ -136,6 +141,15 @@ export function useAudio() {
         showUdpWarning.value = true;
       }
     });
+
+    // Automatically dismiss warning if client disconnects or server stops
+    unlistenDeviceDisconnected = await listen('device-disconnected', () => {
+      showUdpWarning.value = false;
+    });
+
+    unlistenServerStopped = await listen('server-stopped', () => {
+      showUdpWarning.value = false;
+    });
   });
 
   onUnmounted(() => {
@@ -144,6 +158,8 @@ export function useAudio() {
     if (unlistenMuteState) unlistenMuteState();
     if (unlistenMonitoringState) unlistenMonitoringState();
     if (unlistenUdpWarning) unlistenUdpWarning();
+    if (unlistenDeviceDisconnected) unlistenDeviceDisconnected();
+    if (unlistenServerStopped) unlistenServerStopped();
   });
 
   return {

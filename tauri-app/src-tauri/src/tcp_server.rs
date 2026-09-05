@@ -552,27 +552,21 @@ async fn handle_client(
             interval.tick().await;
             let buffer_duration = if mode == "usb" { 5 } else { 30 };
             events_emit.audio_metrics(stats_emit.to_metrics(buffer_duration));
-            if mode == "wifi" {
-                if stats_emit.is_muted() {
-                    warning_fired = false;
-                } else {
+            if cfg!(target_os = "windows") && mode == "wifi" {
+                if !stats_emit.is_muted() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
                         .as_millis() as u64;
                     let tcp_time = stats_emit.get_tcp_connected_time();
                     let last_udp = stats_emit.get_last_udp_time();
-                    if tcp_time > 0 && now.saturating_sub(tcp_time) > 5000 {
-                        let time_since_udp = if last_udp == 0 {
-                            now.saturating_sub(tcp_time)
-                        } else {
-                            now.saturating_sub(last_udp)
-                        };
-                        if time_since_udp > 10000 && !warning_fired {
+                    // If last_udp > 0, UDP audio has been successfully received in this session,
+                    // meaning Windows Firewall is NOT blocking the UDP port.
+                    // Only warn if TCP has been active for > 10s and zero UDP packets have ever arrived.
+                    if tcp_time > 0 && last_udp == 0 && now.saturating_sub(tcp_time) > 10000 {
+                        if !warning_fired {
                             events_emit.udp_audio_warning();
                             warning_fired = true;
-                        } else if time_since_udp < 5000 && warning_fired {
-                            warning_fired = false;
                         }
                     }
                 }
@@ -629,6 +623,7 @@ async fn handle_client(
         if let Ok(mut active_audio) = active_audio_session.write() {
             *active_audio = ActiveAudioSession::default();
         }
+        stats.mark_tcp_disconnected();
         events.device_disconnected();
         plugins.broadcast_event(&micyou_plugin::PluginEvent::DeviceDisconnected);
     }

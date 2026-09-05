@@ -97,6 +97,14 @@ impl NetworkStats {
 
     pub fn mark_tcp_connected(&self, time_ms: u64) {
         self.tcp_connected_time_ms.store(time_ms, Ordering::Relaxed);
+        self.last_udp_packet_time_ms.store(0, Ordering::Relaxed);
+    }
+    pub fn mark_tcp_disconnected(&self) {
+        self.tcp_connected_time_ms.store(0, Ordering::Relaxed);
+        self.last_udp_packet_time_ms.store(0, Ordering::Relaxed);
+        self.loss_rate_bits.store(0f64.to_bits(), Ordering::Relaxed);
+        self.jitter_bits.store(0f64.to_bits(), Ordering::Relaxed);
+        self.rtt_ms.store(0, Ordering::Relaxed);
     }
     pub fn get_tcp_connected_time(&self) -> u64 {
         self.tcp_connected_time_ms.load(Ordering::Relaxed)
@@ -125,5 +133,33 @@ impl NetworkStats {
             jitter_ms: self.get_jitter(),
             buffer_duration_ms: buffer_duration,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_network_stats_connect_disconnect_lifecycle() {
+        let stats = NetworkStats::default();
+        stats.mark_udp_received(12345);
+        stats.set_loss_rate(5.5);
+        stats.set_jitter(12.0);
+
+        assert_eq!(stats.get_last_udp_time(), 12345);
+        assert_eq!(stats.get_loss_rate(), 5.5);
+
+        // Connecting resets UDP time for the new session
+        stats.mark_tcp_connected(20000);
+        assert_eq!(stats.get_tcp_connected_time(), 20000);
+        assert_eq!(stats.get_last_udp_time(), 0);
+
+        // Disconnecting resets session counters
+        stats.mark_tcp_disconnected();
+        assert_eq!(stats.get_tcp_connected_time(), 0);
+        assert_eq!(stats.get_last_udp_time(), 0);
+        assert_eq!(stats.get_loss_rate(), 0.0);
+        assert_eq!(stats.get_jitter(), 0.0);
     }
 }

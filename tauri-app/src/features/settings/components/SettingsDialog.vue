@@ -1940,10 +1940,16 @@ const DEFAULT_AUDIO_SETTINGS = () => ({
 const settings = reactive(DEFAULT_AUDIO_SETTINGS());
 
 const audioDevices = ref<string[]>([]);
+const vbcableDetected = ref(false);
 const hasVBCable = computed(() =>
-  audioDevices.value.some((d) => d.toLowerCase().includes('cable')),
+  vbcableDetected.value ||
+  audioDevices.value.some((d) => {
+    const lower = d.toLowerCase();
+    return lower.includes('cable') || lower.includes('vb-audio');
+  }),
 );
 const hasBlackHole = computed(() =>
+  blackholeStatus.value.installed ||
   audioDevices.value.some((d) => d.toLowerCase().includes('blackhole')),
 );
 const isMacOS =
@@ -1967,6 +1973,7 @@ const isVirtualDeviceSelected = computed(() => {
   return (
     dev.includes('cable input') ||
     dev.includes('cable') ||
+    dev.includes('vb-audio') ||
     dev.includes('blackhole') ||
     dev.includes('micyou')
   );
@@ -2222,6 +2229,7 @@ async function installVBCableFromSettings() {
       'install_vbcable',
     );
     if (result.success) {
+      await checkVBCableStatus();
       audioDevices.value = await invoke<string[]>('get_audio_devices');
     }
   } catch (e) {
@@ -2229,6 +2237,15 @@ async function installVBCableFromSettings() {
   } finally {
     vbcableInstalling.value = false;
     vbcableInstallProgress.value = '';
+  }
+}
+
+async function checkVBCableStatus() {
+  if (!isWindows) return;
+  try {
+    vbcableDetected.value = await invoke<boolean>('check_vbcable');
+  } catch (e) {
+    console.error('Failed to check VB-CABLE status:', e);
   }
 }
 
@@ -2329,6 +2346,7 @@ const fetchDevices = async () => {
   } catch (e) {
     console.error('Failed to fetch audio devices', e);
   }
+  checkVBCableStatus();
   checkBlackHoleStatus();
   checkPipeWireStatus();
 };
