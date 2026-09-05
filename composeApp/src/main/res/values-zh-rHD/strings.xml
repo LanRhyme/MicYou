@@ -4,7 +4,7 @@
     
     
     
-    <string name="androidAudioProcessingDesc">使用硬件音频处理。可能影响输出的质量值。</string>
+    <string name="androidAudioProcessingDesc">使用硬件音频处理，可能影响输出的质量值</string>
     <string name="androidAudioProcessingLabel">安卓德内建音频处理</string>
     <string name="appName">麦克风你</string>
     <string name="appearanceSection">外观性部分</string>
@@ -43,7 +43,7 @@
     <string name="confirm">确定</string>
     <string name="connectionModeLabel">连接样式模式</string>
     <string name="transportProtocolLabel">传输协议样式</string>
-    <string name="contributorsDesc">感谢每一个为这个项目贡献的人们们。</string>
+    <string name="contributorsDesc">感谢每一个为这个项目贡献的人们们</string>
     <string name="contributorsLabel">贡献者们们</string>
     <string name="contributorsLoading">正在加载贡献者...</string>
     <string name="contributorsPeopleCount">%d 位贡献者</string>
@@ -64,13 +64,13 @@
     
     
     
-    <string name="errorAudioDeviceMessage">音讯装置错误。请检查音讯装置设定并重新启动应用程式。</string>
+    <string name="errorAudioDeviceMessage">音讯装置错误，请检查音讯装置设定并重新启动应用程式</string>
     <string name="errorAudioDeviceTitle">音讯装置错误项目</string>
     
     
-    <string name="errorConnectionRefusedMessage">连线被拒绝掉了。目标装置可能未执行麦克风你或未在指定港口监听。</string>
+    <string name="errorConnectionRefusedMessage">连线被拒绝掉了，目标装置可能未执行麦克风你或未在指定港口监听</string>
     <string name="errorConnectionRefusedTitle">连线被拒绝项目</string>
-    <string name="errorConnectionRefusedWifiMessage">连线到 %s 被拒绝掉了。请确保桌面伺服器正在执行并设定了相同港口。</string>
+    <string name="errorConnectionRefusedWifiMessage">连线到 %s 被拒绝掉了，请确保桌面伺服器正在执行并设定了相同港口</string>
     
     
     <string name="errorDialogDismiss">关闭掉</string>
@@ -78,15 +78,15 @@
     <string name="errorDialogRetry">再去试一次</string>
     
     <string name="errorUdpPortBlockedTitle">UDP 港口被阻挡</string>
-    <string name="errorHandshakeFailedMessage">与目标装置握手失败。这可能表示版本不匹配或通讯协定错误。</string>
+    <string name="errorHandshakeFailedMessage">与目标装置握手失败，这可能表示版本不匹配或通讯协定错误</string>
     <string name="errorHandshakeFailedTitle">握手失败项目</string>
-    <string name="errorNetworkTimeoutMessage">连线超时了啊。请检查网络连线和目标装置状态。</string>
+    <string name="errorNetworkTimeoutMessage">连线超时了啊，请检查网络连线和目标装置状态</string>
     <string name="errorNetworkTimeoutTitle">网络连线超时项目</string>
-    <string name="errorNetworkUnreachableMessage">无法到达互联网协议位址：%s。请验证互联网协议位址并确保两台装置在同一网络中。</string>
+    <string name="errorNetworkUnreachableMessage">无法到达互联网协议位址：%s，请验证互联网协议位址并确保两台装置在同一网络中</string>
     <string name="errorNetworkUnreachableTitle">网络无法到达项目</string>
-    <string name="errorPermissionDeniedMessage">权限不足，无法执行此操作。请检查系统设定中的应用程式权限项。</string>
+    <string name="errorPermissionDeniedMessage">权限不足，无法执行此操作，请检查系统设定中的应用程式权限项</string>
     <string name="errorPermissionDeniedTitle">权限被拒绝项目</string>
-    <string name="errorPortInUseMessage">港口 %s 已被其他应用程式占用。请选择其他港口或关闭占用该港口的应用程式。</string>
+    <string name="errorPortInUseMessage">港口 %s 已被其他应用程式占用，请选择其他港口或关闭占用该港口的应用程式</string>
     <string name="errorPortInUseTitle">港口被占用项目</string>
     
     
@@ -122,11 +122,11 @@
     <string name="exportLog">出口日志记录项目</string>
     <string name="exportLogDesc">出口应用日志记录为了调试用</string>
     <string name="expressiveStyleLabel">表达性样式项目项</string><string name="udpWarningTitle">UDP 音讯警告</string>
-    <string name="udpWarningMessage">TCP 连线已建立，但未收到任何 UDP 音讯封包。音讯传输需要 TCP 和 UDP 港口均可存取。\n\n请检查：\n• 两台装置应在同一网路中\n• 尝试重新连线</string>
+    <string name="udpWarningMessage">TCP 连线已建立，但未收到任何 UDP 音讯封包，音讯传输需要 TCP 和 UDP 港口均可存取\n\n请检查：\n• 两台装置应在同一网路中\n• 尝试重新连线</string>
     <string name="udpWarningConfirm">确定</string>
     <string name="firstLaunchGotItButton">我知道怎么用项</string>
     <string name="firstLaunchGuideButton">让我看看使用指南</string>
-    <string name="firstLaunchMessage">您似乎是第一次使用麦克风你。本应用可以将您的安卓设备通过无线保真度、蓝色牙齿或者通用串行总线式变成电脑的高质量微型电话。</string>
+    <string name="firstLaunchMessage">您似乎是第一次使用麦克风你，本应用可以将您的安卓设备通过无线保真度、蓝色牙齿或者通用串行总线式变成电脑的高质量微型电话</string>
     <string name="firstLaunchQuickStartTitle">快速入门指南标题项</string>
     <string name="firstLaunchStep1Desc">在电脑终端下载并安装 MicYou 桌面版本项</string>
     <string name="firstLaunchStep1Title">1. 安装电脑终端项</string>
@@ -142,7 +142,7 @@
     <string name="githubDownloadLabel">GitHub下载项目</string>
     <string name="githubRepoLabel">吉特哈布 代码仓库库</string>
     <string name="hexFormatError">格式: #RRGGBB</string>
-    <string name="introText">麦克风你是一个打开来源微型手机工具那转弯你的安卓设备进入一个高质量微型手机为了你的计算机。 基于在安卓麦克风， 它支持 无线保真度 (传输控制协定)， 蓝色牙齿， 和 通用串行总线式 联系, 提供低延迟声音的传播。</string>
+    <string name="introText">麦克风你是一个打开来源微型手机工具那转弯你的安卓设备进入一个高质量微型手机为了你的计算机， 基于在安卓麦克风， 它支持 无线保真度 (传输控制协定)， 蓝色牙齿， 和 通用串行总线式 联系, 提供低延迟声音的传播</string>
     <string name="ipLabel">互联网协议: </string>
     <string name="isLatestVersion">已经是最新的版本</string>
     <string name="keepScreenOnDesc">使用应用时防止屏幕自动熄灭</string>
@@ -207,21 +207,21 @@
     <string name="permissionAllGrantedStatus">所有权限项目已授予 (%1$d/%2$d)</string>
     <string name="permissionChecking">正在检查权限项目...</string>
     <string name="permissionClickToGrant">点击授权项目项</string>
-    <string name="permissionDialogMessage">麦克风你需要一些权限项目才能正常运作。请查看并授予以下权限项目：</string>
+    <string name="permissionDialogMessage">麦克风你需要一些权限项目才能正常运作，请查看并授予以下权限项目：</string>
     <string name="permissionDialogTitle">应用程式权限项目标题项</string>
     <string name="permissionGranted">已授权项目项</string>
     <string name="permissionManagementLabel">权限管理项目标题项</string>
     <string name="permissionMissingWarning">部分权限项目缺失 (%1$d/%2$d 已授予)</string>
     <string name="permissionOpenSettings">开启系统设定项目项</string>
-    <string name="permissionOpenSettingsDesc">如果您拒绝了某个权限项目项，需要在系统设定中手动授予项目项。</string>
+    <string name="permissionOpenSettingsDesc">如果您拒绝了某个权限项目项，需要在系统设定中手动授予项目项</string>
     <string name="permissionOptional">可选项项</string>
-    <string name="permissionPostNotificationsDesc">显示串流状态通知项目项，提供更好的使用者体验项目项。</string>
+    <string name="permissionPostNotificationsDesc">显示串流状态通知项目项，提供更好的使用者体验项目项</string>
     <string name="permissionPostNotificationsLabel">通知项目项</string>
-    <string name="permissionRecordAudioDesc">用于捕获和传输装置音频到电脑项目项，是应用程式的核心功能项目项。</string>
+    <string name="permissionRecordAudioDesc">用于捕获和传输装置音频到电脑项目项，是应用程式的核心功能项目项</string>
     <string name="permissionRecordAudioLabel">微型电话器件项</string>
     <string name="permissionRequestButton">授予权限项目按钮项</string>
     <string name="permissionRequired">必选项目项</string>
-    <string name="permissionRequiredHint">必选权限项目必须授予才能使用本应用程式项目项。</string>
+    <string name="permissionRequiredHint">必选权限项目必须授予才能使用本应用程式项目项</string>
     <string name="permissionSettingsTitle">应用程式权限项目标题项</string>
     
     
@@ -252,7 +252,7 @@
     <string name="updateGoToGitHub">前往 GitHub</string>
     <string name="updateInstalling">安装更新之中...</string>
     <string name="updateLater">以后再说</string>
-    <string name="updateMessage">一个新版本 (%s) 在 吉特哈布 可以使用。你想现在去更新吗？</string>
+    <string name="updateMessage">一个新版本 (%s) 在 吉特哈布 可以使用，你想现在去更新吗？</string>
     <string name="updateNow">现在去更新</string>
     <string name="updateTitle">新版本可以使用</string>
     
@@ -296,20 +296,20 @@
     <string name="audioSourceVoicePerformance">VOICE_PERFORMANCE (低延迟)</string>
     <string name="audioSourceVoiceRecognition">VOICE_RECOGNITION (语音识别)</string>
     <string name="audioStreamingService">音频流服务</string>
-    <string name="connectionChannelClosed">连接通道已关闭了呀。</string>
-    <string name="connectionDisconnected">连接意外关闭了：远程设备断开了连接。</string>
+    <string name="connectionChannelClosed">连接通道已关闭了呀</string>
+    <string name="connectionDisconnected">连接意外关闭了：远程设备断开了连接</string>
     
-    <string name="connectionPipeBroken">管道中断了：无法向已关闭的连接发送数据。</string>
-    <string name="connectionRejected">连接被拒绝了: 请确保电脑端已开启并处于连接中状态，且电脑端已开启并等待连接。</string>
-    <string name="connectionReset">连接被重置了：远程设备强制关闭了连接。</string>
-    <string name="connectionSocketClosed">套接字已关闭了呀。</string>
-    <string name="connectionTimeout">连接超时了: 请检查网络连接或 IP 地址是否正确。</string>
-    <string name="connectionUnreachable">无法到达主机: 请确保手机和电脑在同一个 Wi-Fi 网络下。</string>
+    <string name="connectionPipeBroken">管道中断了：无法向已关闭的连接发送数据</string>
+    <string name="connectionRejected">连接被拒绝了: 请确保电脑端已开启并处于连接中状态，且电脑端已开启并等待连接</string>
+    <string name="connectionReset">连接被重置了：远程设备强制关闭了连接</string>
+    <string name="connectionSocketClosed">套接字已关闭了呀</string>
+    <string name="connectionTimeout">连接超时了: 请检查网络连接或 IP 地址是否正确</string>
+    <string name="connectionUnreachable">无法到达主机: 请确保手机和电脑在同一个 Wi-Fi 网络下</string>
     <string name="done">完成</string>
     
     <string name="errorAudioFormatNotSupported">音频格式不支持: 设备不支持 %1$s (%2$s) 格式或当前采样率 %3$dHz</string>
     <string name="errorAudioRecordInitFailed">AudioRecord 初始化失败</string>
-    <string name="errorHandshakeFailedDetailed">握手失败了：与目标设备的握手验证失败。这可能是由于版本不匹配或协议错误。请确保两端使用相同版本的 MicYou。</string>
+    <string name="errorHandshakeFailedDetailed">握手失败了：与目标设备的握手验证失败，这可能是由于版本不匹配或协议错误，请确保两端使用相同版本的 MicYou</string>
     <string name="errorRecordingPermissionDenied">录音权限不足</string>
     
     
@@ -367,7 +367,7 @@
     <string name="sponsorsDesc">查看爱发电赞助者项</string>
     <string name="sponsorsLoading">正在加载赞助者数据项...</string>
     <string name="sponsorsCount">%s 位赞助者项</string>
-    <string name="sponsorsDisclaimer">此处仅显示爱发电上对项目发起者个人 LanRhyme 的赞助项。</string>
+    <string name="sponsorsDisclaimer">此处仅显示爱发电上对项目发起者个人 LanRhyme 的赞助项</string>
     <string name="sponsorsEmpty">暂无赞助者项</string>
     <string name="sponsorsGoToAifadian">赞助项</string>
     

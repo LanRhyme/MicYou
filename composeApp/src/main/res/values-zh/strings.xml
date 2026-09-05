@@ -64,29 +64,29 @@
     
     
     
-    <string name="errorAudioDeviceMessage">音频设备错误。请检查音频设备设置并重启应用。</string>
+    <string name="errorAudioDeviceMessage">音频设备错误，请检查音频设备设置并重启应用</string>
     <string name="errorAudioDeviceTitle">音频设备错误</string>
     
     
-    <string name="errorConnectionRefusedMessage">连接被拒绝。目标设备可能未运行 MicYou 或未在指定端口监听。</string>
+    <string name="errorConnectionRefusedMessage">连接被拒绝，目标设备可能未运行 MicYou 或未在指定端口监听</string>
     <string name="errorConnectionRefusedTitle">连接被拒绝</string>
-    <string name="errorConnectionRefusedWifiMessage">连接到 %s 被拒绝。请确保桌面服务器正在运行并配置了相同端口。</string>
+    <string name="errorConnectionRefusedWifiMessage">连接到 %s 被拒绝，请确保桌面服务器正在运行并配置了相同端口</string>
     
     
     <string name="errorDialogDismiss">关闭</string>
     
     <string name="errorDialogRetry">重试</string>
-    <string name="errorUdpPortBlockedMessage">UDP 音频端口 %d 被阻止。</string>
+    <string name="errorUdpPortBlockedMessage">UDP 音频端口 %d 被阻止</string>
     <string name="errorUdpPortBlockedTitle">UDP 端口被阻止</string>
-    <string name="errorHandshakeFailedMessage">与目标设备握手失败。这可能表示版本不匹配或协议错误。</string>
+    <string name="errorHandshakeFailedMessage">与目标设备握手失败，这可能表示版本不匹配或协议错误</string>
     <string name="errorHandshakeFailedTitle">握手失败</string>
-    <string name="errorNetworkTimeoutMessage">连接超时。请检查网络连接和目标设备状态。</string>
+    <string name="errorNetworkTimeoutMessage">连接超时，请检查网络连接和目标设备状态</string>
     <string name="errorNetworkTimeoutTitle">连接超时</string>
-    <string name="errorNetworkUnreachableMessage">无法到达 IP 地址：%s。请验证 IP 地址并确保两台设备在同一网络中。</string>
+    <string name="errorNetworkUnreachableMessage">无法到达 IP 地址：%s，请验证 IP 地址并确保两台设备在同一网络中</string>
     <string name="errorNetworkUnreachableTitle">网络不可达</string>
-    <string name="errorPermissionDeniedMessage">权限不足，无法执行此操作。请检查系统设置中的应用权限。</string>
+    <string name="errorPermissionDeniedMessage">权限不足，无法执行此操作，请检查系统设置中的应用权限</string>
     <string name="errorPermissionDeniedTitle">权限不足</string>
-    <string name="errorPortInUseMessage">端口 %s 已被其他应用程序占用。请选择其他端口或关闭占用该端口的应用。</string>
+    <string name="errorPortInUseMessage">端口 %s 已被其他应用程序占用，请选择其他端口或关闭占用该端口的应用</string>
     <string name="errorPortInUseTitle">端口已被占用</string>
     
     
@@ -122,7 +122,7 @@
     <string name="exportLog">导出日志</string>
     <string name="exportLogDesc">导出应用日志以供调试</string>
     <string name="expressiveStyleLabel">表达性样式</string><string name="udpWarningTitle">UDP 音频警告</string>
-    <string name="udpWarningMessage">TCP 连接已建立，但未收到任何 UDP 音频包。音频传输需要 TCP 和 UDP 端口均可访问。\n\n请检查：\n• 两台设备应在同一网络中\n• 尝试重新连接</string>
+    <string name="udpWarningMessage">TCP 连接已建立，但未收到任何 UDP 音频包，音频传输需要 TCP 和 UDP 端口均可访问\n\n请检查：\n• 两台设备应在同一网络中\n• 尝试重新连接</string>
     <string name="udpWarningConfirm">确定</string>
     <string name="firstLaunchGotItButton">我很清楚怎么使用</string>
     <string name="firstLaunchGuideButton">让我看看使用指南</string>
@@ -142,7 +142,7 @@
     <string name="githubDownloadLabel">GitHub 下载</string>
     <string name="githubRepoLabel">Github 仓库</string>
     <string name="hexFormatError">格式: #RRGGBB</string>
-    <string name="introText">MicYou 是一款开源的麦克风工具，可以将您的 Android 设备变成电脑的高质量麦克风，支持 Wi-Fi (TCP) 和 USB 连接，提供低延迟的音频传输体验。</string>
+    <string name="introText">MicYou 是一款开源的麦克风工具，可以将您的 Android 设备变成电脑的高质量麦克风，支持 Wi-Fi (TCP) 和 USB 连接，提供低延迟的音频传输体验</string>
     <string name="ipLabel">IP： </string>
     
     
@@ -214,21 +214,21 @@
     <string name="permissionAllGrantedStatus">所有权限已授予 (%1$d/%2$d)</string>
     <string name="permissionChecking">正在检查权限...</string>
     <string name="permissionClickToGrant">点击授权</string>
-    <string name="permissionDialogMessage">MicYou 需要一些权限才能正常工作。请查看并授予以下权限：</string>
+    <string name="permissionDialogMessage">MicYou 需要一些权限才能正常工作，请查看并授予以下权限：</string>
     <string name="permissionDialogTitle">应用权限</string>
     <string name="permissionGranted">已授权</string>
     <string name="permissionManagementLabel">权限管理</string>
     <string name="permissionMissingWarning">部分权限缺失 (%1$d/%2$d 已授予)</string>
     <string name="permissionOpenSettings">打开系统设置</string>
-    <string name="permissionOpenSettingsDesc">如果您拒绝了某个权限，需要在系统设置中手动授予。</string>
+    <string name="permissionOpenSettingsDesc">如果您拒绝了某个权限，需要在系统设置中手动授予</string>
     <string name="permissionOptional">可选</string>
-    <string name="permissionPostNotificationsDesc">显示串流状态通知，提供更好的用户体验。</string>
+    <string name="permissionPostNotificationsDesc">显示串流状态通知，提供更好的用户体验</string>
     <string name="permissionPostNotificationsLabel">通知</string>
-    <string name="permissionRecordAudioDesc">用于捕获和传输设备音频到电脑，是应用的核心功能。</string>
+    <string name="permissionRecordAudioDesc">用于捕获和传输设备音频到电脑，是应用的核心功能</string>
     <string name="permissionRecordAudioLabel">麦克风</string>
     <string name="permissionRequestButton">授予权限</string>
     <string name="permissionRequired">必选</string>
-    <string name="permissionRequiredHint">必选权限必须授予才能使用本应用。</string>
+    <string name="permissionRequiredHint">必选权限必须授予才能使用本应用</string>
     <string name="permissionSettingsTitle">应用权限</string>
     
     
@@ -259,7 +259,7 @@
     <string name="updateGoToGitHub">前往 GitHub</string>
     <string name="updateInstalling">正在安装更新...</string>
     <string name="updateLater">稍后</string>
-    <string name="updateMessage">GitHub 上有新版本 (%s) 可用。是否立即前往更新？</string>
+    <string name="updateMessage">GitHub 上有新版本 (%s) 可用，是否立即前往更新？</string>
     <string name="updateNow">立即更新</string>
     <string name="updateTitle">发现新版本</string>
     
@@ -303,20 +303,20 @@
     <string name="audioSourceVoicePerformance">VOICE_PERFORMANCE (低延迟)</string>
     <string name="audioSourceVoiceRecognition">VOICE_RECOGNITION (语音识别)</string>
     <string name="audioStreamingService">音频流服务</string>
-    <string name="connectionChannelClosed">连接通道已关闭。</string>
-    <string name="connectionDisconnected">连接意外关闭：远程设备断开了连接。</string>
+    <string name="connectionChannelClosed">连接通道已关闭</string>
+    <string name="connectionDisconnected">连接意外关闭：远程设备断开了连接</string>
     
-    <string name="connectionPipeBroken">管道中断：无法向已关闭的连接发送数据。</string>
-    <string name="connectionRejected">连接被拒绝: 请确保电脑端已开启并处于连接中状态，且电脑端已开启并等待连接。</string>
-    <string name="connectionReset">连接被重置：远程设备强制关闭了连接。</string>
-    <string name="connectionSocketClosed">套接字已关闭。</string>
-    <string name="connectionTimeout">连接超时: 请检查网络连接或 IP 地址是否正确。</string>
-    <string name="connectionUnreachable">无法到达主机: 请确保手机和电脑在同一个 Wi-Fi 网络下。</string>
+    <string name="connectionPipeBroken">管道中断：无法向已关闭的连接发送数据</string>
+    <string name="connectionRejected">连接被拒绝: 请确保电脑端已开启并处于连接中状态，且电脑端已开启并等待连接</string>
+    <string name="connectionReset">连接被重置：远程设备强制关闭了连接</string>
+    <string name="connectionSocketClosed">套接字已关闭</string>
+    <string name="connectionTimeout">连接超时: 请检查网络连接或 IP 地址是否正确</string>
+    <string name="connectionUnreachable">无法到达主机: 请确保手机和电脑在同一个 Wi-Fi 网络下</string>
     <string name="done">完成</string>
     
     <string name="errorAudioFormatNotSupported">音频格式不支持: 设备不支持 %1$s (%2$s) 格式或当前采样率 %3$dHz</string>
     <string name="errorAudioRecordInitFailed">AudioRecord 初始化失败</string>
-    <string name="errorHandshakeFailedDetailed">握手失败：与目标设备的握手验证失败。这可能是由于版本不匹配或协议错误。请确保两端使用相同版本的 MicYou。</string>
+    <string name="errorHandshakeFailedDetailed">握手失败：与目标设备的握手验证失败，这可能是由于版本不匹配或协议错误，请确保两端使用相同版本的 MicYou</string>
     <string name="errorRecordingPermissionDenied">录音权限不足</string>
     
     

@@ -64,29 +64,29 @@
     
     
     
-    <string name="errorAudioDeviceMessage">音訊裝置錯誤。請檢查音訊裝置設定並重新啟動應用程式。</string>
+    <string name="errorAudioDeviceMessage">音訊裝置錯誤，請檢查音訊裝置設定並重新啟動應用程式</string>
     <string name="errorAudioDeviceTitle">音訊裝置錯誤</string>
     
     
-    <string name="errorConnectionRefusedMessage">連線被拒絕。目標裝置可能未執行 MicYou 或未在指定連接埠監聽。</string>
+    <string name="errorConnectionRefusedMessage">連線被拒絕，目標裝置可能未執行 MicYou 或未在指定連接埠監聽</string>
     <string name="errorConnectionRefusedTitle">連線被拒絕</string>
-    <string name="errorConnectionRefusedWifiMessage">連線到 %s 被拒絕。請確保桌面伺服器正在執行並設定相同連接埠。</string>
+    <string name="errorConnectionRefusedWifiMessage">連線到 %s 被拒絕，請確保桌面伺服器正在執行並設定相同連接埠</string>
     
     
     <string name="errorDialogDismiss">關閉</string>
     
     <string name="errorDialogRetry">重試</string>
-    <string name="errorUdpPortBlockedMessage">UDP 音訊連接埠 %d 被封鎖。</string>
+    <string name="errorUdpPortBlockedMessage">UDP 音訊連接埠 %d 被封鎖</string>
     <string name="errorUdpPortBlockedTitle">UDP 連接埠被封鎖</string>
-    <string name="errorHandshakeFailedMessage">與目標裝置握手失敗。這可能表示版本不相符或通訊協定錯誤。</string>
+    <string name="errorHandshakeFailedMessage">與目標裝置握手失敗，這可能表示版本不相符或通訊協定錯誤</string>
     <string name="errorHandshakeFailedTitle">握手失敗</string>
-    <string name="errorNetworkTimeoutMessage">連線逾時。請檢查網路連線和目標裝置狀態。</string>
+    <string name="errorNetworkTimeoutMessage">連線逾時，請檢查網路連線和目標裝置狀態</string>
     <string name="errorNetworkTimeoutTitle">連線逾時</string>
-    <string name="errorNetworkUnreachableMessage">無法連線到 IP 位址：%s。請驗證 IP 位址並確保兩台裝置在同一網路中。</string>
+    <string name="errorNetworkUnreachableMessage">無法連線到 IP 位址：%s，請驗證 IP 位址並確保兩台裝置在同一網路中</string>
     <string name="errorNetworkUnreachableTitle">網路無法連線</string>
-    <string name="errorPermissionDeniedMessage">权限不足，无法执行此操作。请检查系统设定中的应用程式权限。</string>
+    <string name="errorPermissionDeniedMessage">权限不足，无法执行此操作，请检查系统设定中的应用程式权限</string>
     <string name="errorPermissionDeniedTitle">權限不足</string>
-    <string name="errorPortInUseMessage">連接埠 %s 已被其他應用程式占用。請選擇其他連接埠或關閉占用該連接埠的應用程式。</string>
+    <string name="errorPortInUseMessage">連接埠 %s 已被其他應用程式占用，請選擇其他連接埠或關閉占用該連接埠的應用程式</string>
     <string name="errorPortInUseTitle">連接埠已被占用</string>
     
     
@@ -122,7 +122,7 @@
     <string name="exportLog">匯出日誌</string>
     <string name="exportLogDesc">匯出應用程式日誌以供除錯</string>
     <string name="expressiveStyleLabel">表達性樣式</string><string name="udpWarningTitle">UDP 音訊警告</string>
-    <string name="udpWarningMessage">TCP 連線已建立，但未收到任何 UDP 音訊封包。音訊傳輸需要 TCP 和 UDP 連接埠均可存取。\n\n請檢查：\n• 兩台裝置應在同一網路中\n• 嘗試重新連線</string>
+    <string name="udpWarningMessage">TCP 連線已建立，但未收到任何 UDP 音訊封包，音訊傳輸需要 TCP 和 UDP 連接埠均可存取\n\n請檢查：\n• 兩台裝置應在同一網路中\n• 嘗試重新連線</string>
     <string name="udpWarningConfirm">確定</string>
     <string name="firstLaunchGotItButton">我很清楚怎麼使用</string>
     <string name="firstLaunchGuideButton">讓我看看使用指南</string>
@@ -142,7 +142,7 @@
     <string name="githubDownloadLabel">GitHub 下載</string>
     <string name="githubRepoLabel">Github 倉庫</string>
     <string name="hexFormatError">格式: #RRGGBB</string>
-    <string name="introText">MicYou 是一款開源的麥克風工具，可以將您的 Android 裝置變成電腦的高品質麥克風，支援 Wi-Fi (TCP) 和 USB 連線，提供低延遲的音訊傳輸體驗。</string>
+    <string name="introText">MicYou 是一款開源的麥克風工具，可以將您的 Android 裝置變成電腦的高品質麥克風，支援 Wi-Fi (TCP) 和 USB 連線，提供低延遲的音訊傳輸體驗</string>
     <string name="ipLabel">IP： </string>
     <string name="isLatestVersion">目前已是最新版本</string>
     <string name="keepScreenOnDesc">使用應用程式時防止螢幕自動關閉</string>
@@ -207,21 +207,21 @@
     <string name="permissionAllGrantedStatus">所有權限已授予 (%1$d/%2$d)</string>
     <string name="permissionChecking">正在檢查權限...</string>
     <string name="permissionClickToGrant">點擊授權</string>
-    <string name="permissionDialogMessage">MicYou 需要一些權限才能正常運作。請檢視並授予以下權限：</string>
+    <string name="permissionDialogMessage">MicYou 需要一些權限才能正常運作，請檢視並授予以下權限：</string>
     <string name="permissionDialogTitle">應用程式權限</string>
     <string name="permissionGranted">已授權</string>
     <string name="permissionManagementLabel">權限管理</string>
     <string name="permissionMissingWarning">部分權限缺失 (%1$d/%2$d 已授予)</string>
     <string name="permissionOpenSettings">開啟系統設定</string>
-    <string name="permissionOpenSettingsDesc">如果您拒絕了某個權限，需要在系統設定中手動授予。</string>
+    <string name="permissionOpenSettingsDesc">如果您拒絕了某個權限，需要在系統設定中手動授予</string>
     <string name="permissionOptional">可選</string>
-    <string name="permissionPostNotificationsDesc">顯示串流狀態通知，提供更好的使用者體驗。</string>
+    <string name="permissionPostNotificationsDesc">顯示串流狀態通知，提供更好的使用者體驗</string>
     <string name="permissionPostNotificationsLabel">通知</string>
-    <string name="permissionRecordAudioDesc">用於擷取和傳輸裝置音訊到電腦，是應用程式的核心功能。</string>
+    <string name="permissionRecordAudioDesc">用於擷取和傳輸裝置音訊到電腦，是應用程式的核心功能</string>
     <string name="permissionRecordAudioLabel">麥克風</string>
     <string name="permissionRequestButton">授予權限</string>
     <string name="permissionRequired">必選</string>
-    <string name="permissionRequiredHint">必選權限必須授予才能使用本應用程式。</string>
+    <string name="permissionRequiredHint">必選權限必須授予才能使用本應用程式</string>
     <string name="permissionSettingsTitle">應用程式權限</string>
     
     
@@ -252,7 +252,7 @@
     <string name="updateGoToGitHub">前往 GitHub</string>
     <string name="updateInstalling">正在安裝更新...</string>
     <string name="updateLater">稍後</string>
-    <string name="updateMessage">GitHub 上有新版本 (%s) 可用。是否立即前往更新？</string>
+    <string name="updateMessage">GitHub 上有新版本 (%s) 可用，是否立即前往更新？</string>
     <string name="updateNow">立即更新</string>
     <string name="updateTitle">發現新版本</string>
     
@@ -296,20 +296,20 @@
     <string name="audioSourceVoicePerformance">VOICE_PERFORMANCE (低延遲)</string>
     <string name="audioSourceVoiceRecognition">VOICE_RECOGNITION (語音辨識)</string>
     <string name="audioStreamingService">音訊串流服務</string>
-    <string name="connectionChannelClosed">連線通道已關閉。</string>
-    <string name="connectionDisconnected">連線意外關閉：遠端裝置斷開了連線。</string>
+    <string name="connectionChannelClosed">連線通道已關閉</string>
+    <string name="connectionDisconnected">連線意外關閉：遠端裝置斷開了連線</string>
     
-    <string name="connectionPipeBroken">管道中斷：無法向已關閉的連線傳送資料。</string>
-    <string name="connectionRejected">連線被拒：請確保電腦端已開啟並處於連線中狀態，且電腦端已開啟並處於連線中狀態。</string>
-    <string name="connectionReset">連線被重設：遠端裝置強制關閉了連線。</string>
-    <string name="connectionSocketClosed">通訊端已關閉。</string>
-    <string name="connectionTimeout">連線逾時：請檢查網路連線或 IP 位址是否正確。</string>
-    <string name="connectionUnreachable">無法到達主機：請確保手機和電腦在同一個 Wi-Fi 網路下。</string>
+    <string name="connectionPipeBroken">管道中斷：無法向已關閉的連線傳送資料</string>
+    <string name="connectionRejected">連線被拒：請確保電腦端已開啟並處於連線中狀態，且電腦端已開啟並處於連線中狀態</string>
+    <string name="connectionReset">連線被重設：遠端裝置強制關閉了連線</string>
+    <string name="connectionSocketClosed">通訊端已關閉</string>
+    <string name="connectionTimeout">連線逾時：請檢查網路連線或 IP 位址是否正確</string>
+    <string name="connectionUnreachable">無法到達主機：請確保手機和電腦在同一個 Wi-Fi 網路下</string>
     <string name="done">完成</string>
     
     <string name="errorAudioFormatNotSupported">音訊格式不支援：裝置不支援 %1$s (%2$s) 格式或目前取樣率 %3$dHz</string>
     <string name="errorAudioRecordInitFailed">AudioRecord 初始化失敗</string>
-    <string name="errorHandshakeFailedDetailed">驗證失敗：與目標裝置的驗證失敗。這可能是由於版本不符或協定錯誤。請確保兩端使用相同版本的 MicYou。</string>
+    <string name="errorHandshakeFailedDetailed">驗證失敗：與目標裝置的驗證失敗，這可能是由於版本不符或協定錯誤，請確保兩端使用相同版本的 MicYou</string>
     <string name="errorRecordingPermissionDenied">錄音權限不足</string>
     
     
@@ -367,7 +367,7 @@
     <string name="sponsorsDesc">查看愛發電贊助者</string>
     <string name="sponsorsLoading">正在載入贊助者...</string>
     <string name="sponsorsCount">%s 位贊助者</string>
-    <string name="sponsorsDisclaimer">此處僅顯示愛發電上對專案發起者個人 LanRhyme 的贊助。</string>
+    <string name="sponsorsDisclaimer">此處僅顯示愛發電上對專案發起者個人 LanRhyme 的贊助</string>
     <string name="sponsorsEmpty">暫無贊助者</string>
     <string name="sponsorsGoToAifadian">贊助</string>
     

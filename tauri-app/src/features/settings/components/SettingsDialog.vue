@@ -1369,7 +1369,10 @@
                   <div class="p-4 flex flex-col gap-3">
                     <div class="flex items-center justify-between">
                       <div class="flex items-center gap-4">
-                        <Zap class="w-6 h-6 text-amber-500 flex-shrink-0" />
+                        <Zap
+                          class="w-6 h-6 flex-shrink-0 transition-colors"
+                          :class="useMirrorDownload ? 'text-primary' : 'text-on-surface-variant'"
+                        />
                         <div>
                           <h4 class="text-sm font-medium text-on-surface">
                             {{ $t('settings.mirrorDownload.title') }}

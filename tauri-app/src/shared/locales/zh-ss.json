@@ -44,13 +44,13 @@
       "connected": "设备已成功连接",
       "disconnected": "设备已断开连接",
       "usbDisconnected": "USB 已断开，请重新插上数据线后点击连接",
-      "aecDisabled": "AEC 不可用项，已自动停用项。",
-      "aecDisabledInferenceFailed": "AEC 音频处理失败项，已自动停用项。",
-      "aecDisabledModelLoadFailed": "AEC AI 模型加载失败项，已自动停用项。",
-      "aecDisabledModelMissing": "未找到 AEC AI 模型项，已自动停用项。",
-      "aecDisabledPipeWireUnavailable": "PipeWire 不可用项，AEC 已自动停用项。",
-      "aecDisabledReferenceLost": "AEC 音频参考流已中断项，已自动停用项。",
-      "aecDisabledVirtualSourceMissing": "未找到虚拟音频源项，AEC 已自动停用项。"
+      "aecDisabled": "AEC 不可用项，已自动停用项",
+      "aecDisabledInferenceFailed": "AEC 音频处理失败项，已自动停用项",
+      "aecDisabledModelLoadFailed": "AEC AI 模型加载失败项，已自动停用项",
+      "aecDisabledModelMissing": "未找到 AEC AI 模型项，已自动停用项",
+      "aecDisabledPipeWireUnavailable": "PipeWire 不可用项，AEC 已自动停用项",
+      "aecDisabledReferenceLost": "AEC 音频参考流已中断项，已自动停用项",
+      "aecDisabledVirtualSourceMissing": "未找到虚拟音频源项，AEC 已自动停用项"
     },
     "ipSelector": {
       "allInterfaces": "全部",
@@ -176,7 +176,7 @@
     "blackhole": {
       "installed": "已经安装了",
       "notDetected": "没有安装",
-      "desc": "BlackHole 是 macOS 的虚拟音频设备，可将麦克风音频路由到其他应用（如 OBS 或 Zoom），且不会产生扬声器啸叫。",
+      "desc": "BlackHole 是 macOS 的虚拟音频设备，可将麦克风音频路由到其他应用（如 OBS 或 Zoom），且不会产生扬声器啸叫",
       "download": "BlackHole GitHub",
       "available": "可用于自动切换输入设备",
       "switchAudioSourceMissing": "请安装 SwitchAudioSource（brew install switchaudio-osx）以启用自动切换输入设备"
@@ -185,7 +185,7 @@
       "active": "已激活",
       "available": "可用",
       "notAvailable": "不可用",
-      "desc": "PipeWire 虚拟音频设备会在服务器启动时自动创建。音频通过虚拟 Sink 路由到虚拟 Source，其他应用程序可将其用作麦克风输入。"
+      "desc": "PipeWire 虚拟音频设备会在服务器启动时自动创建，音频通过虚拟 Sink 路由到虚拟 Source，其他应用程序可将其用作麦克风输入"
     },
     "audioOutput": {
       "title": "输出设备",
@@ -193,9 +193,9 @@
       "auto": "自动",
       "routingActive": "虚拟音频路由已激活，声音直接整到虚拟设备里头",
       "physicalWarningTitle": "当前选的是物理大喇叭",
-      "physicalWarningDesc": "手机麦克风的声音会直接从大喇叭里放出来。要是手机和大喇叭在同一屋里，极易搞出严重回声甚至啸叫。强烈建议整一个虚拟音频设备（比如 VB-Cable）。",
+      "physicalWarningDesc": "手机麦克风的声音会直接从大喇叭里放出来，要是手机和大喇叭在同一屋里，极易搞出严重回声甚至啸叫，强烈建议整一个虚拟音频设备（比如 VB-Cable）",
       "noVirtualDeviceTitle": "没找着虚拟音频设备",
-      "noVirtualDeviceDesc": "当前自动掉回到系统默认大喇叭放音了。要是跟手机在同一屋里容易有回声，建议赶紧整一个虚拟音频驱动（比如 VB-Cable）。"
+      "noVirtualDeviceDesc": "当前自动掉回到系统默认大喇叭放音了，要是跟手机在同一屋里容易有回声，建议赶紧整一个虚拟音频驱动（比如 VB-Cable）"
     },
     "spectrum": {
       "title": "实时频谱（原始 vs 处理后）项",
@@ -253,7 +253,7 @@
     "webPort": {
       "title": "Web 端口",
       "desc": "Web 连接模式的端口（默认：8443）",
-      "webOnly": "请切换到 Web 连接模式以配置此设置。"
+      "webOnly": "请切换到 Web 连接模式以配置此设置"
     },
     "mirrorDownload": {
       "title": "Mirror酱 镜像加速项",
@@ -266,7 +266,7 @@
       "version": "版本号码值",
       "updates": "检查更新项目",
       "updatesBtn": "检查更新",
-      "contributorsDesc": "感谢每一个为这个项目贡献的人们们。",
+      "contributorsDesc": "感谢每一个为这个项目贡献的人们们",
       "contributorsBtn": "贡献者们们",
       "sponsorsDesc": "查看爱发电赞助者项",
       "sponsorsBtn": "赞助者项",
@@ -280,7 +280,7 @@
       "copied": "已誊写完毕",
       "exportLog": "出口日志记录档案",
       "introTitle": "软件介绍项",
-      "introText": "麦克风你是一个打开来源微型手机工具那转弯你的安卓设备进入一个高质量微型手机为了你的计算机。 基于在安卓麦克风， 它支持 无线保真度 (传输控制协定)， 蓝色牙齿， 和 通用串行总线式 联系, 提供低延迟声音的传播。"
+      "introText": "麦克风你是一个打开来源微型手机工具那转弯你的安卓设备进入一个高质量微型手机为了你的计算机， 基于在安卓麦克风， 它支持 无线保真度 (传输控制协定)， 蓝色牙齿， 和 通用串行总线式 联系, 提供低延迟声音的传播"
     },
     "runMode": {
       "title": "运行模式项",
@@ -301,7 +301,7 @@
       "desc": "把音频、DSP 和偏好们重置为默认值项",
       "button": "恢复默认项",
       "title": "恢复默认设置项？",
-      "confirmDesc": "这会把所有音频/DSP 设置们和偏好重置为默认值项。继续吗项？",
+      "confirmDesc": "这会把所有音频/DSP 设置们和偏好重置为默认值项，继续吗项？",
       "success": "设置们已恢复为默认值项",
       "failed": "恢复设置失败项",
       "autostartFailed": "设置们已恢复项，但未能关闭开机自启项"
@@ -311,7 +311,7 @@
       "desc": "把主题颜色、模式和自定义们重置为默认值项",
       "button": "恢复默认项",
       "title": "恢复默认主题项？",
-      "confirmDesc": "这会把主题颜色、模式和自定义 CSS 们重置为默认值项。继续吗项？",
+      "confirmDesc": "这会把主题颜色、模式和自定义 CSS 们重置为默认值项，继续吗项？",
       "success": "主题们已恢复为默认值项",
       "failed": "恢复主题失败项",
       "partialSuccess": "主题们已恢复项，但未能移除已安装主题包项"
@@ -324,7 +324,7 @@
     "confirm": "确认项",
     "monitoringWarning": {
       "title": "开启监听提醒",
-      "desc": "这功能最好戴着耳机使，用大喇叭外放极容易整出啸叫和大回音。",
+      "desc": "这功能最好戴着耳机使，用大喇叭外放极容易整出啸叫和大回音",
       "dontAskAgain": "别再提醒了",
       "confirm": "整上监听"
     },
@@ -437,68 +437,68 @@
     },
     "networkTimeout": {
       "title": "网络连线超时项目",
-      "message": "连线超时了啊。请检查网络连线和目标装置状态。"
+      "message": "连线超时了啊，请检查网络连线和目标装置状态"
     },
     "portInUse": {
       "title": "港口被占用项目",
-      "message": "港口 %s 已被其他应用程式占用。请选择其他港口或关闭占用该港口的应用程式。"
+      "message": "港口 %s 已被其他应用程式占用，请选择其他港口或关闭占用该港口的应用程式"
     },
     "connectionRefused": {
       "title": "连线被拒绝项目",
-      "message": "连线被拒绝掉了。目标装置可能未执行麦克风你或未在指定港口监听。",
-      "wifiMessage": "连线到 %s 被拒绝掉了。请确保桌面伺服器正在执行并设定了相同港口。"
+      "message": "连线被拒绝掉了，目标装置可能未执行麦克风你或未在指定港口监听",
+      "wifiMessage": "连线到 %s 被拒绝掉了，请确保桌面伺服器正在执行并设定了相同港口"
     },
     "networkUnreachable": {
       "title": "网络无法到达项目",
-      "message": "无法到达互联网协议位址：%s。请验证互联网协议位址并确保两台装置在同一网络中。"
+      "message": "无法到达互联网协议位址：%s，请验证互联网协议位址并确保两台装置在同一网络中"
     },
     "firewallBlocked": {
       "title": "防火墙阻挡项目",
-      "message": "港口 %s 被窗户防火墙阻挡。请新增防火墙规则或以管理者身份执行应用程式。"
+      "message": "港口 %s 被窗户防火墙阻挡，请新增防火墙规则或以管理者身份执行应用程式"
     },
     "permissionDenied": {
       "title": "权限被拒绝项目",
-      "message": "权限不足以执行此操作。请以管理者身份执行应用程式。"
+      "message": "权限不足以执行此操作，请以管理者身份执行应用程式"
     },
     "deviceNotFound": {
       "title": "装置找不到项目",
-      "message": "未找到指定的蓝色牙齿装置。请确保装置已配对且蓝色牙齿已启用。"
+      "message": "未找到指定的蓝色牙齿装置，请确保装置已配对且蓝色牙齿已启用"
     },
     "usbConnectionFailed": {
       "title": "通用串行总线式连线失败项目",
-      "message": "通用串行总线式连线失败。请检查通用串行总线式缆线并确保安卓装置已启用通用串行总线式侦错。"
+      "message": "通用串行总线式连线失败，请检查通用串行总线式缆线并确保安卓装置已启用通用串行总线式侦错"
     },
     "adbCommandFailed": {
       "title": "安卓调试桥接指令失败项目",
-      "message": "安卓调试桥接指令执行失败。请确保已安装安卓调试桥接且已启用通用串行总线式侦错。"
+      "message": "安卓调试桥接指令执行失败，请确保已安装安卓调试桥接且已启用通用串行总线式侦错"
     },
     "handshakeFailed": {
       "title": "握手失败项目",
-      "message": "与目标装置握手失败。这可能表示版本不匹配或通讯协定错误。"
+      "message": "与目标装置握手失败，这可能表示版本不匹配或通讯协定错误"
     },
     "protocolError": {
       "title": "通讯协定错误项目",
-      "message": "通讯过程中发生通讯协定错误。请重新启动两端应用程式。"
+      "message": "通讯过程中发生通讯协定错误，请重新启动两端应用程式"
     },
     "audioDevice": {
       "title": "音讯装置错误项目",
-      "message": "音讯装置错误。请检查音讯装置设定并重新启动应用程式。"
+      "message": "音讯装置错误，请检查音讯装置设定并重新启动应用程式"
     },
     "audioFormat": {
       "title": "音讯格式错误项目",
-      "message": "不支援的音讯格式。请尝试不同的音讯设定或使用自动设定。"
+      "message": "不支援的音讯格式，请尝试不同的音讯设定或使用自动设定"
     },
     "versionMismatch": {
       "title": "版本不匹配项目",
-      "message": "侦测到版本不匹配。请确保两台装置执行相同版本的麦克风你。"
+      "message": "侦测到版本不匹配，请确保两台装置执行相同版本的麦克风你"
     },
     "adminPrivilege": {
       "title": "需要管理者特权项目",
-      "message": "此操作需要管理者特权。请以管理者身份重新启动应用程式。"
+      "message": "此操作需要管理者特权，请以管理者身份重新启动应用程式"
     },
     "udpPortBlocked": {
       "title": "UDP 港口被阻挡",
-      "message": "UDP 音讯港口 %d 被防火墙阻挡。音讯传输需要 TCP 和 UDP 港口均可存取。请为 UDP 港口新增防火墙规则，或以管理者身份执行应用程式。"
+      "message": "UDP 音讯港口 %d 被防火墙阻挡，音讯传输需要 TCP 和 UDP 港口均可存取，请为 UDP 港口新增防火墙规则，或以管理者身份执行应用程式"
     },
     "unknown": {
       "title": "未知错误项目",
@@ -535,7 +535,7 @@
   },
   "onboarding": {
     "title": "欢迎使用麦克风你",
-    "desc": "您似乎是第一次使用麦克风你。本应用可以将您的安卓设备通过无线保真度、蓝色牙齿或者通用串行总线式变成电脑的高质量微型电话。",
+    "desc": "您似乎是第一次使用麦克风你，本应用可以将您的安卓设备通过无线保真度、蓝色牙齿或者通用串行总线式变成电脑的高质量微型电话",
     "quickStart": "快速入门指南标题项",
     "step1Title": "1. 安装桌面应用程序项",
     "step1Desc": "在电脑上下载并安装麦克风你桌面应用程序项",
@@ -571,8 +571,8 @@
     "waitingDevice": "等待设备初始化...",
     "complete": "配置完成了呀",
     "failed": "VB-Cable 安装失败了: %s",
-    "adminRequired": "需要管理员权限，请批准 UAC 提示。",
-    "timeout": "安装超时了，请重试。",
+    "adminRequired": "需要管理员权限，请批准 UAC 提示",
+    "timeout": "安装超时了，请重试",
     "retry": "重试"
   },
   "plugins": {

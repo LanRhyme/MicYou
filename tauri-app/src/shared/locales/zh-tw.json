@@ -44,13 +44,13 @@
       "connected": "裝置已成功連線",
       "disconnected": "裝置已斷線",
       "usbDisconnected": "USB 已斷線，請重新插上傳輸線後點擊連線",
-      "aecDisabled": "AEC 不可用，已自動停用。",
-      "aecDisabledInferenceFailed": "AEC 音訊處理失敗，已自動停用。",
-      "aecDisabledModelLoadFailed": "AEC AI 模型載入失敗，已自動停用。",
-      "aecDisabledModelMissing": "找不到 AEC AI 模型，已自動停用。",
-      "aecDisabledPipeWireUnavailable": "PipeWire 不可用，AEC 已自動停用。",
-      "aecDisabledReferenceLost": "AEC 音訊參考流已中斷，已自動停用。",
-      "aecDisabledVirtualSourceMissing": "找不到虛擬音訊來源，AEC 已自動停用。"
+      "aecDisabled": "AEC 不可用，已自動停用",
+      "aecDisabledInferenceFailed": "AEC 音訊處理失敗，已自動停用",
+      "aecDisabledModelLoadFailed": "AEC AI 模型載入失敗，已自動停用",
+      "aecDisabledModelMissing": "找不到 AEC AI 模型，已自動停用",
+      "aecDisabledPipeWireUnavailable": "PipeWire 不可用，AEC 已自動停用",
+      "aecDisabledReferenceLost": "AEC 音訊參考流已中斷，已自動停用",
+      "aecDisabledVirtualSourceMissing": "找不到虛擬音訊來源，AEC 已自動停用"
     },
     "ipSelector": {
       "allInterfaces": "全部",
@@ -176,7 +176,7 @@
     "blackhole": {
       "installed": "已安裝",
       "notDetected": "未偵測到",
-      "desc": "BlackHole 是 macOS 的虛擬音訊裝置，可將麥克風音訊路由到其他應用程式（如 OBS 或 Zoom），且不會產生揚聲器回授。",
+      "desc": "BlackHole 是 macOS 的虛擬音訊裝置，可將麥克風音訊路由到其他應用程式（如 OBS 或 Zoom），且不會產生揚聲器回授",
       "download": "BlackHole GitHub",
       "available": "可用於自動切換輸入裝置",
       "switchAudioSourceMissing": "請安裝 SwitchAudioSource（brew install switchaudio-osx）以啟用自動切換輸入裝置"
@@ -185,7 +185,7 @@
       "active": "已啟用",
       "available": "可用",
       "notAvailable": "不可用",
-      "desc": "PipeWire 虛擬音訊裝置會在伺服器啟動時自動建立。音訊透過虛擬 Sink 路由到虛擬 Source，其他應用程式可將其用作麥克風輸入。"
+      "desc": "PipeWire 虛擬音訊裝置會在伺服器啟動時自動建立，音訊透過虛擬 Sink 路由到虛擬 Source，其他應用程式可將其用作麥克風輸入"
     },
     "audioOutput": {
       "title": "輸出裝置",
@@ -193,9 +193,9 @@
       "auto": "自動",
       "routingActive": "虛擬音訊路由已啟用，音訊將被轉發到虛擬裝置",
       "physicalWarningTitle": "目前選擇的是實體播放裝置",
-      "physicalWarningDesc": "手機麥克風的聲音將直接從喇叭/揚聲器播放。若手機與喇叭處於同一環境，極易產生嚴重回音或嘯叫。建議安裝並選擇虛擬音訊裝置（如 VB-Cable）。",
+      "physicalWarningDesc": "手機麥克風的聲音將直接從喇叭/揚聲器播放，若手機與喇叭處於同一環境，極易產生嚴重回音或嘯叫，建議安裝並選擇虛擬音訊裝置（如 VB-Cable）",
       "noVirtualDeviceTitle": "未偵測到虛擬音訊裝置",
-      "noVirtualDeviceDesc": "目前自動回落到系統預設喇叭播放。若與手機處於同一環境可能產生回音，建議安裝並設定虛擬音訊驅動程式（如 VB-Cable）。"
+      "noVirtualDeviceDesc": "目前自動回落到系統預設喇叭播放，若與手機處於同一環境可能產生回音，建議安裝並設定虛擬音訊驅動程式（如 VB-Cable）"
     },
     "spectrum": {
       "title": "即時頻譜",
@@ -253,7 +253,7 @@
     "webPort": {
       "title": "Web 連接埠",
       "desc": "Web 連線模式的連接埠（預設：8443）",
-      "webOnly": "請切換到 Web 連線模式以設定此選項。"
+      "webOnly": "請切換到 Web 連線模式以設定此選項"
     },
     "mirrorDownload": {
       "title": "Mirror醬 鏡像加速",
@@ -280,7 +280,7 @@
       "copied": "已複製",
       "exportLog": "匯出紀錄",
       "introTitle": "軟體介紹",
-      "introText": "MicYou 是一款開源的麥克風工具，可以將您的 Android 裝置變成電腦的高品質麥克風，支援 Wi-Fi 和 USB 連線，提供低延遲的音訊傳輸體驗。"
+      "introText": "MicYou 是一款開源的麥克風工具，可以將您的 Android 裝置變成電腦的高品質麥克風，支援 Wi-Fi 和 USB 連線，提供低延遲的音訊傳輸體驗"
     },
     "runMode": {
       "title": "執行模式",
@@ -301,7 +301,7 @@
       "desc": "將音訊、DSP 及偏好設定重置為預設值",
       "button": "還原預設",
       "title": "還原預設設定？",
-      "confirmDesc": "這將把所有音訊/DSP 設定和偏好重置為預設值。是否繼續？",
+      "confirmDesc": "這將把所有音訊/DSP 設定和偏好重置為預設值，是否繼續？",
       "success": "設定已還原為預設值",
       "failed": "還原設定失敗",
       "autostartFailed": "設定已還原，但未能關閉開機自啟"
@@ -311,7 +311,7 @@
       "desc": "將主題色彩、模式及自訂重置為預設值",
       "button": "還原預設",
       "title": "還原預設主題？",
-      "confirmDesc": "這將把主題色彩、模式和自訂 CSS 重置為預設值。是否繼續？",
+      "confirmDesc": "這將把主題色彩、模式和自訂 CSS 重置為預設值，是否繼續？",
       "success": "主題已還原為預設值",
       "failed": "還原主題失敗",
       "partialSuccess": "主題已還原，但未能移除已安裝主題包"
@@ -324,7 +324,7 @@
     "confirm": "確認",
     "monitoringWarning": {
       "title": "開啟監聽提示",
-      "desc": "此功能最好佩戴耳機使用，使用外放揚聲器可能會造成聲音循環與嘯叫。",
+      "desc": "此功能最好佩戴耳機使用，使用外放揚聲器可能會造成聲音循環與嘯叫",
       "dontAskAgain": "不再提示",
       "confirm": "開啟監聽"
     },
@@ -339,7 +339,7 @@
       "loading": "正在載入贊助者...",
       "count": "{count} 位贊助者",
       "empty": "暫無贊助者",
-      "disclaimer": "此處僅顯示愛發電上對專案發起者個人 LanRhyme 的贊助。",
+      "disclaimer": "此處僅顯示愛發電上對專案發起者個人 LanRhyme 的贊助",
       "sponsorBtn": "去贊助"
     },
     "licenses": {
@@ -379,7 +379,7 @@
     },
     "udpWarning": {
       "title": "防火牆封鎖了 UDP 音訊連線",
-      "desc": "手機端已成功連線，但電腦端未收到任何 UDP 音訊資料。這通常是因為 Windows 防火牆封鎖了 UDP 連接埠 ({port})。\n\n請在防火牆中允許 MicYou 程式的網路存取，或嘗試以系統管理員身分重新執行程式。",
+      "desc": "手機端已成功連線，但電腦端未收到任何 UDP 音訊資料，這通常是因為 Windows 防火牆封鎖了 UDP 連接埠 ({port})\n\n請在防火牆中允許 MicYou 程式的網路存取，或嘗試以系統管理員身分重新執行程式",
       "allowButton": "一鍵放行防火牆 (TCP & UDP)"
     }
   },
@@ -437,68 +437,68 @@
     },
     "networkTimeout": {
       "title": "連線逾時",
-      "message": "連線逾時。請檢查網路連線和目標裝置狀態。"
+      "message": "連線逾時，請檢查網路連線和目標裝置狀態"
     },
     "portInUse": {
       "title": "連接埠已被占用",
-      "message": "連接埠 {port} 已被其他應用程式占用。請選擇其他連接埠或關閉占用該連接埠的應用程式。"
+      "message": "連接埠 {port} 已被其他應用程式占用，請選擇其他連接埠或關閉占用該連接埠的應用程式"
     },
     "connectionRefused": {
       "title": "連線被拒絕",
-      "message": "連線被拒絕。目標裝置可能未執行 MicYou 或未在指定連接埠監聽。",
-      "wifiMessage": "連線到 {ip} 被拒絕。請確保桌面伺服器正在執行並設定相同連接埠。"
+      "message": "連線被拒絕，目標裝置可能未執行 MicYou 或未在指定連接埠監聽",
+      "wifiMessage": "連線到 {ip} 被拒絕，請確保桌面伺服器正在執行並設定相同連接埠"
     },
     "networkUnreachable": {
       "title": "網路無法連線",
-      "message": "無法連線到 IP 位址：{ip}。請驗證 IP 位址並確保兩台裝置在同一網路中。"
+      "message": "無法連線到 IP 位址：{ip}，請驗證 IP 位址並確保兩台裝置在同一網路中"
     },
     "firewallBlocked": {
       "title": "防火牆封鎖",
-      "message": "連接埠 {port} 被 Windows 防火牆封鎖。請新增防火牆規則或以系統管理員身分執行應用程式。"
+      "message": "連接埠 {port} 被 Windows 防火牆封鎖，請新增防火牆規則或以系統管理員身分執行應用程式"
     },
     "permissionDenied": {
       "title": "權限不足",
-      "message": "權限不足，無法執行此操作。請以系統管理員身分執行應用程式。"
+      "message": "權限不足，無法執行此操作，請以系統管理員身分執行應用程式"
     },
     "deviceNotFound": {
       "title": "找不到裝置",
-      "message": "找不到指定的裝置。請檢查網路連線。"
+      "message": "找不到指定的裝置，請檢查網路連線"
     },
     "usbConnectionFailed": {
       "title": "USB 連線失敗",
-      "message": "USB 連線失敗。請檢查 USB 傳輸線並確保 Android 裝置已啟用 USB 偵錯。"
+      "message": "USB 連線失敗，請檢查 USB 傳輸線並確保 Android 裝置已啟用 USB 偵錯"
     },
     "adbCommandFailed": {
       "title": "ADB 指令失敗",
-      "message": "ADB 指令執行失敗。請確保已安裝 ADB 且已啟用 USB 偵錯。"
+      "message": "ADB 指令執行失敗，請確保已安裝 ADB 且已啟用 USB 偵錯"
     },
     "handshakeFailed": {
       "title": "握手失敗",
-      "message": "與目標裝置握手失敗。這可能表示版本不相符或通訊協定錯誤。"
+      "message": "與目標裝置握手失敗，這可能表示版本不相符或通訊協定錯誤"
     },
     "protocolError": {
       "title": "通訊協定錯誤",
-      "message": "通訊過程中發生通訊協定錯誤。請重新啟動兩端應用程式。"
+      "message": "通訊過程中發生通訊協定錯誤，請重新啟動兩端應用程式"
     },
     "audioDevice": {
       "title": "音訊裝置錯誤",
-      "message": "音訊裝置錯誤。請檢查音訊裝置設定並重新啟動應用程式。"
+      "message": "音訊裝置錯誤，請檢查音訊裝置設定並重新啟動應用程式"
     },
     "audioFormat": {
       "title": "音訊格式錯誤",
-      "message": "不支援的音訊格式。請嘗試不同的音訊設定或使用自動設定。"
+      "message": "不支援的音訊格式，請嘗試不同的音訊設定或使用自動設定"
     },
     "versionMismatch": {
       "title": "版本不相符",
-      "message": "偵測到版本不相符。請確保兩台裝置執行相同版本的 MicYou。"
+      "message": "偵測到版本不相符，請確保兩台裝置執行相同版本的 MicYou"
     },
     "adminPrivilege": {
       "title": "需要系統管理員權限",
-      "message": "此操作需要系統管理員權限。請以系統管理員身分重新啟動應用程式。"
+      "message": "此操作需要系統管理員權限，請以系統管理員身分重新啟動應用程式"
     },
     "udpPortBlocked": {
       "title": "UDP 連接埠被封鎖",
-      "message": "UDP 音訊連接埠 {port} 被防火牆封鎖。音訊傳輸需要 TCP 和 UDP 連接埠均可存取。請為 UDP 連接埠新增防火牆規則，或以系統管理員身分執行應用程式。"
+      "message": "UDP 音訊連接埠 {port} 被防火牆封鎖，音訊傳輸需要 TCP 和 UDP 連接埠均可存取，請為 UDP 連接埠新增防火牆規則，或以系統管理員身分執行應用程式"
     },
     "unknown": {
       "title": "未知錯誤",
@@ -557,7 +557,7 @@
   },
   "vbcableDetect": {
     "title": "需要 VB-Cable 驅動程式",
-    "message": "VB-Cable 驅動程式是 MicYou 在 Windows 上作為虛擬麥克風運作所必需的。您想要自動安裝嗎？",
+    "message": "VB-Cable 驅動程式是 MicYou 在 Windows 上作為虛擬麥克風運作所必需的，您想要自動安裝嗎？",
     "autoInstall": "自動安裝",
     "manualDownload": "手動下載",
     "skipForNow": "暫時跳過",
@@ -570,8 +570,8 @@
     "waitingDevice": "等待裝置初始化...",
     "complete": "安裝完成",
     "failed": "安裝失敗",
-    "adminRequired": "需要系統管理員權限，請核准 UAC 提示。",
-    "timeout": "安裝逾時，請重試。",
+    "adminRequired": "需要系統管理員權限，請核准 UAC 提示",
+    "timeout": "安裝逾時，請重試",
     "retry": "重試"
   },
   "plugins": {

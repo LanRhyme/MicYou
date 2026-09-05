@@ -46,13 +46,13 @@
       "connected": "设备已成功连接",
       "disconnected": "设备已断开连接",
       "usbDisconnected": "USB 已断开，请重新插上数据线后点击连接",
-      "aecDisabled": "AEC 不可用，已自动停用。",
-      "aecDisabledInferenceFailed": "AEC 音频处理失败，已自动停用。",
-      "aecDisabledModelLoadFailed": "AEC AI 模型加载失败，已自动停用。",
-      "aecDisabledModelMissing": "未找到 AEC AI 模型，已自动停用。",
-      "aecDisabledPipeWireUnavailable": "PipeWire 不可用，AEC 已自动停用。",
-      "aecDisabledReferenceLost": "AEC 音频参考流已中断，已自动停用。",
-      "aecDisabledVirtualSourceMissing": "未找到虚拟音频源，AEC 已自动停用。"
+      "aecDisabled": "AEC 不可用，已自动停用",
+      "aecDisabledInferenceFailed": "AEC 音频处理失败，已自动停用",
+      "aecDisabledModelLoadFailed": "AEC AI 模型加载失败，已自动停用",
+      "aecDisabledModelMissing": "未找到 AEC AI 模型，已自动停用",
+      "aecDisabledPipeWireUnavailable": "PipeWire 不可用，AEC 已自动停用",
+      "aecDisabledReferenceLost": "AEC 音频参考流已中断，已自动停用",
+      "aecDisabledVirtualSourceMissing": "未找到虚拟音频源，AEC 已自动停用"
     },
     "ipSelector": {
       "allInterfaces": "所有网卡",
@@ -178,7 +178,7 @@
     "blackhole": {
       "installed": "已安装",
       "notDetected": "未检测到",
-      "desc": "BlackHole 是 macOS 的虚拟音频设备，可将麦克风音频路由到其他应用（如 OBS 或 Zoom），且不会产生扬声器啸叫。",
+      "desc": "BlackHole 是 macOS 的虚拟音频设备，可将麦克风音频路由到其他应用（如 OBS 或 Zoom），且不会产生扬声器啸叫",
       "download": "BlackHole GitHub",
       "available": "可用于自动切换输入设备",
       "switchAudioSourceMissing": "请安装 SwitchAudioSource（brew install switchaudio-osx）以启用自动切换输入设备"
@@ -187,7 +187,7 @@
       "active": "已激活",
       "available": "可用",
       "notAvailable": "不可用",
-      "desc": "PipeWire 虚拟音频设备会在服务器启动时自动创建。音频通过虚拟 Sink 路由到虚拟 Source，其他应用程序可将其用作麦克风输入。"
+      "desc": "PipeWire 虚拟音频设备会在服务器启动时自动创建，音频通过虚拟 Sink 路由到虚拟 Source，其他应用程序可将其用作麦克风输入"
     },
     "audioOutput": {
       "title": "输出设备",
@@ -195,9 +195,9 @@
       "auto": "自动",
       "routingActive": "虚拟音频路由已激活，音频将被转发到虚拟设备",
       "physicalWarningTitle": "当前选择的是物理播放设备",
-      "physicalWarningDesc": "手机麦克风的声音将直接从音响/扬声器播放。若手机与扬声器处于同一环境，极易产生严重回声或啸叫。建议安装并选择虚拟音频设备（如 VB-Cable）。",
+      "physicalWarningDesc": "手机麦克风的声音将直接从音响/扬声器播放，若手机与扬声器处于同一环境，极易产生严重回声或啸叫，建议安装并选择虚拟音频设备（如 VB-Cable）",
       "noVirtualDeviceTitle": "未检测到虚拟音频设备",
-      "noVirtualDeviceDesc": "当前自动回落到系统默认扬声器播放。若与手机处于同一环境可能产生回声，建议安装并配置虚拟音频驱动（如 VB-Cable）。"
+      "noVirtualDeviceDesc": "当前自动回落到系统默认扬声器播放，若与手机处于同一环境可能产生回声，建议安装并配置虚拟音频驱动（如 VB-Cable）"
     },
     "spectrum": {
       "title": "实时频谱",
@@ -255,7 +255,7 @@
     "webPort": {
       "title": "Web 端口",
       "desc": "Web 连接模式的端口（默认：8443）",
-      "webOnly": "请切换到 Web 连接模式以配置此设置。"
+      "webOnly": "请切换到 Web 连接模式以配置此设置"
     },
     "mirrorDownload": {
       "title": "Mirror酱 镜像加速",
@@ -303,7 +303,7 @@
       "desc": "将音频、DSP 及偏好设置重置为默认值",
       "button": "恢复默认",
       "title": "恢复默认设置？",
-      "confirmDesc": "这将把所有音频/DSP 设置和偏好重置为默认值。是否继续？",
+      "confirmDesc": "这将把所有音频/DSP 设置和偏好重置为默认值，是否继续？",
       "success": "设置已恢复为默认值",
       "failed": "恢复设置失败",
       "autostartFailed": "设置已恢复，但未能关闭开机自启"
@@ -313,7 +313,7 @@
       "desc": "将主题颜色、模式及自定义重置为默认值",
       "button": "恢复默认",
       "title": "恢复默认主题？",
-      "confirmDesc": "这将把主题颜色、模式和自定义 CSS 重置为默认值。是否继续？",
+      "confirmDesc": "这将把主题颜色、模式和自定义 CSS 重置为默认值，是否继续？",
       "success": "主题已恢复为默认值",
       "failed": "恢复主题失败",
       "partialSuccess": "主题已恢复，但未能移除已安装主题包"
@@ -326,7 +326,7 @@
     "confirm": "确认",
     "monitoringWarning": {
       "title": "开启监听提示",
-      "desc": "此功能最好佩戴耳机使用，使用外放扬声器可能会造成声音循环与啸叫。",
+      "desc": "此功能最好佩戴耳机使用，使用外放扬声器可能会造成声音循环与啸叫",
       "dontAskAgain": "不再提示",
       "confirm": "开启监听"
     },
