@@ -201,10 +201,13 @@ async fn run_installer(installer_path: &Path) -> Result<(), String> {
 
 #[cfg(feature = "vbcable")]
 async fn wait_for_device(max_secs: u64) -> bool {
+    if is_installed() {
+        return true;
+    }
     let mut waited = 0u64;
     while waited < max_secs {
-        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        waited += 5;
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        waited += 2;
         if is_installed() {
             return true;
         }

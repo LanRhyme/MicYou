@@ -102,6 +102,7 @@ mod headless_event_pump {
 }
 
 // 用于主线程与消息泵线程通信的指令
+#[allow(dead_code)]
 enum HeadlessCmd {
     Register(HotKey, u32, String, u64, String), // hotkey, os_id, plugin_id, internal_id, shortcut_text
     Stop,
