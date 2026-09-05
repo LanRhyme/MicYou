@@ -25,7 +25,7 @@ typedef struct mpl_host_api {
     mpl_result_t (*play_sound)(void *ctx, const char *path);
     mpl_result_t (*plugin_dir)(void *ctx, char *out, uint32_t *out_size);
     mpl_result_t (*register_hotkey)(void *ctx, const char *shortcut, uint64_t *out_id);
-    mpl_result_t (*open_window)(void *ctx, const char *panel_id);
+    mpl_result_t (*open_window)(void *ctx, const char *panel_id);/* 仅TauriGUI可用 */
     mpl_result_t (*fs_read)(void *ctx, const char *path, char *out, uint32_t *out_size);
     mpl_result_t (*fs_write)(void *ctx, const char *path, const char *content);
     mpl_result_t (*set_timeout)(void *ctx, uint64_t ms, const char *payload, uint64_t *out_id);
@@ -65,7 +65,7 @@ typedef struct mpl_host_api {
 | `play_sound` | `(path_ptr: i32) -> i32` | 排队播放 WAV（需 audio.play），返回结果码 |
 | `plugin_dir` | `() -> i32` | 返回插件安装目录绝对路径字符串 |
 | `register_hotkey` | `(shortcut_ptr: i32) -> i64` | 注册全局快捷键（仅 X11 会话），返回句柄 id（0 = 失败） |
-| `open_window` | `(panel_ptr: i32) -> i32` | 打开插件自己的面板窗口 |
+| `open_window` | `(panel_ptr: i32) -> i32` | 打开插件自己的面板窗口（仅TauriGUI可用）|
 | `fs_read` | `(path_ptr: i32) -> i32` | 读取插件目录内文本文件（需 fs.read），返回字符串指针 |
 | `fs_write` | `(path_ptr: i32, content_ptr: i32) -> ()` | 写文件（需 fs.write） |
 | `set_timeout` | `(ms: i64, payload_ptr: i32) -> i64` | 一次性定时器，返回 id |
