@@ -316,7 +316,7 @@ mod tests {
     fn test_get_app_version() {
         let version = get_app_version();
         assert_eq!(version, env!("CARGO_PKG_VERSION"));
-        assert_eq!(version, "2.0.2");
+        assert_eq!(version, "2.0.3");
     }
 
     #[test]

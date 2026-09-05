@@ -9,6 +9,7 @@ const tauriConfigPath = resolve(__dirname, 'src-tauri', 'tauri.conf.json');
 const cargoTomlPath = resolve(__dirname, 'src-tauri', 'Cargo.toml');
 const workspaceCargoTomlPath = resolve(__dirname, 'Cargo.toml');
 const packageJsonPath = resolve(__dirname, 'package.json');
+const installerIssPath = resolve(__dirname, 'src-tauri', 'installer.iss');
 
 function readGradleVersion() {
   const content = readFileSync(gradlePropsPath, 'utf-8');
@@ -72,6 +73,15 @@ function updatePackageJson(version) {
   console.log(`Updated package.json: ${version}`);
 }
 
+function updateInstallerIss(version) {
+  const content = readFileSync(installerIssPath, 'utf-8');
+  const updated = content.replace(/#define MyAppVersion ".*"/, `#define MyAppVersion "${version}"`);
+  if (updated === content) return;
+
+  writeFileSync(installerIssPath, updated);
+  console.log(`Updated installer.iss: ${version}`);
+}
+
 function updateCargoLock() {
   // Cargo.lock records the local micyou-app package version. Refresh it after
   // rewriting Cargo.toml so subsequent cargo-about --locked runs stay reproducible.
@@ -94,6 +104,7 @@ try {
   updateWorkspaceCargoToml(semver);
   updateCargoLock();
   updatePackageJson(semver);
+  updateInstallerIss(semver);
   
   console.log('Version sync completed!');
 } catch (error) {
