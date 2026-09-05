@@ -172,8 +172,25 @@ pub async fn get_streaming_status(state: State<'_, ServerState>) -> Result<Strea
     let lifecycle = state.lifecycle.lock().await;
     let is_server_running = matches!(lifecycle.phase(), crate::server::ServerLifecyclePhase::Running);
     let is_connected = {
-        let lock = state.active_connection.lock().await;
-        lock.is_some()
+        let conn_lock = state.active_connection.lock().await;
+        let audio_active = state
+            .active_audio_session
+            .read()
+            .map(|s| !matches!(*s, crate::udp_server::ActiveAudioSession::Inactive))
+            .unwrap_or(false);
+        if conn_lock.is_some() || audio_active {
+            true
+        } else {
+            #[cfg(feature = "web-server")]
+            {
+                let web_lock = state.web_server.lock().await;
+                web_lock.as_ref().is_some_and(|w| w.client_count() > 0)
+            }
+            #[cfg(not(feature = "web-server"))]
+            {
+                false
+            }
+        }
     };
     let is_muted = state.network_stats.is_muted();
     Ok(StreamingStatus {
