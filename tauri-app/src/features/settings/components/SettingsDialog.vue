@@ -1327,9 +1327,11 @@
                     </div>
                     <button
                       @click="openDialog('Update')"
-                      class="px-3 py-1.5 text-xs font-medium text-on-primary bg-primary hover:opacity-90 rounded-full transition-opacity"
+                      :disabled="checkingUpdate"
+                      class="px-3 py-1.5 text-xs font-medium text-on-primary bg-primary hover:opacity-90 rounded-full transition-opacity disabled:opacity-50 flex items-center gap-1.5"
                     >
-                      {{ $t('settings.about.updatesBtn') }}
+                      <Loader2 v-if="checkingUpdate" class="w-3.5 h-3.5 animate-spin" />
+                      {{ checkingUpdate ? $t('dialogs.update.checking') : $t('settings.about.updatesBtn') }}
                     </button>
                   </div>
                   <div class="h-px bg-border mx-4"></div>
@@ -1501,6 +1503,7 @@ import { useI18n } from 'vue-i18n';
 import { useColorMode, useStorage } from '@vueuse/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import {
   isEnabled as isAutostartEnabled,
   enable as enableAutostart,
@@ -2113,7 +2116,8 @@ const showLicenses = ref(false);
 const showAudioChain = ref(false);
 const showCustomCssDialog = ref(false);
 const showThemeCatalogDialog = ref(false);
-const appVersion = ref('0.1.0');
+const appVersion = ref(__APP_VERSION__);
+const checkingUpdate = ref(false);
 
 const updateProcessingChain = (newChain: string[]) => {
   settings.processingChain = newChain;
@@ -2128,23 +2132,27 @@ const openDialog = async (name: string) => {
   else if (name === 'Sponsors') showSponsors.value = true;
   else if (name === 'Licenses') showLicenses.value = true;
   else if (name === 'Update') {
+    if (checkingUpdate.value) return;
+    checkingUpdate.value = true;
     try {
-      const res = await fetch('https://api.github.com/repos/LanRhyme/MicYou/releases/latest');
-      if (res.ok) {
-        const data = await res.json();
-        const latestVersion = data.tag_name.replace(/^v/, '');
-        if (latestVersion !== appVersion.value) {
-          if (confirm(t('dialogs.update.available', { version: data.tag_name }))) {
-            window.open(data.html_url, '_blank');
-          }
-        } else {
-          alert(t('dialogs.update.latest'));
+      const res = await invoke<{
+        hasUpdate: boolean;
+        currentVersion: string;
+        latestVersion: string;
+        releaseUrl: string;
+        releaseNotes?: string;
+      }>('check_app_update');
+      if (res.hasUpdate) {
+        if (confirm(t('dialogs.update.available', { version: `v${res.latestVersion}` }))) {
+          await openUrl(res.releaseUrl);
         }
       } else {
-        alert(t('dialogs.update.failed', { error: 'HTTP ' + res.status }));
+        alert(t('dialogs.update.latest'));
       }
     } catch (e: any) {
-      alert(t('dialogs.update.failed', { error: e.message }));
+      alert(t('dialogs.update.failed', { error: e?.toString() || 'Unknown error' }));
+    } finally {
+      checkingUpdate.value = false;
     }
   }
 };
@@ -2224,12 +2232,12 @@ async function installVBCableFromSettings() {
   }
 }
 
-function openVBCableDownload() {
-  window.open('https://vb-audio.com/Cable/', '_blank');
+async function openVBCableDownload() {
+  await openUrl('https://vb-audio.com/Cable/');
 }
 
-function openBlackHoleDownload() {
-  window.open('https://github.com/ExistentialAudio/BlackHole', '_blank');
+async function openBlackHoleDownload() {
+  await openUrl('https://github.com/ExistentialAudio/BlackHole');
 }
 
 async function checkBlackHoleStatus() {

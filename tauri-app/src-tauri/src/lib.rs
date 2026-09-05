@@ -203,6 +203,7 @@ pub fn run() {
             commands::about::get_log_content,
             commands::about::open_log_dir,
             commands::about::get_app_version,
+            commands::about::check_app_update,
             commands::set_tray_strings,
             commands::set_tray_state,
             commands::show_main_window,

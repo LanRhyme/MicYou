@@ -41,10 +41,91 @@ fn get_local_property(key: &str) -> String {
 
 #[tauri::command]
 pub fn get_app_version() -> String {
-    if let Some(val) = read_property_from_file("../../gradle.properties", "project.version") {
-        return val;
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCheckResult {
+    pub has_update: bool,
+    pub current_version: String,
+    pub latest_version: String,
+    pub release_url: String,
+    pub release_notes: Option<String>,
+}
+
+#[tauri::command]
+pub async fn check_app_update() -> Result<UpdateCheckResult, String> {
+    let current_version = env!("CARGO_PKG_VERSION");
+    let current_semver = semver::Version::parse(current_version)
+        .unwrap_or_else(|_| semver::Version::new(0, 0, 0));
+
+    let client = Client::builder()
+        .user_agent(format!("MicYou-Desktop/{}", current_version))
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // 1. Try GitHub Release API first (includes changelog notes if available)
+    let api_res = client
+        .get("https://api.github.com/repos/LanRhyme/MicYou/releases/latest")
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await;
+
+    if let Ok(res) = api_res {
+        if res.status().is_success() {
+            if let Ok(json) = res.json::<serde_json::Value>().await {
+                if let Some(tag) = json.get("tag_name").and_then(|t| t.as_str()) {
+                    let latest_version = tag.trim_start_matches('v').to_string();
+                    let latest_semver = semver::Version::parse(&latest_version)
+                        .unwrap_or_else(|_| semver::Version::new(0, 0, 0));
+                    let has_update = latest_semver > current_semver;
+                    let release_url = json
+                        .get("html_url")
+                        .and_then(|u| u.as_str())
+                        .unwrap_or("https://github.com/LanRhyme/MicYou/releases/latest")
+                        .to_string();
+                    let release_notes = json.get("body").and_then(|b| b.as_str()).map(|s| s.to_string());
+
+                    return Ok(UpdateCheckResult {
+                        has_update,
+                        current_version: current_version.to_string(),
+                        latest_version,
+                        release_url,
+                        release_notes,
+                    });
+                }
+            }
+        }
     }
-    "0.1.0".to_string()
+
+    // 2. Fallback to website redirect (GitHub releases/latest -> /releases/tag/vX.Y.Z)
+    // Avoids GitHub API unauthenticated 60 req/hr rate limiting (HTTP 403)
+    let web_res = client
+        .get("https://github.com/LanRhyme/MicYou/releases/latest")
+        .send()
+        .await
+        .map_err(|e| format!("网络请求失败: {e}"))?;
+
+    let final_url = web_res.url().as_str();
+    if let Some(tag) = final_url.split("/tag/").nth(1) {
+        let tag = tag.trim_matches('/');
+        let latest_version = tag.trim_start_matches('v').to_string();
+        let latest_semver = semver::Version::parse(&latest_version)
+            .unwrap_or_else(|_| semver::Version::new(0, 0, 0));
+        let has_update = latest_semver > current_semver;
+
+        return Ok(UpdateCheckResult {
+            has_update,
+            current_version: current_version.to_string(),
+            latest_version,
+            release_url: final_url.to_string(),
+            release_notes: None,
+        });
+    }
+
+    Err("无法获取最新版本信息".to_string())
 }
 
 #[tauri::command]
@@ -141,4 +222,16 @@ pub fn open_log_dir(app: tauri::AppHandle) -> Result<String, String> {
         .open_path(log_dir.display().to_string(), None::<&str>)
         .map_err(|e| format!("open log dir: {e}"))?;
     Ok(log_dir.display().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_app_version() {
+        let version = get_app_version();
+        assert_eq!(version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(version, "2.0.2");
+    }
 }

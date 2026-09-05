@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useI18n } from 'vue-i18n';
 import { X, CheckCircle2, Download, Loader2, ArrowRight } from '@lucide/vue';
 
@@ -94,16 +95,16 @@ async function installVBCable() {
   }
 }
 
-function openManualDownload() {
-  window.open('https://vb-audio.com/Cable/', '_blank');
+async function openManualDownload() {
+  await openUrl('https://vb-audio.com/Cable/');
 }
 
-function openVideoGuide() {
-  window.open('https://www.bilibili.com/video/BV1MpNKz8ELw', '_blank');
+async function openVideoGuide() {
+  await openUrl('https://www.bilibili.com/video/BV1MpNKz8ELw');
 }
 
-function openTextGuide() {
-  window.open('https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md', '_blank');
+async function openTextGuide() {
+  await openUrl('https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md');
 }
 </script>
 
