@@ -5,8 +5,12 @@
       class="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm"
       @click.self="$emit('close')"
     >
-      <div class="settings-panel relative backdrop-blur-2xl">
-        <!-- Close Button -->
+    <div class="settings-panel relative isolate">
+      <!-- 背景模糊独立成层：避免 backdrop-filter 使面板成为 fixed 后代的包含块 -->
+      <div
+        class="absolute inset-0 -z-10 rounded-[inherit] backdrop-blur-2xl pointer-events-none"
+      ></div>
+      <!-- Close Button -->
         <button
           @click="$emit('close')"
           class="absolute top-4 right-4 z-40 w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors"
