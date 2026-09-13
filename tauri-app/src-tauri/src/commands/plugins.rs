@@ -613,122 +613,127 @@ pub fn cancel_plugin_download(id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Download a plugin zip from the market and install it (permission prompt
+/// happens in the frontend via preview_plugin_from_url first).
 #[tauri::command]
-pub fn install_plugin_from_url(
+pub async fn install_plugin_from_url(
     app: tauri::AppHandle,
-    state: State<'_, ServerState>,
     id: String,
     zip_url: String,
 ) -> Result<String, String> {
-    // 修复 E0599: blocking Client 没有 read_timeout，使用 24 小时超时替代全局超时
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(86400)) 
-        .build()
-        .map_err(|e| format!("http client: {e}"))?;
+    tokio::task::spawn_blocking(move || {
+        let state = app.state::<ServerState>();
+        let client = reqwest::blocking::Client::new();
 
-    let temp_dir = std::env::temp_dir();
-    let temp_zip_path = temp_dir.join(format!("micyou-market-{}.zip", id));
+        let temp_dir = std::env::temp_dir();
+        let temp_zip_path = temp_dir.join(format!("micyou-market-{}.zip", id));
 
-    let mut downloaded_bytes: u64 = 0;
-    if temp_zip_path.exists() {
-        downloaded_bytes = std::fs::metadata(&temp_zip_path).map(|m| m.len()).unwrap_or(0);
-    }
-
-    let mut request = client.get(&zip_url);
-    if downloaded_bytes > 0 {
-        request = request.header(reqwest::header::RANGE, format!("bytes={}-", downloaded_bytes));
-    }
-
-    let mut response = request
-        .send()
-        .map_err(|e| format!("下载插件失败：{e}"))?
-        .error_for_status()
-        .map_err(|e| format!("下载插件失败（清单可能已过期，请刷新市场后重试）：{e}"))?;
-
-    let is_append = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
-    let total_size = response.content_length().unwrap_or(0) + if is_append { downloaded_bytes } else { 0 };
-    
-    let mut out_file = if is_append {
-        std::fs::OpenOptions::new().append(true).open(&temp_zip_path)
-            .map_err(|e| format!("打开临时文件失败: {e}"))?
-    } else {
-        downloaded_bytes = 0; 
-        std::fs::File::create(&temp_zip_path)
-            .map_err(|e| format!("创建临时文件失败: {e}"))?
-    };
-
-    let cancel_flag = get_cancel_flag(&id);
-    cancel_flag.store(false, Ordering::SeqCst);
-
-    let mut buffer = [0u8; 8192];
-    let mut last_emit = std::time::Instant::now();
-    
-    loop {
-        if cancel_flag.load(Ordering::SeqCst) {
-            let _ = std::fs::remove_file(&temp_zip_path);
-            clear_cancel_flag(&id);
-            return Err("下载已取消".to_string());
+        let mut downloaded_bytes: u64 = 0;
+        if temp_zip_path.exists() {
+            downloaded_bytes = std::fs::metadata(&temp_zip_path).map(|m| m.len()).unwrap_or(0);
         }
 
-        let bytes_read = response.read(&mut buffer)
-            .map_err(|e| format!("读取插件包失败(网络中断): {e}"))?;
-        if bytes_read == 0 { break; }
-
-        out_file.write_all(&buffer[..bytes_read])
-            .map_err(|e| format!("写入临时文件失败: {e}"))?;
-        downloaded_bytes += bytes_read as u64;
-
-        if last_emit.elapsed().as_millis() > 200 {
-            let _ = app.emit("plugin-download-progress", serde_json::json!({
-                "id": id,
-                "downloaded": downloaded_bytes,
-                "total": total_size,
-                "done": false
-            }));
-            last_emit = std::time::Instant::now();
+        let mut request = client.get(&zip_url);
+        if downloaded_bytes > 0 {
+            request = request.header(reqwest::header::RANGE, format!("bytes={}-", downloaded_bytes));
         }
-    }
-    
-    let _ = app.emit("plugin-download-progress", serde_json::json!({
-        "id": id,
-        "downloaded": downloaded_bytes,
-        "total": total_size,
-        "done": true
-    }));
-    clear_cancel_flag(&id);
 
-    let result = (|| {
-        let plugins_dir = state
-            .plugins
-            .manager
-            .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())? // 修复 E0593
-            .plugins_dir()
-            .to_path_buf();
-        std::fs::create_dir_all(&plugins_dir).map_err(|e| e.to_string())?;
-        let extracted_id = match import_plugin_zip(&temp_zip_path, &plugins_dir) {
-            Ok(id) => id,
-            Err(e) if e.contains("already installed") => {
-                let manifest = read_manifest_from_zip(&temp_zip_path).map_err(|e| e.to_string())?.0;
-                manifest.id
-            }
-            Err(e) => return Err(e),
+        let mut response = request
+            .send()
+            .map_err(|e| format!("下载插件失败：{e}"))?
+            .error_for_status()
+            .map_err(|e| format!("下载插件失败（清单可能已过期，请刷新市场后重试）：{e}"))?;
+
+        let is_append = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+        let total_size = response.content_length().unwrap_or(0) + if is_append { downloaded_bytes } else { 0 };
+
+        let mut out_file = if is_append {
+            std::fs::OpenOptions::new().append(true).open(&temp_zip_path)
+                .map_err(|e| format!("打开临时文件失败: {e}"))?
+        } else {
+            downloaded_bytes = 0;
+            std::fs::File::create(&temp_zip_path)
+                .map_err(|e| format!("创建临时文件失败: {e}"))?
         };
-        let mut manager = state
-            .plugins
-            .manager
-            .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
-        let _ = manager.discover_plugin(plugins_dir.join(&extracted_id));
-        Ok::<String, String>(extracted_id)
-    })();
-    let _ = std::fs::remove_file(&temp_zip_path);
-    let extracted_id = result?;
 
-    if let Err(e) = state.plugins.enable_plugin(&extracted_id) {
-        log::warn!("[plugins] auto-enable after install failed for {extracted_id}: {e}");
-    }
-    Ok(extracted_id)
+        let cancel_flag = get_cancel_flag(&id);
+        cancel_flag.store(false, Ordering::SeqCst);
+
+        let mut buffer = [0u8; 8192];
+        let mut last_emit = std::time::Instant::now();
+
+        loop {
+            if cancel_flag.load(Ordering::SeqCst) {
+                let _ = std::fs::remove_file(&temp_zip_path);
+                clear_cancel_flag(&id);
+                return Err("下载已取消".to_string());
+            }
+
+            let bytes_read = response.read(&mut buffer)
+                .map_err(|e| format!("读取插件包失败(网络中断): {e}"))?;
+            if bytes_read == 0 { break; }
+
+            out_file.write_all(&buffer[..bytes_read])
+                .map_err(|e| format!("写入临时文件失败: {e}"))?;
+            downloaded_bytes += bytes_read as u64;
+
+            if last_emit.elapsed().as_millis() > 200 {
+                let _ = app.emit("plugin-download-progress", serde_json::json!({
+                    "id": id,
+                    "downloaded": downloaded_bytes,
+                    "total": total_size,
+                    "done": false
+                }));
+                last_emit = std::time::Instant::now();
+            }
+        }
+
+        let _ = app.emit("plugin-download-progress", serde_json::json!({
+            "id": id,
+            "downloaded": downloaded_bytes,
+            "total": total_size,
+            "done": true
+        }));
+        clear_cancel_flag(&id);
+
+        // 临时文件下载，随后走标准 zip 导入（含路径穿越防护）
+        let result = (|| {
+            let plugins_dir = state
+                .plugins
+                .manager
+                .lock()
+                .map_err(|_| "plugin manager lock poisoned".to_string())?
+                .plugins_dir()
+                .to_path_buf();
+            std::fs::create_dir_all(&plugins_dir).map_err(|e| e.to_string())?;
+            let extracted_id = match import_plugin_zip(&temp_zip_path, &plugins_dir) {
+                Ok(id) => id,
+                Err(e) if e.contains("already installed") => {
+                    // 幂等：已安装视为成功，前端随后刷新列表
+                    let manifest = read_manifest_from_zip(&temp_zip_path).map_err(|e| e.to_string())?.0;
+                    manifest.id
+                }
+                Err(e) => return Err(e),
+            };
+            let mut manager = state
+                .plugins
+                .manager
+                .lock()
+                .map_err(|_| "plugin manager lock poisoned".to_string())?;
+            let _ = manager.discover_plugin(plugins_dir.join(&extracted_id));
+            Ok::<String, String>(extracted_id)
+        })();
+        let _ = std::fs::remove_file(&temp_zip_path);
+        let extracted_id = result?;
+
+        // 权限已在前端确认，安装成功后自动启用（失败不阻断安装，用户可手动启用）
+        if let Err(e) = state.plugins.enable_plugin(&extracted_id) {
+            log::warn!("[plugins] auto-enable after install failed for {extracted_id}: {e}");
+        }
+        Ok(extracted_id)
+    })
+    .await
+    .map_err(|e| format!("download task panicked: {e}"))?
 }
 
 #[tauri::command]
