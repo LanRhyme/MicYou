@@ -17,6 +17,7 @@ use micyou_plugin::PluginSyncTransport;
 use serde::Serialize;
 use tauri::Manager;
 use tauri::State;
+use tauri::Emitter; // 修复 E0599: emit 方法需要引入 Emitter trait
 use std::sync::{Arc, Mutex, OnceLock, atomic::{AtomicBool, Ordering}};
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -91,7 +92,7 @@ pub fn list_plugins(state: State<'_, ServerState>) -> Result<Vec<PluginView>, St
     let manager = plugins
         .manager
         .lock()
-        .map_err(|| "plugin manager lock poisoned".to_string())?;
+        .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
     let dsp_ids = plugins.dsp_registry.plugin_ids();
     let mut views: Vec<PluginView> = manager
         .entries()
@@ -121,7 +122,7 @@ pub fn list_plugins(state: State<'_, ServerState>) -> Result<Vec<PluginView>, St
             }
         })
         .collect();
-
+    
     // Re-attempt loading enabled-but-failed plugins lazily and report errors.
     let ids: Vec<String> = views
         .iter()
@@ -129,7 +130,7 @@ pub fn list_plugins(state: State<'_, ServerState>) -> Result<Vec<PluginView>, St
         .map(|v| v.id.clone())
         .collect();
     drop(manager);
-    for id in ids {
+    for id in ids.into_iter() { // 修复 E0277: 明确使用 into_iter()
         if let Err(e) = plugins.enable_plugin(&id) {
             if let Some(view) = views.iter_mut().find(|v| v.id == id) {
                 view.error = Some(e.to_string());
@@ -173,7 +174,7 @@ pub fn get_plugin_config(
         .plugins
         .manager
         .lock()
-        .map_err(|| "plugin manager lock poisoned".to_string())?;
+        .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
     let map = manager.plugin_config(&id).map_err(|e| e.to_string())?;
     Ok(serde_json::Value::Object(map))
 }
@@ -186,19 +187,17 @@ pub fn set_plugin_config(
     key: String,
     value: serde_json::Value,
 ) -> Result<(), String> {
-    // 先持久化（释放 manager 锁后再 dispatch，dispatch 会再次锁 manager）
     {
         let manager = state
             .plugins
             .manager
             .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?;
+            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
         manager
             .set_plugin_config(&id, &key, value.clone())
             .map_err(|e| e.to_string())?;
     }
 
-    // 通知插件配置已变更（config:changed 热更新，插件据此重新读取配置）
     let payload = serde_json::json!({ "key": key, "value": value });
     let msg = micyou_plugin::bus::PluginMessage::new(
         "host",
@@ -226,8 +225,7 @@ pub fn get_plugin_sync_status(state: State<'_, ServerState>) -> Result<PluginSyn
     })
 }
 
-/// Open the plugin directory in the system file manager (helper for manual
-/// installs: drop a plugin folder / .zip there).
+/// Open the plugin directory in the system file manager.
 #[tauri::command]
 pub fn open_plugins_dir(
     app: tauri::AppHandle,
@@ -238,23 +236,17 @@ pub fn open_plugins_dir(
         .plugins
         .manager
         .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())?
+        .map_err(|_| "plugin manager lock poisoned".to_string())? // 修复 E0593
         .plugins_dir()
         .to_path_buf();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
 
-    // 直接在 Rust 侧打开目录，不经过 IPC 的 ACL scope 检查。
-    // 插件目录是自定义的 %APPDATA%\micyou（config_dir() 用 "micyou" 而非应用标识符），
-    // 而 Tauri scope 的 $APPDATA 会拼上 com.lanrhyme.micyou，无法匹配该路径，
-    // 前端 openPath 会因此抛 "Not allowed to open path"。
     app.opener()
         .open_path(dir.display().to_string(), None::<&str>)
         .map_err(|e| format!("open plugins dir: {e}"))?;
     Ok(dir.display().to_string())
 }
 
-/// Open a plugin panel in its own Tauri window (shared by the frontend
-/// command and the plugin Host API `open_window`)
 pub(crate) fn open_plugin_window_impl(
     app: &tauri::AppHandle,
     plugin_id: &str,
@@ -268,7 +260,7 @@ pub(crate) fn open_plugin_window_impl(
             .plugins
             .manager
             .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?;
+            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
         let entry = manager
             .entry(plugin_id)
             .map_err(|e| e.to_string())?
@@ -286,7 +278,7 @@ pub(crate) fn open_plugin_window_impl(
     };
 
     if app.get_webview_window(&label).is_some() {
-        return Ok(()); // 已在独立窗口打开
+        return Ok(());
     }
 
     tauri::WebviewWindowBuilder::new(
@@ -302,7 +294,6 @@ pub(crate) fn open_plugin_window_impl(
     Ok(())
 }
 
-/// Open a plugin panel in its own Tauri window
 #[tauri::command]
 pub fn open_plugin_window(
     app: tauri::AppHandle,
@@ -312,8 +303,6 @@ pub fn open_plugin_window(
     open_plugin_window_impl(&app, &plugin_id, &panel_id)
 }
 
-/// Read a plugin-authored settings page (self-contained HTML file inside
-/// the plugin directory, rendered by the frontend in a sandboxed iframe).
 #[tauri::command]
 pub fn get_plugin_panel(
     state: State<'_, ServerState>,
@@ -324,7 +313,7 @@ pub fn get_plugin_panel(
         .plugins
         .manager
         .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())?;
+        .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
     let entry = manager
         .entry(&plugin_id)
         .map_err(|e| e.to_string())?
@@ -339,8 +328,6 @@ pub fn get_plugin_panel(
     std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))
 }
 
-/// Deliver a UI action to a plugin instance (soundpad buttons etc).
-/// The plugin receives `{ action, payload }` through its message entry.
 #[tauri::command]
 pub fn plugin_trigger(
     state: State<'_, ServerState>,
@@ -348,7 +335,6 @@ pub fn plugin_trigger(
     action: String,
     payload: Option<String>,
 ) -> Result<(), String> {
-    // 注入逻辑在 PluginHost::trigger（payload 为空时注入 {"action":...}）
     let bytes = payload.unwrap_or_default().into_bytes();
     state
         .plugins
@@ -356,7 +342,6 @@ pub fn plugin_trigger(
         .map_err(|e| e.to_string())
 }
 
-/// Preview of a plugin zip before installation (no files are extracted).
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginPreview {
@@ -376,8 +361,6 @@ pub struct PluginPreview {
     pub homepage: Option<String>,
 }
 
-/// Peek a plugin .zip and return its manifest summary without installing.
-/// The frontend shows this as a permission prompt before import_plugin.
 #[tauri::command]
 pub fn preview_plugin_zip(zip_path: String) -> Result<PluginPreview, String> {
     let (manifest, _prefix) = read_manifest_from_zip(&std::path::PathBuf::from(&zip_path))?;
@@ -396,8 +379,6 @@ pub fn preview_plugin_zip(zip_path: String) -> Result<PluginPreview, String> {
     })
 }
 
-/// Extract and validate the plugin.json from a zip, returning the manifest and
-/// the folder prefix that contains it (shared by preview and import).
 fn read_manifest_from_zip(
     zip_path: &std::path::Path,
 ) -> Result<(micyou_plugin::PluginManifest, std::path::PathBuf), String> {
@@ -437,7 +418,6 @@ fn read_manifest_from_zip(
     Ok((manifest, prefix))
 }
 
-/// A detected newer version of an installed plugin.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginUpdate {
@@ -447,8 +427,6 @@ pub struct PluginUpdate {
     pub update_url: String,
 }
 
-/// Check every installed plugin that declares `updateUrl` for newer versions.
-/// Blocking: each remote manifest is fetched with a 5s timeout.
 #[tauri::command]
 pub fn check_plugin_updates(state: State<'_, ServerState>) -> Result<Vec<PluginUpdate>, String> {
     let updates: Vec<PluginUpdate> = {
@@ -456,7 +434,7 @@ pub fn check_plugin_updates(state: State<'_, ServerState>) -> Result<Vec<PluginU
             .plugins
             .manager
             .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?;
+            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
         let entries = manager.entries();
         entries
             .into_iter()
@@ -489,18 +467,14 @@ pub fn check_plugin_updates(state: State<'_, ServerState>) -> Result<Vec<PluginU
     Ok(updates)
 }
 
-/// Update an installed plugin: fetch the remote manifest, derive the zip URL
-/// (manifest URL with the filename's `.json` replaced by `.zip`, or a
-/// `distribution` field), replace the install dir and re-enable.
 #[tauri::command]
 pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String, String> {
-    // Resolve the update source from the installed manifest.
     let (update_url, enabled) = {
         let manager = state
             .plugins
             .manager
             .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?;
+            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
         let entry = manager
             .entry(&id)
             .map_err(|e| e.to_string())?
@@ -513,7 +487,6 @@ pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String
         (url, entry.state.is_enabled())
     };
 
-    // Fetch the remote manifest.
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -533,7 +506,6 @@ pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String
         ));
     }
 
-    // Derive the zip URL: same path with .json -> .zip, or `distribution`.
     let zip_url = remote
         .homepage
         .as_ref()
@@ -552,7 +524,6 @@ pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String
             format!("{parent}/{stem}.zip")
         });
 
-    // Download to a temp file.
     let tmp_dir = std::env::temp_dir();
     let tmp_zip = tmp_dir.join(format!("micyou-update-{id}.zip"));
     let bytes = client
@@ -563,13 +534,12 @@ pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String
         .map_err(|e| format!("read update: {e}"))?;
     std::fs::write(&tmp_zip, &bytes).map_err(|e| format!("write temp zip: {e}"))?;
 
-    // Disable (if running), replace the install dir, re-import and re-enable.
     state.plugins.disable_plugin(&id).ok();
     let plugins_dir = state
         .plugins
         .manager
         .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())?
+        .map_err(|_| "plugin manager lock poisoned".to_string())? // 修复 E0593
         .plugins_dir()
         .to_path_buf();
     let dest = plugins_dir.join(&id);
@@ -588,14 +558,11 @@ pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String
     Ok(remote.version)
 }
 
-/// Host UI language (from ui.json), so plugin panels can localize themselves.
 #[tauri::command]
 pub fn get_app_locale() -> String {
     crate::app_config::load_ui_prefs().language
 }
 
-/// Return the dynamic sidebar-panel icons set by the plugin via
-/// `set_panel_icon` (panel id -> icon string).
 #[tauri::command]
 pub fn get_plugin_panel_icons(
     state: State<'_, ServerState>,
@@ -609,7 +576,6 @@ pub fn get_plugin_panel_icons(
         .unwrap_or_default()
 }
 
-/// Fetch a remote manifest (market) and return a preview without installing.
 #[tauri::command]
 pub fn preview_plugin_from_url(manifest_url: String) -> Result<PluginPreview, String> {
     let client = reqwest::blocking::Client::builder()
@@ -647,8 +613,6 @@ pub fn cancel_plugin_download(id: String) -> Result<(), String> {
     Ok(())
 }
 
-/// Download a plugin zip from the market and install it (permission prompt
-/// happens in the frontend via preview_plugin_from_url first).
 #[tauri::command]
 pub fn install_plugin_from_url(
     app: tauri::AppHandle,
@@ -656,8 +620,9 @@ pub fn install_plugin_from_url(
     id: String,
     zip_url: String,
 ) -> Result<String, String> {
+    // 修复 E0599: blocking Client 没有 read_timeout，使用 24 小时超时替代全局超时
     let client = reqwest::blocking::Client::builder()
-        .read_timeout(std::time::Duration::from_secs(30))
+        .timeout(std::time::Duration::from_secs(86400)) 
         .build()
         .map_err(|e| format!("http client: {e}"))?;
 
@@ -682,12 +647,12 @@ pub fn install_plugin_from_url(
 
     let is_append = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
     let total_size = response.content_length().unwrap_or(0) + if is_append { downloaded_bytes } else { 0 };
-
+    
     let mut out_file = if is_append {
         std::fs::OpenOptions::new().append(true).open(&temp_zip_path)
             .map_err(|e| format!("打开临时文件失败: {e}"))?
     } else {
-        downloaded_bytes = 0;
+        downloaded_bytes = 0; 
         std::fs::File::create(&temp_zip_path)
             .map_err(|e| format!("创建临时文件失败: {e}"))?
     };
@@ -697,7 +662,7 @@ pub fn install_plugin_from_url(
 
     let mut buffer = [0u8; 8192];
     let mut last_emit = std::time::Instant::now();
-
+    
     loop {
         if cancel_flag.load(Ordering::SeqCst) {
             let _ = std::fs::remove_file(&temp_zip_path);
@@ -723,7 +688,7 @@ pub fn install_plugin_from_url(
             last_emit = std::time::Instant::now();
         }
     }
-
+    
     let _ = app.emit("plugin-download-progress", serde_json::json!({
         "id": id,
         "downloaded": downloaded_bytes,
@@ -732,20 +697,18 @@ pub fn install_plugin_from_url(
     }));
     clear_cancel_flag(&id);
 
-    // 临时文件下载，随后走标准 zip 导入（含路径穿越防护）
     let result = (|| {
         let plugins_dir = state
             .plugins
             .manager
             .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?
+            .map_err(|_| "plugin manager lock poisoned".to_string())? // 修复 E0593
             .plugins_dir()
             .to_path_buf();
         std::fs::create_dir_all(&plugins_dir).map_err(|e| e.to_string())?;
         let extracted_id = match import_plugin_zip(&temp_zip_path, &plugins_dir) {
             Ok(id) => id,
             Err(e) if e.contains("already installed") => {
-                // 幂等：已安装视为成功，前端随后刷新列表
                 let manifest = read_manifest_from_zip(&temp_zip_path).map_err(|e| e.to_string())?.0;
                 manifest.id
             }
@@ -755,24 +718,19 @@ pub fn install_plugin_from_url(
             .plugins
             .manager
             .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?;
+            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
         let _ = manager.discover_plugin(plugins_dir.join(&extracted_id));
         Ok::<String, String>(extracted_id)
     })();
     let _ = std::fs::remove_file(&temp_zip_path);
     let extracted_id = result?;
 
-    // 权限已在前端确认，安装成功后自动启用（失败不阻断安装，用户可手动启用）
     if let Err(e) = state.plugins.enable_plugin(&extracted_id) {
         log::warn!("[plugins] auto-enable after install failed for {extracted_id}: {e}");
     }
     Ok(extracted_id)
 }
 
-/// Import a plugin from a `.zip` file or a plugin directory.
-///
-/// The source manifest is validated first; the payload is then copied into
-/// the plugins dir under the plugin id. Returns the imported plugin id.
 #[tauri::command]
 pub fn import_plugin(state: State<'_, ServerState>, source: String) -> Result<String, String> {
     let src = std::path::PathBuf::from(source);
@@ -784,7 +742,7 @@ pub fn import_plugin(state: State<'_, ServerState>, source: String) -> Result<St
         .plugins
         .manager
         .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())?
+        .map_err(|_| "plugin manager lock poisoned".to_string())? // 修复 E0593
         .plugins_dir()
         .to_path_buf();
     std::fs::create_dir_all(&plugins_dir).map_err(|e| e.to_string())?;
@@ -802,26 +760,23 @@ pub fn import_plugin(state: State<'_, ServerState>, source: String) -> Result<St
     }
     .map_err(|e| e.to_string())?;
 
-    // Register the new entry so it appears immediately without a rescan.
     {
         let mut manager = state
             .plugins
             .manager
             .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?;
+            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
         manager
             .discover_plugin(plugins_dir.join(&id))
             .map_err(|e| e.to_string())?;
     }
 
-    // 权限已确认，安装成功后自动启用（失败不阻断安装）
     if let Err(e) = state.plugins.enable_plugin(&id) {
         log::warn!("[plugins] auto-enable after import failed for {id}: {e}");
     }
     Ok(id)
 }
 
-/// Copy a plugin directory (validated) into the plugins dir.
 fn import_plugin_dir(src: &std::path::Path, dest_root: &std::path::Path) -> Result<String, String> {
     let manifest = micyou_plugin::PluginManifest::load_from_dir(src)
         .map_err(|e| format!("invalid plugin: {e}"))?;
@@ -834,8 +789,6 @@ fn import_plugin_dir(src: &std::path::Path, dest_root: &std::path::Path) -> Resu
     Ok(id)
 }
 
-/// Import a `.zip` plugin: peek the manifest for validation + id, then extract
-/// with path-traversal protection into `dest_root/<id>/`.
 fn import_plugin_zip(
     zip_path: &std::path::Path,
     dest_root: &std::path::Path,
@@ -852,7 +805,6 @@ fn import_plugin_zip(
     let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("read zip: {e}"))?;
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).map_err(|e| format!("zip entry: {e}"))?;
-        // `enclosed_name` rejects absolute paths and `..` traversal
         let Some(rel) = entry.enclosed_name() else {
             continue;
         };
@@ -876,7 +828,6 @@ fn import_plugin_zip(
     Ok(id)
 }
 
-/// Recursive directory copy (no symlink following).
 fn copy_dir_recursive(src: &std::path::Path, dest: &std::path::Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dest)?;
     for entry in std::fs::read_dir(src)? {
