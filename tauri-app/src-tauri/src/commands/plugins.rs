@@ -1,26 +1,41 @@
 /*
- * MicYou — Turns your Android device into a high-quality PC microphone.
- * Copyright (C) 2026 LanRhyme <https://github.com/LanRhyme/MicYou>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version, with the MicYou Plugin Exception.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
-
+MicYou — Turns your Android device into a high-quality PC microphone.
+Copyright (C) 2026 LanRhyme [https://github.com/LanRhyme/MicYou](https://github.com/LanRhyme/MicYou)
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version, with the MicYou Plugin Exception.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+*/
 //! Plugin management commands for the frontend.
-
 use crate::server::ServerState;
 use micyou_plugin::manifest::UiDescriptor;
 use micyou_plugin::PluginSyncTransport;
 use serde::Serialize;
 use tauri::Manager;
 use tauri::State;
+use std::sync::{Arc, Mutex, OnceLock, atomic::{AtomicBool, Ordering}};
+use std::collections::HashMap;
+use std::io::{Read, Write};
+
+static DOWNLOAD_CANCELLATIONS: OnceLock<Mutex<HashMap<String, Arc<AtomicBool>>>> = OnceLock::new();
+
+fn get_cancel_flag(id: &str) -> Arc<AtomicBool> {
+    let map = DOWNLOAD_CANCELLATIONS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut guard = map.lock().unwrap();
+    guard.entry(id.to_string()).or_insert_with(|| Arc::new(AtomicBool::new(false))).clone()
+}
+
+fn clear_cancel_flag(id: &str) {
+    if let Some(map) = DOWNLOAD_CANCELLATIONS.get() {
+        if let Ok(mut guard) = map.lock() {
+            guard.remove(id);
+        }
+    }
+}
 
 /// Frontend view of one plugin.
 #[derive(Serialize, Clone)]
@@ -76,9 +91,8 @@ pub fn list_plugins(state: State<'_, ServerState>) -> Result<Vec<PluginView>, St
     let manager = plugins
         .manager
         .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())?;
+        .map_err(|| "plugin manager lock poisoned".to_string())?;
     let dsp_ids = plugins.dsp_registry.plugin_ids();
-
     let mut views: Vec<PluginView> = manager
         .entries()
         .into_iter()
@@ -159,7 +173,7 @@ pub fn get_plugin_config(
         .plugins
         .manager
         .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())?;
+        .map_err(|| "plugin manager lock poisoned".to_string())?;
     let map = manager.plugin_config(&id).map_err(|e| e.to_string())?;
     Ok(serde_json::Value::Object(map))
 }
@@ -183,6 +197,7 @@ pub fn set_plugin_config(
             .set_plugin_config(&id, &key, value.clone())
             .map_err(|e| e.to_string())?;
     }
+
     // 通知插件配置已变更（config:changed 热更新，插件据此重新读取配置）
     let payload = serde_json::json!({ "key": key, "value": value });
     let msg = micyou_plugin::bus::PluginMessage::new(
@@ -227,6 +242,7 @@ pub fn open_plugins_dir(
         .plugins_dir()
         .to_path_buf();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+
     // 直接在 Rust 侧打开目录，不经过 IPC 的 ACL scope 检查。
     // 插件目录是自定义的 %APPDATA%\micyou（config_dir() 用 "micyou" 而非应用标识符），
     // 而 Tauri scope 的 $APPDATA 会拼上 com.lanrhyme.micyou，无法匹配该路径，
@@ -265,12 +281,14 @@ pub(crate) fn open_plugin_window_impl(
             .ok_or_else(|| format!("unknown panel {panel_id}"))?;
         (
             format!("{} · {}", entry.manifest.name, panel.label),
-            format!("plugin-window-{}", plugin_id.replace('.', "_")),
+            format!("plugin-window-{}", plugin_id.replace('.', "-")),
         )
     };
+
     if app.get_webview_window(&label).is_some() {
         return Ok(()); // 已在独立窗口打开
     }
+
     tauri::WebviewWindowBuilder::new(
         app,
         &label,
@@ -385,6 +403,7 @@ fn read_manifest_from_zip(
 ) -> Result<(micyou_plugin::PluginManifest, std::path::PathBuf), String> {
     let file = std::fs::File::open(zip_path).map_err(|e| format!("open zip: {e}"))?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("read zip: {e}"))?;
+
     let mut manifest_name: Option<String> = None;
     for i in 0..archive.len() {
         let name = archive
@@ -398,6 +417,7 @@ fn read_manifest_from_zip(
         }
     }
     let manifest_name = manifest_name.ok_or("zip contains no plugin.json")?;
+
     let manifest_text = {
         let mut entry = archive
             .by_name(&manifest_name)
@@ -407,6 +427,7 @@ fn read_manifest_from_zip(
             .map_err(|e| format!("read manifest: {e}"))?;
         text
     };
+
     let manifest = micyou_plugin::PluginManifest::from_json(&manifest_text)
         .map_err(|e| format!("invalid plugin: {e}"))?;
     let prefix = std::path::Path::new(&manifest_name)
@@ -443,6 +464,7 @@ pub fn check_plugin_updates(state: State<'_, ServerState>) -> Result<Vec<PluginU
                 let m = &entry.manifest;
                 let url = m.update_url.as_ref()?;
                 let current = semver::Version::parse(&m.version).ok()?;
+
                 let client = reqwest::blocking::Client::builder()
                     .timeout(std::time::Duration::from_secs(5))
                     .build()
@@ -450,6 +472,7 @@ pub fn check_plugin_updates(state: State<'_, ServerState>) -> Result<Vec<PluginU
                 let text = client.get(url).send().ok()?.text().ok()?;
                 let remote = micyou_plugin::PluginManifest::from_json(&text).ok()?;
                 let latest = semver::Version::parse(&remote.version).ok()?;
+
                 if latest > current {
                     Some(PluginUpdate {
                         id: m.id.clone(),
@@ -509,6 +532,7 @@ pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String
             remote.id
         ));
     }
+
     // Derive the zip URL: same path with .json -> .zip, or `distribution`.
     let zip_url = remote
         .homepage
@@ -554,6 +578,7 @@ pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String
     }
     import_plugin_zip(&tmp_zip, &plugins_dir).map_err(|e| format!("install update: {e}"))?;
     let _ = std::fs::remove_file(&tmp_zip);
+
     if enabled {
         state
             .plugins
@@ -615,28 +640,99 @@ pub fn preview_plugin_from_url(manifest_url: String) -> Result<PluginPreview, St
     })
 }
 
+#[tauri::command]
+pub fn cancel_plugin_download(id: String) -> Result<(), String> {
+    let flag = get_cancel_flag(&id);
+    flag.store(true, Ordering::SeqCst);
+    Ok(())
+}
+
 /// Download a plugin zip from the market and install it (permission prompt
 /// happens in the frontend via preview_plugin_from_url first).
 #[tauri::command]
 pub fn install_plugin_from_url(
+    app: tauri::AppHandle,
     state: State<'_, ServerState>,
+    id: String,
     zip_url: String,
 ) -> Result<String, String> {
     let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
+        .read_timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| format!("http client: {e}"))?;
-    let bytes = client
-        .get(&zip_url)
+
+    let temp_dir = std::env::temp_dir();
+    let temp_zip_path = temp_dir.join(format!("micyou-market-{}.zip", id));
+
+    let mut downloaded_bytes: u64 = 0;
+    if temp_zip_path.exists() {
+        downloaded_bytes = std::fs::metadata(&temp_zip_path).map(|m| m.len()).unwrap_or(0);
+    }
+
+    let mut request = client.get(&zip_url);
+    if downloaded_bytes > 0 {
+        request = request.header(reqwest::header::RANGE, format!("bytes={}-", downloaded_bytes));
+    }
+
+    let mut response = request
         .send()
         .map_err(|e| format!("下载插件失败：{e}"))?
         .error_for_status()
-        .map_err(|e| format!("下载插件失败（清单可能已过期，请刷新市场后重试）：{e}"))?
-        .bytes()
-        .map_err(|e| format!("读取插件包失败：{e}"))?;
+        .map_err(|e| format!("下载插件失败（清单可能已过期，请刷新市场后重试）：{e}"))?;
+
+    let is_append = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+    let total_size = response.content_length().unwrap_or(0) + if is_append { downloaded_bytes } else { 0 };
+
+    let mut out_file = if is_append {
+        std::fs::OpenOptions::new().append(true).open(&temp_zip_path)
+            .map_err(|e| format!("打开临时文件失败: {e}"))?
+    } else {
+        downloaded_bytes = 0;
+        std::fs::File::create(&temp_zip_path)
+            .map_err(|e| format!("创建临时文件失败: {e}"))?
+    };
+
+    let cancel_flag = get_cancel_flag(&id);
+    cancel_flag.store(false, Ordering::SeqCst);
+
+    let mut buffer = [0u8; 8192];
+    let mut last_emit = std::time::Instant::now();
+
+    loop {
+        if cancel_flag.load(Ordering::SeqCst) {
+            let _ = std::fs::remove_file(&temp_zip_path);
+            clear_cancel_flag(&id);
+            return Err("下载已取消".to_string());
+        }
+
+        let bytes_read = response.read(&mut buffer)
+            .map_err(|e| format!("读取插件包失败(网络中断): {e}"))?;
+        if bytes_read == 0 { break; }
+
+        out_file.write_all(&buffer[..bytes_read])
+            .map_err(|e| format!("写入临时文件失败: {e}"))?;
+        downloaded_bytes += bytes_read as u64;
+
+        if last_emit.elapsed().as_millis() > 200 {
+            let _ = app.emit("plugin-download-progress", serde_json::json!({
+                "id": id,
+                "downloaded": downloaded_bytes,
+                "total": total_size,
+                "done": false
+            }));
+            last_emit = std::time::Instant::now();
+        }
+    }
+
+    let _ = app.emit("plugin-download-progress", serde_json::json!({
+        "id": id,
+        "downloaded": downloaded_bytes,
+        "total": total_size,
+        "done": true
+    }));
+    clear_cancel_flag(&id);
+
     // 临时文件下载，随后走标准 zip 导入（含路径穿越防护）
-    let tmp = std::env::temp_dir().join(format!("micyou-market-{}.zip", std::process::id()));
-    std::fs::write(&tmp, &bytes).map_err(|e| format!("write temp zip: {e}"))?;
     let result = (|| {
         let plugins_dir = state
             .plugins
@@ -646,11 +742,11 @@ pub fn install_plugin_from_url(
             .plugins_dir()
             .to_path_buf();
         std::fs::create_dir_all(&plugins_dir).map_err(|e| e.to_string())?;
-        let id = match import_plugin_zip(&tmp, &plugins_dir) {
+        let extracted_id = match import_plugin_zip(&temp_zip_path, &plugins_dir) {
             Ok(id) => id,
             Err(e) if e.contains("already installed") => {
                 // 幂等：已安装视为成功，前端随后刷新列表
-                let manifest = read_manifest_from_zip(&tmp).map_err(|e| e.to_string())?.0;
+                let manifest = read_manifest_from_zip(&temp_zip_path).map_err(|e| e.to_string())?.0;
                 manifest.id
             }
             Err(e) => return Err(e),
@@ -660,16 +756,17 @@ pub fn install_plugin_from_url(
             .manager
             .lock()
             .map_err(|_| "plugin manager lock poisoned".to_string())?;
-        let _ = manager.discover_plugin(plugins_dir.join(&id));
-        Ok::<String, String>(id)
+        let _ = manager.discover_plugin(plugins_dir.join(&extracted_id));
+        Ok::<String, String>(extracted_id)
     })();
-    let _ = std::fs::remove_file(&tmp);
-    let id = result?;
+    let _ = std::fs::remove_file(&temp_zip_path);
+    let extracted_id = result?;
+
     // 权限已在前端确认，安装成功后自动启用（失败不阻断安装，用户可手动启用）
-    if let Err(e) = state.plugins.enable_plugin(&id) {
-        log::warn!("[plugins] auto-enable after install failed for {id}: {e}");
+    if let Err(e) = state.plugins.enable_plugin(&extracted_id) {
+        log::warn!("[plugins] auto-enable after install failed for {extracted_id}: {e}");
     }
-    Ok(id)
+    Ok(extracted_id)
 }
 
 /// Import a plugin from a `.zip` file or a plugin directory.
@@ -682,6 +779,7 @@ pub fn import_plugin(state: State<'_, ServerState>, source: String) -> Result<St
     if !src.exists() {
         return Err(format!("source not found: {}", src.display()));
     }
+
     let plugins_dir = state
         .plugins
         .manager
@@ -715,6 +813,7 @@ pub fn import_plugin(state: State<'_, ServerState>, source: String) -> Result<St
             .discover_plugin(plugins_dir.join(&id))
             .map_err(|e| e.to_string())?;
     }
+
     // 权限已确认，安装成功后自动启用（失败不阻断安装）
     if let Err(e) = state.plugins.enable_plugin(&id) {
         log::warn!("[plugins] auto-enable after import failed for {id}: {e}");
@@ -751,7 +850,6 @@ fn import_plugin_zip(
 
     let file = std::fs::File::open(zip_path).map_err(|e| format!("open zip: {e}"))?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("read zip: {e}"))?;
-
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).map_err(|e| format!("zip entry: {e}"))?;
         // `enclosed_name` rejects absolute paths and `..` traversal
