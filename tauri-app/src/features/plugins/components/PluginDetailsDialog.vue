@@ -82,7 +82,8 @@
               <!-- Logs -->
               <div v-else key="logs">
                 <pre
-                  class="max-h-72 overflow-y-auto bg-black/30 rounded-lg p-3 text-[11px] font-mono text-green-300/90 whitespace-pre-wrap select-text cursor-text"
+                  class="plugin-log-box max-h-72 overflow-y-auto bg-black/30 rounded-lg p-3 text-[11px] font-mono text-green-300/90 whitespace-pre-wrap"
+                  @selectstart.stop
                   >{{ logLines.join('\n') || $t('plugins.noLogs') }}</pre>
               </div>
             </Transition>
@@ -94,6 +95,12 @@
 </template>
 
 <style scoped>
+.plugin-log-box,
+.plugin-log-box * {
+  cursor: text;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
 .dialog-enter-active {
   transition: opacity 0.18s ease;
 }
