@@ -82,7 +82,7 @@
               <!-- Logs -->
               <div v-else key="logs">
                 <pre
-                  class="max-h-72 overflow-y-auto bg-black/30 rounded-lg p-3 text-[11px] font-mono text-green-300/90 whitespace-pre-wrap"
+                  class="max-h-72 overflow-y-auto bg-black/30 rounded-lg p-3 text-[11px] font-mono text-green-300/90 whitespace-pre-wrap select-text cursor-text"
                   >{{ logLines.join('\n') || $t('plugins.noLogs') }}</pre>
               </div>
             </Transition>
