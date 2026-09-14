@@ -47,6 +47,7 @@
 | `ui` | object | 否 | UI 面板注册（kind 为 `ui` 时必填）：`{ route, label, entry? }` |
 | `dsp` | object | 否 | DSP 节点注册（kind 为 `dsp`）：`{ insertAfter?, first?, frameSize?, realtimeSafe }` |
 | `config` | object | 否 | 默认配置（首次启用时合并进插件配置） |
+| `homepage` | string | 否 | 插件主页的 URL，在插件市场点击 查看主页/Homepage 按钮后跳转 |
 | `readmeUrl` | string | 否 | 插件 README 文档的 URL，在插件市场点击 README 按钮后加载并渲染 |
 
 示例（Native DSP 插件）：
@@ -66,6 +67,7 @@
   "kind": "dsp",
   "dsp": { "insertAfter": "AEC", "realtimeSafe": true },
   "config": { "gain": 2.0 },
+  "homepage": "https://github.com/MicYou-Dev/MicYou-Plugins",
   "readmeUrl": "https://github.com/MicYou-Dev/MicYou-Plugins/blob/main/plugin/dev.micyou.example.audioinspector/README.md"
 }
 ```

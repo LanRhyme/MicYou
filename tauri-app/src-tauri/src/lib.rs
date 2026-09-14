@@ -249,6 +249,7 @@ pub fn run() {
             commands::plugins::preview_plugin_zip,
             commands::plugins::preview_plugin_from_url,
             commands::plugins::install_plugin_from_url,
+            commands::plugins::cancel_plugin_download,
             commands::plugins::check_plugin_updates,
             commands::plugins::get_plugin_panel_icons,
             commands::plugins::get_app_locale,

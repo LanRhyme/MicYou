@@ -618,6 +618,7 @@
     "marketLoading": "Loading market catalog…",
     "marketEmpty": "No plugins in the market yet",
     "marketFailed": "Failed to load market: {error}",
+    "marketHomepage": "Homepage", 
     "marketInstall": "Install",
     "marketInstalling": "Installing…",
     "marketInstalled": "Installed",
