@@ -52,7 +52,6 @@ use stats::NetworkStats;
 fn apply_macos_vibrancy(win: &tauri::WebviewWindow) {
     use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial, NSVisualEffectState};
 
-    // Apply native NSVisualEffectView frosted glass effect (Sidebar material)
     let _ = apply_vibrancy(
         win,
         NSVisualEffectMaterial::Sidebar,
@@ -60,7 +59,6 @@ fn apply_macos_vibrancy(win: &tauri::WebviewWindow) {
         None,
     );
 
-    // Make NSWindow fully transparent so the vibrancy shows through
     use objc::runtime::{Class, Object, NO};
     use objc::{msg_send, sel, sel_impl};
 
@@ -83,24 +81,41 @@ fn apply_macos_vibrancy(_: &tauri::WebviewWindow) {}
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let audio_output = crate::audio_output::AudioOutputHandle::spawn();
+    
+    let network_stats = Arc::new(NetworkStats::default());
+    let active_connection = Arc::new(Mutex::new(None));
+    let active_audio_session = Arc::new(RwLock::new(crate::udp_server::ActiveAudioSession::Inactive));
+    let lifecycle = Arc::new(Mutex::new(server::ServerLifecycleState::default()));
+    #[cfg(feature = "web-server")]
+    let web_server = Arc::new(Mutex::new(None));
+
+    let plugins = Arc::new(crate::plugins::PluginHost::new(
+        audio_output.clone(),
+        network_stats.clone(),
+        active_connection.clone(),
+        active_audio_session.clone(),
+        lifecycle.clone(),
+        #[cfg(feature = "web-server")] web_server.clone(),
+    ));
+
     tauri::Builder::default()
         .manage(server::ServerState {
             lifecycle_gate: server::ServerLifecycleGate::default(),
-            lifecycle: Arc::new(Mutex::new(server::ServerLifecycleState::default())),
+            lifecycle,
             cancel_token: Arc::new(Mutex::new(None)),
             background_tasks: Arc::new(Mutex::new(Vec::new())),
             mdns_manager: Arc::new(Mutex::new(None)),
             dsp_settings: Arc::new(RwLock::new(crate::app_config::load_dsp_settings())),
             is_monitoring: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             spectrum_streaming_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            network_stats: Arc::new(NetworkStats::default()),
-            active_connection: Arc::new(Mutex::new(None)),
+            network_stats,
+            active_connection,
             takeover_lock: Arc::new(Mutex::new(())),
-            active_audio_session: Arc::new(RwLock::new(Default::default())),
-            audio_output: audio_output.clone(),
-            plugins: Arc::new(crate::plugins::PluginHost::new(audio_output.clone())),
+            active_audio_session,
+            audio_output,
+            plugins,
             #[cfg(feature = "web-server")]
-            web_server: Arc::new(Mutex::new(None)),
+            web_server,
             #[cfg(feature = "web-server")]
             web_mdns: Arc::new(Mutex::new(None)),
         })
@@ -123,37 +138,26 @@ pub fn run() {
                 log::warn!(target: "tray", "failed to build tray: {e}");
             }
 
-            // Scan the plugins directory and auto-enable plugins that were
-            // enabled in a previous session.
             {
                 let state = app.state::<server::ServerState>();
                 state.plugins.hotkeys.init(app.handle());
                 state.plugins.window.init(app.handle());
             }
 
-            // Scan & enable active plugins on startup
             {
                 let plugins = app.state::<server::ServerState>().plugins.clone();
                 plugins.load_saved_plugins();
             }
 
-            // Acquire the GUI mode lock so the CLI/TUI knows the GUI is running.
-            // A live terminal-mode lock does not block the GUI; the frontend
-            // reads `get_mode_status` to show the active mode notice.
             match crate::mode_lock::acquire(crate::mode_lock::RunMode::Gui) {
                 Ok(()) => log::info!(target: "mode", "GUI mode lock acquired"),
                 Err(e) => log::warn!(target: "mode", "GUI mode lock not acquired: {e}"),
             }
 
-            // Apply native macOS frosted glass vibrancy
             if let Some(win) = app.get_webview_window("main") {
                 apply_macos_vibrancy(&win);
             }
 
-            // Create the virtual audio device at program startup (PipeWire
-            // virtual sink/source on Linux + the cpal output stream). It stays
-            // open until the app exits; phone connect/disconnect and server
-            // start/stop never tear it down.
             {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
@@ -261,8 +265,6 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
-            // Tear down the persistent virtual audio device only when the
-            // process exits, never on server stop or connection close.
             if let tauri::RunEvent::Exit = event {
                 let state = app_handle.state::<server::ServerState>();
                 commands::system::shutdown_audio_output(state.inner());
