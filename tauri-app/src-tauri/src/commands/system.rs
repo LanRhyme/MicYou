@@ -665,6 +665,7 @@ pub async fn start_server_inner(
     // only pushes decoded PCM into it; it never owns or tears it down.
     let audio_output_shared = state.audio_output.clone();
     let plugins_shared = state.plugins.clone();
+    let stats_audio = state.network_stats.clone();
 
     let audio_thread = std::thread::spawn(move || {
         // Ensure the virtual device is open. This is normally a no-op (already
@@ -949,9 +950,10 @@ pub async fn start_server_inner(
                                 };
 
                                 // Web mode: skip DSP for now, output raw audio directly
-                                let processed_rms = if is_web_mode {
+                                let (input_rms, processed_rms) = if is_web_mode {
                                     let sum: f32 = pcm_f32.iter().map(|x| x * x).sum();
-                                    (sum / pcm_f32.len() as f32).sqrt()
+                                    let rms = (sum / pcm_f32.len() as f32).sqrt();
+                                    (rms, rms)
                                 } else {
                                     // Read speaker loopback for AEC far-end reference.
                                     // This captures the ACTUAL speaker output (WASAPI/BlackHole/PipeWire),
@@ -967,7 +969,7 @@ pub async fn start_server_inner(
                                     {
                                         dsp_processor.set_far_end_audio(&far_data);
                                     }
-                                    let (_raw, processed) = dsp_processor.process(
+                                    let (raw, processed) = dsp_processor.process(
                                         &mut pcm_f32,
                                         channels.max(1),
                                         queued_ms,
@@ -979,8 +981,11 @@ pub async fn start_server_inner(
                                             reason,
                                         );
                                     }
-                                    processed
+                                    (raw, processed)
                                 };
+
+                                // 写入精确的 RMS 供插件 API 读取
+                                stats_audio.set_levels(input_rms, processed_rms);
 
                                 audio_output_shared.push(pcm_f32.clone(), channels.max(1));
 
