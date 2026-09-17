@@ -94,6 +94,8 @@ enum Commands {
         /// 绑定地址
         #[arg(long)]
         bind: Option<String>,
+        #[arg(long, short = 'q')]
+        quiet: bool,
     },
     /// 显示当前服务状态
     Status,
@@ -187,12 +189,14 @@ async fn main() {
             mode,
             device,
             bind,
+            quiet,
         } => {
             let args = serve::ServeArgs {
                 port,
                 mode,
                 device,
                 bind,
+                quiet,
             };
             serve::run(args).await
         }
