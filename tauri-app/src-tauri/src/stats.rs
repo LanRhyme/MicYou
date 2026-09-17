@@ -38,6 +38,9 @@ pub struct NetworkStats {
     pub bitrate: AtomicU32,
     pub sample_rate: AtomicU32,
     pub is_muted: AtomicBool,
+    pub channels: AtomicU32,
+    pub input_level_bits: AtomicU64,
+    pub processed_level_bits: AtomicU64,
 }
 
 impl Default for NetworkStats {
@@ -52,6 +55,9 @@ impl Default for NetworkStats {
             bitrate: AtomicU32::new(0),
             sample_rate: AtomicU32::new(0),
             is_muted: AtomicBool::new(false),
+            channels: AtomicU32::new(0),
+            input_level_bits: AtomicU64::new(0f32.to_bits()),
+            processed_level_bits: AtomicU64::new(0f32.to_bits()),
         }
     }
 }
@@ -120,8 +126,14 @@ impl NetworkStats {
     pub fn set_audio_info(&self, sample_rate: u32, bitrate: u32) {
         self.sample_rate.store(sample_rate, Ordering::Relaxed);
         self.bitrate.store(bitrate, Ordering::Relaxed);
+        self.channels.store(channels, Ordering::Relaxed);
     }
-
+    
+    pub fn set_levels(&self, input: f32, processed: f32) {
+        self.input_level_bits.store(input.to_bits(), Ordering::Relaxed);
+        self.processed_level_bits.store(processed.to_bits(), Ordering::Relaxed);
+    }
+    
     pub fn to_metrics(&self, buffer_duration: i64) -> AudioMetrics {
         let rtt = self.get_rtt();
         AudioMetrics {
