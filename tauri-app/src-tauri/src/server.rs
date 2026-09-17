@@ -159,32 +159,6 @@ impl ServerLifecycleState {
     }
 }
 
-impl Default for ServerState {
-    fn default() -> Self {
-        let audio_output = crate::audio_output::AudioOutputHandle::spawn();
-        Self {
-            lifecycle_gate: ServerLifecycleGate::default(),
-            lifecycle: Arc::new(Mutex::new(ServerLifecycleState::default())),
-            cancel_token: Arc::new(Mutex::new(None)),
-            background_tasks: Arc::new(Mutex::new(Vec::new())),
-            mdns_manager: Arc::new(Mutex::new(None)),
-            dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
-            is_monitoring: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            spectrum_streaming_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            network_stats: Arc::new(NetworkStats::default()),
-            active_connection: Arc::new(Mutex::new(None)),
-            takeover_lock: Arc::new(Mutex::new(())),
-            active_audio_session: Arc::new(RwLock::new(Default::default())),
-            audio_output: audio_output.clone(),
-            plugins: Arc::new(crate::plugins::PluginHost::new(audio_output)),
-            #[cfg(feature = "web-server")]
-            web_server: Arc::new(Mutex::new(None)),
-            #[cfg(feature = "web-server")]
-            web_mdns: Arc::new(Mutex::new(None)),
-        }
-    }
-}
-
 pub struct ServerState {
     pub lifecycle_gate: ServerLifecycleGate,
     pub lifecycle: Arc<Mutex<ServerLifecycleState>>,
@@ -198,12 +172,7 @@ pub struct ServerState {
     pub active_connection: crate::tcp_server::SharedActiveConnection,
     pub takeover_lock: crate::tcp_server::SharedTakeoverLock,
     pub active_audio_session: crate::udp_server::SharedActiveAudioSession,
-    /// Persistent audio output device. A dedicated thread owns the cpal stream
-    /// for the whole process; it is opened at app startup (or lazily on the
-    /// first server start for CLI/TUI) and only closed when the process exits.
-    /// Server start/stop and phone connect/disconnect never tear it down.
     pub audio_output: Arc<crate::audio_output::AudioOutputHandle>,
-    /// Plugin host: manager + DSP node registry, shared with the audio thread.
     pub plugins: Arc<crate::plugins::PluginHost>,
     #[cfg(feature = "web-server")]
     pub web_server: Arc<Mutex<Option<crate::web_server::WebServer>>>,
@@ -211,10 +180,138 @@ pub struct ServerState {
     pub web_mdns: Arc<Mutex<Option<crate::network::NetworkManager>>>,
 }
 
+impl Default for ServerState {
+    fn default() -> Self {
+        let audio_output = crate::audio_output::AudioOutputHandle::spawn();
+        let network_stats = Arc::new(NetworkStats::default());
+        let active_connection = Arc::new(Mutex::new(None));
+        let active_audio_session = Arc::new(RwLock::new(crate::udp_server::ActiveAudioSession::Inactive));
+        let lifecycle = Arc::new(Mutex::new(ServerLifecycleState::default()));
+        
+        #[cfg(feature = "web-server")]
+        let web_server = Arc::new(Mutex::new(None));
+
+        Self {
+            lifecycle_gate: ServerLifecycleGate::default(),
+            lifecycle: lifecycle.clone(),
+            cancel_token: Arc::new(Mutex::new(None)),
+            background_tasks: Arc::new(Mutex::new(Vec::new())),
+            mdns_manager: Arc::new(Mutex::new(None)),
+            dsp_settings: Arc::new(RwLock::new(AudioDspSettings::default())),
+            is_monitoring: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            spectrum_streaming_enabled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            network_stats: network_stats.clone(),
+            active_connection: active_connection.clone(),
+            takeover_lock: Arc::new(Mutex::new(())),
+            active_audio_session: active_audio_session.clone(),
+            audio_output: audio_output.clone(),
+            plugins: Arc::new(crate::plugins::PluginHost::new(
+                audio_output.clone(),
+                network_stats,
+                active_connection,
+                active_audio_session,
+                lifecycle,
+                #[cfg(feature = "web-server")] web_server.clone(),
+            )),
+            #[cfg(feature = "web-server")]
+            web_server,
+            #[cfg(feature = "web-server")]
+            web_mdns: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct NetworkInfo {
     pub ips: Vec<String>,
     pub port: u16,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct NetworkInterfaceInfo {
+    pub ip: String,
+    pub interface_name: String,
+}
+
+const VIRTUAL_KEYWORDS: &[&str] = &[
+    "vmware",
+    "virtualbox",
+    "hyper-v",
+    "vethernet",
+    "wsl",
+    "docker",
+    "tunnel",
+    "teredo",
+    "isatap",
+    "vpn",
+    "tailscale",
+    "clash",
+    "flclash",
+];
+
+pub fn score_ip(ip: &str) -> i32 {
+    if ip.starts_with("192.168.") {
+        100
+    } else if ip.starts_with("172.") {
+        if let Some(second) = ip.split('.').nth(1) {
+            if let Ok(n) = second.parse::<u32>() {
+                if (16..=31).contains(&n) {
+                    return 80;
+                }
+            }
+        }
+        0
+    } else if ip.starts_with("10.") {
+        50
+    } else if ip.starts_with("198.18.") {
+        -10
+    } else if ip.starts_with("169.254.") {
+        -20
+    } else {
+        0
+    }
+}
+
+pub fn query_network_interfaces() -> Vec<NetworkInterfaceInfo> {
+    let mut candidates: Vec<(std::net::IpAddr, String)> = Vec::new();
+    if let Ok(interfaces) = local_ip_address::list_afinet_netifas() {
+        for (name, ip) in interfaces {
+            if ip.is_loopback() || !ip.is_ipv4() {
+                continue;
+            }
+            let name_lower = name.to_lowercase();
+            if VIRTUAL_KEYWORDS.iter().any(|kw| name_lower.contains(kw)) {
+                continue;
+            }
+            candidates.push((ip, name));
+        }
+    }
+
+    candidates.sort_by(|a, b| {
+        let score_a = score_ip(&a.0.to_string());
+        let score_b = score_ip(&b.0.to_string());
+        score_b
+            .cmp(&score_a)
+            .then_with(|| a.0.to_string().cmp(&b.0.to_string()))
+            .then_with(|| a.1.cmp(&b.1))
+    });
+
+    let result: Vec<NetworkInterfaceInfo> = candidates
+        .into_iter()
+        .map(|(ip, name)| NetworkInterfaceInfo {
+            ip: ip.to_string(),
+            interface_name: name,
+        })
+        .collect();
+
+    if result.is_empty() {
+        vec![NetworkInterfaceInfo {
+            ip: "127.0.0.1".to_string(),
+            interface_name: "Local".to_string(),
+        }]
+    } else {
+        result
+    }
 }
 
 #[cfg(test)]
@@ -315,92 +412,5 @@ mod tests {
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         lifecycle.begin_start().await.unwrap();
         assert_eq!(lifecycle.phase(), ServerLifecyclePhase::Starting);
-    }
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-pub struct NetworkInterfaceInfo {
-    pub ip: String,
-    pub interface_name: String,
-}
-
-const VIRTUAL_KEYWORDS: &[&str] = &[
-    "vmware",
-    "virtualbox",
-    "hyper-v",
-    "vethernet",
-    "wsl",
-    "docker",
-    "tunnel",
-    "teredo",
-    "isatap",
-    "vpn",
-    "tailscale",
-    "clash",
-    "flclash",
-];
-
-pub fn score_ip(ip: &str) -> i32 {
-    if ip.starts_with("192.168.") {
-        100
-    } else if ip.starts_with("172.") {
-        if let Some(second) = ip.split('.').nth(1) {
-            if let Ok(n) = second.parse::<u32>() {
-                if (16..=31).contains(&n) {
-                    return 80;
-                }
-            }
-        }
-        0
-    } else if ip.starts_with("10.") {
-        50
-    } else if ip.starts_with("198.18.") {
-        -10
-    } else if ip.starts_with("169.254.") {
-        -20
-    } else {
-        0
-    }
-}
-
-pub fn query_network_interfaces() -> Vec<NetworkInterfaceInfo> {
-    let mut candidates: Vec<(std::net::IpAddr, String)> = Vec::new();
-    if let Ok(interfaces) = local_ip_address::list_afinet_netifas() {
-        for (name, ip) in interfaces {
-            if ip.is_loopback() || !ip.is_ipv4() {
-                continue;
-            }
-            let name_lower = name.to_lowercase();
-            if VIRTUAL_KEYWORDS.iter().any(|kw| name_lower.contains(kw)) {
-                continue;
-            }
-            candidates.push((ip, name));
-        }
-    }
-
-    candidates.sort_by(|a, b| {
-        let score_a = score_ip(&a.0.to_string());
-        let score_b = score_ip(&b.0.to_string());
-        score_b
-            .cmp(&score_a)
-            .then_with(|| a.0.to_string().cmp(&b.0.to_string()))
-            .then_with(|| a.1.cmp(&b.1))
-    });
-
-    let result: Vec<NetworkInterfaceInfo> = candidates
-        .into_iter()
-        .map(|(ip, name)| NetworkInterfaceInfo {
-            ip: ip.to_string(),
-            interface_name: name,
-        })
-        .collect();
-
-    if result.is_empty() {
-        vec![NetworkInterfaceInfo {
-            ip: "127.0.0.1".to_string(),
-            interface_name: "Local".to_string(),
-        }]
-    } else {
-        result
     }
 }
