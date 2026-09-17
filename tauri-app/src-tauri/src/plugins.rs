@@ -30,12 +30,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use tauri::Manager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState, ShortcutWrapper};
 
-// 引入全局热键底层库用于 CLI/TUI 模式
 use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::HotKey};
-
-// ==========================================
-// 跨平台无头模式消息泵 (Headless Event Pump)
-// ==========================================
 
 #[cfg(target_os = "windows")]
 mod headless_event_pump {
@@ -74,7 +69,6 @@ mod headless_event_pump {
 mod headless_event_pump {
     use std::ffi::c_void;
 
-    // 链接 macOS 原生的 CoreFoundation 框架，无需引入 cocoa/objc 等重型 crate
     #[link(name = "CoreFoundation", kind = "framework")]
     extern "C" {
         fn CFRunLoopRunInMode(
@@ -88,7 +82,6 @@ mod headless_event_pump {
 
     pub fn pump() {
         unsafe {
-            // 运行 RunLoop 10ms 以处理底层的热键硬件事件
             CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, 0);
         }
     }
@@ -97,22 +90,15 @@ mod headless_event_pump {
 #[cfg(target_os = "linux")]
 mod headless_event_pump {
     pub fn pump() {
-        // Linux (X11) 下，global-hotkey 内部已经 spawn 了专门的线程去跑 XNextEvent 循环，
-        // 并将事件推送到 crossbeam channel。我们这里不需要额外的系统级 pump。
     }
 }
 
-// 用于主线程与消息泵线程通信的指令
 #[allow(dead_code)]
 enum HeadlessCmd {
-    Register(HotKey, u32, String, u64, String), // hotkey, os_id, plugin_id, internal_id, shortcut_text
+    Register(HotKey, u32, String, u64, String), 
     Stop,
 }
 
-/// TCP control-channel transport for cross-device plugin messages.
-/// The tcp_server registers the active client's message sender here; the bus
-/// pushes wire messages through it. Only one device session is active at a
-/// time in MicYou's model, so a single slot suffices.
 pub struct TcpPluginSyncAdapter {
     sender: Mutex<Option<tokio::sync::mpsc::Sender<micyou_protocol::micyou::MessageWrapper>>>,
 }
@@ -124,7 +110,6 @@ impl TcpPluginSyncAdapter {
         }
     }
 
-    /// Register the active client's control sender (or clear on disconnect).
     pub fn set_sender(
         &self,
         sender: Option<tokio::sync::mpsc::Sender<micyou_protocol::micyou::MessageWrapper>>,
@@ -134,8 +119,6 @@ impl TcpPluginSyncAdapter {
         }
     }
 
-    /// Clear the sender only when it is still ours (avoids nuking a newer
-    /// client's slot during a takeover race).
     pub fn clear_if(
         &self,
         tx: &tokio::sync::mpsc::Sender<micyou_protocol::micyou::MessageWrapper>,
@@ -184,7 +167,6 @@ impl PluginSyncTransport for TcpPluginSyncAdapter {
     }
 }
 
-/// Control plane callbacks wired from the host server.
 #[derive(Clone, Default)]
 pub struct ControlPlaneHandlers {
     pub get_muted: Option<Arc<dyn Fn() -> micyou_plugin::PluginResult<bool> + Send + Sync>>,
@@ -195,43 +177,34 @@ pub struct ControlPlaneHandlers {
     pub set_dsp_settings: Option<Arc<dyn Fn(&str) -> micyou_plugin::PluginResult<()> + Send + Sync>>,
 }
 
-/// Runtime plugin host. One instance per process, managed Tauri state.
 pub struct PluginHost {
-    /// Plugin manager (scan/load/enable). Interior-mutable so the message-bus
-    /// dispatcher and the commands can share it.
     pub manager: Arc<Mutex<micyou_plugin::PluginManager>>,
     pub dsp_registry: Arc<micyou_plugin::PluginDspRegistry>,
     pub sync: Arc<TcpPluginSyncAdapter>,
-    /// Local + cross-device message bus (RPC / pub-sub).
     pub bus: Arc<PluginBus>,
-    /// Bounded per-plugin log buffers (read by the frontend).
     pub logs: Arc<PluginLogs>,
-    /// WAV playback for the `audio.play` capability (soundpads etc).
-    /// Effects are mixed into the virtual microphone output stream.
     pub sound: Arc<crate::sound_player::SoundPlayer>,
-    /// Global hotkey registry (plugin shortcut capability).
     pub hotkeys: Arc<HotkeyService>,
-    /// Opens plugin panels in independent windows (plugin-driven).
     pub window: Arc<WindowService>,
-    /// Dynamic sidebar-panel icons set by plugins via `set_panel_icon`.
-    /// Map: plugin id -> (panel id -> icon string).
     pub panel_icons: Arc<
         std::sync::Mutex<
             std::collections::HashMap<String, std::collections::HashMap<String, String>>,
         >,
     >,
     pub control_handlers: Arc<Mutex<ControlPlaneHandlers>>,
+    pub network_stats: Arc<crate::stats::NetworkStats>,
+    pub audio_output: Arc<crate::audio_output::AudioOutputHandle>,
+    pub active_connection: crate::tcp_server::SharedActiveConnection,
+    pub active_audio_session: crate::udp_server::SharedActiveAudioSession,
+    pub lifecycle: Arc<tokio::sync::Mutex<crate::server::ServerLifecycleState>>,
+    #[cfg(feature = "web-server")]
+    pub web_server: Arc<tokio::sync::Mutex<Option<crate::web_server::WebServer>>>,
 }
 
-/// Global hotkey registration for plugins.
-/// The tauri plugin must be initialized at startup; `init` stores the app
-/// handle, after which plugins can register shortcuts. Pressing a hotkey
-/// delivers a bus message to the owning plugin on topic `hotkey:<id>`.
 pub struct HotkeyService {
     handle: Mutex<Option<tauri::AppHandle>>,
     next_id: AtomicU64,
     registered: Mutex<std::collections::HashMap<u64, String>>,
-    // --- Headless (CLI/TUI) fallback fields ---
     bus: Option<Arc<PluginBus>>,
     headless_hotkeys: Arc<Mutex<std::collections::HashMap<u32, (String, u64, String)>>>,
     headless_tx: Mutex<Option<std::sync::mpsc::Sender<HeadlessCmd>>>,
@@ -249,19 +222,13 @@ impl HotkeyService {
         })
     }
 
-    /// Store the app handle (called from the Tauri setup hook)
     pub fn init(&self, app: &tauri::AppHandle) {
         if let Ok(mut slot) = self.handle.lock() {
             *slot = Some(app.clone());
         }
     }
 
-    /// Register a global hotkey for a plugin; returns the handle id
     pub fn register(&self, plugin_id: &str, shortcut: &str) -> PluginResult<u64> {
-        // global-hotkey only has an X11 backend on Linux; under Wayland the
-        // compositor owns key handling and X11 grab keys (XGrabKey) via
-        // XWayland are ignored (niri/wlroots behave this way), so a
-        // registration would silently never fire. Fail loudly instead.
         let session = std::env::var("XDG_SESSION_TYPE").unwrap_or_default();
         if session == "wayland" || std::env::var("WAYLAND_DISPLAY").is_ok() {
             return Err(PluginError::Runtime(format!(
@@ -273,7 +240,6 @@ impl HotkeyService {
         let maybe_app = self.handle.lock().map_err(lock_err)?.clone();
 
         if let Some(app) = maybe_app {
-            // === GUI Mode: Use Tauri Plugin ===
             let wrapper: ShortcutWrapper = shortcut
                 .try_into()
                 .map_err(|_| PluginError::Validation(format!("invalid hotkey: {shortcut}")))?;
@@ -301,7 +267,6 @@ impl HotkeyService {
                 })
                 .map_err(|e| PluginError::Runtime(format!("hotkey register: {e}")))?;
         } else {
-            // === Headless Mode (CLI/TUI): 使用独立的消息泵线程 ===
             let mut tx_slot = self.headless_tx.lock().unwrap();
             if tx_slot.is_none() {
                 let (tx, rx) = std::sync::mpsc::channel();
@@ -310,9 +275,7 @@ impl HotkeyService {
                 let bus = self.bus.clone().unwrap();
                 let hotkeys_map = self.headless_hotkeys.clone();
                 
-                // 启动专门的“消息泵 + 事件监听”后台线程
                 std::thread::spawn(move || {
-                    // 1. 在该线程内创建 Manager (这会创建隐藏窗口/注册底层 Hook)
                     let mgr = match GlobalHotKeyManager::new() {
                         Ok(m) => m,
                         Err(e) => {
@@ -321,12 +284,9 @@ impl HotkeyService {
                         }
                     };
                     
-                    // 2. 核心跨平台消息循环
                     loop {
-                        // A. 跨平台消息泵 (Windows: 派发 WM_HOTKEY; macOS: 跑 CFRunLoop; Linux: 空操作)
                         headless_event_pump::pump();
                         
-                        // B. 处理来自外部的注册指令
                         match rx.try_recv() {
                             Ok(HeadlessCmd::Register(hotkey, os_id, pid, internal_id, shortcut_text)) => {
                                 if let Err(e) = mgr.register(hotkey) {
@@ -336,10 +296,9 @@ impl HotkeyService {
                                 }
                             }
                             Ok(HeadlessCmd::Stop) => break,
-                            Err(_) => {} // 无指令
+                            Err(_) => {} 
                         }
                         
-                        // C. 检查全局事件 channel 
                         if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
                             if event.state() == global_hotkey::HotKeyState::Pressed {
                                 let hotkey_id = event.id();
@@ -357,7 +316,6 @@ impl HotkeyService {
                             }
                         }
                         
-                        // 避免空转烧 CPU (Linux 下主要靠这个 sleep，Win/Mac 的 pump 也会消耗少量时间)
                         std::thread::sleep(std::time::Duration::from_millis(10));
                     }
                 });
@@ -368,7 +326,6 @@ impl HotkeyService {
                 .map_err(|_| PluginError::Validation(format!("invalid hotkey: {shortcut}")))?;
             
             let os_id = hotkey.id();
-            // 将注册指令发送给后台线程
             tx.send(HeadlessCmd::Register(
                 hotkey, 
                 os_id, 
@@ -382,13 +339,11 @@ impl HotkeyService {
         Ok(id)
     }
 
-    /// Number of registered hotkeys (for sync status / debugging)
     pub fn count(&self) -> usize {
         self.registered.lock().map(|m| m.len()).unwrap_or(0)
     }
 }
 
-/// Opens plugin panels in independent Tauri windows (Host API `open_window`)
 pub struct WindowService {
     handle: Mutex<Option<tauri::AppHandle>>,
 }
@@ -412,19 +367,23 @@ impl WindowService {
             .lock()
             .map_err(lock_err)?
             .clone()
-            // Strictly fail with a clear message in CLI/TUI mode as documented
             .ok_or_else(|| PluginError::Runtime("open_window is not supported in headless (CLI/TUI) mode".into()))?;
         crate::commands::plugins::open_plugin_window_impl(&app, plugin_id, panel_id)
             .map_err(PluginError::Runtime)
     }
 }
 
-/// Default chain position for the synthetic plugin node: right after AEC,
-/// so plugin processing runs on echo-cancelled audio.
 pub const PLUGIN_NODE_AFTER: &str = "AEC";
 
 impl PluginHost {
-    pub fn new(output: Arc<crate::audio_output::AudioOutputHandle>) -> Self {
+    pub fn new(
+        output: Arc<crate::audio_output::AudioOutputHandle>,
+        network_stats: Arc<crate::stats::NetworkStats>,
+        active_connection: crate::tcp_server::SharedActiveConnection,
+        active_audio_session: crate::udp_server::SharedActiveAudioSession,
+        lifecycle: Arc<tokio::sync::Mutex<crate::server::ServerLifecycleState>>,
+        #[cfg(feature = "web-server")] web_server: Arc<tokio::sync::Mutex<Option<crate::web_server::WebServer>>>,
+    ) -> Self {
         let config = crate::app_config::config_dir();
         let manager = Arc::new(Mutex::new(micyou_plugin::PluginManager::new(
             config.join("plugins"),
@@ -433,7 +392,6 @@ impl PluginHost {
         let dsp_registry = Arc::new(micyou_plugin::PluginDspRegistry::new());
         let sync = Arc::new(TcpPluginSyncAdapter::new());
 
-        // Route incoming/request messages to local plugin instances.
         let manager_dispatch = manager.clone();
         let dispatcher: Arc<
             dyn Fn(&PluginMessage) -> micyou_plugin::PluginResult<()> + Send + Sync,
@@ -469,8 +427,7 @@ impl PluginHost {
 
         let bus = Arc::new(PluginBus::new(sync.clone(), dispatcher));
         let logs = Arc::new(PluginLogs::new());
-        let sound = crate::sound_player::SoundPlayer::new(output);
-        // Pass bus to HotkeyService for headless fallback routing
+        let sound = crate::sound_player::SoundPlayer::new(output.clone());
         let hotkeys = HotkeyService::new(bus.clone());
         let window = WindowService::new();
 
@@ -485,17 +442,22 @@ impl PluginHost {
             window,
             panel_icons: Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
             control_handlers: Arc::new(Mutex::new(ControlPlaneHandlers::default())),
+            network_stats,
+            audio_output: output,
+            active_connection,
+            active_audio_session,
+            lifecycle,
+            #[cfg(feature = "web-server")]
+            web_server,
         }
     }
 
-    /// Register control plane callbacks from the host server.
     pub fn set_control_handlers(&self, handlers: ControlPlaneHandlers) {
         if let Ok(mut slot) = self.control_handlers.lock() {
             *slot = handlers;
         }
     }
 
-    /// Register a callback to set the host mute state (backwards compatibility).
     pub fn set_mute_handler(
         &self,
         handler: Arc<dyn Fn(bool) -> micyou_plugin::PluginResult<()> + Send + Sync>,
@@ -505,7 +467,6 @@ impl PluginHost {
         }
     }
 
-    /// Scan plugins directory and enable all plugins marked enabled in state.
     pub fn load_saved_plugins(&self) {
         let report = self
             .manager
@@ -529,9 +490,6 @@ impl PluginHost {
         }
     }
 
-    /// Deliver a UI-triggered action to a plugin instance as a bus message on
-    /// topic `ui:<action>` with the given payload (soundpad buttons etc).
-    /// The plugin receives it through its `handle_message` entry.
     pub fn trigger(&self, plugin_id: &str, action: &str, payload: &[u8]) -> PluginResult<()> {
         let bytes = if payload.is_empty() {
             format!(r#"{{"action":"{action}"}}"#).into_bytes()
@@ -543,10 +501,6 @@ impl PluginHost {
         Ok(())
     }
 
-    /// Load + start one plugin: instantiate the runtime, init it, register the
-    /// instance and (for DSP plugins) its processing node.
-    /// Verify every declared plugin dependency is installed, enabled and
-    /// version-satisfied. Returns the first unmet dependency as an error.
     pub fn check_dependencies(&self, manifest: &micyou_plugin::PluginManifest) -> PluginResult<()> {
         for dep in &manifest.dependencies {
             if dep.optional {
@@ -585,7 +539,7 @@ impl PluginHost {
         let entry = {
             let manager = self.manager.lock().map_err(lock_err)?;
             if manager.is_loaded(id) {
-                return Ok(()); // already running
+                return Ok(()); 
             }
             manager
                 .entry(id)?
@@ -602,6 +556,12 @@ impl PluginHost {
             self.window.clone(),
             self.panel_icons.clone(),
             self.control_handlers.clone(),
+            self.network_stats.clone(),
+            self.audio_output.clone(),
+            self.active_connection.clone(),
+            self.active_audio_session.clone(),
+            self.lifecycle.clone(),
+            #[cfg(feature = "web-server")] self.web_server.clone(),
             id.to_string(),
             entry.dir.clone(),
         );
@@ -640,7 +600,6 @@ impl PluginHost {
         Ok(())
     }
 
-    /// Stop + unload a plugin (deinit, remove DSP node, persist disabled).
     pub fn disable_plugin(&self, id: &str) -> PluginResult<()> {
         self.dsp_registry.unregister(id)?;
         let mut manager = self.manager.lock().map_err(lock_err)?;
@@ -650,10 +609,6 @@ impl PluginHost {
         Ok(())
     }
 
-    /// Deliver a host lifecycle event (device connected/disconnected, ...) to
-    /// every loaded plugin. Short-locks the manager only to collect instance
-    /// handles, then try_locks each instance so a busy plugin (e.g. the audio
-    /// thread) is skipped instead of blocking.
     pub fn broadcast_event(&self, event: &micyou_plugin::PluginEvent) {
         let handles = {
             let Ok(manager) = self.manager.lock() else {
@@ -672,7 +627,6 @@ impl PluginHost {
         }
     }
 
-    /// Uninstall: disable, remove from registry and delete the directory.
     pub fn uninstall_plugin(&self, id: &str) -> PluginResult<()> {
         self.dsp_registry.unregister(id)?;
         let mut manager = self.manager.lock().map_err(lock_err)?;
@@ -681,10 +635,6 @@ impl PluginHost {
         Ok(())
     }
 
-    /// Ensure the synthetic `"Plugins"` node exists in the processing chain
-    /// (right after AEC) when at least one DSP plugin is registered. This is
-    /// an in-memory settings change; the user can reorder it in the GUI like
-    /// any other chain node.
     pub fn ensure_plugin_chain_node(
         &self,
         dsp_settings: &Arc<RwLock<micyou_audio::dsp::AudioDspSettings>>,
@@ -709,8 +659,6 @@ impl PluginHost {
         }
     }
 
-    /// Build the external DSP hook for `DspProcessor`. Cheap no-op when no
-    /// DSP plugin is registered (see `PluginDspBridge::hook`).
     pub fn dsp_hook(&self) -> Option<micyou_audio::dsp::ExternalDspHook> {
         let bridge = micyou_plugin::PluginDspBridge::new(self.dsp_registry.clone());
         Some(bridge.hook())
@@ -721,9 +669,6 @@ fn lock_err<T>(_: std::sync::PoisonError<T>) -> PluginError {
     PluginError::Runtime("plugin host lock poisoned".into())
 }
 
-// ── Per-plugin log buffers ─────────────────────────────────────────────────
-
-/// Bounded ring of log lines per plugin, readable by the frontend.
 pub struct PluginLogs {
     buffers: Mutex<HashMap<String, VecDeque<String>>>,
     cap: usize,
@@ -782,10 +727,6 @@ fn level_label(level: PluginLogLevel) -> &'static str {
     }
 }
 
-// ── Real HostApi for plugin instances ──────────────────────────────────────
-
-/// HostApi implementation backed by the plugin manager, the bus and the log
-/// buffers. One instance per plugin; capabilities come from the manifest.
 pub struct PluginHostApi {
     bus: Arc<PluginBus>,
     manager: Arc<Mutex<micyou_plugin::PluginManager>>,
@@ -806,6 +747,13 @@ pub struct PluginHostApi {
         std::collections::HashMap<u64, std::sync::Arc<std::sync::atomic::AtomicBool>>,
     >,
     http_next: std::sync::atomic::AtomicU64,
+    network_stats: Arc<crate::stats::NetworkStats>,
+    audio_output: Arc<crate::audio_output::AudioOutputHandle>,
+    active_connection: crate::tcp_server::SharedActiveConnection,
+    active_audio_session: crate::udp_server::SharedActiveAudioSession,
+    lifecycle: Arc<tokio::sync::Mutex<crate::server::ServerLifecycleState>>,
+    #[cfg(feature = "web-server")]
+    web_server: Arc<tokio::sync::Mutex<Option<crate::web_server::WebServer>>>,
 }
 
 impl PluginHostApi {
@@ -822,6 +770,12 @@ impl PluginHostApi {
             >,
         >,
         control_handlers: Arc<Mutex<ControlPlaneHandlers>>,
+        network_stats: Arc<crate::stats::NetworkStats>,
+        audio_output: Arc<crate::audio_output::AudioOutputHandle>,
+        active_connection: crate::tcp_server::SharedActiveConnection,
+        active_audio_session: crate::udp_server::SharedActiveAudioSession,
+        lifecycle: Arc<tokio::sync::Mutex<crate::server::ServerLifecycleState>>,
+        #[cfg(feature = "web-server")] web_server: Arc<tokio::sync::Mutex<Option<crate::web_server::WebServer>>>,
         plugin_id: String,
         dir: std::path::PathBuf,
     ) -> Arc<Self> {
@@ -839,6 +793,13 @@ impl PluginHostApi {
             timer_next: std::sync::atomic::AtomicU64::new(1),
             timers: std::sync::Mutex::new(std::collections::HashMap::new()),
             http_next: std::sync::atomic::AtomicU64::new(1),
+            network_stats,
+            audio_output,
+            active_connection,
+            active_audio_session,
+            lifecycle,
+            #[cfg(feature = "web-server")]
+            web_server,
         })
     }
 }
@@ -892,9 +853,51 @@ impl HostApi for PluginHostApi {
     }
 
     fn audio_state(&self) -> AudioStateSnapshot {
-        // Real-time audio state is wired by the app through the bus topics;
-        // the snapshot defaults are safe for plugins that only read config.
-        AudioStateSnapshot::default()
+        let is_server_running = match self.lifecycle.try_lock() {
+            Ok(lifecycle) => matches!(lifecycle.phase(), crate::server::ServerLifecyclePhase::Running),
+            Err(_) => false,
+        };
+        let is_connected = {
+            let conn_active = match self.active_connection.try_lock() {
+                Ok(lock) => lock.is_some(),
+                Err(_) => false,
+            };
+            let audio_active = self.active_audio_session.read()
+                .map(|s| !matches!(*s, crate::udp_server::ActiveAudioSession::Inactive))
+                .unwrap_or(false);
+            let mut connected = conn_active || audio_active;
+            #[cfg(feature = "web-server")]
+            if !connected {
+                if let Ok(web_lock) = self.web_server.try_lock() {
+                    connected = web_lock.as_ref().is_some_and(|w| w.client_count() > 0);
+                }
+            }
+            connected
+        };
+        let streaming = is_server_running && is_connected;
+
+        let sample_rate = self.network_stats.sample_rate.load(std::sync::atomic::Ordering::Relaxed);
+        let channels = self.network_stats.channels.load(std::sync::atomic::Ordering::Relaxed);
+        let muted = self.network_stats.is_muted();
+        let input_level = f32::from_bits(self.network_stats.input_level_bits.load(std::sync::atomic::Ordering::Relaxed));
+        let processed_level = f32::from_bits(self.network_stats.processed_level_bits.load(std::sync::atomic::Ordering::Relaxed));
+
+        let queued_samples = self.audio_output.queued_samples();
+        let queued_ms = if channels > 0 {
+            (queued_samples as f64 / channels as f64) / 48.0
+        } else {
+            0.0
+        };
+
+        AudioStateSnapshot {
+            streaming,
+            sample_rate,
+            channels,
+            input_level,
+            processed_level,
+            queued_ms,
+            muted,
+        }
     }
 
     fn plugin_dir(&self) -> String {
@@ -1076,13 +1079,11 @@ impl HostApi for PluginHostApi {
             .clone();
 
         if let Some(app) = maybe_app {
-            // GUI Mode: Use Tauri Plugin
             use tauri_plugin_opener::OpenerExt;
             app.opener()
                 .open_url(url, None::<&str>)
                 .map_err(|e| PluginError::Runtime(format!("open_url: {e}")))?;
         } else {
-            // Headless Mode (CLI/TUI): Use open crate
             ::open::that(url)
                 .map_err(|e| PluginError::Runtime(format!("open_url (headless): {e}")))?;
         }
@@ -1098,7 +1099,6 @@ impl HostApi for PluginHostApi {
             .clone();
 
         if let Some(app) = maybe_app {
-            // GUI Mode: Use Tauri Plugin
             use tauri_plugin_notification::NotificationExt;
             app.notification()
                 .builder()
@@ -1107,7 +1107,6 @@ impl HostApi for PluginHostApi {
                 .show()
                 .map_err(|e| PluginError::Runtime(format!("notify: {e}")))?;
         } else {
-            // Headless Mode (CLI/TUI): Use notify-rust
             ::notify_rust::Notification::new()
                 .summary(title)
                 .body(body)
@@ -1208,15 +1207,52 @@ impl HostApi for PluginHostApi {
     }
 
     fn connected_devices(&self) -> Vec<DeviceSnapshot> {
-        if self.bus.transport().is_connected() {
-            vec![DeviceSnapshot {
-                mode: "wifi".to_string(),
-                label: "connected device".to_string(),
-                audio_active: true,
-            }]
-        } else {
-            Vec::new()
+        let mut devices = Vec::new();
+        let has_tcp_control = self.bus.transport().is_connected();
+        
+        if has_tcp_control {
+            let session_info = self.active_audio_session.read().ok().map(|s| *s);
+            
+            let (mode, label, audio_active) = match session_info {
+                Some(crate::udp_server::ActiveAudioSession::Bound { peer_ip, .. }) |
+                Some(crate::udp_server::ActiveAudioSession::UnboundLegacy { peer_ip, .. }) => {
+                    let ip_str = peer_ip.to_string();
+                    let inferred_mode = if ip_str.starts_with("127.0.0.1") || ip_str.starts_with("::1") {
+                        "usb"
+                    } else {
+                        "wifi"
+                    };
+                    (inferred_mode.to_string(), ip_str, true)
+                },
+                Some(crate::udp_server::ActiveAudioSession::Inactive) | None => {
+                    ("wifi".to_string(), "pending...".to_string(), false)
+                }
+            };
+
+            devices.push(DeviceSnapshot {
+                mode,
+                label,
+                audio_active,
+            });
         }
+
+        #[cfg(feature = "web-server")]
+        {
+            if let Ok(web_lock) = self.web_server.try_lock() {
+                if let Some(w) = web_lock.as_ref() {
+                    let count = w.client_count();
+                    for _ in 0..count {
+                        devices.push(DeviceSnapshot {
+                            mode: "web".to_string(),
+                            label: "web client".to_string(),
+                            audio_active: true, 
+                        });
+                    }
+                }
+            }
+        }
+
+        devices
     }
 }
 
@@ -1224,13 +1260,24 @@ impl HostApi for PluginHostApi {
 mod tests_e2e {
     use super::*;
 
-    /// 端到端 API 回归测试：真实 PluginHost 链路 enable → trigger →
-    /// bus → dispatcher → handle_message → host 回调（native 路径）。
-    /// 环境需已安装 dev.micyou.example.soundpad。
     #[test]
     fn soundpad_trigger_end_to_end() {
         let output = crate::audio_output::AudioOutputHandle::spawn();
-        let host = PluginHost::new(output);
+        let network_stats = Arc::new(crate::stats::NetworkStats::default());
+        let active_connection = Arc::new(tokio::sync::Mutex::new(None));
+        let active_audio_session = Arc::new(std::sync::RwLock::new(crate::udp_server::ActiveAudioSession::Inactive));
+        let lifecycle = Arc::new(tokio::sync::Mutex::new(crate::server::ServerLifecycleState::default()));
+        #[cfg(feature = "web-server")]
+        let web_server = Arc::new(tokio::sync::Mutex::new(None));
+        
+        let host = PluginHost::new(
+            output,
+            network_stats,
+            active_connection,
+            active_audio_session,
+            lifecycle,
+            #[cfg(feature = "web-server")] web_server,
+        );
         let id = "dev.micyou.example.soundpad";
         {
             let mut manager = host.manager.lock().unwrap();
