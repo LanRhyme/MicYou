@@ -30,7 +30,7 @@ pub struct AudioMetrics {
 
 pub struct NetworkStats {
     pub rtt_ms: AtomicI64,
-    pub jitter_ms: AtomicI64, // Stored as scaled f64 (jitter * 1000) or just f32 bits. Let's use AtomicU64 to store f64 bits.
+    pub jitter_ms: AtomicI64,
     pub jitter_bits: AtomicU64,
     pub loss_rate_bits: AtomicU64,
     pub last_udp_packet_time_ms: AtomicU64,
@@ -64,9 +64,6 @@ impl Default for NetworkStats {
 
 impl NetworkStats {
     pub fn set_rtt(&self, rtt: i64) {
-        // EWMA smoothing: raw RTT is measured once per 500ms and a single
-        // sample can spike from phone-side scheduling; smooth it so the
-        // displayed latency stays stable (alpha 0.5).
         let prev = self.rtt_ms.load(Ordering::Relaxed);
         let smoothed = if prev > 0 {
             (prev as f64 * 0.5 + rtt as f64 * 0.5).round() as i64
@@ -123,7 +120,7 @@ impl NetworkStats {
         self.is_muted.load(Ordering::Relaxed)
     }
 
-    pub fn set_audio_info(&self, sample_rate: u32, bitrate: u32) {
+    pub fn set_audio_info(&self, sample_rate: u32, bitrate: u32, channels: u32) {
         self.sample_rate.store(sample_rate, Ordering::Relaxed);
         self.bitrate.store(bitrate, Ordering::Relaxed);
         self.channels.store(channels, Ordering::Relaxed);
@@ -162,12 +159,10 @@ mod tests {
         assert_eq!(stats.get_last_udp_time(), 12345);
         assert_eq!(stats.get_loss_rate(), 5.5);
 
-        // Connecting resets UDP time for the new session
         stats.mark_tcp_connected(20000);
         assert_eq!(stats.get_tcp_connected_time(), 20000);
         assert_eq!(stats.get_last_udp_time(), 0);
 
-        // Disconnecting resets session counters
         stats.mark_tcp_disconnected();
         assert_eq!(stats.get_tcp_connected_time(), 0);
         assert_eq!(stats.get_last_udp_time(), 0);
