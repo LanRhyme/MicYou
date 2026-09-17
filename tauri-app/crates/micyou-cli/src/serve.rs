@@ -25,6 +25,7 @@ pub struct ServeArgs {
     pub mode: Option<String>,
     pub device: Option<String>,
     pub bind: Option<String>,
+    pub quiet: bool,
 }
 
 /// Run the audio server in the foreground.
@@ -71,7 +72,7 @@ pub async fn run(args: ServeArgs) -> Result<(), String> {
     }
 
     let state = build_state();
-    let events: Arc<dyn tauri_app_lib::events::ServerEvents> = Arc::new(CliEventSink);
+    let events: Arc<dyn tauri_app_lib::events::ServerEvents> = Arc::new(CliEventSink::new(args.quiet));
 
     let result =
         start_server_inner(&state, port, mode.clone(), bind, device, None, events.clone()).await;
