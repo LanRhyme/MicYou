@@ -212,7 +212,7 @@ pub async fn start_udp_server(
                             if let Some(ref audio_info) = audio_packet_ordered.audio_packet {
                                 // Bitrate estimation based on payload len (simplified)
                                 let bps = (payload.len() as u32) * 8 * (audio_info.sample_rate as u32) / 480; // approximate assuming ~10ms packets
-                                stats.set_audio_info(audio_info.sample_rate as u32, bps);
+                                stats.set_audio_info(audio_info.sample_rate as u32, bps, audio_info.channel_count as u32);
                             }
 
                             match tx.try_send(AudioStreamEvent::Packet {
