@@ -39,8 +39,8 @@ pub struct NetworkStats {
     pub sample_rate: AtomicU32,
     pub is_muted: AtomicBool,
     pub channels: AtomicU32,
-    pub input_level_bits: AtomicU64,
-    pub processed_level_bits: AtomicU64,
+    pub input_level_bits: AtomicU32,
+    pub processed_level_bits: AtomicU32,
 }
 
 impl Default for NetworkStats {
@@ -56,8 +56,8 @@ impl Default for NetworkStats {
             sample_rate: AtomicU32::new(0),
             is_muted: AtomicBool::new(false),
             channels: AtomicU32::new(0),
-            input_level_bits: AtomicU64::new(0f32.to_bits()),
-            processed_level_bits: AtomicU64::new(0f32.to_bits()),
+            input_level_bits: AtomicU32::new(0f32.to_bits()),
+            processed_level_bits: AtomicU32::new(0f32.to_bits()),
         }
     }
 }
