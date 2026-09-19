@@ -56,10 +56,10 @@ typedef struct mpl_host_api {
     mpl_result_t (*clipboard_write)(void *ctx, const char *text);
     mpl_result_t (*set_panel_icon)(void *ctx, const char *panel_id, const char *icon);
     /* API Version 2: 控制面信令（追加式演进） */
-    mpl_result_t (*get_muted)(void *ctx, uint32_t *out_muted);
     mpl_result_t (*set_muted)(void *ctx, uint32_t muted);
-    mpl_result_t (*get_monitoring)(void *ctx, uint32_t *out_enabled);
+    mpl_result_t (*get_muted)(void *ctx, uint32_t *out_muted);
     mpl_result_t (*set_monitoring)(void *ctx, uint32_t enabled);
+    mpl_result_t (*get_monitoring)(void *ctx, uint32_t *out_enabled);
     mpl_result_t (*get_dsp_settings)(void *ctx, char *out, uint32_t *out_size);
     mpl_result_t (*set_dsp_settings)(void *ctx, const char *settings_json);
 } mpl_host_api_t;
