@@ -69,16 +69,19 @@
             {{ $t('plugins.marketFailed', { error: loadError }) }}
             <button class="underline ml-2" @click="load">{{ $t('plugins.retry') }}</button>
           </p>
+
           <div v-else-if="isLoading" class="py-16 text-center text-sm text-on-surface-variant">
             <Loader2 class="w-5 h-5 animate-spin mx-auto mb-2" />
             {{ $t('plugins.marketLoading') }}
           </div>
+
           <div
             v-else-if="catalog.plugins.length === 0"
             class="py-16 text-center text-sm text-on-surface-variant"
           >
             {{ $t('plugins.marketEmpty') }}
           </div>
+
           <div
             v-else-if="filteredCatalog.length === 0"
             class="py-16 text-center text-sm text-on-surface-variant"
@@ -178,16 +181,6 @@
                         <BookOpen class="w-3.5 h-3.5" />
                         <span>README</span>
                       </button>
-                      
-                      <button
-                        v-if="installingId === plugin.id && downloadProgress[plugin.id]"
-                        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium bg-error/10 text-error hover:bg-error/20 transition-colors"
-                        @click.stop="cancelInstall(plugin.id)"
-                      >
-                        <X class="w-3.5 h-3.5" />
-                        <span>取消</span>
-                      </button>
-
                       <button
                         class="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
                         :class="
@@ -198,18 +191,53 @@
                         :disabled="installedIds.includes(plugin.id) || installingId === plugin.id"
                         @click="install(plugin)"
                       >
-                        <template v-if="installingId === plugin.id">
-                          <Loader2 class="w-3.5 h-3.5 animate-spin" />
-                          <span v-if="downloadProgress[plugin.id] && downloadProgress[plugin.id].total > 0">
-                            {{ Math.round((downloadProgress[plugin.id].downloaded / downloadProgress[plugin.id].total) * 100) }}%
-                          </span>
-                          <span v-else>准备中...</span>
-                        </template>
+                        <Loader2 v-if="installingId === plugin.id" class="w-3.5 h-3.5 animate-spin" />
                         <Check v-else-if="installedIds.includes(plugin.id)" class="w-3.5 h-3.5" />
-                        <span v-else>
-                          {{ $t('plugins.marketInstall') }}
+                        <span>
+                          {{
+                            installingId === plugin.id
+                              ? $t('plugins.marketInstalling')
+                              : installedIds.includes(plugin.id)
+                                ? $t('plugins.marketInstalled')
+                                : $t('plugins.marketInstall')
+                          }}
                         </span>
                       </button>
+                    </div>
+                    <div
+                      v-if="confirmingId === plugin.id && preview"
+                      class="w-64 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5"
+                    >
+                      <p class="flex items-center gap-1.5 text-xs font-semibold text-on-surface">
+                        <TriangleAlert class="w-3.5 h-3.5 shrink-0 text-amber-500" />
+                        <span>{{ $t('plugins.marketConfirm') }}</span>
+                      </p>
+                      <div class="flex flex-wrap gap-1.5 mt-2">
+                        <span
+                          v-for="cap in preview.capabilities"
+                          :key="cap"
+                          class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-on-surface-variant"
+                        >
+                          {{ cap }}
+                        </span>
+                      </div>
+                      <p class="text-[11px] text-on-surface-variant mt-2">
+                        {{ $t('plugins.marketConfirmText') }}
+                      </p>
+                      <div class="flex gap-2 mt-3">
+                        <button
+                          class="px-3 py-1.5 rounded-full text-xs bg-amber-500 text-amber-950 font-medium hover:bg-amber-400"
+                          @click="confirmInstall(plugin)"
+                        >
+                          {{ $t('plugins.marketInstall') }}
+                        </button>
+                        <button
+                          class="px-3 py-1.5 rounded-full text-xs bg-surface-variant/40 text-on-surface hover:bg-surface-variant"
+                          @click="cancelConfirm"
+                        >
+                          {{ $t('plugins.cancel') }}
+                        </button>
+                      </div>
                     </div>
                     <button
                       v-if="plugin.homepage"
@@ -225,38 +253,6 @@
                       <span class="w-full truncate text-left text-[10px] font-normal text-primary/60">
                         {{ homepageLabel(plugin.homepage) }}
                       </span>
-                    </button>
-                  </div>
-                </div>
-                <div
-                  v-if="confirmingId === plugin.id && preview"
-                  class="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3"
-                >
-                  <p class="text-xs font-medium text-amber-300">{{ $t('plugins.marketConfirm') }}</p>
-                  <div class="flex flex-wrap gap-1.5 mt-2">
-                    <span
-                      v-for="cap in preview.capabilities"
-                      :key="cap"
-                      class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300"
-                    >
-                      {{ cap }}
-                    </span>
-                  </div>
-                  <p class="text-[11px] text-amber-200/80 mt-2">
-                    {{ $t('plugins.marketConfirmText') }}
-                  </p>
-                  <div class="flex gap-2 mt-3">
-                    <button
-                      class="px-3 py-1.5 rounded-full text-xs bg-amber-500 text-amber-950 font-medium hover:bg-amber-400"
-                      @click="confirmInstall(plugin)"
-                    >
-                      {{ $t('plugins.marketInstall') }}
-                    </button>
-                    <button
-                      class="px-3 py-1.5 rounded-full text-xs bg-surface-variant/40 hover:bg-surface-variant"
-                      @click="cancelConfirm"
-                    >
-                      {{ $t('plugins.cancel') }}
                     </button>
                   </div>
                 </div>
@@ -327,7 +323,6 @@
 .dialog-leave-to {
   opacity: 0;
 }
-
 .readme-enter-active {
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -346,10 +341,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useI18n } from 'vue-i18n';
-import { ArrowLeft, BookOpen, Check, ExternalLink, GitPullRequest, Loader2, RefreshCw, Search, Store, X } from '@lucide/vue';
+import { ArrowLeft, BookOpen, Check, ExternalLink, GitPullRequest, Loader2, RefreshCw, Search, Store, TriangleAlert, X } from '@lucide/vue';
 import {
   loadPluginCatalog,
   marketPluginName,
@@ -379,16 +373,12 @@ const filteredCatalog = computed(() => {
     );
   });
 });
-
 const isLoading = ref(false);
 const loadError = ref<string | null>(null);
 const installedIds = ref<string[]>([]);
 const installingId = ref<string | null>(null);
 const confirmingId = ref<string | null>(null);
 const preview = ref<{ capabilities: string[] } | null>(null);
-const downloadProgress = ref<Record<string, { downloaded: number; total: number }>>({});
-const unlistenProgress = ref<(() => void) | null>(null);
-
 const openContributionGuide = () => void openUrl(PLUGIN_CONTRIBUTING_URL);
 
 function openHomepage(url: string) {
@@ -487,27 +477,14 @@ async function install(plugin: MarketPlugin) {
 async function confirmInstall(plugin: MarketPlugin) {
   installingId.value = plugin.id;
   try {
-    await invoke<string>('install_plugin_from_url', { id: plugin.id, zipUrl: plugin.downloadUrl });
+    await invoke<string>('install_plugin_from_url', { zipUrl: plugin.downloadUrl });
     if (!installedIds.value.includes(plugin.id)) installedIds.value.push(plugin.id);
     void refreshInstalled();
   } catch (cause) {
-    if (cause instanceof Error && cause.message.includes("取消")) {
-      // ignore cancellation error
-    } else {
-      loadError.value = cause instanceof Error ? cause.message : String(cause);
-    }
+    loadError.value = cause instanceof Error ? cause.message : String(cause);
   } finally {
     installingId.value = null;
-    delete downloadProgress.value[plugin.id];
     cancelConfirm();
-  }
-}
-
-async function cancelInstall(id: string) {
-  try {
-    await invoke('cancel_plugin_download', { id });
-  } catch (e) {
-    console.error(e);
   }
 }
 
@@ -629,30 +606,18 @@ function parseMarkdown(md: string): string {
     (_, i: string) =>
       `<code class="bg-slate-800/60 px-1.5 py-0.5 rounded text-xs text-emerald-400 font-mono">${inlineCodes[Number(i)]}</code>`,
   );
+
   return html;
 }
 
-onMounted(async () => {
+onMounted(() => {
   void load();
   void refreshInstalled();
   window.addEventListener('keydown', onKeydown);
-  
-  unlistenProgress.value = await listen<{ id: string; downloaded: number; total: number; done: boolean }>(
-    'plugin-download-progress',
-    (event) => {
-      const { id, downloaded, total, done } = event.payload;
-      if (done) {
-        delete downloadProgress.value[id];
-      } else {
-        downloadProgress.value[id] = { downloaded, total };
-      }
-    }
-  );
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown);
   rowObserver?.disconnect();
-  unlistenProgress.value?.();
 });
 </script>
