@@ -94,6 +94,9 @@ enum Commands {
         /// 绑定地址
         #[arg(long)]
         bind: Option<String>,
+        /// 禁用每秒打印的音频电平（level）日志，避免终端刷屏
+        #[arg(long, short = 'q', help = "静默模式：不打印每秒更新的音频电平日志")]
+        quiet: bool,
     },
     /// 显示当前服务状态
     Status,
@@ -187,12 +190,14 @@ async fn main() {
             mode,
             device,
             bind,
+            quiet,
         } => {
             let args = serve::ServeArgs {
                 port,
                 mode,
                 device,
                 bind,
+                quiet,
             };
             serve::run(args).await
         }

@@ -228,7 +228,7 @@ pub fn cmd_mics() {
 #[cfg(target_os = "windows")]
 pub async fn cmd_mics_install() -> Result<(), String> {
     let events: std::sync::Arc<dyn tauri_app_lib::events::ServerEvents> =
-        std::sync::Arc::new(crate::events::CliEventSink);
+        std::sync::Arc::new(crate::events::CliEventSink::new(false));
     let result = tauri_app_lib::vbcable::install(events).await;
     println!(
         "{}",
