@@ -50,14 +50,24 @@ export async function loadPluginCatalog(): Promise<PluginCatalog> {
   return (await response.json()) as PluginCatalog;
 }
 
-/** 按当前 locale 取本地化名称（与 PluginsPanel 的 displayName 一致） */
-export function marketPluginName(p: MarketPlugin, locale: string): string {
-  if (!p.nameI18n) return p.name;
+/** locale 匹配：精确 → 原样 → 语言前缀（zh-CN → zh-cn/zh） */
+function pickI18n(map: Record<string, string> | undefined, locale: string): string | undefined {
+  if (!map) return undefined;
   const l = locale.toLowerCase();
-  const direct = p.nameI18n[l] || p.nameI18n[locale];
+  const direct = map[l] || map[locale];
   if (direct) return direct;
   if (l.startsWith('zh')) {
-    return p.nameI18n['zh-cn'] || p.nameI18n['zh'] || p.name;
+    return map['zh-cn'] || map['zh'];
   }
-  return p.name;
+  return map[l.split('-')[0]];
+}
+
+/** 按当前 locale 取本地化名称（与 PluginsPanel 的 displayName 一致） */
+export function marketPluginName(p: MarketPlugin, locale: string): string {
+  return pickI18n(p.nameI18n, locale) ?? p.name;
+}
+
+/** 按当前 locale 取本地化描述；无本地化字段（旧插件）回退基础描述 */
+export function marketPluginDescription(p: MarketPlugin, locale: string): string {
+  return pickI18n(p.descriptionI18n, locale) ?? p.description ?? '';
 }

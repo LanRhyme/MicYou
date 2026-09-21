@@ -351,10 +351,13 @@ pub struct PluginManifest {
     #[serde(default)]
     pub arches: Vec<String>,
     /// Localized names, keyed by BCP-47 locale tag, e.g. {"zh-CN": "变声器"}.
-    #[serde(default)]
+    /// Wire format is camelCase (`nameI18n`, matching the marketplace manifest
+    /// convention and the frontend view model); the legacy snake_case key is
+    /// still accepted as an alias.
+    #[serde(default, rename = "nameI18n", alias = "name_i18n")]
     pub name_i18n: std::collections::HashMap<String, String>,
-    /// Localized descriptions, keyed by locale tag.
-    #[serde(default)]
+    /// Localized descriptions, keyed by locale tag (wire: `descriptionI18n`).
+    #[serde(default, rename = "descriptionI18n", alias = "description_i18n")]
     pub description_i18n: std::collections::HashMap<String, String>,
     /// Dependencies on other plugins (installed, enabled, version-satisfied
     /// before this plugin can be enabled).

@@ -134,7 +134,7 @@
                     </div>
                     <p class="text-xs text-on-surface-variant mt-1 truncate">{{ plugin.id }}</p>
                     <p class="text-sm text-on-surface-variant mt-1 line-clamp-2">
-                      {{ plugin.description || '—' }}
+                      {{ marketPluginDescription(plugin, locale) || '—' }}
                     </p>
                     <div class="flex flex-wrap gap-1.5 mt-2">
                       <span
@@ -356,6 +356,7 @@ import { ArrowLeft, BookOpen, Check, ExternalLink, GitPullRequest, Loader2, Refr
 import {
   loadPluginCatalog,
   marketPluginName,
+  marketPluginDescription,
   PLUGIN_CONTRIBUTING_URL,
   type MarketPlugin,
 } from '../market';
@@ -378,7 +379,10 @@ const filteredCatalog = computed(() => {
     return (
       pl.name.toLowerCase().includes(q) ||
       pl.id.toLowerCase().includes(q) ||
-      (pl.description ?? '').toLowerCase().includes(q)
+      [marketPluginDescription(pl, locale), marketPluginName(pl, locale)]
+        .join('\n')
+        .toLowerCase()
+        .includes(q)
     );
   });
 });

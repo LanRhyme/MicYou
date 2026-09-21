@@ -113,6 +113,28 @@
 - 声明 `updateUrl` 指向远端 manifest JSON，应用内「检查更新」做 semver 对比
 - 有新版时一键更新：下载 zip → 替换安装目录 → 按原状态重新启用
 
+### 本地化适配（nameI18n / descriptionI18n）
+
+宿主 UI（插件管理页卡片、详情对话框、**插件市场页**）会按当前界面语言优先展示本地化文本，缺失时回退基础 `name` / `description`——**旧插件不带这两个字段也能正常展示**，但新插件建议适配：
+
+```json
+{
+  "name": "FocusCapture",
+  "description": "Hotkey-toggled capture of the focused application's audio output…",
+  "nameI18n": { "zh-CN": "焦点声音捕获" },
+  "descriptionI18n": {
+    "zh-CN": "快捷键一键捕获当前焦点应用的声音（Windows 进程环回），混入 MicYou 麦克风流。"
+  }
+}
+```
+
+规则与约定：
+
+- 键为 BCP-47 标签；匹配顺序为「精确匹配当前 locale（如 `zh-CN`）→ 语言前缀（`zh-CN` → `zh`）→ 回退基础字段」。建议至少提供 `en` 与你的母语标签；
+- 仅影响**展示文本**：`id`、日志、能力名等不参与本地化；面板（panel.html）内部文案请自行用桥接 `locale` API 适配；
+- 市场仓库的 `generate_catalog.ts` 会把这两个字段透传进 `index.json`，市场页据此展示；市场条目（`plugin/<id>/plugin.json`）同样建议携带；
+- `configSchema` 的 label/description 暂不参与本地化（保持单一语言文案）。
+
 ### 运行时选择：WASM 优先
 
 - **WASM（默认推荐）**：沙箱隔离、内存与燃料受限、跨平台（同一 .wasm 在

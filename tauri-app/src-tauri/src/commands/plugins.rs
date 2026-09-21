@@ -64,11 +64,12 @@ pub struct PluginView {
     /// Load/enable error surfaced to the user (e.g. artifact missing).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
-    /// Localized names, keyed by BCP-47 locale tag.
-    #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
+    /// Localized names, keyed by BCP-47 locale tag. Serialized as `nameI18n`
+    /// (the key the frontend view model and marketplace manifests use).
+    #[serde(default, rename = "nameI18n", skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub name_i18n: std::collections::HashMap<String, String>,
-    /// Localized descriptions, keyed by BCP-47 locale tag.
-    #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
+    /// Localized descriptions, keyed by BCP-47 locale tag (`descriptionI18n`).
+    #[serde(default, rename = "descriptionI18n", skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub description_i18n: std::collections::HashMap<String, String>,
     /// Declared dependencies on other plugins (id, version requirement).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -509,23 +510,21 @@ pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String
         ));
     }
 
-    let zip_url = remote
-        .homepage
-        .as_ref()
-        .filter(|_| false)
-        .map(|_| String::new())
-        .unwrap_or_else(|| {
-            let p = std::path::Path::new(&update_url);
-            let stem = p
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_default();
-            let parent = p
-                .parent()
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_default();
-            format!("{parent}/{stem}.zip")
-        });
+    // Zip URL resolution order:
+    //  1. explicit `downloadUrl` in the remote manifest (versioned assets),
+    //  2. legacy derivation: updateUrl with `.json` replaced by `.zip`.
+    let zip_url = remote.download_url.clone().unwrap_or_else(|| {
+        let p = std::path::Path::new(&update_url);
+        let stem = p
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let parent = p
+            .parent()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_default();
+        format!("{parent}/{stem}.zip")
+    });
 
     let tmp_dir = std::env::temp_dir();
     let tmp_zip = tmp_dir.join(format!("micyou-update-{id}.zip"));

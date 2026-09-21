@@ -23,13 +23,26 @@ import { usePlugins, type PluginView } from '../composables/usePlugins';
 const p = usePlugins();
 const { locale } = useI18n();
 
-function displayName(plugin: { name: string; nameI18n?: Record<string, string> }): string {
+function pickI18n(map: Record<string, string> | undefined, fallback: string): string {
+  if (!map) return fallback;
   const loc = locale.value;
-  if (plugin.nameI18n && plugin.nameI18n[loc]) return plugin.nameI18n[loc];
+  if (map[loc]) return map[loc];
   // 匹配前缀（如 zh-CN → zh）
   const base = loc.split('-')[0];
-  if (plugin.nameI18n && plugin.nameI18n[base]) return plugin.nameI18n[base];
-  return plugin.name;
+  if (map[base]) return map[base];
+  return fallback;
+}
+
+function displayName(plugin: { name: string; nameI18n?: Record<string, string> }): string {
+  return pickI18n(plugin.nameI18n, plugin.name);
+}
+
+// 描述本地化：descriptionI18n 命中当前语言（或语言前缀）时优先，否则回退基础描述
+function displayDescription(plugin: {
+  description?: string | null;
+  descriptionI18n?: Record<string, string>;
+}): string {
+  return pickI18n(plugin.descriptionI18n, plugin.description ?? '');
 }
 
 const dragOver = ref(false);
@@ -314,10 +327,10 @@ async function applyUpdate(id: string) {
                 }}<template v-if="plugin.author"> · {{ plugin.author }}</template>
               </p>
               <p
-                v-if="plugin.description"
+                v-if="displayDescription(plugin)"
                 class="text-xs text-on-surface-variant/80 mt-1 line-clamp-2"
               >
-                {{ plugin.description }}
+                {{ displayDescription(plugin) }}
               </p>
               <p v-if="plugin.error" class="text-xs text-red-400 mt-1">{{ plugin.error }}</p>
               <div v-if="plugin.capabilities.length" class="flex flex-wrap gap-1 mt-2">
@@ -330,7 +343,8 @@ async function applyUpdate(id: string) {
                 </span>
               </div>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
+            <div class="flex flex-col items-end gap-3 shrink-0">
+              <div class="flex items-center gap-2">
               <button
                 @click="openDetails(plugin, 'logs')"
                 class="w-9 h-9 rounded-full bg-surface-variant/40 hover:bg-surface-variant flex items-center justify-center transition-all duration-150 active:scale-90"
@@ -366,33 +380,36 @@ async function applyUpdate(id: string) {
                 <ToggleLeft v-else class="w-4 h-4" />
                 {{ plugin.enabled ? $t('plugins.enabled') : $t('plugins.disabled') }}
               </button>
+              </div>
+              <!-- Uninstall confirm: placed in the empty area below the
+                   enable toggle / right of the plugin info (was a full-width
+                   bar under the whole card) -->
+              <Transition name="fade">
+                <div
+                  v-if="uninstallTarget === plugin.id"
+                  class="w-64 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3"
+                >
+                  <p class="text-xs text-red-300">
+                    {{ $t('plugins.uninstallConfirm', { name: displayName(plugin) }) }}
+                  </p>
+                  <div class="flex gap-2 mt-2 justify-end">
+                    <button
+                      @click="confirmUninstall"
+                      class="px-3 py-1.5 rounded-full text-xs bg-red-500 text-red-950 font-medium hover:bg-red-400"
+                    >
+                      {{ $t('plugins.uninstall') }}
+                    </button>
+                    <button
+                      @click="cancelUninstall"
+                      class="px-3 py-1.5 rounded-full text-xs bg-surface-variant/40 hover:bg-surface-variant"
+                    >
+                      {{ $t('plugins.cancel') }}
+                    </button>
+                  </div>
+                </div>
+              </Transition>
             </div>
           </div>
-          <!-- Uninstall confirm bar -->
-          <Transition name="fade">
-            <div
-              v-if="uninstallTarget === plugin.id"
-              class="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3"
-            >
-              <p class="text-xs text-red-300">
-                {{ $t('plugins.uninstallConfirm', { name: plugin.name }) }}
-              </p>
-              <div class="flex gap-2 mt-2">
-                <button
-                  @click="confirmUninstall"
-                  class="px-3 py-1.5 rounded-full text-xs bg-red-500 text-red-950 font-medium hover:bg-red-400"
-                >
-                  {{ $t('plugins.uninstall') }}
-                </button>
-                <button
-                  @click="cancelUninstall"
-                  class="px-3 py-1.5 rounded-full text-xs bg-surface-variant/40 hover:bg-surface-variant"
-                >
-                  {{ $t('plugins.cancel') }}
-                </button>
-              </div>
-            </div>
-          </Transition>
           <!-- Soundpad panel: ui.route === 'buttons' -->
           <div
             v-if="plugin.ui?.route === 'buttons' && plugin.loaded"
