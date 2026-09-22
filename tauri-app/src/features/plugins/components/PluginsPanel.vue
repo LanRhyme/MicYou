@@ -22,14 +22,31 @@ import { usePlugins, type PluginView } from '../composables/usePlugins';
 // 首次挂载即拉取插件列表（单例状态，两个入口共享）
 const p = usePlugins();
 const { locale } = useI18n();
-function displayName(plugin: { name: string; nameI18n?: Record<string, string> }): string {
-  const loc = locale.value;
-  if (plugin.nameI18n && plugin.nameI18n[loc]) return plugin.nameI18n[loc];
-  // 匹配前缀（如 zh-CN → zh）
+
+function pickI18n(map: Record<string, string> | undefined, fallback: string): string {
+  if (!map) return fallback;
+  const loc = locale.value.toLowerCase();
   const base = loc.split('-')[0];
-  if (plugin.nameI18n && plugin.nameI18n[base]) return plugin.nameI18n[base];
-  return plugin.name;
+  const entries = Object.entries(map);
+  // 精确（原样/小写）→ 语言前缀双向（宿主 zh 命中插件 zh-CN，反之亦然）
+  const direct = map[locale.value] ?? entries.find(([k]) => k.toLowerCase() === loc)?.[1];
+  if (direct) return direct;
+  const prefixed = map[base] ?? entries.find(([k]) => k.toLowerCase().split('-')[0] === base)?.[1];
+  return prefixed ?? fallback;
 }
+
+function displayName(plugin: { name: string; nameI18n?: Record<string, string> }): string {
+  return pickI18n(plugin.nameI18n, plugin.name);
+}
+
+// 描述本地化：descriptionI18n 命中当前语言（或语言前缀）时优先，否则回退基础描述
+function displayDescription(plugin: {
+  description?: string | null;
+  descriptionI18n?: Record<string, string>;
+}): string {
+  return pickI18n(plugin.descriptionI18n, plugin.description ?? '');
+}
+
 const dragOver = ref(false);
 let unlistenDragDrop: (() => void) | null = null;
 
@@ -80,6 +97,7 @@ watch(
   () => [p.plugins.value, p.syncStatus.value],
   () => loadUiConfigs(),
 );
+
 function runtimeLabel(runtime: string) {
   return runtime === 'wasm' ? 'WASM' : 'Native';
 }
@@ -175,20 +193,16 @@ async function applyUpdate(id: string) {
         </button>
       </div>
     </div>
-
     <PluginMarketDialog :is-open="marketOpen" @close="marketOpen = false" />
-
     <p v-if="p.error.value" class="px-4 py-2 rounded-lg bg-red-500/10 text-red-400 text-sm">
       {{ p.error.value }}
     </p>
-
     <div
       v-if="p.loading.value && p.plugins.value.length === 0"
       class="py-16 text-center text-on-surface-variant text-sm"
     >
       {{ $t('plugins.loading') }}
     </div>
-
     <div v-else-if="p.plugins.value.length === 0" class="py-16 text-center">
       <p class="text-on-surface-variant text-sm">{{ $t('plugins.noPlugins') }}</p>
       <div class="mt-4 flex items-center justify-center gap-3">
@@ -210,7 +224,7 @@ async function applyUpdate(id: string) {
         <button
           @click="checkUpdates()"
           :disabled="checking"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-variant/40 hover:bg-surface-variant text-on-surface-variant text-sm font-medium disabled:opacity-50"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-variant/40 hover:bg-surface-variant text-on-surface-variant text-sm font-medium"
         >
           <RefreshCw :class="checking ? 'animate-spin' : ''" class="w-4 h-4" />
           {{ $t('plugins.checkUpdates') }}
@@ -235,7 +249,6 @@ async function applyUpdate(id: string) {
         </div>
       </div>
     </div>
-
     <template v-else>
       <!-- Install hint: import zip + open dir -->
       <div
@@ -263,7 +276,6 @@ async function applyUpdate(id: string) {
           </button>
         </div>
       </div>
-
       <!-- Search -->
       <div class="relative">
         <Search
@@ -276,14 +288,12 @@ async function applyUpdate(id: string) {
           class="w-full h-10 pl-9 pr-3 rounded-full bg-surface-variant/20 text-sm text-on-surface outline-none placeholder:text-on-surface-variant/60 focus:ring-1 focus:ring-primary/40"
         />
       </div>
-
       <p
         v-if="filteredPlugins.length === 0"
         class="py-8 text-center text-sm text-on-surface-variant"
       >
         {{ $t('plugins.noPlugins') }}
       </p>
-
       <TransitionGroup name="plug" tag="div" class="space-y-3">
         <div
           v-for="plugin in filteredPlugins"
@@ -319,10 +329,10 @@ async function applyUpdate(id: string) {
                 }}<template v-if="plugin.author"> · {{ plugin.author }}</template>
               </p>
               <p
-                v-if="plugin.description"
+                v-if="displayDescription(plugin)"
                 class="text-xs text-on-surface-variant/80 mt-1 line-clamp-2"
               >
-                {{ plugin.description }}
+                {{ displayDescription(plugin) }}
               </p>
               <p v-if="plugin.error" class="text-xs text-red-400 mt-1">{{ plugin.error }}</p>
               <div v-if="plugin.capabilities.length" class="flex flex-wrap gap-1 mt-2">
@@ -335,8 +345,8 @@ async function applyUpdate(id: string) {
                 </span>
               </div>
             </div>
-
-            <div class="flex items-center gap-2 shrink-0">
+            <div class="flex flex-col items-end gap-3 shrink-0">
+              <div class="flex items-center gap-2">
               <button
                 @click="openDetails(plugin, 'logs')"
                 class="w-9 h-9 rounded-full bg-surface-variant/40 hover:bg-surface-variant flex items-center justify-center transition-all duration-150 active:scale-90"
@@ -372,35 +382,36 @@ async function applyUpdate(id: string) {
                 <ToggleLeft v-else class="w-4 h-4" />
                 {{ plugin.enabled ? $t('plugins.enabled') : $t('plugins.disabled') }}
               </button>
+              </div>
+              <!-- Uninstall confirm: placed in the empty area below the
+                   enable toggle / right of the plugin info (was a full-width
+                   bar under the whole card) -->
+              <Transition name="fade">
+                <div
+                  v-if="uninstallTarget === plugin.id"
+                  class="w-64 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3"
+                >
+                  <p class="text-xs text-red-300">
+                    {{ $t('plugins.uninstallConfirm', { name: displayName(plugin) }) }}
+                  </p>
+                  <div class="flex gap-2 mt-2 justify-end">
+                    <button
+                      @click="confirmUninstall"
+                      class="px-3 py-1.5 rounded-full text-xs bg-red-500 text-red-950 font-medium hover:bg-red-400"
+                    >
+                      {{ $t('plugins.uninstall') }}
+                    </button>
+                    <button
+                      @click="cancelUninstall"
+                      class="px-3 py-1.5 rounded-full text-xs bg-surface-variant/40 hover:bg-surface-variant"
+                    >
+                      {{ $t('plugins.cancel') }}
+                    </button>
+                  </div>
+                </div>
+              </Transition>
             </div>
           </div>
-
-          <!-- Uninstall confirm bar -->
-          <Transition name="fade">
-            <div
-              v-if="uninstallTarget === plugin.id"
-              class="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3"
-            >
-              <p class="text-xs text-red-300">
-                {{ $t('plugins.uninstallConfirm', { name: plugin.name }) }}
-              </p>
-              <div class="flex gap-2 mt-2">
-                <button
-                  @click="confirmUninstall"
-                  class="px-3 py-1.5 rounded-full text-xs bg-red-500 text-red-950 font-medium hover:bg-red-400"
-                >
-                  {{ $t('plugins.uninstall') }}
-                </button>
-                <button
-                  @click="cancelUninstall"
-                  class="px-3 py-1.5 rounded-full text-xs bg-surface-variant/40 hover:bg-surface-variant"
-                >
-                  {{ $t('plugins.cancel') }}
-                </button>
-              </div>
-            </div>
-          </Transition>
-
           <!-- Soundpad panel: ui.route === 'buttons' -->
           <div
             v-if="plugin.ui?.route === 'buttons' && plugin.loaded"
@@ -426,16 +437,17 @@ async function applyUpdate(id: string) {
               {{ $t('plugins.soundpadEmpty') }}
             </p>
           </div>
-
-          <!-- Details dialog: config + logs -->
-          <PluginDetailsDialog
-            :plugin="detailsPlugin"
-            :tab="detailsTab"
-            @close="detailsPlugin = null"
-          />
+          <!-- 注意：PluginDetailsDialog 已移出 v-for，见列表末尾 -->
         </div>
       </TransitionGroup>
     </template>
+
+    <!-- Details dialog: config + logs（单实例，放在列表之外） -->
+    <PluginDetailsDialog
+      :plugin="detailsPlugin"
+      :tab="detailsTab"
+      @close="detailsPlugin = null"
+    />
   </div>
 </template>
 

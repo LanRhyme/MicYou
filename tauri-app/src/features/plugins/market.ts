@@ -50,14 +50,38 @@ export async function loadPluginCatalog(): Promise<PluginCatalog> {
   return (await response.json()) as PluginCatalog;
 }
 
-/** 按当前 locale 取本地化名称（与 PluginsPanel 的 displayName 一致） */
-export function marketPluginName(p: MarketPlugin, locale: string): string {
-  if (!p.nameI18n) return p.name;
+/** locale 匹配（对大小写与区域后缀双向宽容）：
+ *  1. 精确（原样 / 小写）；2. 语言前缀双向（宿主 locale `zh` 命中 `zh-CN`，
+ *  插件键 `zh` 命中宿主 `zh-CN`）；均不命中回退调用方 fallback。
+ *  宿主 locale 取值见 main.ts：zh / zh-hk / zh-tw / zh-ss / en / cat / lzh。 */
+function pickI18n(map: Record<string, string> | undefined, locale: string): string | undefined {
+  if (!map) return undefined;
   const l = locale.toLowerCase();
-  const direct = p.nameI18n[l] || p.nameI18n[locale];
+  const base = l.split('-')[0];
+  const entries = Object.entries(map);
+  const direct =
+    map[locale] ?? entries.find(([k]) => k.toLowerCase() === l)?.[1];
   if (direct) return direct;
-  if (l.startsWith('zh')) {
-    return p.nameI18n['zh-cn'] || p.nameI18n['zh'] || p.name;
-  }
-  return p.name;
+  const prefixed =
+    map[base] ?? entries.find(([k]) => k.toLowerCase().split('-')[0] === base)?.[1];
+  return prefixed;
+}
+
+/** 本地化文本的最小结构视图：市场条目（MarketPlugin）与设置页
+ *  插件视图（PluginView）均满足，避免跨视图类型耦合（TS2345）。 */
+export interface LocalizablePlugin {
+  name: string;
+  nameI18n?: Record<string, string>;
+  description?: string | null;
+  descriptionI18n?: Record<string, string>;
+}
+
+/** 按当前 locale 取本地化名称（与 PluginsPanel 的 displayName 一致） */
+export function marketPluginName(p: LocalizablePlugin, locale: string): string {
+  return pickI18n(p.nameI18n, locale) ?? p.name;
+}
+
+/** 按当前 locale 取本地化描述；无本地化字段（旧插件）回退基础描述 */
+export function marketPluginDescription(p: LocalizablePlugin, locale: string): string {
+  return pickI18n(p.descriptionI18n, locale) ?? p.description ?? '';
 }

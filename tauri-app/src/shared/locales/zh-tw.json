@@ -616,6 +616,7 @@
     "marketLoading": "載入商店目錄…",
     "marketEmpty": "商店暫無外掛程式",
     "marketFailed": "載入商店失敗：{error}",
+    "marketHomepage": "檢視主頁",
     "marketInstall": "安裝",
     "marketInstalling": "安裝中…",
     "marketInstalled": "已安裝",

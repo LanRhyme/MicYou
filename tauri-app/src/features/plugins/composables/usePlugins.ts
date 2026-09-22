@@ -95,12 +95,17 @@ export function usePlugins() {
   async function toggle(plugin: PluginView) {
     busyId.value = plugin.id;
     error.value = null;
+    const stale = plugins.value.find((v) => v.id === plugin.id);
+    if (stale) stale.error = null;
     try {
       await invoke('set_plugin_enabled', { id: plugin.id, enabled: !plugin.enabled });
       await refresh();
     } catch (e) {
       error.value = String(e);
       await refresh();
+      const msg = String(e);
+      const failed = plugins.value.find((v) => v.id === plugin.id);
+      if (failed) failed.error = msg;
     } finally {
       busyId.value = null;
     }

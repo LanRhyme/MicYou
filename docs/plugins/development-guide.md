@@ -47,6 +47,7 @@
 | `ui` | object | 否 | UI 面板注册（kind 为 `ui` 时必填）：`{ route, label, entry? }` |
 | `dsp` | object | 否 | DSP 节点注册（kind 为 `dsp`）：`{ insertAfter?, first?, frameSize?, realtimeSafe }` |
 | `config` | object | 否 | 默认配置（首次启用时合并进插件配置） |
+| `homepage` | string | 否 | 插件主页的 URL，在插件市场点击 查看主页/Homepage 按钮后跳转 |
 | `readmeUrl` | string | 否 | 插件 README 文档的 URL，在插件市场点击 README 按钮后加载并渲染 |
 
 示例（Native DSP 插件）：
@@ -66,6 +67,7 @@
   "kind": "dsp",
   "dsp": { "insertAfter": "AEC", "realtimeSafe": true },
   "config": { "gain": 2.0 },
+  "homepage": "https://github.com/MicYou-Dev/MicYou-Plugins",
   "readmeUrl": "https://github.com/MicYou-Dev/MicYou-Plugins/blob/main/plugin/dev.micyou.example.audioinspector/README.md"
 }
 ```
@@ -110,6 +112,29 @@
 
 - 声明 `updateUrl` 指向远端 manifest JSON，应用内「检查更新」做 semver 对比
 - 有新版时一键更新：下载 zip → 替换安装目录 → 按原状态重新启用
+
+### 本地化适配（nameI18n / descriptionI18n）
+
+宿主 UI（插件管理页卡片、详情对话框、**插件市场页**）会按当前界面语言优先展示本地化文本，缺失时回退基础 `name` / `description`——**旧插件不带这两个字段也能正常展示**，但新插件建议适配：
+
+```json
+{
+  "name": "FocusCapture",
+  "description": "Hotkey-toggled capture of the focused application's audio output…",
+  "nameI18n": { "zh": "焦点声音捕获", "zh-CN": "焦点声音捕获" },
+  "descriptionI18n": {
+    "zh": "快捷键一键捕获当前焦点应用的声音（Windows 进程环回），混入 MicYou 麦克风流。",
+    "zh-CN": "快捷键一键捕获当前焦点应用的声音（Windows 进程环回），混入 MicYou 麦克风流。"
+  }
+}
+```
+
+规则与约定：
+
+- 键为 BCP-47 标签。**宿主界面 locale 的实际取值**为 `zh` / `zh-hk` / `zh-tw` / `zh-ss` / `en` / `cat` / `lzh`（见 `main.ts`），与常见的 `zh-CN` 写法不同；匹配规则对大小写与区域后缀**双向宽容**（精确 → 小写精确 → 语言前缀双向：宿主 `zh` 可命中插件键 `zh-CN`，插件键 `zh` 也可命中宿主 `zh-CN`）→ 回退基础字段。**建议同时提供 `zh` 与 `zh-CN`（及 `en`）**以兼容旧版宿主的精确匹配；
+- 仅影响**展示文本**：`id`、日志、能力名等不参与本地化；面板（panel.html）内部文案请自行用桥接 `locale` API 适配；
+- 市场仓库的 `generate_catalog.ts` 会把这两个字段透传进 `index.json`，市场页据此展示；市场条目（`plugin/<id>/plugin.json`）同样建议携带；
+- `configSchema` 的 label/description 暂不参与本地化（保持单一语言文案）。
 
 ### 运行时选择：WASM 优先
 

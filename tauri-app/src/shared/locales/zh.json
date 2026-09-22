@@ -618,6 +618,7 @@
     "marketLoading": "加载市场目录…",
     "marketEmpty": "市场暂无插件",
     "marketFailed": "加载市场失败：{error}",
+    "marketHomepage": "查看主页", 
     "marketInstall": "安装",
     "marketInstalling": "安装中…",
     "marketInstalled": "已安装",
