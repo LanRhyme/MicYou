@@ -1644,6 +1644,7 @@ import ThemeCatalogDialog from '@/features/theme/components/ThemeCatalogDialog.v
 import EqualizerPanel from '@/features/audio/components/EqualizerPanel.vue';
 import PluginsPanel from '@/features/plugins/components/PluginsPanel.vue';
 import { usePlugins } from '@/features/plugins/composables/usePlugins';
+import { marketPluginName } from '@/features/plugins/market';
 import { usePluginPanelBridge } from '@/shared/composables/usePluginPanelBridge';
 import ThemeSelector from '@/features/theme/components/ThemeSelector.vue';
 import CustomColorPicker from '@/features/theme/components/CustomColorPicker.vue';
@@ -1833,7 +1834,7 @@ const panelSections = computed(() => {
       if (panel.sidebar === false) continue; // 仅窗口页面由插件自主开窗
       out.push({
         id: `panel:${plugin.id}:${panel.id}`,
-        name: `${plugin.name} · ${panel.label}`,
+        name: `${marketPluginName(plugin, locale.value)} · ${panel.label}`,
         icon: LayoutPanelTop,
         panelIcon: panelIcons.value[`${plugin.id}:${panel.id}`],
         pluginId: plugin.id,

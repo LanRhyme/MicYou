@@ -25,12 +25,14 @@ const { locale } = useI18n();
 
 function pickI18n(map: Record<string, string> | undefined, fallback: string): string {
   if (!map) return fallback;
-  const loc = locale.value;
-  if (map[loc]) return map[loc];
-  // 匹配前缀（如 zh-CN → zh）
+  const loc = locale.value.toLowerCase();
   const base = loc.split('-')[0];
-  if (map[base]) return map[base];
-  return fallback;
+  const entries = Object.entries(map);
+  // 精确（原样/小写）→ 语言前缀双向（宿主 zh 命中插件 zh-CN，反之亦然）
+  const direct = map[locale.value] ?? entries.find(([k]) => k.toLowerCase() === loc)?.[1];
+  if (direct) return direct;
+  const prefixed = map[base] ?? entries.find(([k]) => k.toLowerCase().split('-')[0] === base)?.[1];
+  return prefixed ?? fallback;
 }
 
 function displayName(plugin: { name: string; nameI18n?: Record<string, string> }): string {

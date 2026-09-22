@@ -50,16 +50,21 @@ export async function loadPluginCatalog(): Promise<PluginCatalog> {
   return (await response.json()) as PluginCatalog;
 }
 
-/** locale 匹配：精确 → 原样 → 语言前缀（zh-CN → zh-cn/zh） */
+/** locale 匹配（对大小写与区域后缀双向宽容）：
+ *  1. 精确（原样 / 小写）；2. 语言前缀双向（宿主 locale `zh` 命中 `zh-CN`，
+ *  插件键 `zh` 命中宿主 `zh-CN`）；均不命中回退调用方 fallback。
+ *  宿主 locale 取值见 main.ts：zh / zh-hk / zh-tw / zh-ss / en / cat / lzh。 */
 function pickI18n(map: Record<string, string> | undefined, locale: string): string | undefined {
   if (!map) return undefined;
   const l = locale.toLowerCase();
-  const direct = map[l] || map[locale];
+  const base = l.split('-')[0];
+  const entries = Object.entries(map);
+  const direct =
+    map[locale] ?? entries.find(([k]) => k.toLowerCase() === l)?.[1];
   if (direct) return direct;
-  if (l.startsWith('zh')) {
-    return map['zh-cn'] || map['zh'];
-  }
-  return map[l.split('-')[0]];
+  const prefixed =
+    map[base] ?? entries.find(([k]) => k.toLowerCase().split('-')[0] === base)?.[1];
+  return prefixed;
 }
 
 /** 按当前 locale 取本地化名称（与 PluginsPanel 的 displayName 一致） */

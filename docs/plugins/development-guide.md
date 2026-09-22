@@ -121,8 +121,9 @@
 {
   "name": "FocusCapture",
   "description": "Hotkey-toggled capture of the focused application's audio output…",
-  "nameI18n": { "zh-CN": "焦点声音捕获" },
+  "nameI18n": { "zh": "焦点声音捕获", "zh-CN": "焦点声音捕获" },
   "descriptionI18n": {
+    "zh": "快捷键一键捕获当前焦点应用的声音（Windows 进程环回），混入 MicYou 麦克风流。",
     "zh-CN": "快捷键一键捕获当前焦点应用的声音（Windows 进程环回），混入 MicYou 麦克风流。"
   }
 }
@@ -130,7 +131,7 @@
 
 规则与约定：
 
-- 键为 BCP-47 标签；匹配顺序为「精确匹配当前 locale（如 `zh-CN`）→ 语言前缀（`zh-CN` → `zh`）→ 回退基础字段」。建议至少提供 `en` 与你的母语标签；
+- 键为 BCP-47 标签。**宿主界面 locale 的实际取值**为 `zh` / `zh-hk` / `zh-tw` / `zh-ss` / `en` / `cat` / `lzh`（见 `main.ts`），与常见的 `zh-CN` 写法不同；匹配规则对大小写与区域后缀**双向宽容**（精确 → 小写精确 → 语言前缀双向：宿主 `zh` 可命中插件键 `zh-CN`，插件键 `zh` 也可命中宿主 `zh-CN`）→ 回退基础字段。**建议同时提供 `zh` 与 `zh-CN`（及 `en`）**以兼容旧版宿主的精确匹配；
 - 仅影响**展示文本**：`id`、日志、能力名等不参与本地化；面板（panel.html）内部文案请自行用桥接 `locale` API 适配；
 - 市场仓库的 `generate_catalog.ts` 会把这两个字段透传进 `index.json`，市场页据此展示；市场条目（`plugin/<id>/plugin.json`）同样建议携带；
 - `configSchema` 的 label/description 暂不参与本地化（保持单一语言文案）。
