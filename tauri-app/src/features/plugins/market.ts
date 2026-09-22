@@ -67,12 +67,21 @@ function pickI18n(map: Record<string, string> | undefined, locale: string): stri
   return prefixed;
 }
 
+/** 本地化文本的最小结构视图：市场条目（MarketPlugin）与设置页
+ *  插件视图（PluginView）均满足，避免跨视图类型耦合（TS2345）。 */
+export interface LocalizablePlugin {
+  name: string;
+  nameI18n?: Record<string, string>;
+  description?: string | null;
+  descriptionI18n?: Record<string, string>;
+}
+
 /** 按当前 locale 取本地化名称（与 PluginsPanel 的 displayName 一致） */
-export function marketPluginName(p: MarketPlugin, locale: string): string {
+export function marketPluginName(p: LocalizablePlugin, locale: string): string {
   return pickI18n(p.nameI18n, locale) ?? p.name;
 }
 
 /** 按当前 locale 取本地化描述；无本地化字段（旧插件）回退基础描述 */
-export function marketPluginDescription(p: MarketPlugin, locale: string): string {
+export function marketPluginDescription(p: LocalizablePlugin, locale: string): string {
   return pickI18n(p.descriptionI18n, locale) ?? p.description ?? '';
 }
