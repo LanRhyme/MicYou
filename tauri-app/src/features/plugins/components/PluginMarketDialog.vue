@@ -379,7 +379,7 @@ const filteredCatalog = computed(() => {
     return (
       pl.name.toLowerCase().includes(q) ||
       pl.id.toLowerCase().includes(q) ||
-      [marketPluginDescription(pl, locale), marketPluginName(pl, locale)]
+      [marketPluginDescription(pl, locale.value), marketPluginName(pl, locale.value)]
         .join('\n')
         .toLowerCase()
         .includes(q)
