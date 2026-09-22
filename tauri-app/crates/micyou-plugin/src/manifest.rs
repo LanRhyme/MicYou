@@ -366,6 +366,11 @@ pub struct PluginManifest {
     /// Declarative settings schema; the host renders an automatic form.
     #[serde(default)]
     pub config_schema: Option<ConfigSchema>,
+    /// Direct download URL of the plugin package (zip). Used by in-app update
+    /// when present; otherwise the zip URL is derived from `update_url`
+    /// (`.json` → `.zip`). Market catalogs also surface this field.
+    #[serde(default, rename = "downloadUrl", alias = "download_url")]
+    pub download_url: Option<String>,
     /// URL of a remote manifest (JSON) used for update checks. The host
     /// compares the remote version against the installed one.
     #[serde(default)]
