@@ -427,6 +427,10 @@
     "title": "自动传输喵~",
     "desc": "应用启动时自动开始传输喵~"
   },
+  "muteSync": {
+    "title": "同步静音状态喵~",
+    "desc": "桌面端和手机端之间同步静音状态喵~关掉以后，两边的静音互不影响喵~"
+  },
   "error": {
     "suggestionsTitle": "建议喵~",
     "technicalDetails": "技术详情喵:",

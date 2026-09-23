@@ -709,14 +709,18 @@ async fn handle_message(
         }
     }
     if let Some(mute) = msg.mute {
-        let is_muted = mute.is_muted.unwrap_or(false);
-        stats.set_muted(is_muted);
-        plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted: is_muted });
-        run_if_active(active_connection, takeover_token, connection_id, || {
-            println!("Received mute state: {}", is_muted);
-            events.mute_state_changed(is_muted);
-        })
-        .await;
+        // Mute sync disabled (server.json): ignore mute state coming from the
+        // mobile client so it can neither change local state nor the UI.
+        if crate::app_config::load_server_prefs().mute_sync {
+            let is_muted = mute.is_muted.unwrap_or(false);
+            stats.set_muted(is_muted);
+            plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted: is_muted });
+            run_if_active(active_connection, takeover_token, connection_id, || {
+                println!("Received mute state: {}", is_muted);
+                events.mute_state_changed(is_muted);
+            })
+            .await;
+        }
     }
     if let Some(plugin_message) = msg.plugin_message {
         // Cross-device plugin message: route to the bus (local plugins via the

@@ -182,8 +182,11 @@ pub struct ServerState {
 
 impl Default for ServerState {
     fn default() -> Self {
-        let audio_output = crate::audio_output::AudioOutputHandle::spawn();
         let network_stats = Arc::new(NetworkStats::default());
+        // The output engine watches the stats' mute flag directly (CLI/TUI get
+        // the same immediate hard-mute behaviour as the GUI).
+        let audio_output =
+            crate::audio_output::AudioOutputHandle::spawn_with_mute_flag(network_stats.mute_flag());
         let active_connection = Arc::new(Mutex::new(None));
         let active_audio_session = Arc::new(RwLock::new(crate::udp_server::ActiveAudioSession::Inactive));
         let lifecycle = Arc::new(Mutex::new(ServerLifecycleState::default()));

@@ -521,6 +521,11 @@ pub async fn start_server_inner(
                 stats.set_muted(muted);
                 events.mute_state_changed(muted);
                 plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted });
+                // Mute sync disabled (server.json): keep the mute local and do
+                // not push the state to the mobile client.
+                if !crate::app_config::load_server_prefs().mute_sync {
+                    return Ok(());
+                }
                 let mute_msg = micyou_protocol::micyou::MessageWrapper {
                     audio_packet: None,
                     connect: None,
@@ -984,6 +989,17 @@ pub async fn start_server_inner(
                                     (raw, processed)
                                 };
 
+                                // Local hard-mute: the output engine drops the
+                                // audio itself; additionally report silence so
+                                // UI meters and plugin snapshots read zero
+                                // levels while muted.
+                                let muted_now = stats_audio.is_muted();
+                                let (input_rms, processed_rms) = if muted_now {
+                                    (0.0, 0.0)
+                                } else {
+                                    (input_rms, processed_rms)
+                                };
+
                                 // 写入精确的 RMS 供插件 API 读取
                                 stats_audio.set_levels(input_rms, processed_rms);
 
@@ -997,7 +1013,12 @@ pub async fn start_server_inner(
                                     if spectrum_streaming_enabled
                                         .load(std::sync::atomic::Ordering::Acquire)
                                     {
-                                        let (raw_spec, proc_spec) = dsp_processor.get_spectrums();
+                                        let (mut raw_spec, mut proc_spec) =
+                                            dsp_processor.get_spectrums();
+                                        if muted_now {
+                                            raw_spec.iter_mut().for_each(|v| *v = 0.0);
+                                            proc_spec.iter_mut().for_each(|v| *v = 0.0);
+                                        }
                                         events_audio.audio_spectrum(raw_spec, proc_spec);
                                     }
                                 }

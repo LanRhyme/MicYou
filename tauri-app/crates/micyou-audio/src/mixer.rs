@@ -70,6 +70,11 @@ impl SoundMixer {
         self.effects.is_empty()
     }
 
+    /// Drop every queued effect immediately (used when output is hard-muted)
+    pub fn clear(&mut self) {
+        self.effects.clear();
+    }
+
     /// Mix all playing mono effects into `data` (interleaved, `channels` per
     /// frame), advancing each effect's play position
     /// Effects that finish are removed

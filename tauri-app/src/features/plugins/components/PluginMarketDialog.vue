@@ -357,6 +357,7 @@ import {
   loadPluginCatalog,
   marketPluginName,
   marketPluginDescription,
+  hasLocalizedDescription,
   PLUGIN_CONTRIBUTING_URL,
   type MarketPlugin,
 } from '../market';
@@ -373,7 +374,7 @@ const marketQuery = ref('');
 const kindFilter = ref<string>('all');
 const filteredCatalog = computed(() => {
   const q = marketQuery.value.trim().toLowerCase();
-  return catalog.value.plugins.filter((pl) => {
+  const matched = catalog.value.plugins.filter((pl) => {
     if (kindFilter.value !== 'all' && pl.kind !== kindFilter.value) return false;
     if (!q) return true;
     return (
@@ -385,6 +386,13 @@ const filteredCatalog = computed(() => {
         .includes(q)
     );
   });
+  // 优先展示当前语言下有本地化描述的插件；稳定分区，组内保持目录原顺序
+  const localized: MarketPlugin[] = [];
+  const others: MarketPlugin[] = [];
+  for (const pl of matched) {
+    (hasLocalizedDescription(pl, locale.value) ? localized : others).push(pl);
+  }
+  return [...localized, ...others];
 });
 
 const isLoading = ref(false);

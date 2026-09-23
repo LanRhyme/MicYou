@@ -15,6 +15,7 @@
 
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering};
+use std::sync::Arc;
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -37,7 +38,12 @@ pub struct NetworkStats {
     pub tcp_connected_time_ms: AtomicU64,
     pub bitrate: AtomicU32,
     pub sample_rate: AtomicU32,
-    pub is_muted: AtomicBool,
+    /// Shared hard-mute flag. The audio output engine watches this very
+    /// AtomicBool, so flipping the mute state silences the cpal stream (and
+    /// drops everything queued) within one device callback period.
+    /// (NetworkStats itself is never serialized — the frontend receives
+    /// AudioMetrics via `to_metrics` — so no serde attribute is needed here.)
+    pub is_muted: Arc<AtomicBool>,
     pub channels: AtomicU32,
     pub input_level_bits: AtomicU32,
     pub processed_level_bits: AtomicU32,
@@ -54,7 +60,7 @@ impl Default for NetworkStats {
             tcp_connected_time_ms: AtomicU64::new(0),
             bitrate: AtomicU32::new(0),
             sample_rate: AtomicU32::new(0),
-            is_muted: AtomicBool::new(false),
+            is_muted: Arc::new(AtomicBool::new(false)),
             channels: AtomicU32::new(0),
             input_level_bits: AtomicU32::new(0f32.to_bits()),
             processed_level_bits: AtomicU32::new(0f32.to_bits()),
@@ -118,6 +124,10 @@ impl NetworkStats {
     }
     pub fn is_muted(&self) -> bool {
         self.is_muted.load(Ordering::Relaxed)
+    }
+    /// Clone of the shared mute flag, for wiring into the audio output engine.
+    pub fn mute_flag(&self) -> Arc<AtomicBool> {
+        self.is_muted.clone()
     }
 
     pub fn set_audio_info(&self, sample_rate: u32, bitrate: u32, channels: u32) {

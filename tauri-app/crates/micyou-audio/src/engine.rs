@@ -19,7 +19,7 @@ use ringbuf::{HeapRb, Producer};
 use rubato::audioadapter::{Adapter, AdapterMut};
 use rubato::audioadapter_buffers::owned::InterleavedOwned;
 use rubato::{Async, FixedAsync, PolynomialDegree, Resampler};
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 
 const BUFFER_HEADROOM_MS: usize = 300;
@@ -175,6 +175,15 @@ pub struct AudioOutputManager {
     #[allow(dead_code)]
     monitor_resample_buffer: Vec<f32>,
     is_monitoring: bool,
+
+    /// Hard-mute gate shared with the owner (desktop `NetworkStats::is_muted`):
+    /// while set, pushed audio is dropped, pending effects are discarded and
+    /// the output callbacks drain their rings and emit pure silence, so muting
+    /// takes effect within one device callback period.
+    muted: Arc<AtomicBool>,
+    /// Last observed value of `muted`, used to detect transitions on the
+    /// device thread (e.g. to clear queued sound effects when muting).
+    was_muted: bool,
     #[cfg(target_os = "linux")]
     pw_loopback_child: Option<std::process::Child>,
 }
@@ -187,6 +196,13 @@ impl Default for AudioOutputManager {
 
 impl AudioOutputManager {
     pub fn new() -> Self {
+        Self::with_mute_flag(Arc::new(AtomicBool::new(false)))
+    }
+
+    /// Create a manager whose hard-mute gate is driven by an externally owned
+    /// flag, so every mute toggle (GUI, tray, plugins, phone) silences the
+    /// output stream immediately without extra plumbing.
+    pub fn with_mute_flag(muted: Arc<AtomicBool>) -> Self {
         Self {
             stream: None,
             producer: None,
@@ -206,9 +222,41 @@ impl AudioOutputManager {
             monitor_resample_buffer: Vec::new(),
             is_monitoring: false,
             mixer: crate::mixer::SoundMixer::new(),
+            muted,
+            was_muted: false,
             #[cfg(target_os = "linux")]
             pw_loopback_child: None,
         }
+    }
+
+    /// Clone of the shared flag driving the output mute gate.
+    pub fn mute_flag(&self) -> Arc<AtomicBool> {
+        self.muted.clone()
+    }
+
+    /// Set the hard-mute state. While muted, the output callbacks drain their
+    /// rings and emit silence and pushed audio is dropped instead of queued.
+    pub fn set_muted(&mut self, muted: bool) {
+        self.muted.store(muted, Ordering::Relaxed);
+        self.sync_mute_transition();
+    }
+
+    /// Observe the shared flag on the device thread: when mute was toggled
+    /// elsewhere (e.g. `NetworkStats::set_muted`), drop queued sound effects
+    /// so they cannot play after unmute. Returns the current mute state.
+    fn sync_mute_transition(&mut self) -> bool {
+        let muted = self.muted.load(Ordering::Relaxed);
+        if muted != self.was_muted {
+            self.was_muted = muted;
+            if muted {
+                self.mixer.clear();
+            }
+        }
+        muted
+    }
+
+    pub fn is_muted(&self) -> bool {
+        self.muted.load(Ordering::Relaxed)
     }
 
     pub fn set_monitoring(&mut self, enabled: bool) {
@@ -293,9 +341,22 @@ impl AudioOutputManager {
                 SampleFormat::F32 => {
                     let underrun_counter = Arc::new(AtomicU32::new(0));
                     let mut last_sample = 0.0f32;
+                    let muted_flag = self.muted.clone();
                     device.build_output_stream(
                         &stream_config,
                         move |data: &mut [f32], _: &OutputCallbackInfo| {
+                            if muted_flag.load(Ordering::Relaxed) {
+                                // Hard-muted: drop everything queued and emit pure
+                                // silence so muting takes effect within this
+                                // callback period.
+                                while consumer.pop().is_some() {}
+                                for sample in data.iter_mut() {
+                                    *sample = 0.0;
+                                }
+                                last_sample = 0.0;
+                                underrun_counter.store(0, Ordering::Relaxed);
+                                return;
+                            }
                             for sample in data.iter_mut() {
                                 match consumer.pop() {
                                     Some(s) => {
@@ -319,9 +380,22 @@ impl AudioOutputManager {
                 SampleFormat::I16 => {
                     let underrun_counter = Arc::new(AtomicU32::new(0));
                     let mut last_sample = 0.0f32;
+                    let muted_flag = self.muted.clone();
                     device.build_output_stream(
                         &stream_config,
                         move |data: &mut [i16], _: &OutputCallbackInfo| {
+                            if muted_flag.load(Ordering::Relaxed) {
+                                // Hard-muted: drop everything queued and emit pure
+                                // silence so muting takes effect within this
+                                // callback period.
+                                while consumer.pop().is_some() {}
+                                for sample in data.iter_mut() {
+                                    *sample = 0;
+                                }
+                                last_sample = 0.0;
+                                underrun_counter.store(0, Ordering::Relaxed);
+                                return;
+                            }
                             for sample in data.iter_mut() {
                                 let f_sample = match consumer.pop() {
                                     Some(s) => {
@@ -484,9 +558,22 @@ impl AudioOutputManager {
             SampleFormat::F32 => {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
                 let mut last_sample = 0.0f32;
+                let muted_flag = self.muted.clone();
                 device.build_output_stream(
                     &stream_config,
                     move |data: &mut [f32], _: &OutputCallbackInfo| {
+                        if muted_flag.load(Ordering::Relaxed) {
+                            // Hard-muted: drop everything queued and emit pure
+                            // silence so muting takes effect within this
+                            // callback period.
+                            while consumer.pop().is_some() {}
+                            for sample in data.iter_mut() {
+                                *sample = 0.0;
+                            }
+                            last_sample = 0.0;
+                            underrun_counter.store(0, Ordering::Relaxed);
+                            return;
+                        }
                         for sample in data.iter_mut() {
                             match consumer.pop() {
                                 Some(s) => {
@@ -510,9 +597,22 @@ impl AudioOutputManager {
             SampleFormat::I16 => {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
                 let mut last_sample = 0.0f32;
+                let muted_flag = self.muted.clone();
                 device.build_output_stream(
                     &stream_config,
                     move |data: &mut [i16], _: &OutputCallbackInfo| {
+                        if muted_flag.load(Ordering::Relaxed) {
+                            // Hard-muted: drop everything queued and emit pure
+                            // silence so muting takes effect within this
+                            // callback period.
+                            while consumer.pop().is_some() {}
+                            for sample in data.iter_mut() {
+                                *sample = 0;
+                            }
+                            last_sample = 0.0;
+                            underrun_counter.store(0, Ordering::Relaxed);
+                            return;
+                        }
                         for sample in data.iter_mut() {
                             let f_sample = match consumer.pop() {
                                 Some(s) => {
@@ -567,6 +667,12 @@ impl AudioOutputManager {
     }
 
     pub fn push_audio_data(&mut self, data: &[f32], input_channels: usize) {
+        if self.sync_mute_transition() {
+            // Hard-muted: drop the audio instead of queueing it (both virtual
+            // mic and monitor). The output callback is already draining what
+            // was buffered and emitting silence.
+            return;
+        }
         // Plugin sound effects are mixed into the virtual mic stream so the
         // remote peer hears them exactly like microphone audio
         if !self.mixer.is_empty() && !data.is_empty() && input_channels > 0 {
@@ -629,6 +735,10 @@ impl AudioOutputManager {
 
     /// Queue a mono sound effect mixed into the virtual mic output
     pub fn push_sound_effect(&mut self, samples: Vec<f32>, gain: f32) {
+        if self.sync_mute_transition() {
+            // Hard-muted: no audio of any kind may be output
+            return;
+        }
         self.mixer.add(samples, gain);
     }
 

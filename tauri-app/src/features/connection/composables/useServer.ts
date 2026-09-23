@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import QRCode from 'qrcode';
 import { sendNotification, isPermissionGranted, requestPermission } from '@tauri-apps/plugin-notification';
 import { analyzeError, generateErrorDetails, type ConnectionErrorDetails } from '../utils/connectionError';
+import { muteSyncEnabled } from './useMuteSync';
 
 // Connection modes supported by the application
 export type ConnectionMode = 'wifi' | 'usb' | 'web';
@@ -448,6 +449,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     bindAddress?: string;
     autoBind?: boolean;
     outputDevice?: string;
+    muteSync?: boolean;
   }
 
   async function loadServerPrefs() {
@@ -474,6 +476,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
         outputDevice.value = prefs.outputDevice;
         localStorage.setItem('micyou_output_device', prefs.outputDevice);
       }
+      if (prefs.muteSync !== undefined) muteSyncEnabled.value = prefs.muteSync;
     } catch (e) {
       console.error('Failed to load server prefs:', e);
     }
@@ -491,12 +494,13 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
           bindAddress: isAutoBind.value ? '0.0.0.0' : selectedIp.value,
           autoBind: isAutoBind.value,
           outputDevice: outputDevice.value || '',
+          muteSync: muteSyncEnabled.value,
         },
       }).catch((e) => console.error('Failed to save server prefs:', e));
     }, 500);
   }
   watch(
-    [connectionMode, serverPort, webPort, isAutoBind, selectedIp, outputDevice],
+    [connectionMode, serverPort, webPort, isAutoBind, selectedIp, outputDevice, muteSyncEnabled],
     persistServerPrefs,
   );
 

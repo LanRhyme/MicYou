@@ -147,6 +147,12 @@ pub async fn set_mute_state(
     state.plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted: is_muted });
     let _ = app.emit("mute-state-changed", is_muted);
 
+    // Mute sync disabled (server.json): keep the mute local and do not push
+    // the state to the mobile client.
+    if !crate::app_config::load_server_prefs().mute_sync {
+        return Ok(());
+    }
+
     let mute_msg = micyou_protocol::micyou::MessageWrapper {
         audio_packet: None,
         connect: None,
