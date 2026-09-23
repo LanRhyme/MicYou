@@ -41,10 +41,8 @@ pub struct NetworkStats {
     /// Shared hard-mute flag. The audio output engine watches this very
     /// AtomicBool, so flipping the mute state silences the cpal stream (and
     /// drops everything queued) within one device callback period.
-    /// Skipped by serde: `Arc<AtomicBool>` is not serializable without the
-    /// discouraged "rc" feature, and nothing consumes a serialized
-    /// NetworkStats (the frontend receives AudioMetrics via `to_metrics`).
-    #[serde(skip)]
+    /// (NetworkStats itself is never serialized — the frontend receives
+    /// AudioMetrics via `to_metrics` — so no serde attribute is needed here.)
     pub is_muted: Arc<AtomicBool>,
     pub channels: AtomicU32,
     pub input_level_bits: AtomicU32,
