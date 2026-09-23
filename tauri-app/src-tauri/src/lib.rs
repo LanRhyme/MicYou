@@ -24,6 +24,7 @@ pub mod commands;
 pub mod events;
 pub mod jitter_buffer;
 pub mod mode_lock;
+pub mod net_bind;
 pub mod network;
 pub mod opus;
 #[cfg(target_os = "linux")]

@@ -188,9 +188,10 @@ impl Default for ServerState {
         let audio_output =
             crate::audio_output::AudioOutputHandle::spawn_with_mute_flag(network_stats.mute_flag());
         let active_connection = Arc::new(Mutex::new(None));
-        let active_audio_session = Arc::new(RwLock::new(crate::udp_server::ActiveAudioSession::Inactive));
+        let active_audio_session =
+            Arc::new(RwLock::new(crate::udp_server::ActiveAudioSession::Inactive));
         let lifecycle = Arc::new(Mutex::new(ServerLifecycleState::default()));
-        
+
         #[cfg(feature = "web-server")]
         let web_server = Arc::new(Mutex::new(None));
 
@@ -214,7 +215,8 @@ impl Default for ServerState {
                 active_connection,
                 active_audio_session,
                 lifecycle,
-                #[cfg(feature = "web-server")] web_server.clone(),
+                #[cfg(feature = "web-server")]
+                web_server.clone(),
             )),
             #[cfg(feature = "web-server")]
             web_server,
@@ -299,7 +301,7 @@ pub fn query_network_interfaces() -> Vec<NetworkInterfaceInfo> {
             .then_with(|| a.1.cmp(&b.1))
     });
 
-    let result: Vec<NetworkInterfaceInfo> = candidates
+    let mut result: Vec<NetworkInterfaceInfo> = candidates
         .into_iter()
         .map(|(ip, name)| NetworkInterfaceInfo {
             ip: ip.to_string(),
@@ -307,7 +309,29 @@ pub fn query_network_interfaces() -> Vec<NetworkInterfaceInfo> {
         })
         .collect();
 
+    // Append bindable IPv6 addresses (ULA/GUA) after every IPv4 entry, so
+    // consumers that pick the first address keep seeing the same best IPv4
+    // as before. On hosts without IPv6 this list is empty and nothing
+    // changes.
+    result.extend(
+        crate::net_bind::collect_ipv6_interfaces(VIRTUAL_KEYWORDS)
+            .into_iter()
+            .map(|(ip, name)| NetworkInterfaceInfo {
+                ip: ip.to_string(),
+                interface_name: name,
+            }),
+    );
+
     if result.is_empty() {
+        // Diagnostic for the "dropdown only shows 127.0.0.1" case: no
+        // bindable address survived the filters. Link-local IPv6 (fe80::/10)
+        // is intentionally excluded — its %zone scope is host-local, so it
+        // can never be used by another device to connect.
+        log::info!(
+            "query_network_interfaces: no bindable IPv4/IPv6 addresses found \
+             (virtual/VPN interfaces and link-local fe80:: IPv6 are excluded); \
+             falling back to 127.0.0.1"
+        );
         vec![NetworkInterfaceInfo {
             ip: "127.0.0.1".to_string(),
             interface_name: "Local".to_string(),

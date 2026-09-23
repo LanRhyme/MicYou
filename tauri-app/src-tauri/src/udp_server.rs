@@ -123,17 +123,11 @@ pub async fn start_udp_server(
     ready: tokio::sync::oneshot::Sender<Result<(), String>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let result = (|| -> Result<tokio::net::UdpSocket, Box<dyn Error + Send + Sync>> {
-        let addr: std::net::SocketAddr = format!("{}:{}", bind_address, port).parse()?;
-        let socket2 = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
-        if let Err(e) = socket2.set_recv_buffer_size(2 * 1024 * 1024) {
-            eprintln!(
-                "Warning: Failed to set UDP receive buffer size to 2MB: {}",
-                e
-            );
-        }
-        socket2.bind(&addr.into())?;
-        socket2.set_nonblocking(true)?;
-        let std_socket: std::net::UdpSocket = socket2.into();
+        // IPv6-aware bind helper. For IPv4 this reproduces the legacy logic
+        // exactly (same "host:port" parse, AF_INET, 2MB recv buffer,
+        // non-blocking); IPv6 literals select AF_INET6 instead.
+        let std_socket: std::net::UdpSocket =
+            crate::net_bind::bind_udp_socket(&bind_address, port)?;
         Ok(UdpSocket::from_std(std_socket)?)
     })();
     let socket = match result {
@@ -143,10 +137,51 @@ pub async fn start_udp_server(
             return Err(error);
         }
     };
+    // Additive IPv6 companion socket for the legacy IPv4 auto-bind
+    // ("0.0.0.0"): v6-only on the same port, so IPv4 and IPv6 clients are
+    // each served by their own socket and peer addresses never mix families
+    // (the audio-session gate compares TCP peer IP against UDP source IP).
+    // Failure is non-fatal and only logged. Bound BEFORE signalling ready so
+    // no datagram window is missed.
+    let v6_socket = if crate::net_bind::wants_v6_companion(&bind_address) {
+        match crate::net_bind::bind_udp_socket_v6only(port).and_then(UdpSocket::from_std) {
+            Ok(socket) => {
+                log::info!(
+                    "UDP Audio Server also listening on [::]:{} (IPv6 companion)",
+                    port
+                );
+                Some(socket)
+            }
+            Err(error) => {
+                // stdout on purpose: CLI/TUI users must see why IPv6 is
+                // unavailable; log:: additionally feeds the GUI log file.
+                println!(
+                    "IPv6 companion UDP socket not started: {}{}",
+                    error,
+                    crate::net_bind::companion_failure_hint(&error)
+                );
+                log::warn!("IPv6 companion UDP socket not started: {}", error);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let _ = ready.send(Ok(()));
     println!("UDP Audio Server listening on {}", port);
+    if v6_socket.is_some() {
+        println!("UDP Audio Server also listening on [::]:{} (IPv6)", port);
+    }
 
     let mut buf = vec![0u8; 65535];
+    // Separate receive buffer for the IPv6 companion socket; stays empty
+    // (never written) when there is no companion.
+    let mut buf_v6 = if v6_socket.is_some() {
+        vec![0u8; 65535]
+    } else {
+        Vec::new()
+    };
 
     let mut last_seq: Option<i32> = None;
     let mut total_packets: u64 = 0;
@@ -160,8 +195,8 @@ pub async fn start_udp_server(
                 println!("UDP Server cancelled");
                 break;
             }
-            recv_result = socket.recv_from(&mut buf) => {
-                let (len, addr) = match recv_result {
+            recv_result = crate::net_bind::recv_from_either(&socket, v6_socket.as_ref(), &mut buf, &mut buf_v6) => {
+                let (len, addr, from_v6) = match recv_result {
                     Ok(res) => res,
                     Err(e) => {
                         eprintln!("UDP recv error: {}", e);
@@ -169,7 +204,11 @@ pub async fn start_udp_server(
                     }
                 };
 
-                let Some(payload) = parse_datagram(&buf[..len]) else {
+                // Each socket received into its own buffer (see
+                // net_bind::recv_from_either); everything below is the
+                // untouched legacy processing, family-agnostic via addr.ip().
+                let recv_buf = if from_v6 { &buf_v6[..len] } else { &buf[..len] };
+                let Some(payload) = parse_datagram(recv_buf) else {
                     continue;
                 };
                 match MessageWrapper::decode(payload) {
