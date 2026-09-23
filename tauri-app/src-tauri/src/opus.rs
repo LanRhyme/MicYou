@@ -63,15 +63,6 @@ impl Decoder {
             .decode_float(input, output, false)
             .map_err(|e| e.to_string())
     }
-
-    /// Feed packet-loss concealment for a missing 20 ms frame. Returns the
-    /// number of samples per channel synthesized, or an error string.
-    pub fn decode_plc(&mut self, output: &mut [f32]) -> Result<usize, String> {
-        // An empty packet triggers the decoder's packet-loss concealment.
-        self.raw
-            .decode_float(&[], output, false)
-            .map_err(|e| e.to_string())
-    }
 }
 
 #[cfg(test)]
