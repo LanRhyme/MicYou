@@ -427,6 +427,10 @@
     "title": "自动传输",
     "desc": "应用启时自始传输。"
   },
+  "muteSync": {
+    "title": "同静音",
+    "desc": "桌面与手机同其静音。阖之，则两端互不相闻。"
+  },
   "error": {
     "suggestionsTitle": "建议：",
     "technicalDetails": "详情：",

@@ -85,3 +85,9 @@ export function marketPluginName(p: LocalizablePlugin, locale: string): string {
 export function marketPluginDescription(p: LocalizablePlugin, locale: string): string {
   return pickI18n(p.descriptionI18n, locale) ?? p.description ?? '';
 }
+
+/** 当前 locale 下插件是否提供了可本地化的描述（descriptionI18n 命中语言
+ *  或语言前缀）。市场列表用它把能本地化描述的插件排在前面。 */
+export function hasLocalizedDescription(p: LocalizablePlugin, locale: string): boolean {
+  return pickI18n(p.descriptionI18n, locale) !== undefined;
+}

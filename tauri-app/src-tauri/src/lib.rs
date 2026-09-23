@@ -80,9 +80,12 @@ fn apply_macos_vibrancy(_: &tauri::WebviewWindow) {}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let audio_output = crate::audio_output::AudioOutputHandle::spawn();
-    
     let network_stats = Arc::new(NetworkStats::default());
+    // The output engine watches the stats' mute flag directly: switching to
+    // muted drops queued audio and outputs silence within one callback period.
+    let audio_output =
+        crate::audio_output::AudioOutputHandle::spawn_with_mute_flag(network_stats.mute_flag());
+
     let active_connection = Arc::new(Mutex::new(None));
     let active_audio_session = Arc::new(RwLock::new(crate::udp_server::ActiveAudioSession::Inactive));
     let lifecycle = Arc::new(Mutex::new(server::ServerLifecycleState::default()));

@@ -427,6 +427,10 @@
     "title": "自动串流",
     "desc": "应用启动时自动开始串流"
   },
+  "muteSync": {
+    "title": "同步静音状态",
+    "desc": "桌面端与移动端之间同步静音状态。关闭后，不发送也不接收与移动端同步的静音状态。"
+  },
   "error": {
     "suggestionsTitle": "建议项目：",
     "technicalDetails": "技术详情：",

@@ -429,6 +429,10 @@
     "title": "Auto Stream",
     "desc": "Automatically start streaming when the app launches."
   },
+  "muteSync": {
+    "title": "Sync Mute State",
+    "desc": "Sync the mute state between desktop and mobile. When off, mute changes are neither sent to nor applied from the phone."
+  },
   "error": {
     "suggestionsTitle": "Suggestions:",
     "technicalDetails": "Technical details:",

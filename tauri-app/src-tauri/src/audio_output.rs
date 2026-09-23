@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  */
 
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
 
@@ -40,9 +41,18 @@ pub struct AudioOutputHandle {
 
 impl Default for AudioOutputHandle {
     fn default() -> Self {
+        Self::with_mute_flag(Arc::new(AtomicBool::new(false)))
+    }
+}
+
+impl AudioOutputHandle {
+    /// Spawn the device thread with an externally owned hard-mute flag (the
+    /// engine watches it directly, so mute toggles silence the output within
+    /// one device callback period without any extra command round-trip).
+    fn with_mute_flag(muted: Arc<AtomicBool>) -> Self {
         let (tx, rx) = mpsc::channel::<AudioOutputCommand>();
         std::thread::spawn(move || {
-            let mut manager = micyou_audio::AudioOutputManager::new();
+            let mut manager = micyou_audio::AudioOutputManager::with_mute_flag(muted);
             loop {
                 match rx.recv() {
                     Ok(AudioOutputCommand::Open(device, buffer_ms, reply)) => {
@@ -83,12 +93,18 @@ impl Default for AudioOutputHandle {
         });
         Self { tx }
     }
-}
 
-impl AudioOutputHandle {
     /// Spawn the persistent device thread and return a shared handle.
     pub fn spawn() -> Arc<Self> {
         Arc::new(Self::default())
+    }
+
+    /// Spawn the persistent device thread whose hard-mute gate is driven by
+    /// `muted` — pass `NetworkStats::mute_flag()` so every mute change
+    /// (GUI, tray, floating window, plugins, phone) silences local output
+    /// immediately.
+    pub fn spawn_with_mute_flag(muted: Arc<AtomicBool>) -> Arc<Self> {
+        Arc::new(Self::with_mute_flag(muted))
     }
 
     /// Blocking open of the output device. Idempotent: returns immediately if

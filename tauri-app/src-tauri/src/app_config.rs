@@ -157,6 +157,16 @@ pub struct ServerPrefs {
     pub auto_bind: bool,
     /// Selected output audio device name.
     pub output_device: String,
+    /// Whether mute state is synchronized with the mobile client in both
+    /// directions. When false, the desktop neither sends its mute state to
+    /// the phone nor applies mute state received from it. Defaults to true,
+    /// including for server.json files written before this field existed.
+    #[serde(default = "default_mute_sync")]
+    pub mute_sync: bool,
+}
+
+fn default_mute_sync() -> bool {
+    true
 }
 
 impl Default for ServerPrefs {
@@ -168,6 +178,7 @@ impl Default for ServerPrefs {
             bind_address: "0.0.0.0".to_string(),
             auto_bind: true,
             output_device: String::new(),
+            mute_sync: true,
         }
     }
 }
