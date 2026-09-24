@@ -19,7 +19,8 @@ use tauri_app_lib::tcp_server::DeviceInfo;
 
 /// Log-mode events: print a compact line per event.
 pub struct CliEventSink {
-    /// If true, suppresses frequent logging such as audio levels to prevent terminal spam.
+    /// If true, suppresses the frequent per-second logging (audio levels and
+    /// [stats] network metrics) to prevent terminal spam.
     quiet: bool,
 }
 
@@ -40,6 +41,10 @@ impl ServerEvents for CliEventSink {
     }
 
     fn audio_metrics(&self, metrics: AudioMetrics) {
+        // 每秒触发一次的高频统计：静默模式（-q）下与 [level] 一并屏蔽
+        if self.quiet {
+            return;
+        }
         println!(
             "[stats] latency {} ms (network {} ms) buffer {} ms jitter {:.1} ms loss {:.2}%",
             metrics.latency_ms,

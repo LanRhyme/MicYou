@@ -606,6 +606,8 @@ pub async fn start_server_inner(
                     micyou_plugin::PluginError::Validation(format!("parse updated dsp: {e}"))
                 })?;
                 updated.normalize();
+                // 插件写入 DSP 设置同样不能丢失/残留插件链节点（#347）
+                plugins.reconcile_settings_chain(&mut updated);
                 {
                     let mut guard = dsp.write().map_err(|_| {
                         micyou_plugin::PluginError::Runtime("dsp settings lock error".into())
@@ -623,8 +625,10 @@ pub async fn start_server_inner(
     state.plugins.load_saved_plugins();
 
     let dsp_settings = state.dsp_settings.clone();
-    // Make sure the synthetic "Plugins" node is in the chain when DSP
-    // plugins are registered (runtime-only change, user can reorder).
+    // Sync the runtime chain with the DSP plugin registry: every registered
+    // plugin gets its own `Plugin:<id>` node (issue #347), the legacy
+    // synthetic "Plugins" node is expanded in place, stale nodes are dropped
+    // (runtime-only change, user can reorder).
     state.plugins.ensure_plugin_chain_node(&dsp_settings);
     let output_buffer_ms = dsp_settings
         .read()
@@ -686,7 +690,8 @@ pub async fn start_server_inner(
         }
         let _ = ready_tx.send(Ok(()));
         let mut dsp_processor = DspProcessor::new(dsp_settings.clone(), resource_root);
-        // Attach the plugin DSP stage (runs when the chain reaches "Plugins").
+        // Attach the plugin DSP stage (runs at the legacy "Plugins" node and
+        // at per-plugin "Plugin:<id>" nodes, issue #347).
         if let Some(hook) = plugins_shared.dsp_hook() {
             dsp_processor.set_external_hook(Some(hook));
         }

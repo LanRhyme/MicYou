@@ -94,8 +94,8 @@ enum Commands {
         /// 绑定地址
         #[arg(long)]
         bind: Option<String>,
-        /// 禁用每秒打印的音频电平（level）日志，避免终端刷屏
-        #[arg(long, short = 'q', help = "静默模式：不打印每秒更新的音频电平日志")]
+        /// 禁用每秒打印的音频电平（level）与网络统计（stats）日志，避免终端刷屏
+        #[arg(long, short = 'q', help = "静默模式：不打印每秒更新的音频电平与网络统计日志")]
         quiet: bool,
     },
     /// 显示当前服务状态

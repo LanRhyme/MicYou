@@ -996,7 +996,16 @@ impl TuiApp {
                     "Amplifier" => (format!("{} (AMP)", self.t("gain")), false),
                     "AGC" => (format!("{} (AGC)", self.t("agc")), false),
                     "VAD" => (format!("{} (VAD)", self.t("vad")), false),
-                    other => (other.to_string(), false),
+                    other => {
+                        // Per-plugin DSP node `Plugin:<id>` (issue #347)
+                        if let Some(plugin_id) =
+                            other.strip_prefix(micyou_audio::dsp::PLUGIN_NODE_PREFIX)
+                        {
+                            (format!("Plugin: {plugin_id}"), false)
+                        } else {
+                            (other.to_string(), false)
+                        }
+                    }
                 };
                 let mut spans = vec![
                     Span::styled(
@@ -1528,10 +1537,14 @@ fn handle_key(app: &mut TuiApp, key: KeyEvent, state: &ServerState) -> bool {
 
 /// Persist settings to the shared config file and apply to the running DSP.
 fn sync_settings(settings: &AudioDspSettings, state: &ServerState) {
+    // Re-apply plugin chain reconciliation so TUI edits can neither drop the
+    // per-plugin nodes of registered DSP plugins nor keep stale ones (#347).
+    let mut next = settings.clone();
+    state.plugins.reconcile_settings_chain(&mut next);
     if let Ok(mut lock) = state.dsp_settings.write() {
-        *lock = settings.clone();
+        *lock = next.clone();
     }
-    let _ = crate::config::save_settings(settings);
+    let _ = crate::config::save_settings(&next);
 }
 
 fn sync_chain(settings: &AudioDspSettings, state: &ServerState) {

@@ -24,7 +24,7 @@ use micyou_plugin::host::{
 };
 use micyou_plugin::manifest::{PluginKind, RuntimeKind};
 use micyou_plugin::{PluginError, PluginResult, PluginRuntime};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::Manager;
@@ -375,6 +375,121 @@ impl WindowService {
 
 pub const PLUGIN_NODE_AFTER: &str = "AEC";
 
+/// Reconcile the processing chain's plugin nodes against the live DSP plugin
+/// registry (issue #347: every plugin owns a dedicated `Plugin:<id>` node):
+/// * per-plugin nodes of unregistered plugins (and duplicates) are removed;
+/// * the legacy synthetic `"Plugins"` node expands in place into one node
+///   per registered plugin, keeping the position the user gave it;
+/// * nodes missing for registered plugins are inserted after the last
+///   existing plugin node, else after [`PLUGIN_NODE_AFTER`], else appended.
+///
+/// `registered_ids` must be in registry execution order (see
+/// `PluginDspRegistry::plugin_ids`). Pure function for testability.
+pub fn reconcile_plugin_chain(chain: &mut Vec<String>, registered_ids: &[String]) {
+    use micyou_audio::dsp::{
+        parse_plugin_chain_node, plugin_chain_node, PLUGIN_CHAIN_NODE, PLUGIN_NODE_PREFIX,
+    };
+
+    // Drop plugin nodes whose plugin is no longer registered, plus duplicates.
+    let mut present: HashSet<String> = HashSet::new();
+    chain.retain(|node| {
+        let Some(id) = parse_plugin_chain_node(node) else {
+            return true; // built-in stage or the legacy synthetic node
+        };
+        registered_ids.iter().any(|r| r.as_str() == id) && present.insert(id.to_string())
+    });
+
+    // Expand the legacy synthetic node in place.
+    if let Some(pos) = chain.iter().position(|n| n == PLUGIN_CHAIN_NODE) {
+        chain.remove(pos);
+        let mut insert_at = pos;
+        for id in registered_ids {
+            if !present.insert(id.clone()) {
+                continue; // node already lives elsewhere in the chain
+            }
+            chain.insert(insert_at, plugin_chain_node(id));
+            insert_at += 1;
+        }
+    }
+
+    // Insert nodes for registered plugins that are still missing one.
+    let mut insert_at = chain
+        .iter()
+        .rposition(|n| n.starts_with(PLUGIN_NODE_PREFIX))
+        .map(|p| p + 1)
+        .or_else(|| chain.iter().position(|n| n == PLUGIN_NODE_AFTER).map(|p| p + 1))
+        .unwrap_or(chain.len());
+    for id in registered_ids {
+        if !present.insert(id.clone()) {
+            continue;
+        }
+        chain.insert(insert_at, plugin_chain_node(id));
+        insert_at += 1;
+    }
+}
+
+#[cfg(test)]
+mod chain_tests {
+    use super::reconcile_plugin_chain;
+
+    fn owned(items: &[&str]) -> Vec<String> {
+        items.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn legacy_node_expands_in_place() {
+        let mut chain = owned(&["AEC", "Plugins", "NoiseReduction"]);
+        reconcile_plugin_chain(&mut chain, &owned(&["eq", "comp"]));
+        assert_eq!(
+            chain,
+            owned(&["AEC", "Plugin:eq", "Plugin:comp", "NoiseReduction"])
+        );
+    }
+
+    #[test]
+    fn missing_nodes_insert_after_last_plugin_node() {
+        let mut chain = owned(&["AEC", "NoiseReduction", "Plugin:eq", "VAD"]);
+        reconcile_plugin_chain(&mut chain, &owned(&["eq", "comp"]));
+        assert_eq!(
+            chain,
+            owned(&["AEC", "NoiseReduction", "Plugin:eq", "Plugin:comp", "VAD"])
+        );
+    }
+
+    #[test]
+    fn missing_nodes_insert_after_aec_when_no_plugin_nodes() {
+        let mut chain = owned(&["AEC", "NoiseReduction"]);
+        reconcile_plugin_chain(&mut chain, &owned(&["eq"]));
+        assert_eq!(chain, owned(&["AEC", "Plugin:eq", "NoiseReduction"]));
+
+        // No AEC either → appended at the end.
+        let mut chain = owned(&["NoiseReduction", "VAD"]);
+        reconcile_plugin_chain(&mut chain, &owned(&["eq"]));
+        assert_eq!(chain, owned(&["NoiseReduction", "VAD", "Plugin:eq"]));
+    }
+
+    #[test]
+    fn stale_and_duplicate_nodes_removed() {
+        let mut chain = owned(&["AEC", "Plugin:gone", "Plugin:eq", "Plugin:eq", "VAD"]);
+        reconcile_plugin_chain(&mut chain, &owned(&["eq"]));
+        assert_eq!(chain, owned(&["AEC", "Plugin:eq", "VAD"]));
+    }
+
+    #[test]
+    fn empty_registry_clears_plugin_nodes() {
+        let mut chain = owned(&["AEC", "Plugins", "Plugin:eq", "VAD"]);
+        reconcile_plugin_chain(&mut chain, &[]);
+        assert_eq!(chain, owned(&["AEC", "VAD"]));
+    }
+
+    #[test]
+    fn builtin_chain_untouched_without_plugins() {
+        let mut chain = owned(&["AEC", "NoiseReduction", "Dereverb"]);
+        reconcile_plugin_chain(&mut chain, &[]);
+        assert_eq!(chain, owned(&["AEC", "NoiseReduction", "Dereverb"]));
+    }
+}
+
 impl PluginHost {
     pub fn new(
         output: Arc<crate::audio_output::AudioOutputHandle>,
@@ -635,28 +750,31 @@ impl PluginHost {
         Ok(())
     }
 
+    /// Synchronize the runtime processing chain with the DSP plugin registry
+    /// (see [`reconcile_plugin_chain`]): expands the legacy `"Plugins"` node,
+    /// gives every registered plugin its own `Plugin:<id>` node and drops
+    /// stale ones. Runtime-only change — persistence happens through the
+    /// normal settings save paths (user can reorder the nodes freely).
     pub fn ensure_plugin_chain_node(
         &self,
         dsp_settings: &Arc<RwLock<micyou_audio::dsp::AudioDspSettings>>,
     ) {
-        if !self.dsp_registry.is_active() {
-            return;
-        }
+        let ids = self.dsp_registry.plugin_ids();
         if let Ok(mut settings) = dsp_settings.write() {
-            let chain = &mut settings.processing_chain;
-            if chain
-                .iter()
-                .any(|n| n == micyou_audio::dsp::PLUGIN_CHAIN_NODE)
-            {
-                return;
-            }
-            match chain.iter().position(|n| n == PLUGIN_NODE_AFTER) {
-                Some(idx) => {
-                    chain.insert(idx + 1, micyou_audio::dsp::PLUGIN_CHAIN_NODE.to_string());
-                }
-                None => chain.push(micyou_audio::dsp::PLUGIN_CHAIN_NODE.to_string()),
-            }
+            reconcile_plugin_chain(&mut settings.processing_chain, &ids);
         }
+    }
+
+    /// Reconcile the chain inside a settings value about to be applied or
+    /// persisted (GUI `update_audio_settings`, plugin HostApi
+    /// `set_dsp_settings`, TUI sync), so a full-settings write can neither
+    /// drop the nodes of active plugins nor keep stale ones.
+    pub fn reconcile_settings_chain(
+        &self,
+        settings: &mut micyou_audio::dsp::AudioDspSettings,
+    ) {
+        let ids = self.dsp_registry.plugin_ids();
+        reconcile_plugin_chain(&mut settings.processing_chain, &ids);
     }
 
     pub fn dsp_hook(&self) -> Option<micyou_audio::dsp::ExternalDspHook> {

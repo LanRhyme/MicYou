@@ -30,8 +30,11 @@ use rustfft::num_complex::Complex;
 #[cfg(feature = "noise-suppression")]
 use crate::AecFailure;
 
-/// Host-provided DSP stage invoked at the synthetic plugin chain node.
-pub type ExternalDspHook = Box<dyn FnMut(&mut Vec<f32>, usize, f64) + Send>;
+/// Host-provided DSP stage invoked at plugin chain nodes. The first argument
+/// is the chain node name: either the legacy synthetic [`PLUGIN_CHAIN_NODE`]
+/// (runs every registered plugin, in registry order) or a per-plugin node
+/// ([`PLUGIN_NODE_PREFIX`] + plugin id, runs just that plugin).
+pub type ExternalDspHook = Box<dyn FnMut(&str, &mut Vec<f32>, usize, f64) + Send>;
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1080,16 +1083,37 @@ pub struct DspProcessor {
     output_buffer: Vec<f32>,
     to_process_buf: Vec<f32>,
     /// Optional external DSP stage injected by the host (plugin system).
-    /// Invoked when the processing chain reaches the synthetic `"Plugins"`
-    /// node. Kept as a closure so `micyou-audio` stays independent of the
+    /// Invoked when the processing chain reaches a plugin node: the legacy
+    /// synthetic `"Plugins"` node or a per-plugin `"Plugin:<id>"` node.
+    /// Kept as a closure so `micyou-audio` stays independent of the
     /// plugin crate (no dependency cycle).
     external_hook: Option<ExternalDspHook>,
 }
 
-/// Synthetic processing-chain node name that invokes the external plugin DSP
-/// stage. The host inserts it into `AudioDspSettings.processing_chain` at the
-/// desired position (default: right after AEC).
+/// Legacy synthetic processing-chain node that invokes the external plugin
+/// DSP stage for **all** registered plugins at once. Since issue #347 every
+/// plugin normally owns a dedicated [`PLUGIN_NODE_PREFIX`]-prefixed node so
+/// it can be reordered independently; this node is kept for backward
+/// compatibility with persisted settings and still runs every registered
+/// plugin (registry order) when reached.
 pub const PLUGIN_CHAIN_NODE: &str = "Plugins";
+
+/// Prefix of per-plugin processing-chain nodes: `Plugin:<plugin-id>`.
+/// Each registered DSP plugin occupies exactly one such node in
+/// `AudioDspSettings.processing_chain`, at whatever position the user
+/// dragged it to.
+pub const PLUGIN_NODE_PREFIX: &str = "Plugin:";
+
+/// Build the processing-chain node name for a plugin id.
+pub fn plugin_chain_node(plugin_id: &str) -> String {
+    format!("{PLUGIN_NODE_PREFIX}{plugin_id}")
+}
+
+/// Extract the plugin id from a per-plugin chain node name.
+/// Returns `None` for built-in stages and the legacy [`PLUGIN_CHAIN_NODE`].
+pub fn parse_plugin_chain_node(node: &str) -> Option<&str> {
+    node.strip_prefix(PLUGIN_NODE_PREFIX)
+}
 
 const RNNOISE_FRAME_SIZE: usize = 480;
 
@@ -1144,7 +1168,8 @@ impl DspProcessor {
         }
     }
 
-    /// Attach the external plugin DSP stage (see `PLUGIN_CHAIN_NODE`).
+    /// Attach the external plugin DSP stage (see [`PLUGIN_CHAIN_NODE`] and
+    /// [`PLUGIN_NODE_PREFIX`] nodes).
     pub fn set_external_hook(&mut self, hook: Option<ExternalDspHook>) {
         self.external_hook = hook;
     }
@@ -1237,10 +1262,17 @@ impl DspProcessor {
                     self.apply_vad(&mut to_process, settings.vad_threshold);
                 }
                 PLUGIN_CHAIN_NODE => {
-                    // External plugin DSP stage (may be absent). Runs in chain
-                    // position; the host decides where the synthetic node sits.
+                    // Legacy synthetic plugin stage (may be absent): runs
+                    // every registered plugin at this chain position.
                     if let Some(hook) = &mut self.external_hook {
-                        hook(&mut to_process, channels.max(1), queued_ms);
+                        hook(PLUGIN_CHAIN_NODE, &mut to_process, channels.max(1), queued_ms);
+                    }
+                }
+                node if node.starts_with(PLUGIN_NODE_PREFIX) => {
+                    // Per-plugin stage (issue #347): runs just the plugin
+                    // named by this node, at its own position in the chain.
+                    if let Some(hook) = &mut self.external_hook {
+                        hook(node, &mut to_process, channels.max(1), queued_ms);
                     }
                 }
                 _ => {}
@@ -1847,7 +1879,8 @@ mod tests {
         let calls = std::sync::Arc::new(std::sync::Mutex::new(0usize));
         let calls_clone = calls.clone();
         processor.set_external_hook(Some(Box::new(
-            move |data: &mut Vec<f32>, channels: usize, _queued_ms: f64| {
+            move |node: &str, data: &mut Vec<f32>, channels: usize, _queued_ms: f64| {
+                assert_eq!(node, PLUGIN_CHAIN_NODE);
                 assert_eq!(channels, 1);
                 for sample in data.iter_mut() {
                     *sample += 0.5; // visible marker: plugin output
@@ -1877,7 +1910,7 @@ mod tests {
         let calls = std::sync::Arc::new(std::sync::Mutex::new(0usize));
         let calls_clone = calls.clone();
         processor.set_external_hook(Some(Box::new(
-            move |_data: &mut Vec<f32>, _ch: usize, _q: f64| {
+            move |_node: &str, _data: &mut Vec<f32>, _ch: usize, _q: f64| {
                 *calls_clone.lock().unwrap() += 1;
             },
         )));
@@ -1889,6 +1922,44 @@ mod tests {
             0,
             "hook must not run without the Plugins node"
         );
+    }
+
+    #[test]
+    fn per_plugin_nodes_invoke_hook_in_chain_order() {
+        let settings = Arc::new(RwLock::new(AudioDspSettings {
+            processing_chain: vec![
+                "AEC".to_string(),
+                plugin_chain_node("eq"),
+                "Amplifier".to_string(),
+                plugin_chain_node("comp"),
+            ],
+            ..Default::default()
+        }));
+        let mut processor = DspProcessor::new(settings, None);
+        let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+        let seen_clone = seen.clone();
+        processor.set_external_hook(Some(Box::new(
+            move |node: &str, _data: &mut Vec<f32>, _channels: usize, _queued_ms: f64| {
+                seen_clone.lock().unwrap().push(node.to_string());
+            },
+        )));
+
+        let mut data = vec![0.1f32; 960];
+        processor.process(&mut data, 1, 10.0);
+        assert_eq!(
+            *seen.lock().unwrap(),
+            vec![plugin_chain_node("eq"), plugin_chain_node("comp")],
+            "each per-plugin node must invoke the hook exactly once, in chain order"
+        );
+    }
+
+    #[test]
+    fn plugin_node_helpers_round_trip() {
+        assert_eq!(plugin_chain_node("my.eq"), "Plugin:my.eq");
+        assert_eq!(parse_plugin_chain_node("Plugin:my.eq"), Some("my.eq"));
+        assert_eq!(parse_plugin_chain_node(PLUGIN_CHAIN_NODE), None);
+        assert_eq!(parse_plugin_chain_node("Equalizer"), None);
+        assert_eq!(parse_plugin_chain_node("Plugin:"), Some(""));
     }
 
     #[test]
