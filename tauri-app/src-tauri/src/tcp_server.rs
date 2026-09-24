@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::timeout;
@@ -111,18 +111,116 @@ pub async fn start_tcp_server(
     plugins: Arc<crate::plugins::PluginHost>,
     ready: tokio::sync::oneshot::Sender<Result<(), String>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let listener = match TcpListener::bind(format!("{}:{}", bind_address, port)).await {
+    // IPv6-aware bind: for IPv4 literals and hostnames this is exactly the
+    // legacy `TcpListener::bind(format!("{}:{}", bind_address, port))` path.
+    let bind_target = crate::net_bind::normalize_socket_addr(&bind_address, port);
+    let listener = match crate::net_bind::bind_tcp_listener(&bind_address, port).await {
         Ok(listener) => listener,
         Err(error) => {
             let _ = ready.send(Err(error.to_string()));
             return Err(Box::new(error));
         }
     };
+
+    // Additive IPv6 companion listener for the legacy IPv4 auto-bind
+    // ("0.0.0.0"): also listen on [::] (v6-only) so IPv6 clients can connect
+    // without the user picking an address. The IPv4 listener above is not
+    // touched; a companion failure (no IPv6 stack, port unavailable) is
+    // non-fatal and only logged. Bound BEFORE signalling ready so clients
+    // can never observe a half-started server.
+    let v6_listener = if crate::net_bind::wants_v6_companion(&bind_address) {
+        match crate::net_bind::bind_tcp_listener_v6only(port) {
+            Ok(listener) => {
+                log::info!(
+                    "TCP Control Server also listening on [::]:{} (IPv6 companion)",
+                    port
+                );
+                Some(listener)
+            }
+            Err(error) => {
+                // stdout on purpose: CLI/TUI users must see why IPv6 is
+                // unavailable; log:: additionally feeds the GUI log file.
+                println!(
+                    "IPv6 companion TCP listener not started: {}{}",
+                    error,
+                    crate::net_bind::companion_failure_hint(&error)
+                );
+                log::warn!("IPv6 companion TCP listener not started: {}", error);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let _ = ready.send(Ok(()));
-    println!("TCP Control Server listening on {}:{}", bind_address, port);
+    println!("TCP Control Server listening on {}", bind_target);
+    if v6_listener.is_some() {
+        println!("TCP Control Server also listening on [::]:{} (IPv6)", port);
+    }
 
     let mut clients = JoinSet::new();
     let client_slots = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_CLIENTS));
+
+    // Per-connection setup shared by the IPv4 listener and the IPv6
+    // companion. The body is the legacy accept arm verbatim; both listeners
+    // produce the same (TcpStream, SocketAddr) pair, and handle_client is
+    // address-family agnostic (it only ever uses addr.ip()).
+    macro_rules! accept_client {
+        ($accept_result:expr) => {
+            match $accept_result {
+                Ok((socket, addr)) => {
+                    // Control frames (ping/pong) are ~60 bytes; without
+                    // TCP_NODELAY, Nagle aggregation adds up to ~40ms of
+                    // jitter to the RTT reading. On USB mode the real
+                    // latency is a few ms, so this jitter is very visible.
+                    if let Err(e) = socket.set_nodelay(true) {
+                        log::warn!("Failed to set TCP_NODELAY on client socket: {}", e);
+                    }
+                    let permit = match client_slots.clone().try_acquire_owned() {
+                        Ok(permit) => permit,
+                        Err(_) => {
+                            log::warn!("TCP client limit reached; rejecting {}", addr);
+                            continue;
+                        }
+                    };
+                    println!("New client connected: {}", addr);
+                    let events = events.clone();
+                    let audio_tx = audio_tx.clone();
+                    let stats = stats.clone();
+                    let mode = mode.clone();
+                    let active_connection = active_connection.clone();
+                    let takeover_lock = takeover_lock.clone();
+                    let active_audio_session = active_audio_session.clone();
+                    let plugins = plugins.clone();
+                    let client_cancel = cancel_token.clone();
+                    clients.spawn(async move {
+                        let _permit = permit;
+                        if let Err(e) = handle_client(
+                            socket,
+                            addr,
+                            events,
+                            audio_tx,
+                            stats,
+                            mode,
+                            active_connection,
+                            takeover_lock,
+                            active_audio_session,
+                            plugins,
+                            client_cancel,
+                        )
+                        .await
+                        {
+                            eprintln!("Client {} error: {}", addr, e);
+                        }
+                        println!("Client {} disconnected", addr);
+                    });
+                }
+                Err(e) => eprintln!("Failed to accept TCP connection: {}", e),
+            }
+        };
+    }
+
     loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
@@ -135,54 +233,10 @@ pub async fn start_tcp_server(
                 }
             }
             accept_result = listener.accept() => {
-                match accept_result {
-                    Ok((socket, addr)) => {
-                        // Control frames (ping/pong) are ~60 bytes; without
-                        // TCP_NODELAY, Nagle aggregation adds up to ~40ms of
-                        // jitter to the RTT reading. On USB mode the real
-                        // latency is a few ms, so this jitter is very visible.
-                        if let Err(e) = socket.set_nodelay(true) {
-                            log::warn!("Failed to set TCP_NODELAY on client socket: {}", e);
-                        }
-                        let permit = match client_slots.clone().try_acquire_owned() {
-                            Ok(permit) => permit,
-                            Err(_) => {
-                                log::warn!("TCP client limit reached; rejecting {}", addr);
-                                continue;
-                            }
-                        };
-                        println!("New client connected: {}", addr);
-                        let events = events.clone();
-                        let audio_tx = audio_tx.clone();
-                        let stats = stats.clone();
-                        let mode = mode.clone();
-                        let active_connection = active_connection.clone();
-                        let takeover_lock = takeover_lock.clone();
-                        let active_audio_session = active_audio_session.clone();
-                        let plugins = plugins.clone();
-                        let client_cancel = cancel_token.clone();
-                        clients.spawn(async move {
-                            let _permit = permit;
-                            if let Err(e) = handle_client(
-                                socket,
-                                addr,
-                                events,
-                                audio_tx,
-                                stats,
-                                mode,
-                                active_connection,
-                                takeover_lock,
-                                active_audio_session,
-                                plugins,
-                                client_cancel,
-                            ).await {
-                                eprintln!("Client {} error: {}", addr, e);
-                            }
-                            println!("Client {} disconnected", addr);
-                        });
-                    }
-                    Err(e) => eprintln!("Failed to accept TCP connection: {}", e),
-                }
+                accept_client!(accept_result);
+            }
+            accept_result = accept_v6_companion(v6_listener.as_ref()) => {
+                accept_client!(accept_result);
             }
         }
     }
@@ -207,6 +261,18 @@ pub async fn cleanup_session_state(
     active_audio_session: &SharedActiveAudioSession,
 ) {
     cleanup_session_state_with(active_connection, active_audio_session, force_close_socket).await;
+}
+
+/// Accepts from the optional IPv6 companion listener. When no companion is
+/// configured this future stays pending forever, so the `select!` arm simply
+/// never fires and the IPv4-only behaviour is unchanged.
+async fn accept_v6_companion(
+    listener: Option<&tokio::net::TcpListener>,
+) -> std::io::Result<(tokio::net::TcpStream, std::net::SocketAddr)> {
+    match listener {
+        Some(listener) => listener.accept().await,
+        None => std::future::pending().await,
+    }
 }
 
 async fn cleanup_session_state_with<F>(

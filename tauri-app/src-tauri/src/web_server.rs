@@ -27,6 +27,9 @@ pub struct WebServer {
     client_count: Arc<AtomicUsize>,
     running: Arc<AtomicBool>,
     task: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
+    /// Best-effort IPv6 companion listener task (see `start`). The IPv4
+    /// listener in `task` remains the primary one for lifecycle state.
+    task_v6: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 pub struct GeneratedCert {
@@ -57,6 +60,15 @@ pub fn get_lan_ips() -> Vec<String> {
     ips
 }
 
+/// Bindable LAN IPv6 addresses (ULA/GUA, best first). Additive companion to
+/// `get_lan_ips`, used for the WebSocket origin check and certificate SANs.
+pub fn get_lan_ipv6s() -> Vec<String> {
+    crate::net_bind::collect_ipv6_interfaces(&[])
+        .into_iter()
+        .map(|(ip, _)| ip.to_string())
+        .collect()
+}
+
 pub fn generate_self_signed_cert_pem() -> Result<GeneratedCert, String> {
     let lan_ips = get_lan_ips();
 
@@ -67,6 +79,16 @@ pub fn generate_self_signed_cert_pem() -> Result<GeneratedCert, String> {
         std::net::Ipv4Addr::LOCALHOST,
     )));
     for ip_str in &lan_ips {
+        if let Ok(ip) = ip_str.parse::<IpAddr>() {
+            params.subject_alt_names.push(SanType::IpAddress(ip));
+        }
+    }
+    // IPv6 SANs so browsers reaching the web mode over IPv6 match the cert
+    // (still self-signed; users accept it once, same as for IPv4).
+    params.subject_alt_names.push(SanType::IpAddress(IpAddr::V6(
+        std::net::Ipv6Addr::LOCALHOST,
+    )));
+    for ip_str in &get_lan_ipv6s() {
         if let Ok(ip) = ip_str.parse::<IpAddr>() {
             params.subject_alt_names.push(SanType::IpAddress(ip));
         }
@@ -146,6 +168,43 @@ mod tests {
         let ips = get_lan_ips();
         for ip in &ips {
             assert!(ip.parse::<IpAddr>().is_ok(), "Invalid IP: {}", ip);
+        }
+    }
+
+    #[test]
+    fn test_get_lan_ipv6s_are_bindable() {
+        for ip in get_lan_ipv6s() {
+            let parsed = ip.parse::<IpAddr>().expect("Invalid IPv6 string");
+            match parsed {
+                IpAddr::V6(v6) => {
+                    assert!(crate::net_bind::is_bindable_v6(&v6), "Not bindable: {}", ip)
+                }
+                IpAddr::V4(_) => panic!("get_lan_ipv6s returned IPv4: {}", ip),
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_valid_origin_v4_behavior_unchanged() {
+        assert!(is_valid_origin(None));
+        assert!(is_valid_origin(Some("http://localhost:8443")));
+        assert!(is_valid_origin(Some("http://127.0.0.1:8443")));
+        assert!(!is_valid_origin(Some("https://evil.example.com")));
+        for ip in get_lan_ips() {
+            assert!(is_valid_origin(Some(&format!("https://{}:8443", ip))));
+        }
+    }
+
+    #[test]
+    fn test_is_valid_origin_accepts_ipv6() {
+        // Browsers bracket IPv6 hosts in the Origin header.
+        assert!(is_valid_origin(Some("https://[::1]:8443")));
+        for ip in get_lan_ipv6s() {
+            assert!(
+                is_valid_origin(Some(&format!("https://[{}]:8443", ip))),
+                "origin with [{}] rejected",
+                ip
+            );
         }
     }
 
@@ -243,7 +302,12 @@ fn is_valid_origin(origin: Option<&str>) -> bool {
             let o = o.to_lowercase();
             o.contains("localhost")
                 || o.contains("127.0.0.1")
+                // IPv6 loopback origins arrive bracketed: https://[::1]:8443
+                || o.contains("[::1]")
                 || get_lan_ips().iter().any(|ip| o.contains(ip))
+                // IPv6 LAN origins are bracketed too, but the bare address is
+                // a substring of the bracketed form, so `contains` matches.
+                || get_lan_ipv6s().iter().any(|ip| o.contains(ip))
         }
     }
 }
@@ -484,6 +548,7 @@ impl WebServer {
             client_count: Arc::new(AtomicUsize::new(0)),
             running: Arc::new(AtomicBool::new(false)),
             task: std::sync::Mutex::new(None),
+            task_v6: std::sync::Mutex::new(None),
         }
     }
 
@@ -518,6 +583,9 @@ impl WebServer {
             .route("/alpine.min.js", get(serve_alpine_js))
             .route("/ws", get(handle_websocket))
             .with_state(state);
+        // Clone for the best-effort IPv6 listener started below; the IPv4
+        // serve task keeps consuming the original exactly as before.
+        let app_v6 = app.clone();
 
         // Load TLS certificate
         let cert = load_or_generate_cert_pem()?;
@@ -538,6 +606,7 @@ impl WebServer {
         tls_config.alpn_protocols = vec![b"http/1.1".to_vec()];
 
         let acceptor = TlsAcceptor::from(Arc::new(tls_config));
+        let acceptor_v6 = acceptor.clone();
 
         let addr: SocketAddr = format!("0.0.0.0:{}", port)
             .parse()
@@ -563,6 +632,7 @@ impl WebServer {
             let mut token_guard = self.cancel_token.lock().unwrap();
             *token_guard = new_token.clone();
         }
+        let cancel_v6 = new_token.clone();
         let cancel = new_token;
         let running = self.running.clone();
         let client_count = self.client_count.clone();
@@ -582,6 +652,44 @@ impl WebServer {
         });
         *self.task.lock().unwrap() = Some(task);
 
+        // Best-effort IPv6 companion listener so phones on IPv6-only or
+        // IPv6-preferring networks can reach web mode. It is strictly
+        // additive: the IPv4 listener above is untouched, `only_v6(true)`
+        // keeps the two sockets from conflicting, and a failure here (no
+        // IPv6 stack, port unavailable) only logs and leaves web mode
+        // working exactly as before over IPv4.
+        match crate::net_bind::bind_tcp_listener_v6only(port) {
+            Ok(tcp_v6) => {
+                let (completed_v6, completed_rx_v6) =
+                    tokio::sync::mpsc::channel(MAX_TLS_HANDSHAKES);
+                let tls_listener_v6 = TlsListener {
+                    tcp: tcp_v6,
+                    acceptor: acceptor_v6,
+                    handshake_slots: Arc::new(Semaphore::new(MAX_TLS_HANDSHAKES)),
+                    completed: completed_v6,
+                    completed_rx: completed_rx_v6,
+                };
+                log::info!("Web server listening on https://[::]:{} (IPv6)", port);
+                let task_v6 = tokio::spawn(async move {
+                    axum::serve(tls_listener_v6, app_v6)
+                        .with_graceful_shutdown(async move {
+                            cancel_v6.cancelled().await;
+                        })
+                        .await
+                        .ok();
+                });
+                *self.task_v6.lock().unwrap() = Some(task_v6);
+            }
+            Err(e) => {
+                println!(
+                    "IPv6 web listener not started: {}{}",
+                    e,
+                    crate::net_bind::companion_failure_hint(&e)
+                );
+                log::warn!("IPv6 web listener not started: {}", e);
+            }
+        }
+
         Ok(())
     }
 
@@ -591,6 +699,18 @@ impl WebServer {
         }
         let task = self.task.lock().ok().and_then(|mut task| task.take());
         if let Some(mut task) = task {
+            if tokio::time::timeout(std::time::Duration::from_secs(3), &mut task)
+                .await
+                .is_err()
+            {
+                task.abort();
+                let _ = task.await;
+            }
+        }
+        // Same graceful shutdown for the IPv6 companion listener (it shares
+        // the cancel token cancelled above).
+        let task_v6 = self.task_v6.lock().ok().and_then(|mut task| task.take());
+        if let Some(mut task) = task_v6 {
             if tokio::time::timeout(std::time::Duration::from_secs(3), &mut task)
                 .await
                 .is_err()
