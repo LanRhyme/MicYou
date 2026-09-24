@@ -134,12 +134,18 @@ pub fn list_plugins(state: State<'_, ServerState>) -> Result<Vec<PluginView>, St
         .map(|v| v.id.clone())
         .collect();
     drop(manager);
+    let mut retried = false;
     for id in ids.into_iter() { // 修复 E0277: 明确使用 into_iter()
+        retried = true;
         if let Err(e) = plugins.enable_plugin(&id) {
             if let Some(view) = views.iter_mut().find(|v| v.id == id) {
                 view.error = Some(e.to_string());
             }
         }
+    }
+    if retried {
+        // 懒重载可能注册了新的 DSP 节点：同步运行时处理链（#347）
+        plugins.ensure_plugin_chain_node(&state.dsp_settings);
     }
     Ok(views)
 }
@@ -156,16 +162,22 @@ pub fn set_plugin_enabled(
     } else {
         state.plugins.disable_plugin(&id)
     };
+    if result.is_ok() {
+        // 按注册表同步逐插件链节点 Plugin:<id>（#347）
+        state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
+    }
     result.map_err(|e| e.to_string())
 }
 
 /// Uninstall a plugin (deletes its directory).
 #[tauri::command]
 pub fn uninstall_plugin(state: State<'_, ServerState>, id: String) -> Result<(), String> {
-    state
-        .plugins
-        .uninstall_plugin(&id)
-        .map_err(|e| e.to_string())
+    let result = state.plugins.uninstall_plugin(&id);
+    if result.is_ok() {
+        // 卸载会注销 DSP 节点：同步移除其链节点（#347）
+        state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
+    }
+    result.map_err(|e| e.to_string())
 }
 
 /// Read a plugin's persisted config.
@@ -557,6 +569,8 @@ pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String
             .enable_plugin(&id)
             .map_err(|e| e.to_string())?;
     }
+    // 更新过程先禁用再（按需）重新启用：同步逐插件链节点（#347）
+    state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
     Ok(remote.version)
 }
 
@@ -732,6 +746,8 @@ pub async fn install_plugin_from_url(
         if let Err(e) = state.plugins.enable_plugin(&extracted_id) {
             log::warn!("[plugins] auto-enable after install failed for {extracted_id}: {e}");
         }
+        // 同步逐插件链节点（#347）
+        state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
         Ok(extracted_id)
     })
     .await
@@ -781,6 +797,8 @@ pub fn import_plugin(state: State<'_, ServerState>, source: String) -> Result<St
     if let Err(e) = state.plugins.enable_plugin(&id) {
         log::warn!("[plugins] auto-enable after import failed for {id}: {e}");
     }
+    // 同步逐插件链节点（#347）
+    state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
     Ok(id)
 }
 

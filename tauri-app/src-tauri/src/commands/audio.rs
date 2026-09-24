@@ -86,6 +86,10 @@ pub fn update_audio_settings(
             settings.processing_chain.insert(0, stage);
         }
     }
+    // Keep plugin chain nodes in sync with the live DSP registry (#347): a
+    // full-settings write from the GUI must neither drop the per-plugin nodes
+    // of active plugins nor keep nodes of plugins that are gone.
+    state.plugins.reconcile_settings_chain(&mut settings);
     match state.dsp_settings.write() {
         Ok(mut current) => {
             if settings.aec_enabled && !current.aec_enabled && !aec_supported() {

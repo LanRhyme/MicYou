@@ -1231,7 +1231,7 @@
                     class="flex items-center gap-2 overflow-hidden text-xs text-on-surface-variant font-medium opacity-80 pt-1"
                   >
                     <template v-for="(item, index) in displayChain" :key="item">
-                      <span class="whitespace-nowrap">{{ $t(`settings.audioChain.${item}`) }}</span>
+                      <span class="whitespace-nowrap">{{ chainItemLabel(item) }}</span>
                       <ArrowRight v-if="index < displayChain.length - 1" class="w-3 h-3 shrink-0" />
                     </template>
                   </div>
@@ -1672,6 +1672,7 @@ import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
 import LicensesDialog from './LicensesDialog.vue';
 import AudioChainDialog from '@/features/audio/components/AudioChainDialog.vue';
+import { chainStageLabel } from '@/features/audio/chain';
 import CustomCssDialog from '@/features/theme/components/CustomCssDialog.vue';
 import ThemeCatalogDialog from '@/features/theme/components/ThemeCatalogDialog.vue';
 import EqualizerPanel from '@/features/audio/components/EqualizerPanel.vue';
@@ -2310,6 +2311,10 @@ const updateProcessingChain = (newChain: string[]) => {
 const displayChain = computed(() =>
   isAecSupported ? settings.processingChain : settings.processingChain.filter((i) => i !== 'AEC'),
 );
+
+// 链节点内联预览标签：Plugin:<id> 节点显示插件名而非翻译键（#347）
+const chainItemLabel = (item: string) =>
+  chainStageLabel(item, t, pluginsState.plugins.value, locale.value);
 
 const openDialog = async (name: string) => {
   if (name === 'Contributors') showContributors.value = true;

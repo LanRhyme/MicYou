@@ -70,10 +70,15 @@
                 {{ index + 1 }}
               </div>
 
-              <span
-                class="text-sm font-bold text-on-surface flex-1 min-w-0 truncate pointer-events-none"
-                >{{ chainLabel(item) }}</span
-              >
+              <div class="flex items-center gap-1.5 flex-1 min-w-0 pointer-events-none">
+                <Puzzle
+                  v-if="isPluginNode(item)"
+                  class="w-3.5 h-3.5 shrink-0 text-primary/70"
+                />
+                <span class="text-sm font-bold text-on-surface truncate">{{
+                  chainLabel(item)
+                }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -85,12 +90,19 @@
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { usePlugins } from '@/features/plugins/composables/usePlugins';
-import { invoke } from '@tauri-apps/api/core';
-import { X, GripVertical, RotateCcw, Lock } from '@lucide/vue';
+import { X, GripVertical, RotateCcw, Lock, Puzzle } from '@lucide/vue';
 import { useI18n } from 'vue-i18n';
+import {
+  normalizeChain,
+  chainStageLabel,
+  isPluginNode,
+  type ChainPlugin,
+} from '@/features/audio/chain';
 
 const props = defineProps<{ isOpen: boolean; chain: string[] }>();
 const emit = defineEmits(['close', 'update:chain']);
+
+const { t, locale } = useI18n();
 
 // AEC 在 Linux/Windows 可用；macOS 上隐藏该选项
 const isMacOS =
@@ -99,35 +111,18 @@ const isMacOS =
   !/iPhone|iPad|iPod/.test(navigator.userAgent);
 const isAecSupported = !isMacOS;
 
-// 去重；支持平台强制 AEC 置顶，不支持平台彻底移除 AEC
-const normalizeChain = (chain: string[]) => {
-  const deduped = chain.filter((item, idx) => chain.indexOf(item) === idx);
-  if (!isAecSupported) return deduped.filter((i) => i !== 'AEC');
-  const rest = deduped.filter((i) => i !== 'AEC');
-  return ['AEC', ...rest];
-};
-
 const localChain = ref<string[]>([]);
 
-// DSP 插件启用时，链中注入 'Plugins' 合成节点（可拖拽调整插件处理位置）
+// issue #347：每个启用中的 DSP 插件在链中占用独立的 Plugin:<id> 节点，
+// 可单独拖拽调整处理顺序；旧 'Plugins' 合成节点由 normalizeChain 就地展开
 const pluginsState = usePlugins();
-const hasActiveDsp = computed(() =>
-  pluginsState.plugins.value.some((p) => p.kind === 'dsp' && p.enabled && p.loaded),
+const activeDspPlugins = computed<ChainPlugin[]>(() =>
+  pluginsState.plugins.value.filter((p) => p.kind === 'dsp' && p.enabled && p.loaded),
 );
-// 处理链中插件节点的显示名（启用中的 DSP 插件）
-const activeDspNames = computed(() =>
-  pluginsState.plugins.value
-    .filter((p) => p.kind === 'dsp' && p.enabled && p.loaded)
-    .map((p) => p.name || p.id),
-);
+
+// 处理链节点显示名（插件节点用完整插件列表解析名称，失效节点也能显示）
 function chainLabel(item: string): string {
-  if (item === 'Plugins') {
-    const t = useI18n().t;
-    return activeDspNames.value.length > 0
-      ? `${t('settings.audioChain.Plugins')} · ${activeDspNames.value.join('、')}`
-      : t('settings.audioChain.Plugins');
-  }
-  return useI18n().t(`settings.audioChain.${item}`);
+  return chainStageLabel(item, t, pluginsState.plugins.value, locale.value);
 }
 
 watch(
@@ -135,12 +130,8 @@ watch(
   async (newVal) => {
     if (newVal) {
       await pluginsState.refresh(); // 确保 DSP 插件列表最新（未进过插件页时缓存为空）
-      const chain = normalizeChain(props.chain);
-      if (hasActiveDsp.value && !chain.includes('Plugins')) {
-        const idx = chain.indexOf('AEC');
-        chain.splice(idx >= 0 ? idx + 1 : chain.length, 0, 'Plugins');
-      }
-      localChain.value = chain;
+      // 去重 + AEC 置顶/剔除 + 插件节点对齐（展开旧节点/剔除失效/补插缺失）
+      localChain.value = normalizeChain(props.chain, activeDspPlugins.value, isAecSupported);
     }
   },
 );
@@ -183,9 +174,10 @@ const onPointerMove = (e: PointerEvent) => {
   }
 };
 
-const onPointerUp = async () => {
+const onPointerUp = () => {
   if (draggedIndex.value !== -1) {
-    await invoke('save_audio_chain', { chain: localChain.value }).catch(() => {});
+    // 持久化经 update:chain → SettingsDialog 自动保存 → update_audio_settings；
+    // 后端落库前会按 DSP 注册表再次对齐插件节点
     emit('update:chain', localChain.value);
   }
   draggedIndex.value = -1;
@@ -215,7 +207,8 @@ const resetChain = () => {
     'AGC',
     'VAD',
   ];
-  localChain.value = normalizeChain(defaultChain);
+  // 内置节点复位；启用中的 DSP 插件节点经 normalizeChain 重新插回默认位置
+  localChain.value = normalizeChain(defaultChain, activeDspPlugins.value, isAecSupported);
   emit('update:chain', localChain.value);
 };
 </script>
