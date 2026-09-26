@@ -422,13 +422,13 @@
     "language": "Language",
     "fullscreen": "Full Screen",
     "help": "Help",
+    "website": "Official Website",
     "docs": "Documentation",
     "github": "Project Home",
     "issues": "Report an Issue",
     "sponsors": "Sponsor",
     "openLogDir": "Open Log Folder",
-    "exportLog": "Export Log",
-    "copyVersion": "Copy Version Info"
+    "exportLog": "Export Log"
   },
   "closeConfirm": {
     "title": "Close MicYou",

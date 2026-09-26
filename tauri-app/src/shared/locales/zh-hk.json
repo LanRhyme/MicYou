@@ -420,13 +420,13 @@
     "language": "語言",
     "fullscreen": "全螢幕",
     "help": "輔助說明",
+    "website": "官方網站",
     "docs": "使用文件",
     "github": "專案首頁",
     "issues": "回報問題",
     "sponsors": "贊助支持",
     "openLogDir": "開啟日誌目錄",
-    "exportLog": "匯出日誌",
-    "copyVersion": "複製版本資訊"
+    "exportLog": "匯出日誌"
   },
   "closeConfirm": {
     "title": "確認離開",

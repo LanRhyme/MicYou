@@ -48,13 +48,13 @@ export interface AppMenuCallbacks {
   onSwitchCli: () => void | Promise<void>;
   onSwitchTui: () => void | Promise<void>;
   onLanguage: (code: string) => void | Promise<void>;
+  onWebsite: () => void | Promise<void>;
   onDocs: () => void | Promise<void>;
   onGithub: () => void | Promise<void>;
   onIssues: () => void | Promise<void>;
   onSponsors: () => void | Promise<void>;
   onOpenLogDir: () => void | Promise<void>;
   onExportLog: () => void | Promise<void>;
-  onCopyVersion: () => void | Promise<void>;
 }
 
 /**
@@ -72,13 +72,13 @@ export const MENU_ID_MONITORING = `${APP_MENU_ID_PREFIX}monitoring`;
 export const MENU_ID_POCKET = `${APP_MENU_ID_PREFIX}pocket`;
 export const MENU_ID_SWITCH_CLI = `${APP_MENU_ID_PREFIX}switch_cli`;
 export const MENU_ID_SWITCH_TUI = `${APP_MENU_ID_PREFIX}switch_tui`;
+export const MENU_ID_WEBSITE = `${APP_MENU_ID_PREFIX}website`;
 export const MENU_ID_DOCS = `${APP_MENU_ID_PREFIX}docs`;
 export const MENU_ID_GITHUB = `${APP_MENU_ID_PREFIX}github`;
 export const MENU_ID_ISSUES = `${APP_MENU_ID_PREFIX}issues`;
 export const MENU_ID_SPONSORS = `${APP_MENU_ID_PREFIX}sponsors`;
 export const MENU_ID_LOG_DIR = `${APP_MENU_ID_PREFIX}log_dir`;
 export const MENU_ID_EXPORT_LOG = `${APP_MENU_ID_PREFIX}export_log`;
-export const MENU_ID_COPY_VERSION = `${APP_MENU_ID_PREFIX}copy_version`;
 
 /** Language entries carry the code in the id, so they need a prefix match. */
 export const MENU_ID_LANG_PREFIX = `${APP_MENU_ID_PREFIX}lang:`;
@@ -232,6 +232,7 @@ export function appMenuFromI18n(
       label: t("menu.help"),
       role: "help",
       items: [
+        { kind: "item", id: MENU_ID_WEBSITE, label: t("menu.website") },
         { kind: "item", id: MENU_ID_DOCS, label: t("menu.docs") },
         { kind: "item", id: MENU_ID_GITHUB, label: t("menu.github") },
         { kind: "item", id: MENU_ID_ISSUES, label: t("menu.issues") },
@@ -240,8 +241,6 @@ export function appMenuFromI18n(
         { kind: "separator" },
         { kind: "item", id: MENU_ID_LOG_DIR, label: t("menu.openLogDir") },
         { kind: "item", id: MENU_ID_EXPORT_LOG, label: t("menu.exportLog") },
-        { kind: "separator" },
-        { kind: "item", id: MENU_ID_COPY_VERSION, label: t("menu.copyVersion") },
       ],
     },
   ];
@@ -338,6 +337,9 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: Ref<AppMenuState>
         case MENU_ID_SWITCH_TUI:
           void callbacks.onSwitchTui();
           break;
+        case MENU_ID_WEBSITE:
+          void callbacks.onWebsite();
+          break;
         case MENU_ID_DOCS:
           void callbacks.onDocs();
           break;
@@ -355,9 +357,6 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: Ref<AppMenuState>
           break;
         case MENU_ID_EXPORT_LOG:
           void callbacks.onExportLog();
-          break;
-        case MENU_ID_COPY_VERSION:
-          void callbacks.onCopyVersion();
           break;
         default:
           console.warn("Unknown app-menu-action id:", id);

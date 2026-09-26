@@ -203,9 +203,10 @@ const appMenuState = computed<AppMenuState>(() => ({
   language: locale.value,
 }));
 
-// Help menu targets: the upstream project hosts the docs, the issue tracker and
-// the sponsorship programme.
-const DOCS_URL = 'https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md';
+// Help menu targets: the project site hosts the documentation, the upstream
+// repository hosts the issue tracker and the sponsorship programme.
+const WEBSITE_URL = 'https://micyou.top/';
+const DOCS_URL = 'https://micyou.top/en/docs/quick-start';
 const GITHUB_URL = 'https://github.com/LanRhyme/MicYou';
 const ISSUES_URL = 'https://github.com/LanRhyme/MicYou/issues/new';
 
@@ -233,6 +234,7 @@ useAppMenu(
     onSwitchCli: () => switchToCli(),
     onSwitchTui: () => switchToTui(),
     onLanguage: (code) => settingsDialogRef.value?.setLanguage(code),
+    onWebsite: () => openExternal(WEBSITE_URL),
     onDocs: () => openExternal(DOCS_URL),
     onGithub: () => openExternal(GITHUB_URL),
     onIssues: () => openExternal(ISSUES_URL),
@@ -254,16 +256,6 @@ useAppMenu(
         await invoke('export_log');
       } catch (e) {
         console.error('export_log failed:', e);
-      }
-    },
-    onCopyVersion: async () => {
-      try {
-        const version = await invoke<string>('get_app_version');
-        await navigator.clipboard.writeText(
-          `MicYou ${version} · ${navigator.platform} · ${locale.value}`,
-        );
-      } catch (e) {
-        console.error('copying the version info failed:', e);
       }
     },
   },

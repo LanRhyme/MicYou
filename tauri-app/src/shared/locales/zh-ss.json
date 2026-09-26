@@ -420,13 +420,13 @@
     "language": "语言事项",
     "fullscreen": "全屏事项",
     "help": "帮助事项",
+    "website": "官方网站事项",
     "docs": "使用文档事项",
     "github": "项目主页事项",
     "issues": "反馈问题事项",
     "sponsors": "赞助支持事项",
     "openLogDir": "打开日志目录事项",
-    "exportLog": "导出日志事项",
-    "copyVersion": "复制版本信息事项"
+    "exportLog": "导出日志事项"
   },
   "closeConfirm": {
     "title": "关闭确认标题项",

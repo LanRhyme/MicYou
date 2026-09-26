@@ -420,13 +420,13 @@
     "language": "语言喵~",
     "fullscreen": "全屏喵~",
     "help": "帮助喵~",
+    "website": "官方网站喵~",
     "docs": "使用文档喵~",
     "github": "项目主页喵~",
     "issues": "反馈问题喵~",
     "sponsors": "赞助支持喵~",
     "openLogDir": "打开日志目录喵~",
-    "exportLog": "导出日志喵~",
-    "copyVersion": "复制版本信息喵~"
+    "exportLog": "导出日志喵~"
   },
   "closeConfirm": {
     "title": "关闭确认喵~",
