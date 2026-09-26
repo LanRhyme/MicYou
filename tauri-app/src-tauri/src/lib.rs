@@ -137,10 +137,15 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_notification::init())
         .on_window_event(|window, event| {
-            if matches!(
-                event,
-                tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(_)
-            ) {
+            // This listener fires for every window the app creates, but only the
+            // main window carries the in-app header these controls are aligned to,
+            // so other windows must keep the placement AppKit gives them.
+            if window.label() == "main"
+                && matches!(
+                    event,
+                    tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(_)
+                )
+            {
                 crate::macos_window::reapply(window);
             }
         })
@@ -172,7 +177,11 @@ pub fn run() {
                 // cannot override the per-layout placement, which means the
                 // initial layout has to be requested here.
                 let window = win.as_ref().window();
-                let _ = crate::macos_window::apply(&window, crate::macos_window::Mode::Full);
+                if let Err(e) =
+                    crate::macos_window::apply(&window, crate::macos_window::Mode::Full)
+                {
+                    log::warn!(target: "window", "initial window control layout: {e}");
+                }
             }
 
             {

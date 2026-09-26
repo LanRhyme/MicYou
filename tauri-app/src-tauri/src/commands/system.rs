@@ -1451,9 +1451,7 @@ pub fn apply_macos_window_layout(
     mode: String,
 ) -> Result<crate::macos_window::LayoutMetrics, String> {
     let mode = crate::macos_window::Mode::parse(&mode);
-    let win = app
-        .get_webview_window("main")
-        .ok_or_else(|| "Main window not found".to_string())?;
+    let win = main_window(&app)?;
     crate::macos_window::apply(&win.as_ref().window(), mode)?;
     Ok(mode.metrics())
 }
