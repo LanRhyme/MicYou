@@ -24,6 +24,7 @@ pub mod commands;
 pub mod events;
 pub mod jitter_buffer;
 pub mod macos_window;
+pub mod menubar;
 pub mod mode_lock;
 pub mod network;
 pub mod opus;
