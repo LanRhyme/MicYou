@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue';
-import { getCurrentWindow, LogicalPosition, LogicalSize } from '@tauri-apps/api/window';
+import { getCurrentWindow, LogicalPosition, LogicalSize, currentMonitor } from '@tauri-apps/api/window';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import {
   Link, Unlink, RefreshCw, Minus, X,
@@ -79,6 +79,9 @@ interface OverlayHandle {
 }
 
 const OVERLAY_W = 220;
+const OVERLAY_H = 250;      // default popup height
+const OVERLAY_OFFSET_Y = 2; // gap kept between the bar and the popup
+const OVERLAY_MARGIN = 8;   // gap kept between the popup and the work area edges
 const OVERLAY_LABEL_PREFIX = 'pocket-overlay-';
 
 const overlays: Record<string, OverlayHandle> = {};
@@ -88,14 +91,42 @@ const getOverlay = (id: string): OverlayHandle => {
   return overlays[id];
 };
 
-const positionOverlay = async (align: 'right' | 'left' = 'right', offsetY = 2) => {
-  const mainPos = await appWindow.outerPosition();
-  const mainSize = await appWindow.outerSize();
-  const x = align === 'right'
-    ? Math.round(mainPos.x + mainSize.width - OVERLAY_W)
-    : Math.round(mainPos.x + 12); // left padding of the bar
-  const y = Math.round(mainPos.y + mainSize.height + offsetY);
-  return { x, y };
+// Overlay placement is expressed in LOGICAL pixels: the Tauri window APIs
+// (WebviewWindow options, setPosition) take logical units, while
+// outerPosition()/outerSize() return physical ones, so the raw values have to be
+// converted first -- on a HiDPI display using them as-is scales the popup off
+// screen. The result is then clamped into the work area of the monitor the bar
+// sits on, flipping above the bar when there is no room left below.
+const positionOverlay = async (align: 'right' | 'left' = 'right', height = OVERLAY_H) => {
+  const scale = (await appWindow.scaleFactor()) || 1;
+  const mainPos = (await appWindow.outerPosition()).toLogical(scale);
+  const mainSize = (await appWindow.outerSize()).toLogical(scale);
+
+  let x = align === 'right'
+    ? mainPos.x + mainSize.width - OVERLAY_W
+    : mainPos.x + 12; // left padding of the bar
+  let y = mainPos.y + mainSize.height + OVERLAY_OFFSET_Y;
+
+  try {
+    const monitor = await currentMonitor();
+    if (monitor) {
+      const areaPos = monitor.workArea.position.toLogical(monitor.scaleFactor);
+      const areaSize = monitor.workArea.size.toLogical(monitor.scaleFactor);
+      const minX = areaPos.x + OVERLAY_MARGIN;
+      const minY = areaPos.y + OVERLAY_MARGIN;
+      const maxX = areaPos.x + areaSize.width - OVERLAY_W - OVERLAY_MARGIN;
+      const maxY = areaPos.y + areaSize.height - height - OVERLAY_MARGIN;
+      x = Math.min(Math.max(x, minX), Math.max(minX, maxX));
+
+      const above = mainPos.y - OVERLAY_OFFSET_Y - height;
+      if (y + height > areaPos.y + areaSize.height - OVERLAY_MARGIN && above >= minY) {
+        y = above;
+      }
+      y = Math.min(Math.max(y, minY), Math.max(minY, maxY));
+    }
+  } catch {}
+
+  return { x: Math.round(x), y: Math.round(y) };
 };
 
 const showOverlay = async (h: OverlayHandle) => {
@@ -116,12 +147,12 @@ const syncAndShow = async (id: string, url: string, syncFn: () => void, opts?: {
   syncFn();
 
   if (!h.created || !h.window) {
-    const { x, y } = await positionOverlay(opts?.align);
+    const { x, y } = await positionOverlay(opts?.align, opts?.height ?? OVERLAY_H);
     h.window = new WebviewWindow(OVERLAY_LABEL_PREFIX + id, {
       url,
       title: '',
       width: OVERLAY_W,
-      height: opts?.height ?? 250,
+      height: opts?.height ?? OVERLAY_H,
       x, y,
       parent: 'main',
       decorations: false,
@@ -151,7 +182,7 @@ const syncAndShow = async (id: string, url: string, syncFn: () => void, opts?: {
     opts?.onCreated?.(h);
     h.created = true;
   } else {
-    const { x, y } = await positionOverlay(opts?.align);
+    const { x, y } = await positionOverlay(opts?.align, opts?.height ?? OVERLAY_H);
     try { await h.window.setPosition(new LogicalPosition(x, y)); } catch {}
     try { await h.window.emit('popup-refresh'); } catch {}
     await showOverlay(h);
@@ -224,7 +255,7 @@ const showIpPopup = async () => {
       if (h.window && contentH > 0) {
         try {
           await h.window.setSize(new LogicalSize(OVERLAY_W, contentH + 16));
-          const { x, y } = await positionOverlay('left');
+          const { x, y } = await positionOverlay('left', contentH + 16);
           await h.window.setPosition(new LogicalPosition(x, y));
         } catch {}
       }
