@@ -395,7 +395,7 @@
   },
   "menu": {
     "about": "关于 MicYou",
-    "settings": "设置",
+    "settings": "设置…",
     "services": "服务",
     "hide": "隐 MicYou",
     "hideOthers": "隐其余",
@@ -417,16 +417,16 @@
     "minimize": "最小化",
     "zoom": "缩放",
     "closeWindow": "闭窗",
-    "language": "語",
+    "language": "语言",
     "fullscreen": "全屏",
     "help": "相助",
-    "website": "官网",
+    "website": "官方网页",
     "docs": "典籍",
     "github": "项目主页",
     "issues": "陈情",
     "sponsors": "赞助",
-    "openLogDir": "开日志目录",
-    "exportLog": "出日志"
+    "openLogDir": "开日志所",
+    "exportLog": "出日志牍"
   },
   "closeConfirm": {
     "title": "关闭确认",
