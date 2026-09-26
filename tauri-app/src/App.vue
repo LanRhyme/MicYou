@@ -183,14 +183,27 @@ watchEffect(async () => {
   }
 });
 
-// Revert to full size layout (800x600) when settings modal opens within pocket mode
+// 主窗口内的模态(设置、关闭确认、各类警告、设备/IP 选择器、引导向导)都是窗口内的覆盖层，
+// 在袖珍模式那条 52px 高的窗口里会被裁得只剩一条，因此它们打开时把窗口临时还原成 800x600，
+// 关闭后由下面的 watch 收回袖珍尺寸。新增主窗口内模态时，必须把它的开关加进 pocketModalOpen。
+const pocketModalOpen = computed(() => (
+  isSettingsOpen.value
+  || showOnboarding.value
+  || win.showCloseConfirm.value
+  || server.showErrorDialog.value
+  || server.showQrDialog.value
+  || server.showDeviceSelector.value
+  || server.showIpSwitchConfirm.value
+  || audio.showUdpWarning.value
+  || audio.showMonitoringWarning.value
+));
+
 watchEffect(async () => {
-  if (pocketMode.value && isSettingsOpen.value) {
-    try {
-      await win.appWindow.setSize(new LogicalSize(800, 600));
-    } catch (e) {
-      console.error('Failed to resize window for settings:', e);
-    }
+  if (!pocketMode.value || !pocketModalOpen.value) return;
+  try {
+    await win.appWindow.setSize(new LogicalSize(800, 600));
+  } catch (e) {
+    console.error('Failed to resize window for modal:', e);
   }
 });
 
@@ -224,7 +237,7 @@ function startPocketObserver() {
   const el = pocketContentRef.value;
   if (!el) return;
   pocketObserver = new ResizeObserver((entries) => {
-    if (!pocketMode.value || isSettingsOpen.value) return;
+    if (!pocketMode.value || pocketModalOpen.value) return;
     const entry = entries[0];
     if (!entry) return;
     if (pocketRaf) cancelAnimationFrame(pocketRaf);
@@ -256,15 +269,15 @@ watch(pocketMode, async (isPocket) => {
   if (isPocket) {
     await nextTick();
     startPocketObserver();
-    if (!isSettingsOpen.value) await resizePocketToContent();
+    if (!pocketModalOpen.value) await resizePocketToContent();
   } else {
     stopPocketObserver();
   }
   await applyWindowControlLayout(isPocket ? 'pocket' : 'full');
 }, { immediate: true });
 
-// 设置对话框打开时暂停自适应(由上方 watchEffect 展开到 800)，关闭后恢复自适应宽度
-watch(isSettingsOpen, async (open) => {
+// 模态打开时暂停自适应(由上方 watchEffect 展开到 800)，关闭后恢复自适应宽度
+watch(pocketModalOpen, async (open) => {
   if (!pocketMode.value) return;
   if (open) {
     stopPocketObserver();
