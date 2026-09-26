@@ -418,7 +418,17 @@
     "selectAll": "全选",
     "minimize": "最小化",
     "zoom": "缩放",
-    "closeWindow": "关闭窗口"
+    "closeWindow": "关闭窗口",
+    "language": "语言",
+    "fullscreen": "全屏",
+    "help": "帮助",
+    "docs": "使用文档",
+    "github": "项目主页",
+    "issues": "反馈问题",
+    "sponsors": "赞助支持",
+    "openLogDir": "打开日志目录",
+    "exportLog": "导出日志",
+    "copyVersion": "复制版本信息"
   },
   "closeConfirm": {
     "title": "关闭 MicYou",

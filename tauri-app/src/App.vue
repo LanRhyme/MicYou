@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, watchEffect, watch, nextTick } f
 import { useStorage, onClickOutside } from '@vueuse/core';
 import { LogicalSize } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useI18n } from 'vue-i18n';
 
 // UI icons imported from lucide-vue
@@ -46,7 +47,7 @@ if (isMacOS && typeof document !== 'undefined') {
   document.documentElement.classList.add('platform-macos');
 }
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 // Initialize shared features
 const audio = useAudio();
@@ -126,6 +127,32 @@ const toggleStreaming = async () => {
 const streamingRef = computed(() => server.isStreaming(server.serverState.value));
 const visibilityRef = computed(() => !win.isHidden.value);
 
+// Handing the GUI over to the CLI/TUI closes this app and opens a terminal, so it
+// is confirmed first. Shared by the tray and the native app menu.
+async function switchToCli() {
+  const confirmSwitch = confirm(t('settings.runMode.confirmSwitch'));
+  if (!confirmSwitch) return;
+  try {
+    await invoke('switch_to_cli');
+    await win.exitApp();
+  } catch (e) {
+    console.error('switch_to_cli failed:', e);
+    alert(`${t('settings.runMode.switchFailed')}: ${e}`);
+  }
+}
+
+async function switchToTui() {
+  const confirmSwitch = confirm(t('settings.runMode.confirmSwitchTui'));
+  if (!confirmSwitch) return;
+  try {
+    await invoke('switch_to_tui');
+    await win.exitApp();
+  } catch (e) {
+    console.error('switch_to_tui failed:', e);
+    alert(`${t('settings.runMode.switchFailed')}: ${e}`);
+  }
+}
+
 // Initialize system tray integration
 useTray(
   {
@@ -138,28 +165,8 @@ useTray(
     },
     onToggleStream: () => toggleStreaming(),
     onExit: () => win.exitApp(),
-    onSwitchCli: async () => {
-      const confirmSwitch = confirm(t('settings.runMode.confirmSwitch'));
-      if (!confirmSwitch) return;
-      try {
-        await invoke('switch_to_cli');
-        await win.exitApp();
-      } catch (e) {
-        console.error('switch_to_cli failed:', e);
-        alert(`${t('settings.runMode.switchFailed')}: ${e}`);
-      }
-    },
-    onSwitchTui: async () => {
-      const confirmSwitch = confirm(t('settings.runMode.confirmSwitchTui'));
-      if (!confirmSwitch) return;
-      try {
-        await invoke('switch_to_tui');
-        await win.exitApp();
-      } catch (e) {
-        console.error('switch_to_tui failed:', e);
-        alert(`${t('settings.runMode.switchFailed')}: ${e}`);
-      }
-    },
+    onSwitchCli: () => switchToCli(),
+    onSwitchTui: () => switchToTui(),
   },
   visibilityRef,
   streamingRef,
@@ -168,8 +175,15 @@ useTray(
 // Section the next settings open should jump to (`About` in the macOS menu);
 // cleared on close so the other entry points keep their current behaviour.
 const settingsSection = ref<string | undefined>(undefined);
+const settingsDialogRef = ref<InstanceType<typeof SettingsDialog> | null>(null);
 
 const openSettingsAt = (section?: string) => {
+  if (isSettingsOpen.value) {
+    // Already open, so `isOpen` will not change and the section prop would be
+    // ignored — apply the request on the dialog directly instead.
+    settingsDialogRef.value?.setSection(section);
+    return;
+  }
   settingsSection.value = section;
   isSettingsOpen.value = true;
 };
@@ -186,7 +200,18 @@ const appMenuState = computed<AppMenuState>(() => ({
   isMuted: audio.isMuted.value,
   isMonitoring: audio.isMonitoringEnabled.value,
   pocketMode: pocketMode.value,
+  language: locale.value,
 }));
+
+// Help menu targets: the upstream project hosts the docs, the issue tracker and
+// the sponsorship programme.
+const DOCS_URL = 'https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md';
+const GITHUB_URL = 'https://github.com/LanRhyme/MicYou';
+const ISSUES_URL = 'https://github.com/LanRhyme/MicYou/issues/new';
+
+const openExternal = (url: string) => {
+  void openUrl(url).catch((e) => console.error('openUrl failed:', e));
+};
 
 useAppMenu(
   {
@@ -204,6 +229,37 @@ useAppMenu(
     onToggleMonitoring: () => audio.toggleMonitoringEnabled(),
     onTogglePocket: () => {
       pocketMode.value = !pocketMode.value;
+    },
+    onSwitchCli: () => switchToCli(),
+    onSwitchTui: () => switchToTui(),
+    onLanguage: (code) => settingsDialogRef.value?.setLanguage(code),
+    onDocs: () => openExternal(DOCS_URL),
+    onGithub: () => openExternal(GITHUB_URL),
+    onIssues: () => openExternal(ISSUES_URL),
+    onSponsors: () => settingsDialogRef.value?.openSponsors(),
+    onOpenLogDir: async () => {
+      try {
+        await invoke('open_log_dir');
+      } catch (e) {
+        console.error('open_log_dir failed:', e);
+      }
+    },
+    onExportLog: async () => {
+      try {
+        await invoke('export_log');
+      } catch (e) {
+        console.error('export_log failed:', e);
+      }
+    },
+    onCopyVersion: async () => {
+      try {
+        const version = await invoke<string>('get_app_version');
+        await navigator.clipboard.writeText(
+          `MicYou ${version} · ${navigator.platform} · ${locale.value}`,
+        );
+      } catch (e) {
+        console.error('copying the version info failed:', e);
+      }
     },
   },
   appMenuState,
@@ -690,6 +746,7 @@ onUnmounted(() => {
     </div>
 
     <SettingsDialog
+      ref="settingsDialogRef"
       :isOpen="isSettingsOpen"
       :initialSection="settingsSection"
       @close="closeSettings"

@@ -25,7 +25,7 @@ export type MenuNode =
   | { kind: "check"; id: string; label: string; checked: boolean; enabled?: boolean }
   | { kind: "separator" }
   | { kind: "submenu"; label: string; enabled?: boolean; items: MenuNode[] }
-  | { kind: "predefined"; name: PredefinedName; label?: string };
+  | { kind: "predefined"; name: PredefinedName; label: string };
 
 export interface AppMenuState {
   windowVisible: boolean;
@@ -33,6 +33,8 @@ export interface AppMenuState {
   isMuted: boolean;
   isMonitoring: boolean;
   pocketMode: boolean;
+  /** Effective language code, used to tick the language submenu. */
+  language: string;
 }
 
 export interface AppMenuCallbacks {
@@ -43,6 +45,16 @@ export interface AppMenuCallbacks {
   onToggleMute: () => void | Promise<void>;
   onToggleMonitoring: () => void | Promise<void>;
   onTogglePocket: () => void | Promise<void>;
+  onSwitchCli: () => void | Promise<void>;
+  onSwitchTui: () => void | Promise<void>;
+  onLanguage: (code: string) => void | Promise<void>;
+  onDocs: () => void | Promise<void>;
+  onGithub: () => void | Promise<void>;
+  onIssues: () => void | Promise<void>;
+  onSponsors: () => void | Promise<void>;
+  onOpenLogDir: () => void | Promise<void>;
+  onExportLog: () => void | Promise<void>;
+  onCopyVersion: () => void | Promise<void>;
 }
 
 /**
@@ -58,6 +70,47 @@ export const MENU_ID_TOGGLE_WINDOW = `${APP_MENU_ID_PREFIX}toggle_window`;
 export const MENU_ID_MUTE = `${APP_MENU_ID_PREFIX}mute`;
 export const MENU_ID_MONITORING = `${APP_MENU_ID_PREFIX}monitoring`;
 export const MENU_ID_POCKET = `${APP_MENU_ID_PREFIX}pocket`;
+export const MENU_ID_SWITCH_CLI = `${APP_MENU_ID_PREFIX}switch_cli`;
+export const MENU_ID_SWITCH_TUI = `${APP_MENU_ID_PREFIX}switch_tui`;
+export const MENU_ID_DOCS = `${APP_MENU_ID_PREFIX}docs`;
+export const MENU_ID_GITHUB = `${APP_MENU_ID_PREFIX}github`;
+export const MENU_ID_ISSUES = `${APP_MENU_ID_PREFIX}issues`;
+export const MENU_ID_SPONSORS = `${APP_MENU_ID_PREFIX}sponsors`;
+export const MENU_ID_LOG_DIR = `${APP_MENU_ID_PREFIX}log_dir`;
+export const MENU_ID_EXPORT_LOG = `${APP_MENU_ID_PREFIX}export_log`;
+export const MENU_ID_COPY_VERSION = `${APP_MENU_ID_PREFIX}copy_version`;
+
+/** Language entries carry the code in the id, so they need a prefix match. */
+export const MENU_ID_LANG_PREFIX = `${APP_MENU_ID_PREFIX}lang:`;
+
+export const menuLangId = (code: string) => `${MENU_ID_LANG_PREFIX}${code}`;
+
+/**
+ * Language self-names: every language reads the same in any locale, so these are
+ * shown verbatim — the same choice the settings dialog makes for its selector.
+ */
+export const APP_MENU_LANGUAGES: ReadonlyArray<{ code: string; label: string }> = [
+  { code: "zh", label: "简体中文" },
+  { code: "en", label: "English" },
+  { code: "cat", label: "喵喵语 (´,,•ω•,,)" },
+  { code: "zh-hk", label: "粤语" },
+  { code: "zh-tw", label: "繁體中文（台灣）" },
+  { code: "zh-ss", label: "中国人（坚硬）" },
+  { code: "lzh", label: "文言" },
+];
+
+/**
+ * Full screen is only offered outside pocket mode, where it would fight with the
+ * bar sizing. The entry is dropped instead of greyed out because the descriptor
+ * only understands `enabled` on regular items.
+ */
+function fullscreenItems(t: (key: string) => string, state: AppMenuState): MenuNode[] {
+  if (state.pocketMode) return [];
+  return [
+    { kind: "separator" },
+    { kind: "predefined", name: "fullscreen", label: t("menu.fullscreen") },
+  ];
+}
 
 /**
  * Builds the macOS app menu from the current locale and app state.
@@ -133,6 +186,22 @@ export function appMenuFromI18n(
           label: t("menu.pocketMode"),
           checked: state.pocketMode,
         },
+        { kind: "separator" },
+        { kind: "item", id: MENU_ID_SWITCH_CLI, label: t("tray.switchCli") },
+        { kind: "item", id: MENU_ID_SWITCH_TUI, label: t("tray.switchTui") },
+        { kind: "separator" },
+        {
+          kind: "submenu",
+          label: t("menu.language"),
+          items: APP_MENU_LANGUAGES.map(({ code, label }) => ({
+            kind: "check" as const,
+            id: menuLangId(code),
+            label,
+            checked: state.language === code,
+          })),
+        },
+        { kind: "separator" },
+        ...fullscreenItems(t, state),
       ],
     },
     {
@@ -158,6 +227,22 @@ export function appMenuFromI18n(
         { kind: "predefined", name: "closeWindow", label: t("menu.closeWindow") },
       ],
     },
+    {
+      kind: "submenu",
+      label: t("menu.help"),
+      items: [
+        { kind: "item", id: MENU_ID_DOCS, label: t("menu.docs") },
+        { kind: "item", id: MENU_ID_GITHUB, label: t("menu.github") },
+        { kind: "item", id: MENU_ID_ISSUES, label: t("menu.issues") },
+        { kind: "separator" },
+        { kind: "item", id: MENU_ID_SPONSORS, label: t("menu.sponsors") },
+        { kind: "separator" },
+        { kind: "item", id: MENU_ID_LOG_DIR, label: t("menu.openLogDir") },
+        { kind: "item", id: MENU_ID_EXPORT_LOG, label: t("menu.exportLog") },
+        { kind: "separator" },
+        { kind: "item", id: MENU_ID_COPY_VERSION, label: t("menu.copyVersion") },
+      ],
+    },
   ];
 }
 
@@ -172,10 +257,10 @@ export function findInvalidMenuNode(nodes: MenuNode[], path: string[] = []): str
     if (node.kind === "separator") continue;
 
     if (node.kind === "predefined") {
-      // The label is optional on predefined entries; without it the backend
-      // falls back to its built-in English title, which we never want.
-      if (node.label !== undefined && !node.label.trim()) {
-        return `${here.join(" › ")}: empty label`;
+      // Without a label the backend falls back to its built-in English title
+      // ("&Copy", "Toggle Full Screen", …), so one is mandatory here.
+      if (!node.label.trim()) {
+        return `${here.join(" › ")}: predefined entry needs a label`;
       }
       continue;
     }
@@ -222,6 +307,10 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: Ref<AppMenuState>
   onMounted(async () => {
     unlisten = await listen<string>("app-menu-action", (event) => {
       const id = event.payload;
+      if (id.startsWith(MENU_ID_LANG_PREFIX)) {
+        void callbacks.onLanguage(id.slice(MENU_ID_LANG_PREFIX.length));
+        return;
+      }
       switch (id) {
         case MENU_ID_ABOUT:
           void callbacks.onAbout();
@@ -243,6 +332,33 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: Ref<AppMenuState>
           break;
         case MENU_ID_POCKET:
           void callbacks.onTogglePocket();
+          break;
+        case MENU_ID_SWITCH_CLI:
+          void callbacks.onSwitchCli();
+          break;
+        case MENU_ID_SWITCH_TUI:
+          void callbacks.onSwitchTui();
+          break;
+        case MENU_ID_DOCS:
+          void callbacks.onDocs();
+          break;
+        case MENU_ID_GITHUB:
+          void callbacks.onGithub();
+          break;
+        case MENU_ID_ISSUES:
+          void callbacks.onIssues();
+          break;
+        case MENU_ID_SPONSORS:
+          void callbacks.onSponsors();
+          break;
+        case MENU_ID_LOG_DIR:
+          void callbacks.onOpenLogDir();
+          break;
+        case MENU_ID_EXPORT_LOG:
+          void callbacks.onExportLog();
+          break;
+        case MENU_ID_COPY_VERSION:
+          void callbacks.onCopyVersion();
           break;
         default:
           console.warn("Unknown app-menu-action id:", id);

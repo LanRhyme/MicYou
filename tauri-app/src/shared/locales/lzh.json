@@ -416,7 +416,17 @@
     "selectAll": "全选",
     "minimize": "最小化",
     "zoom": "缩放",
-    "closeWindow": "闭窗"
+    "closeWindow": "闭窗",
+    "language": "語",
+    "fullscreen": "全屏",
+    "help": "相助",
+    "docs": "典籍",
+    "github": "项目主页",
+    "issues": "陈情",
+    "sponsors": "赞助",
+    "openLogDir": "开日志目录",
+    "exportLog": "出日志",
+    "copyVersion": "录版本"
   },
   "closeConfirm": {
     "title": "关闭确认",

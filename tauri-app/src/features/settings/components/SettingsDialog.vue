@@ -2860,4 +2860,24 @@ watch(
     if (isMounted) handleMonitoringState();
   },
 );
+
+// Entry points used by the native app menu, which drives this dialog from outside.
+
+/** Jumps to a section while the dialog is already open — the `isOpen` watcher
+ *  above does not fire in that case, so the request is applied directly. */
+function setSection(section?: string) {
+  if (section) currentSection.value = section;
+}
+
+/** Switching the language stays on `currentLanguage`: its watcher owns the
+ *  locale, the stored preference and the ui.json hand-off to the CLI. */
+function setLanguage(code: string) {
+  currentLanguage.value = code;
+}
+
+function openSponsors() {
+  showSponsors.value = true;
+}
+
+defineExpose({ setSection, setLanguage, openSponsors });
 </script>
