@@ -96,11 +96,13 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 | `tauri-app/src-tauri/tauri.macos.conf.json` | macOS platform override: native decorations + overlay title bar (`app.windows` must restate every window property — the array is replaced, not merged) |
 | `tauri-app/src-tauri/src/lib.rs` | Backend entry; module list + ~40 commands in `invoke_handler` |
 | `tauri-app/src-tauri/src/macos_window.rs` | macOS-only native window control placement (`objc`); `inset_y` maps to a control centre `inset_y + 2` px from the window top |
+| `tauri-app/src-tauri/src/menubar.rs` | App menu bar descriptor model + native menu builder (`app.set_menu`); macOS-only effect, no-op on other platforms |
 | `tauri-app/src-tauri/src/commands/system.rs` | `start_server`/`start_server_inner` — shared server lifecycle |
 | `tauri-app/src-tauri/src/app_config.rs` | Shared config load/save (`settings.json`, `server.json`, `ui.json`, `theme.json`) |
 | `tauri-app/src-tauri/src/events.rs` | `ServerEvents` trait decoupling server core from Tauri/CLI/TUI |
 | `tauri-app/src/main.ts` | Frontend entry; i18n registration; hash-based multi-window routing |
 | `tauri-app/src/App.vue` | Main window (full + pocket modes), wires all composables |
+| `tauri-app/src/shared/composables/useAppMenu.ts` | Builds and pushes the app menu descriptor from i18n + app state; dispatches `app-menu-action` ids |
 | `tauri-app/crates/micyou-protocol/proto/network.proto` | Wire format source (prost-compiled) |
 | `tauri-app/crates/micyou-audio/src/dsp.rs` | DSP settings struct + `DspProcessor` |
 
