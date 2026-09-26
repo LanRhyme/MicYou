@@ -136,6 +136,14 @@ pub fn run() {
             Some(vec!["--minimized"]),
         ))
         .plugin(tauri_plugin_notification::init())
+        .on_window_event(|window, event| {
+            if matches!(
+                event,
+                tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(_)
+            ) {
+                crate::macos_window::reapply(window);
+            }
+        })
         .setup(|app| {
             app.manage(TrayContext::default());
             if let Err(e) = crate::tray::build_tray(app.handle()) {
@@ -160,6 +168,11 @@ pub fn run() {
 
             if let Some(win) = app.get_webview_window("main") {
                 apply_macos_vibrancy(&win);
+                // The window config leaves the control position unset so AppKit
+                // cannot override the per-layout placement, which means the
+                // initial layout has to be requested here.
+                let window = win.as_ref().window();
+                let _ = crate::macos_window::apply(&window, crate::macos_window::Mode::Full);
             }
 
             {
@@ -217,6 +230,7 @@ pub fn run() {
             commands::show_main_window,
             commands::minimize_main_window,
             commands::hide_main_window,
+            commands::apply_macos_window_layout,
             commands::show_floating_window,
             commands::hide_floating_window,
             commands::toggle_floating_window,

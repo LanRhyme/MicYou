@@ -240,6 +240,17 @@ function stopPocketObserver() {
   pocketRaf = 0;
 }
 
+// The native window controls sit at a different height per layout, and the
+// resize above makes AppKit restore them, so the layout is re-applied after it.
+async function applyWindowControlLayout(mode: 'full' | 'pocket') {
+  if (!isMacOS) return;
+  try {
+    await invoke('apply_macos_window_layout', { mode });
+  } catch (e) {
+    console.error('apply_macos_window_layout failed:', e);
+  }
+}
+
 // 进入/退出袖珍模式时启停自适应
 watch(pocketMode, async (isPocket) => {
   if (isPocket) {
@@ -249,6 +260,7 @@ watch(pocketMode, async (isPocket) => {
   } else {
     stopPocketObserver();
   }
+  await applyWindowControlLayout(isPocket ? 'pocket' : 'full');
 }, { immediate: true });
 
 // 设置对话框打开时暂停自适应(由上方 watchEffect 展开到 800)，关闭后恢复自适应宽度

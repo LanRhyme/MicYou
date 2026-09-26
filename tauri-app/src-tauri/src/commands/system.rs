@@ -1444,6 +1444,20 @@ pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Places the macOS traffic lights for the active header layout. No-op elsewhere.
+#[tauri::command]
+pub fn apply_macos_window_layout(
+    app: AppHandle,
+    mode: String,
+) -> Result<crate::macos_window::LayoutMetrics, String> {
+    let mode = crate::macos_window::Mode::parse(&mode);
+    let win = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Main window not found".to_string())?;
+    crate::macos_window::apply(&win.as_ref().window(), mode)?;
+    Ok(mode.metrics())
+}
+
 pub const FLOATING_WINDOW_LABEL: &str = "floating-window";
 
 #[tauri::command]
