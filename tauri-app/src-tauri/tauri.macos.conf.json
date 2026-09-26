@@ -11,7 +11,7 @@
         "hiddenTitle": true,
         "resizable": false,
         "transparent": true,
-        "shadow": false,
+        "shadow": true,
         "windowEffects": {
           "effects": [
             "acrylic",
