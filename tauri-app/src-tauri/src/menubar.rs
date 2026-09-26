@@ -55,7 +55,15 @@ pub enum MenuNode {
         items: Vec<MenuNode>,
     },
     /// A native entry (quit, hide, undo...), resolved against a whitelist.
-    Predefined { name: String },
+    ///
+    /// `label` is optional: omitting it keeps the native default title, while
+    /// sending one lets the frontend localize the entry without giving up the
+    /// native selector (and therefore the system behaviour and its shortcuts).
+    Predefined {
+        name: String,
+        #[serde(default)]
+        label: Option<String>,
+    },
 }
 
 const fn default_true() -> bool {
@@ -112,23 +120,24 @@ fn predefined_kind(name: &str) -> Option<PredefinedKind> {
 fn make_predefined<R: Runtime>(
     app: &AppHandle<R>,
     kind: PredefinedKind,
+    label: Option<&str>,
 ) -> tauri::Result<Box<dyn IsMenuItem<R>>> {
     let item = match kind {
-        PredefinedKind::Services => PredefinedMenuItem::services(app, None)?,
-        PredefinedKind::Hide => PredefinedMenuItem::hide(app, None)?,
-        PredefinedKind::HideOthers => PredefinedMenuItem::hide_others(app, None)?,
-        PredefinedKind::ShowAll => PredefinedMenuItem::show_all(app, None)?,
-        PredefinedKind::Quit => PredefinedMenuItem::quit(app, None)?,
-        PredefinedKind::Undo => PredefinedMenuItem::undo(app, None)?,
-        PredefinedKind::Redo => PredefinedMenuItem::redo(app, None)?,
-        PredefinedKind::Cut => PredefinedMenuItem::cut(app, None)?,
-        PredefinedKind::Copy => PredefinedMenuItem::copy(app, None)?,
-        PredefinedKind::Paste => PredefinedMenuItem::paste(app, None)?,
-        PredefinedKind::SelectAll => PredefinedMenuItem::select_all(app, None)?,
-        PredefinedKind::Minimize => PredefinedMenuItem::minimize(app, None)?,
-        PredefinedKind::Maximize => PredefinedMenuItem::maximize(app, None)?,
-        PredefinedKind::Fullscreen => PredefinedMenuItem::fullscreen(app, None)?,
-        PredefinedKind::CloseWindow => PredefinedMenuItem::close_window(app, None)?,
+        PredefinedKind::Services => PredefinedMenuItem::services(app, label)?,
+        PredefinedKind::Hide => PredefinedMenuItem::hide(app, label)?,
+        PredefinedKind::HideOthers => PredefinedMenuItem::hide_others(app, label)?,
+        PredefinedKind::ShowAll => PredefinedMenuItem::show_all(app, label)?,
+        PredefinedKind::Quit => PredefinedMenuItem::quit(app, label)?,
+        PredefinedKind::Undo => PredefinedMenuItem::undo(app, label)?,
+        PredefinedKind::Redo => PredefinedMenuItem::redo(app, label)?,
+        PredefinedKind::Cut => PredefinedMenuItem::cut(app, label)?,
+        PredefinedKind::Copy => PredefinedMenuItem::copy(app, label)?,
+        PredefinedKind::Paste => PredefinedMenuItem::paste(app, label)?,
+        PredefinedKind::SelectAll => PredefinedMenuItem::select_all(app, label)?,
+        PredefinedKind::Minimize => PredefinedMenuItem::minimize(app, label)?,
+        PredefinedKind::Maximize => PredefinedMenuItem::maximize(app, label)?,
+        PredefinedKind::Fullscreen => PredefinedMenuItem::fullscreen(app, label)?,
+        PredefinedKind::CloseWindow => PredefinedMenuItem::close_window(app, label)?,
     };
     Ok(Box::new(item))
 }
@@ -178,8 +187,8 @@ fn build_items<R: Runtime>(
                 )?));
             }
             // An unknown name is skipped instead of failing the whole menu.
-            MenuNode::Predefined { name } => match predefined_kind(name) {
-                Some(kind) => items.push(make_predefined(app, kind)?),
+            MenuNode::Predefined { name, label } => match predefined_kind(name) {
+                Some(kind) => items.push(make_predefined(app, kind, label.as_deref())?),
                 None => log::warn!(target: "menu", "unknown predefined menu entry: {name}"),
             },
         }
@@ -300,10 +309,33 @@ mod tests {
                 }
                 assert!(matches!(items[1], MenuNode::Separator));
                 match &items[2] {
-                    MenuNode::Predefined { name } => assert_eq!(name, "fullscreen"),
+                    MenuNode::Predefined { name, .. } => assert_eq!(name, "fullscreen"),
                     other => panic!("unexpected predefined node: {other:?}"),
                 }
             }
+            other => panic!("unexpected node: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn predefined_labels_are_optional() {
+        let with_label: MenuNode =
+            serde_json::from_str(r#"{"kind":"predefined","name":"quit","label":"退出"}"#)
+                .unwrap();
+        match with_label {
+            MenuNode::Predefined { name, label } => {
+                assert_eq!(name, "quit");
+                assert_eq!(label.as_deref(), Some("退出"));
+            }
+            other => panic!("unexpected node: {other:?}"),
+        }
+
+        // Omitting the label has to stay equivalent to the pre-existing shape,
+        // so that unnamed entries keep their native default title.
+        let without_label: MenuNode =
+            serde_json::from_str(r#"{"kind":"predefined","name":"quit"}"#).unwrap();
+        match without_label {
+            MenuNode::Predefined { label, .. } => assert_eq!(label, None),
             other => panic!("unexpected node: {other:?}"),
         }
     }
