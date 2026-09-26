@@ -1703,6 +1703,7 @@ import {
 
 const props = defineProps<{
   isOpen: boolean;
+  initialSection?: string;
 }>();
 
 const emit = defineEmits(['close', 'updateDevice']);
@@ -2853,7 +2854,9 @@ function handleOpenState(_isOpen: boolean) {
 
 watch(
   () => props.isOpen,
-  () => {
+  (open) => {
+    // Jump straight to the requested section when opened from the app menu
+    if (open && props.initialSection) currentSection.value = props.initialSection;
     if (isMounted) handleMonitoringState();
   },
 );

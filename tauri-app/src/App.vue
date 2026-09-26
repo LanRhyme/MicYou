@@ -18,6 +18,7 @@ import { useAudio } from './features/audio/composables/useAudio';
 import { useTheme } from './features/theme/composables/useTheme';
 import { useWindow } from './shared/composables/useWindow';
 import { useTray } from './shared/composables/useTray';
+import { useAppMenu, type AppMenuState } from './shared/composables/useAppMenu';
 
 // UI components for connection flows, onboarding, and layouts
 import ConnectionErrorDialog from './features/connection/components/ConnectionErrorDialog.vue';
@@ -162,6 +163,50 @@ useTray(
   },
   visibilityRef,
   streamingRef,
+);
+
+// Section the next settings open should jump to (`About` in the macOS menu);
+// cleared on close so the other entry points keep their current behaviour.
+const settingsSection = ref<string | undefined>(undefined);
+
+const openSettingsAt = (section?: string) => {
+  settingsSection.value = section;
+  isSettingsOpen.value = true;
+};
+
+const closeSettings = () => {
+  isSettingsOpen.value = false;
+  settingsSection.value = undefined;
+};
+
+// Native app menu: the frontend owns its labels, state and actions
+const appMenuState = computed<AppMenuState>(() => ({
+  windowVisible: !win.isHidden.value,
+  isStreaming: streamingRef.value,
+  isMuted: audio.isMuted.value,
+  isMonitoring: audio.isMonitoringEnabled.value,
+  pocketMode: pocketMode.value,
+}));
+
+useAppMenu(
+  {
+    onAbout: () => openSettingsAt('about'),
+    onSettings: () => openSettingsAt(),
+    onToggleStream: () => toggleStreaming(),
+    onToggleWindow: async () => {
+      if (win.isHidden.value) {
+        await win.showMainWindow();
+      } else {
+        await win.hideMainWindow();
+      }
+    },
+    onToggleMute: () => audio.toggleMute(),
+    onToggleMonitoring: () => audio.toggleMonitoringEnabled(),
+    onTogglePocket: () => {
+      pocketMode.value = !pocketMode.value;
+    },
+  },
+  appMenuState,
 );
 
 // Auto-hide window on startup if start minimized is configured in preferences
@@ -646,7 +691,8 @@ onUnmounted(() => {
 
     <SettingsDialog
       :isOpen="isSettingsOpen"
-      @close="isSettingsOpen = false"
+      :initialSection="settingsSection"
+      @close="closeSettings"
       @updateDevice="dev => server.outputDevice.value = dev"
     />
 
