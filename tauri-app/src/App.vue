@@ -236,7 +236,12 @@ useAppMenu(
     onDocs: () => openExternal(DOCS_URL),
     onGithub: () => openExternal(GITHUB_URL),
     onIssues: () => openExternal(ISSUES_URL),
-    onSponsors: () => settingsDialogRef.value?.openSponsors(),
+    onSponsors: () => {
+      // 设置关闭时赞助弹窗也会渲染，但袖珍模式下窗口只有 52px 高，弹窗会被裁成一条。
+      // 先打开设置，让 pocketModalOpen 把窗口还原成 800x600 再弹。
+      if (pocketMode.value) isSettingsOpen.value = true;
+      settingsDialogRef.value?.openSponsors();
+    },
     onOpenLogDir: async () => {
       try {
         await invoke('open_log_dir');

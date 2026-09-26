@@ -200,7 +200,6 @@ export function appMenuFromI18n(
             checked: state.language === code,
           })),
         },
-        { kind: "separator" },
         ...fullscreenItems(t, state),
       ],
     },
