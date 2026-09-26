@@ -52,6 +52,11 @@ pub enum MenuNode {
         label: String,
         #[serde(default = "default_true")]
         enabled: bool,
+        /// Marks the submenus AppKit maintains itself (the window list and the
+        /// help menu with its search field). Tauri only wires those up when the
+        /// submenu carries its fixed id, so the frontend has to name the role.
+        #[serde(default)]
+        role: Option<String>,
         items: Vec<MenuNode>,
     },
     /// A native entry (quit, hide, undo...), resolved against a whitelist.
@@ -112,6 +117,25 @@ fn predefined_kind(name: &str) -> Option<PredefinedKind> {
         "maximize" => PredefinedKind::Maximize,
         "fullscreen" => PredefinedKind::Fullscreen,
         "closewindow" => PredefinedKind::CloseWindow,
+        _ => return None,
+    })
+}
+
+/// Submenus AppKit has to recognize by id, otherwise it stops maintaining them.
+#[cfg(target_os = "macos")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SubmenuRole {
+    Window,
+    Help,
+}
+
+/// Resolves a descriptor role against the whitelist, ignoring case and separators.
+#[cfg(target_os = "macos")]
+fn submenu_role(name: &str) -> Option<SubmenuRole> {
+    let normalized = name.to_ascii_lowercase().replace(['-', '_'], "");
+    Some(match normalized.as_str() {
+        "window" => SubmenuRole::Window,
+        "help" => SubmenuRole::Help,
         _ => return None,
     })
 }
@@ -177,14 +201,43 @@ fn build_items<R: Runtime>(
             MenuNode::Submenu {
                 label,
                 enabled,
+                role,
                 items: children,
             } => {
                 let built = build_items(app, children)?;
                 let refs: Vec<&dyn IsMenuItem<R>> =
                     built.iter().map(|item| item.as_ref()).collect();
-                items.push(Box::new(Submenu::with_items(
-                    app, label, *enabled, &refs,
-                )?));
+                // The window and help menus carry a fixed id so that tauri keeps
+                // registering them as the NSApp window / help menu; every other
+                // submenu keeps its generated id.
+                let resolved = match role.as_deref() {
+                    None => None,
+                    Some(name) => match submenu_role(name) {
+                        Some(kind) => Some(kind),
+                        None => {
+                            log::warn!(target: "menu", "unknown submenu role: {name}");
+                            None
+                        }
+                    },
+                };
+                let item = match resolved {
+                    Some(SubmenuRole::Window) => Submenu::with_id_and_items(
+                        app,
+                        tauri::menu::WINDOW_SUBMENU_ID,
+                        label,
+                        *enabled,
+                        &refs,
+                    )?,
+                    Some(SubmenuRole::Help) => Submenu::with_id_and_items(
+                        app,
+                        tauri::menu::HELP_SUBMENU_ID,
+                        label,
+                        *enabled,
+                        &refs,
+                    )?,
+                    None => Submenu::with_items(app, label, *enabled, &refs)?,
+                };
+                items.push(Box::new(item));
             }
             // An unknown name is skipped instead of failing the whole menu.
             MenuNode::Predefined { name, label } => match predefined_kind(name) {
@@ -289,10 +342,12 @@ mod tests {
             MenuNode::Submenu {
                 label,
                 enabled,
+                role,
                 items,
             } => {
                 assert_eq!(label, "View");
                 assert!(enabled, "enabled must default to true");
+                assert_eq!(role, None, "role must be optional");
                 assert_eq!(items.len(), 3);
                 match &items[0] {
                     MenuNode::Check {
@@ -313,6 +368,26 @@ mod tests {
                     other => panic!("unexpected predefined node: {other:?}"),
                 }
             }
+            other => panic!("unexpected node: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn submenu_roles_are_optional() {
+        let with_role: MenuNode =
+            serde_json::from_str(r#"{"kind":"submenu","label":"Help","role":"help","items":[]}"#)
+                .unwrap();
+        match with_role {
+            MenuNode::Submenu { role, .. } => assert_eq!(role.as_deref(), Some("help")),
+            other => panic!("unexpected node: {other:?}"),
+        }
+
+        // Omitting the role has to stay equivalent to the pre-existing shape,
+        // so unnamed submenus keep their generated id.
+        let without_role: MenuNode =
+            serde_json::from_str(r#"{"kind":"submenu","label":"View","items":[]}"#).unwrap();
+        match without_role {
+            MenuNode::Submenu { role, .. } => assert_eq!(role, None),
             other => panic!("unexpected node: {other:?}"),
         }
     }
@@ -367,5 +442,16 @@ mod tests {
         assert_eq!(predefined_kind("hide_others"), Some(PredefinedKind::HideOthers));
         assert_eq!(predefined_kind("nope"), None);
         assert_eq!(predefined_kind(""), None);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn submenu_roles_resolve_through_the_whitelist() {
+        assert_eq!(submenu_role("window"), Some(SubmenuRole::Window));
+        assert_eq!(submenu_role("Window"), Some(SubmenuRole::Window));
+        assert_eq!(submenu_role("help"), Some(SubmenuRole::Help));
+        assert_eq!(submenu_role("HELP"), Some(SubmenuRole::Help));
+        assert_eq!(submenu_role("nope"), None);
+        assert_eq!(submenu_role(""), None);
     }
 }

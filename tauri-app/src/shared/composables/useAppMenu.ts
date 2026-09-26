@@ -24,7 +24,7 @@ export type MenuNode =
   | { kind: "item"; id: string; label: string; enabled?: boolean; accelerator?: string }
   | { kind: "check"; id: string; label: string; checked: boolean; enabled?: boolean }
   | { kind: "separator" }
-  | { kind: "submenu"; label: string; enabled?: boolean; items: MenuNode[] }
+  | { kind: "submenu"; label: string; enabled?: boolean; role?: "window" | "help"; items: MenuNode[] }
   | { kind: "predefined"; name: PredefinedName; label: string };
 
 export interface AppMenuState {
@@ -219,6 +219,7 @@ export function appMenuFromI18n(
     {
       kind: "submenu",
       label: t("menu.window"),
+      role: "window",
       items: [
         { kind: "predefined", name: "minimize", label: t("menu.minimize") },
         { kind: "predefined", name: "maximize", label: t("menu.zoom") },
@@ -229,6 +230,7 @@ export function appMenuFromI18n(
     {
       kind: "submenu",
       label: t("menu.help"),
+      role: "help",
       items: [
         { kind: "item", id: MENU_ID_DOCS, label: t("menu.docs") },
         { kind: "item", id: MENU_ID_GITHUB, label: t("menu.github") },
@@ -308,9 +310,7 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: Ref<AppMenuState>
       const id = event.payload;
       if (id.startsWith(MENU_ID_LANG_PREFIX)) {
         void callbacks.onLanguage(id.slice(MENU_ID_LANG_PREFIX.length));
-        return;
-      }
-      switch (id) {
+      } else switch (id) {
         case MENU_ID_ABOUT:
           void callbacks.onAbout();
           break;
@@ -362,6 +362,12 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: Ref<AppMenuState>
         default:
           console.warn("Unknown app-menu-action id:", id);
       }
+      // muda flips a check item's own state before it dispatches the click, so an
+      // action that ends up changing nothing (a cancelled warning, re-picking the
+      // active language) would leave the native tick lying. Re-pushing from the
+      // authoritative frontend state unconditionally puts it back.
+      lastPushedMenu = null;
+      void push();
     });
 
     await push();
