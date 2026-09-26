@@ -95,6 +95,7 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 | `tauri-app/src-tauri/tauri.conf.json` | Tauri app config (window, bundle targets, beforeBuildCommand) |
 | `tauri-app/src-tauri/tauri.macos.conf.json` | macOS platform override: native decorations + overlay title bar (`app.windows` must restate every window property — the array is replaced, not merged) |
 | `tauri-app/src-tauri/src/lib.rs` | Backend entry; module list + ~40 commands in `invoke_handler` |
+| `tauri-app/src-tauri/src/macos_window.rs` | macOS-only native window control placement (`objc`); `inset_y` maps to a control centre `inset_y + 2` px from the window top |
 | `tauri-app/src-tauri/src/commands/system.rs` | `start_server`/`start_server_inner` — shared server lifecycle |
 | `tauri-app/src-tauri/src/app_config.rs` | Shared config load/save (`settings.json`, `server.json`, `ui.json`, `theme.json`) |
 | `tauri-app/src-tauri/src/events.rs` | `ServerEvents` trait decoupling server core from Tauri/CLI/TUI |

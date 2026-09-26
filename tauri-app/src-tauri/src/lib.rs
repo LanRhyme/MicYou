@@ -23,6 +23,7 @@ pub mod blackhole;
 pub mod commands;
 pub mod events;
 pub mod jitter_buffer;
+pub mod macos_window;
 pub mod mode_lock;
 pub mod network;
 pub mod opus;
