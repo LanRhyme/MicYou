@@ -42,6 +42,8 @@ pub mod web_server;
 
 use std::sync::Arc;
 use std::sync::RwLock;
+#[cfg(target_os = "macos")]
+use tauri::Emitter;
 use tauri::Manager;
 use tokio::sync::Mutex;
 
@@ -137,16 +139,30 @@ pub fn run() {
         ))
         .plugin(tauri_plugin_notification::init())
         .on_window_event(|window, event| {
+            let is_main_window = window.label() == "main";
+
             // This listener fires for every window the app creates, but only the
             // main window carries the in-app header these controls are aligned to,
             // so other windows must keep the placement AppKit gives them.
-            if window.label() == "main"
+            if is_main_window
                 && matches!(
                     event,
                     tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(_)
                 )
             {
                 crate::macos_window::reapply(window);
+            }
+
+            // The native close button has to keep the existing hide-to-tray /
+            // confirm behaviour, which lives in the frontend. Other windows are
+            // not intercepted: they have no handler for the forwarded request
+            // and would be left unable to close.
+            #[cfg(target_os = "macos")]
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if is_main_window {
+                    api.prevent_close();
+                    let _ = window.emit("main-window-close-requested", ());
+                }
             }
         })
         .setup(|app| {
