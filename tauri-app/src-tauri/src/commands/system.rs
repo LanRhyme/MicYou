@@ -21,6 +21,7 @@ use tauri::{AppHandle, Manager, State};
 use tokio_util::sync::CancellationToken;
 
 use crate::audio_stream::{validate_audio_packet, AudioStreamEvent, ExpectedAudioSession};
+use crate::menubar::MenuNode;
 use crate::server::{await_startup_ready, ServerState, AUDIO_JOIN_TIMEOUT, STARTUP_TIMEOUT};
 use crate::udp_server::ActiveAudioSession;
 use micyou_audio::AecFailure;
@@ -1454,6 +1455,12 @@ pub fn apply_macos_window_layout(
     let win = main_window(&app)?;
     crate::macos_window::apply(&win.as_ref().window(), mode)?;
     Ok(mode.metrics())
+}
+
+/// Replaces the app-wide menu with the descriptor the frontend sent. No-op elsewhere.
+#[tauri::command]
+pub fn set_app_menu(app: AppHandle, menu: Vec<MenuNode>) -> Result<(), String> {
+    crate::menubar::apply(&app, &menu)
 }
 
 pub const FLOATING_WINDOW_LABEL: &str = "floating-window";

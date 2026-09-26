@@ -51,6 +51,12 @@ use tokio::sync::Mutex;
 use crate::tray::TrayContext;
 use stats::NetworkStats;
 
+/// App menu items the frontend owns carry a prefix, because the tray registers
+/// its own menu handler into the very same global menu event listeners: a bare
+/// tray id such as `show` must never be mistaken for an app menu item.
+#[cfg(target_os = "macos")]
+const APP_MENU_ID_PREFIX: &str = "menu:";
+
 #[cfg(target_os = "macos")]
 #[allow(unexpected_cfgs)]
 fn apply_macos_vibrancy(win: &tauri::WebviewWindow) {
@@ -172,6 +178,20 @@ pub fn run() {
                 log::warn!(target: "tray", "failed to build tray: {e}");
             }
 
+            // The app menu only exists on macOS, and clicks on it have to reach the
+            // frontend, which owns the labels and the behaviour. Only the ids the
+            // frontend declared are forwarded; everything else (the tray's own bare
+            // ids) is dropped here.
+            #[cfg(target_os = "macos")]
+            app.on_menu_event(|app, event| {
+                let id = event.id().as_ref();
+                if id.starts_with(APP_MENU_ID_PREFIX) {
+                    let _ = app.emit("app-menu-action", id.to_string());
+                } else {
+                    log::warn!(target: "menu", "ignoring foreign menu id: {id}");
+                }
+            });
+
             {
                 let state = app.state::<server::ServerState>();
                 state.plugins.hotkeys.init(app.handle());
@@ -257,6 +277,7 @@ pub fn run() {
             commands::minimize_main_window,
             commands::hide_main_window,
             commands::apply_macos_window_layout,
+            commands::set_app_menu,
             commands::show_floating_window,
             commands::hide_floating_window,
             commands::toggle_floating_window,
