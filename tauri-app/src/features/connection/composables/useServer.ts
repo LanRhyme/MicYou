@@ -18,8 +18,10 @@ const aecFailureNotificationKeys: Record<string, string> = {
   inference_failed: 'app.notify.aecDisabledInferenceFailed',
   model_load_failed: 'app.notify.aecDisabledModelLoadFailed',
   model_missing: 'app.notify.aecDisabledModelMissing',
+  permission_denied: 'app.notify.aecDisabledPermissionDenied',
   pipewire_unavailable: 'app.notify.aecDisabledPipeWireUnavailable',
   reference_lost: 'app.notify.aecDisabledReferenceLost',
+  unsupported_os: 'app.notify.aecDisabledUnsupportedOs',
   virtual_source_missing: 'app.notify.aecDisabledVirtualSourceMissing',
 };
 

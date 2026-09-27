@@ -50,8 +50,10 @@
       "aecDisabledInferenceFailed": "AEC audio processing failed and was automatically disabled.",
       "aecDisabledModelLoadFailed": "The AEC AI model could not be loaded, so AEC was automatically disabled.",
       "aecDisabledModelMissing": "The AEC AI model is missing, so AEC was automatically disabled.",
+      "aecDisabledPermissionDenied": "MicYou is not allowed to record system audio, so AEC was automatically disabled.",
       "aecDisabledPipeWireUnavailable": "PipeWire is unavailable, so AEC was automatically disabled.",
       "aecDisabledReferenceLost": "The AEC audio reference stream was lost, so AEC was automatically disabled.",
+      "aecDisabledUnsupportedOs": "This system version cannot capture system audio, so AEC was automatically disabled.",
       "aecDisabledVirtualSourceMissing": "No virtual audio source was found, so AEC was automatically disabled."
     },
     "ipSelector": {
@@ -209,6 +211,7 @@
       "aec": "Acoustic Echo Cancellation (AEC)",
       "aecDesc": "Cancel speaker echo from microphone using AI",
       "aecUnavailable": "Not available on this system",
+      "aecPermissionDenied": "MicYou is not allowed to record system audio, so AEC has no reference",
       "aecRuntimeUnavailable": "Automatically disabled: audio reference is unavailable",
       "bufferSize": "Output Buffer Size",
       "bufferSizeDesc": "Larger buffer resists network jitter but adds latency",

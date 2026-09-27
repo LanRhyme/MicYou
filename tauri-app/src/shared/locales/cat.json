@@ -48,8 +48,10 @@
       "aecDisabledInferenceFailed": "AEC 音频处理失败喵~已自动停用喵~",
       "aecDisabledModelLoadFailed": "AEC AI 模型加载失败喵~已自动停用喵~",
       "aecDisabledModelMissing": "找不到 AEC AI 模型喵~已自动停用喵~",
+      "aecDisabledPermissionDenied": "未获录制系统音频许可喵~AEC 已自动停用喵~",
       "aecDisabledPipeWireUnavailable": "PipeWire 不可用喵~AEC 已自动停用喵~",
       "aecDisabledReferenceLost": "AEC 音频参考流中断了喵~已自动停用喵~",
+      "aecDisabledUnsupportedOs": "当前系统版本无法采集系统音频喵~AEC 已自动停用喵~",
       "aecDisabledVirtualSourceMissing": "找不到虚拟音频源喵~AEC 已自动停用喵~"
     },
     "ipSelector": {
@@ -207,6 +209,7 @@
       "aec": "声学回声消除喵~ (AEC)",
       "aecDesc": "用 AI 从麦克风消除扬声器回声喵~ 🎤",
       "aecUnavailable": "在此系统上不可用喵~ 🚫",
+      "aecPermissionDenied": "未获录制系统音频许可喵~ AEC 缺少参考信号喵~ 🚫",
       "aecRuntimeUnavailable": "已自动停用喵~音频参考流不可用喵~",
       "bufferSize": "输出缓冲区大小喵~ 📦",
       "bufferSizeDesc": "越大越抗网络抖动，但延迟越高喵~",

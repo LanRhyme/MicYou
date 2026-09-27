@@ -48,8 +48,10 @@
       "aecDisabledInferenceFailed": "AEC 音訊處理失敗，已自動停用",
       "aecDisabledModelLoadFailed": "AEC AI 模型載入失敗，已自動停用",
       "aecDisabledModelMissing": "找不到 AEC AI 模型，已自動停用",
+      "aecDisabledPermissionDenied": "未獲錄製系統音訊的授權，AEC 已自動停用",
       "aecDisabledPipeWireUnavailable": "PipeWire 不可用，AEC 已自動停用",
       "aecDisabledReferenceLost": "AEC 音訊參考流已中斷，已自動停用",
+      "aecDisabledUnsupportedOs": "目前系統版本無法擷取系統音訊，AEC 已自動停用",
       "aecDisabledVirtualSourceMissing": "找不到虛擬音訊來源，AEC 已自動停用"
     },
     "ipSelector": {
@@ -207,6 +209,7 @@
       "aec": "聲學迴聲消除 (AEC)",
       "aecDesc": "使用 AI 從麥克風中消除揚聲器迴聲",
       "aecUnavailable": "在此系統上不可用",
+      "aecPermissionDenied": "未獲錄製系統音訊的授權，AEC 缺少參考訊號",
       "aecRuntimeUnavailable": "已自動停用：音訊參考流不可用",
       "bufferSize": "輸出緩衝區大小",
       "bufferSizeDesc": "越大越能抵禦網路抖動，但延遲越高",
