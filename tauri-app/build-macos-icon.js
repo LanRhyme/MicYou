@@ -10,7 +10,7 @@
 // meaningless diff after each build. Pass --force to rebuild regardless.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,11 +27,8 @@ const projectDir = path.join(iconsDir, iconName + '.icon');
 const icnsPath = path.join(iconsDir, 'icon.icns');
 const carPath = path.join(iconsDir, 'Assets.car');
 const infoPlistPath = path.join(srcTauriDir, 'Info.plist');
+const configPath = path.join(srcTauriDir, 'tauri.conf.json');
 const force = process.argv.includes('--force');
-
-// Kept in sync with LSMinimumSystemVersion so the compiled icon targets the
-// same systems the bundle claims to support.
-const deploymentTarget = '10.13';
 
 function modificationTime(target) {
   try {
@@ -66,6 +63,21 @@ function plistValue(file, key) {
   }).trim();
 }
 
+// actool has to compile the catalog for the same macOS floor the bundle declares,
+// so the floor is read from the config instead of being repeated here: two copies
+// would drift apart again, and a catalog built for a newer system than the app
+// claims to support only shows up when macOS rejects the icon. Tauri itself falls
+// back to 10.13 while the key is absent.
+function macosMinimumSystemVersion() {
+  let config;
+  try {
+    config = JSON.parse(readFileSync(configPath, 'utf8'));
+  } catch (error) {
+    throw new Error('could not read the macOS bundle config ' + configPath + ': ' + error);
+  }
+  return config.bundle?.macOS?.minimumSystemVersion || '10.13';
+}
+
 if (process.platform !== 'darwin') {
   console.log('[icon] Skipping ' + iconName + '.icon: Icon Composer projects only build on macOS');
   process.exit(0);
@@ -90,11 +102,17 @@ if (!hasActool()) {
 // the .icns under Tauri's own name, so only CFBundleIconName is declared in
 // Info.plist. Refuse to produce a pair the system cannot resolve instead.
 const declaredName = plistValue(infoPlistPath, 'CFBundleIconName');
+const deploymentTarget = macosMinimumSystemVersion();
 
 const workDir = mkdtempSync(path.join(tmpdir(), 'micyou-icon-'));
 try {
   const partialPlistPath = path.join(workDir, 'partial.plist');
-  console.log('[icon] Compiling ' + path.relative(appDir, projectDir) + ' with actool');
+  console.log(
+    '[icon] Compiling ' +
+      path.relative(appDir, projectDir) +
+      ' with actool for macOS ' +
+      deploymentTarget,
+  );
   const compile = spawnSync(
     'xcrun',
     [
