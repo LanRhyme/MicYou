@@ -49,8 +49,7 @@
       "binaries/micyou-tui"
     ],
     "resources": [
-      "resources/*",
-      "resources/alsa/*"
+      "resources/*"
     ],
     "icon": [
       "icons/32x32.png",
