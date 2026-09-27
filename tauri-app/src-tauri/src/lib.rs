@@ -189,7 +189,9 @@ pub fn run() {
                 if id.starts_with(APP_MENU_ID_PREFIX) {
                     let _ = app.emit("app-menu-action", id.to_string());
                 } else {
-                    log::warn!(target: "menu", "ignoring foreign menu id: {id}");
+                    // The tray shares this handler (Tauri installs one global menu
+                    // listener), so its own ids land here on every click.
+                    log::debug!(target: "menu", "ignoring foreign menu id: {id}");
                 }
             });
 

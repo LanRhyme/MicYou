@@ -346,6 +346,11 @@ export function findInvalidMenuNode(nodes: MenuNode[], path: string[] = []): str
     if (!node.label.trim()) {
       return `${here.join(" › ")}: empty label`;
     }
+    if (path.length === 0 && node.kind !== "submenu") {
+      // The menu bar holds submenus only; anything else makes the backend reject
+      // the whole menu instead of skipping that one entry.
+      return `${here.join(" › ")}: the menu bar holds submenus only`;
+    }
     if (node.kind === "item" || node.kind === "check") {
       if (!node.id.startsWith(APP_MENU_ID_PREFIX)) {
         return `${here.join(" › ")}: id "${node.id}" is missing the "${APP_MENU_ID_PREFIX}" prefix`;
@@ -447,8 +452,8 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: Ref<AppMenuState>
       }
       // muda flips a check item's own state before it dispatches the click, so an
       // action that ends up changing nothing (a cancelled warning, re-picking the
-      // active language) would leave the native tick lying. Re-pushing from the
-      // authoritative frontend state unconditionally puts it back.
+      // active language) would leave the native tick lying. Clearing the dedupe key
+      // and re-pushing from the authoritative frontend state puts it back.
       lastPushedMenu = null;
       void push();
     });

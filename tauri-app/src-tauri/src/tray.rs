@@ -139,7 +139,9 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     let _ = app.emit("tray-action", id);
                 }
                 other => {
-                    log::warn!(target: "tray", "unknown menu id: {other}");
+                    // The app menu bar shares this handler (Tauri installs one global
+                    // menu listener), so its `menu:` ids land here too.
+                    log::debug!(target: "tray", "unknown menu id: {other}");
                 }
             }
         })
