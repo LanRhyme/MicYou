@@ -68,11 +68,6 @@ pub fn get_audio_devices() -> Vec<String> {
     names
 }
 
-/// Whether the current desktop backend has a usable AEC reference capture path.
-pub const fn aec_supported() -> bool {
-    !cfg!(target_os = "macos")
-}
-
 #[tauri::command]
 pub fn update_audio_settings(
     state: State<'_, ServerState>,
@@ -92,8 +87,10 @@ pub fn update_audio_settings(
     state.plugins.reconcile_settings_chain(&mut settings);
     match state.dsp_settings.write() {
         Ok(mut current) => {
-            if settings.aec_enabled && !current.aec_enabled && !aec_supported() {
-                return Err("AEC is not supported on macOS".to_string());
+            if settings.aec_enabled && !current.aec_enabled {
+                if let Some(reason) = micyou_audio::aec_reference_availability().reason {
+                    return Err(reason.as_str().to_string());
+                }
             }
             // Persist to the shared settings.json so the CLI sees the same values
             crate::app_config::save_dsp_settings(&settings)
@@ -104,6 +101,25 @@ pub fn update_audio_settings(
             Ok("Settings updated".to_string())
         }
         Err(e) => Err(format!("Failed to update settings: {}", e)),
+    }
+}
+
+/// Current AEC availability and state.
+///
+/// Every frontend reads this instead of deciding platform support locally, so the
+/// GUI, the CLI and the TUI cannot disagree about whether AEC can run.
+#[tauri::command]
+pub fn get_aec_status(state: State<'_, ServerState>) -> crate::events::AecStatus {
+    let availability = micyou_audio::aec_reference_availability();
+    let enabled = state
+        .dsp_settings
+        .read()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .aec_enabled;
+    crate::events::AecStatus {
+        available: availability.available,
+        enabled: enabled && availability.available,
+        reason: availability.reason,
     }
 }
 

@@ -280,6 +280,7 @@ pub fn run() {
             commands::apply_macos_window_layout,
             commands::set_dock_badge,
             commands::set_app_menu,
+            commands::get_aec_status,
             commands::show_floating_window,
             commands::hide_floating_window,
             commands::toggle_floating_window,
