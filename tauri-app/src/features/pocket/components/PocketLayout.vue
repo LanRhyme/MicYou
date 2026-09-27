@@ -74,7 +74,6 @@ const buttonColor = computed(() => {
 
 interface OverlayHandle {
   window: WebviewWindow | null;
-  created: boolean;
   unlisteners: (() => void)[];
 }
 
@@ -87,7 +86,7 @@ const OVERLAY_LABEL_PREFIX = 'pocket-overlay-';
 const overlays: Record<string, OverlayHandle> = {};
 
 const getOverlay = (id: string): OverlayHandle => {
-  if (!overlays[id]) overlays[id] = { window: null, created: false, unlisteners: [] };
+  if (!overlays[id]) overlays[id] = { window: null, unlisteners: [] };
   return overlays[id];
 };
 
@@ -124,7 +123,11 @@ const positionOverlay = async (align: 'right' | 'left' = 'right', height = OVERL
       }
       y = Math.min(Math.max(y, minY), Math.max(minY, maxY));
     }
-  } catch {}
+  } catch (error) {
+    // Without a monitor the popup still opens where it would have gone; log it so
+    // a monitor query that genuinely broke is visible instead of silently unclamped.
+    console.warn('pocket overlay: could not read the monitor bounds:', error);
+  }
 
   return { x: Math.round(x), y: Math.round(y) };
 };
@@ -146,47 +149,41 @@ const syncAndShow = async (id: string, url: string, syncFn: () => void, opts?: {
   emit('update:popupOpen', true);
   syncFn();
 
-  if (!h.created || !h.window) {
-    const { x, y } = await positionOverlay(opts?.align, opts?.height ?? OVERLAY_H);
-    h.window = new WebviewWindow(OVERLAY_LABEL_PREFIX + id, {
-      url,
-      title: '',
-      width: OVERLAY_W,
-      height: opts?.height ?? OVERLAY_H,
-      x, y,
-      parent: 'main',
-      decorations: false,
-      transparent: true,
-      resizable: false,
-      skipTaskbar: true,
-      visible: false,
-      focus: false,
-    });
-    // Register popup-ready BEFORE other async ops to avoid missing the event
-    h.unlisteners.push(
-      await h.window.listen('popup-ready', () => {
-        showOverlay(h);
-      })
-    );
+  // Both callers run hideAllOverlays() first, which closes the window and clears
+  // the handle, so there is never a live overlay to reuse here.
+  const { x, y } = await positionOverlay(opts?.align, opts?.height ?? OVERLAY_H);
+  h.window = new WebviewWindow(OVERLAY_LABEL_PREFIX + id, {
+    url,
+    title: '',
+    width: OVERLAY_W,
+    height: opts?.height ?? OVERLAY_H,
+    x, y,
+    parent: 'main',
+    decorations: false,
+    transparent: true,
+    resizable: false,
+    skipTaskbar: true,
+    visible: false,
+    focus: false,
+  });
+  // Register popup-ready BEFORE other async ops to avoid missing the event
+  h.unlisteners.push(
+    await h.window.listen('popup-ready', () => {
+      showOverlay(h);
+    })
+  );
 
-    try { await h.window.setBackgroundColor([0, 0, 0, 0]); } catch {}
+  try { await h.window.setBackgroundColor([0, 0, 0, 0]); } catch {}
 
-    h.unlisteners.push(
-      await h.window.listen('popup-closing', () => {
-        emit('update:popupOpen', false);
-        moreMenuOpen.value = false;
-        activeOverlay.value = null;
-      })
-    );
+  h.unlisteners.push(
+    await h.window.listen('popup-closing', () => {
+      emit('update:popupOpen', false);
+      moreMenuOpen.value = false;
+      activeOverlay.value = null;
+    })
+  );
 
-    opts?.onCreated?.(h);
-    h.created = true;
-  } else {
-    const { x, y } = await positionOverlay(opts?.align, opts?.height ?? OVERLAY_H);
-    try { await h.window.setPosition(new LogicalPosition(x, y)); } catch {}
-    try { await h.window.emit('popup-refresh'); } catch {}
-    await showOverlay(h);
-  }
+  opts?.onCreated?.(h);
 };
 
 const closePopup = async () => {
@@ -212,7 +209,6 @@ const hideAllOverlays = async () => {
     h.unlisteners.forEach(fn => fn());
     h.unlisteners = [];
     h.window = null;
-    h.created = false;
   }
   moreMenuOpen.value = false;
   activeOverlay.value = null;
@@ -227,7 +223,6 @@ const destroyAllOverlays = async () => {
     if (h.window) {
       try { await h.window.close(); } catch {}
       h.window = null;
-      h.created = false;
     }
   }
 };

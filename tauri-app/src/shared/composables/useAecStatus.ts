@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 
 /**
  * AEC availability reported by the backend.
@@ -24,7 +24,6 @@ const CAPABILITY_REASONS = new Set(['unsupported_os', 'permission_denied']);
 const aecAvailable = ref(true);
 const aecReason = ref<string | null>(null);
 let initialised = false;
-let unlisten: UnlistenFn | null = null;
 
 function apply(status: AecStatusPayload) {
   aecAvailable.value = status.available;
@@ -46,19 +45,14 @@ export function useAecStatus() {
   if (!initialised) {
     initialised = true;
     void refresh();
-    void listen<AecStatusPayload>('aec-status-changed', (event) => apply(event.payload)).then(
-      (stop) => {
-        unlisten = stop;
+    // The listener lives as long as the app does, so the unsubscribe handle is
+    // dropped rather than stored: nothing tears a module-level singleton down.
+    void listen<AecStatusPayload>('aec-status-changed', (event) => apply(event.payload)).catch(
+      (error) => {
+        console.error('aec-status-changed listener failed:', error);
       },
     );
   }
 
-  return { aecAvailable, aecSupported, aecReason, refresh };
-}
-
-/** Releases the shared listener; only used by tests and hot reloads. */
-export function disposeAecStatus() {
-  unlisten?.();
-  unlisten = null;
-  initialised = false;
+  return { aecAvailable, aecSupported, aecReason };
 }
