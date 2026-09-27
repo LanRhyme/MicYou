@@ -407,6 +407,8 @@
     "window": "窗口喵~",
     "mute": "静音喵~",
     "monitoring": "监听喵~",
+    "connectionMode": "连接方式喵~",
+    "networkInterface": "网卡喵~",
     "pocketMode": "袖珍模式喵~",
     "undo": "撤销喵~",
     "redo": "重做喵~",

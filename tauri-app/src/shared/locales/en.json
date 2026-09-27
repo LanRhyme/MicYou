@@ -409,6 +409,8 @@
     "window": "Window",
     "mute": "Mute",
     "monitoring": "Monitoring",
+    "connectionMode": "Connection Mode",
+    "networkInterface": "Network Interface",
     "pocketMode": "Pocket Mode",
     "undo": "Undo",
     "redo": "Redo",

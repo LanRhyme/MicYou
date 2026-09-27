@@ -407,6 +407,8 @@
     "window": "窗口事项",
     "mute": "静音事项",
     "monitoring": "监听事项",
+    "connectionMode": "连接方式事项",
+    "networkInterface": "网卡事项",
     "pocketMode": "袖珍模式事项",
     "undo": "撤销事项",
     "redo": "重做事项",

@@ -407,6 +407,8 @@
     "window": "視窗",
     "mute": "靜音",
     "monitoring": "監聽",
+    "connectionMode": "連線方式",
+    "networkInterface": "網路介面",
     "pocketMode": "袖珍模式",
     "undo": "還原",
     "redo": "重做",

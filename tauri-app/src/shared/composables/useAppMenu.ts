@@ -33,6 +33,15 @@ export interface AppMenuState {
   isMuted: boolean;
   isMonitoring: boolean;
   pocketMode: boolean;
+  /**
+   * The bind address is a per-run choice, so the submenu needs the mode, the
+   * auto flag, the current pick and the list to draw from.
+   */
+  connectionMode: string;
+  isAutoBind: boolean;
+  selectedIp: string;
+  /** Backing data for the network-interface submenu; empty while unavailable. */
+  interfaces: Array<{ ip: string; name: string }>;
   /** Effective language code, used to tick the language submenu. */
   language: string;
 }
@@ -44,6 +53,9 @@ export interface AppMenuCallbacks {
   onToggleWindow: () => void | Promise<void>;
   onToggleMute: () => void | Promise<void>;
   onToggleMonitoring: () => void | Promise<void>;
+  onMode: (mode: string) => void | Promise<void>;
+  /** `ip` is empty when `auto` is set, matching the window's selectIp("", true). */
+  onInterface: (ip: string, auto: boolean) => void | Promise<void>;
   onTogglePocket: () => void | Promise<void>;
   onSwitchCli: () => void | Promise<void>;
   onSwitchTui: () => void | Promise<void>;
@@ -85,6 +97,18 @@ export const MENU_ID_LANG_PREFIX = `${APP_MENU_ID_PREFIX}lang:`;
 
 export const menuLangId = (code: string) => `${MENU_ID_LANG_PREFIX}${code}`;
 
+/** Connection-mode entries carry the mode in the id. */
+export const MENU_ID_MODE_PREFIX = `${APP_MENU_ID_PREFIX}mode:`;
+
+export const menuModeId = (mode: string) => `${MENU_ID_MODE_PREFIX}${mode}`;
+
+/** Interface entries carry the bind address in the id; "auto" means every interface. */
+export const MENU_ID_IFACE_PREFIX = `${APP_MENU_ID_PREFIX}iface:`;
+
+export const menuIfaceId = (ip: string) => `${MENU_ID_IFACE_PREFIX}${ip}`;
+
+export const MENU_ID_IFACE_AUTO = `${MENU_ID_IFACE_PREFIX}auto`;
+
 /**
  * Language self-names: every language reads the same in any locale, so these are
  * shown verbatim — the same choice the settings dialog makes for its selector.
@@ -100,6 +124,16 @@ export const APP_MENU_LANGUAGES: ReadonlyArray<{ code: string; label: string }> 
 ];
 
 /**
+ * The connection modes are product names rather than prose, so they read the same
+ * in every locale — the same call the mode chips in the window make.
+ */
+export const APP_MENU_CONNECTION_MODES: ReadonlyArray<{ mode: string; label: string }> = [
+  { mode: "wifi", label: "Wi-Fi" },
+  { mode: "usb", label: "USB" },
+  { mode: "web", label: "Web" },
+];
+
+/**
  * Full screen is only offered outside pocket mode, where it would fight with the
  * bar sizing. The entry is dropped instead of greyed out because the descriptor
  * only understands `enabled` on regular items.
@@ -109,6 +143,31 @@ function fullscreenItems(t: (key: string) => string, state: AppMenuState): MenuN
   return [
     { kind: "separator" },
     { kind: "predefined", name: "fullscreen", label: t("menu.fullscreen") },
+  ];
+}
+
+/**
+ * "All Interfaces" is always offered; the per-interface entries only appear once
+ * the backend has reported them, and the separator goes with them so an empty
+ * list never leaves a stray line behind.
+ */
+function interfaceItems(t: (key: string) => string, state: AppMenuState): MenuNode[] {
+  const auto = {
+    kind: "check" as const,
+    id: MENU_ID_IFACE_AUTO,
+    label: t("app.ipSelector.allInterfaces"),
+    checked: state.isAutoBind,
+  };
+  if (state.interfaces.length === 0) return [auto];
+  return [
+    auto,
+    { kind: "separator" },
+    ...state.interfaces.map((iface) => ({
+      kind: "check" as const,
+      id: menuIfaceId(iface.ip),
+      label: `${iface.ip} (${iface.name})`,
+      checked: !state.isAutoBind && state.selectedIp === iface.ip,
+    })),
   ];
 }
 
@@ -155,11 +214,30 @@ export function appMenuFromI18n(
           kind: "item",
           id: MENU_ID_TOGGLE_STREAM,
           label: state.isStreaming ? t("tray.stop") : t("tray.start"),
+          accelerator: "CmdOrCtrl+Shift+S",
         },
         {
           kind: "item",
           id: MENU_ID_TOGGLE_WINDOW,
           label: state.windowVisible ? t("tray.hide") : t("tray.show"),
+        },
+        { kind: "separator" },
+        {
+          kind: "submenu",
+          label: t("menu.connectionMode"),
+          items: APP_MENU_CONNECTION_MODES.map(({ mode, label }) => ({
+            kind: "check" as const,
+            id: menuModeId(mode),
+            label,
+            checked: state.connectionMode === mode,
+          })),
+        },
+        {
+          kind: "submenu",
+          label: t("menu.networkInterface"),
+          // USB goes through adb reverse, so the bind address is ignored there.
+          enabled: state.connectionMode !== "usb",
+          items: interfaceItems(t, state),
         },
         { kind: "separator" },
         {
@@ -309,6 +387,12 @@ export function useAppMenu(callbacks: AppMenuCallbacks, state: Ref<AppMenuState>
       const id = event.payload;
       if (id.startsWith(MENU_ID_LANG_PREFIX)) {
         void callbacks.onLanguage(id.slice(MENU_ID_LANG_PREFIX.length));
+      } else if (id.startsWith(MENU_ID_MODE_PREFIX)) {
+        void callbacks.onMode(id.slice(MENU_ID_MODE_PREFIX.length));
+      } else if (id.startsWith(MENU_ID_IFACE_PREFIX)) {
+        const iface = id.slice(MENU_ID_IFACE_PREFIX.length);
+        const auto = iface === "auto";
+        void callbacks.onInterface(auto ? "" : iface, auto);
       } else switch (id) {
         case MENU_ID_ABOUT:
           void callbacks.onAbout();

@@ -14,7 +14,7 @@ import {
 } from '@lucide/vue';
 
 // Composables managing server connection, audio, theme, window, and system tray
-import { useServer } from './features/connection/composables/useServer';
+import { useServer, type ConnectionMode } from './features/connection/composables/useServer';
 import { useAudio } from './features/audio/composables/useAudio';
 import { useTheme } from './features/theme/composables/useTheme';
 import { useWindow } from './shared/composables/useWindow';
@@ -200,6 +200,10 @@ const appMenuState = computed<AppMenuState>(() => ({
   isMuted: audio.isMuted.value,
   isMonitoring: audio.isMonitoringEnabled.value,
   pocketMode: pocketMode.value,
+  connectionMode: server.connectionMode.value,
+  isAutoBind: server.isAutoBind.value,
+  selectedIp: server.selectedIp.value,
+  interfaces: server.networkInterfaces.value.map((i) => ({ ip: i.ip, name: i.interface_name })),
   language: locale.value,
 }));
 
@@ -228,6 +232,12 @@ useAppMenu(
     },
     onToggleMute: () => audio.toggleMute(),
     onToggleMonitoring: () => audio.toggleMonitoringEnabled(),
+    onMode: (mode) => {
+      server.connectionMode.value = mode as ConnectionMode;
+    },
+    onInterface: (ip, auto) => {
+      server.selectIp(auto ? '' : ip, auto);
+    },
     onTogglePocket: () => {
       pocketMode.value = !pocketMode.value;
     },

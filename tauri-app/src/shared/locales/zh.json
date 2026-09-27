@@ -409,6 +409,8 @@
     "window": "窗口",
     "mute": "静音",
     "monitoring": "监听",
+    "connectionMode": "连接方式",
+    "networkInterface": "网卡",
     "pocketMode": "袖珍模式",
     "undo": "撤销",
     "redo": "重做",
