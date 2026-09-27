@@ -44,7 +44,7 @@ use objc::runtime::Object;
 use objc::{class, msg_send, sel, sel_impl};
 use ringbuf::HeapRb;
 
-use crate::loopback::{push_to_buffer, set_failure};
+use crate::loopback::{lock, push_to_buffer, set_failure};
 use crate::AecFailure;
 
 const CORE_AUDIO_PATH: &[u8] = b"/System/Library/Frameworks/CoreAudio.framework/CoreAudio\0";
@@ -264,11 +264,20 @@ impl CoreAudioApi {
 
 // ─── Capture thread ───────────────────────────────────────────────────────
 
+/// Resampler state shared with the real-time IOProc callback.
+///
+/// The rate and the resampler built for it are swapped together: following a
+/// device switch must never leave the callback resampling at the previous rate.
+/// A `None` resampler means the tap already runs at the target rate.
+struct TapSource {
+    device_rate: u32,
+    resampler: Option<Arc<Mutex<crate::engine::RubatoResampler>>>,
+}
+
 /// State shared with the real-time IOProc callback.
 struct TapContext {
     buffer: Arc<Mutex<HeapRb<f32>>>,
-    resampler: Option<Arc<Mutex<crate::engine::RubatoResampler>>>,
-    device_rate: u32,
+    source: Mutex<TapSource>,
     channels: usize,
 }
 
@@ -286,6 +295,12 @@ unsafe extern "C" fn tap_io_proc(
     }
     unsafe {
         let context = &*(client as *const TapContext);
+        // Clone the resampler out of the lock: resampling happens outside it, so a
+        // rate change on the supervisor thread can swap it mid-callback.
+        let source = lock(&context.source);
+        let device_rate = source.device_rate;
+        let resampler = source.resampler.clone();
+        drop(source);
         let list = &*input;
         for index in 0..list.number_buffers as usize {
             let audio_buffer = &list.buffers[index];
@@ -297,8 +312,8 @@ unsafe extern "C" fn tap_io_proc(
             push_to_buffer(
                 samples,
                 context.channels,
-                context.device_rate,
-                &context.resampler,
+                device_rate,
+                &resampler,
                 &context.buffer,
             );
         }
@@ -337,10 +352,37 @@ pub(crate) fn capture_thread(
     failure: Arc<Mutex<Option<AecFailure>>>,
 ) {
     if let Err(reason) = run_capture(&active, &buffer) {
-        log::error!("[Loopback] Core Audio tap capture failed: {}", reason.as_str());
+        log::error!(
+            "[Loopback] Core Audio tap capture failed: {}",
+            reason.as_str()
+        );
         set_failure(&failure, reason);
     }
     active.store(false, Ordering::Relaxed);
+}
+
+/// Whether an observed tap rate requires rebuilding the resampler.
+///
+/// A zero rate means the format could not be read, which is ignored - matching the
+/// check applied when the capture starts.
+fn needs_resampler_rebuild(current_rate: u32, observed_rate: u32) -> bool {
+    observed_rate > 0 && observed_rate != current_rate
+}
+
+/// Builds the resampler for a tap rate, or nothing when it already matches.
+fn build_resampler(
+    device_rate: u32,
+) -> Result<Option<Arc<Mutex<crate::engine::RubatoResampler>>>, AecFailure> {
+    if device_rate == crate::loopback::TARGET_RATE {
+        return Ok(None);
+    }
+    match crate::engine::RubatoResampler::new(device_rate, crate::loopback::TARGET_RATE, 1) {
+        Ok(resampler) => Ok(Some(Arc::new(Mutex::new(resampler)))),
+        Err(error) => {
+            log::error!("[Loopback] Failed to create a {device_rate}Hz resampler: {error}");
+            Err(AecFailure::ReferenceLost)
+        }
+    }
 }
 
 fn run_capture(
@@ -413,19 +455,14 @@ fn run_capture(
         channels
     );
 
-    let resampler = if device_rate == crate::loopback::TARGET_RATE {
-        None
-    } else {
-        match crate::engine::RubatoResampler::new(device_rate, crate::loopback::TARGET_RATE, 1) {
-            Ok(resampler) => Some(Arc::new(Mutex::new(resampler))),
-            Err(error) => {
-                log::error!("[Loopback] Failed to create resampler: {error}");
-                unsafe {
-                    (api.destroy_process_tap)(tap);
-                    release_description(description);
-                }
-                return Err(AecFailure::ReferenceLost);
+    let resampler = match build_resampler(device_rate) {
+        Ok(resampler) => resampler,
+        Err(reason) => {
+            unsafe {
+                (api.destroy_process_tap)(tap);
+                release_description(description);
             }
+            return Err(reason);
         }
     };
 
@@ -443,14 +480,17 @@ fn run_capture(
 
     let context = Box::into_raw(Box::new(TapContext {
         buffer: buffer.clone(),
-        resampler,
-        device_rate,
+        source: Mutex::new(TapSource {
+            device_rate,
+            resampler,
+        }),
         channels,
     }));
 
     let mut io_proc: *mut c_void = std::ptr::null_mut();
-    let created =
-        unsafe { (api.create_io_proc)(aggregate, tap_io_proc, context as *mut c_void, &mut io_proc) };
+    let created = unsafe {
+        (api.create_io_proc)(aggregate, tap_io_proc, context as *mut c_void, &mut io_proc)
+    };
     let started = if created == 0 {
         unsafe { (api.start_device)(aggregate, io_proc) }
     } else {
@@ -465,13 +505,43 @@ fn run_capture(
     }
 
     log::info!("[Loopback] Core Audio tap capture started");
+    // The tap follows the default output device, so switching devices can change its
+    // rate. Left alone, a stale ratio would misalign the reference silently, which is
+    // worse than failing - so the rate is re-read here and the resampler rebuilt.
+    let context_ref = unsafe { &*context };
+    let mut failure = None;
     while active.load(Ordering::Relaxed) {
         std::thread::sleep(std::time::Duration::from_millis(100));
+        let observed_rate = api
+            .tap_format(tap)
+            .map(|format| format.sample_rate.round() as u32)
+            .unwrap_or(0);
+        let current_rate = lock(&context_ref.source).device_rate;
+        if !needs_resampler_rebuild(current_rate, observed_rate) {
+            continue;
+        }
+        match build_resampler(observed_rate) {
+            Ok(resampler) => {
+                *lock(&context_ref.source) = TapSource {
+                    device_rate: observed_rate,
+                    resampler,
+                };
+                log::info!("[Loopback] Core Audio tap rate changed to {observed_rate}Hz");
+            }
+            Err(reason) => {
+                log::error!("[Loopback] Failed to follow the tap rate change");
+                failure = Some(reason);
+                break;
+            }
+        }
     }
 
     cleanup(&api, aggregate, io_proc, tap, description, context);
     log::info!("[Loopback] Core Audio tap capture stopped");
-    Ok(())
+    match failure {
+        Some(reason) => Err(reason),
+        None => Ok(()),
+    }
 }
 
 fn create_aggregate(api: &CoreAudioApi, description: *mut Object) -> Option<AudioObjectID> {
@@ -554,7 +624,10 @@ fn cleanup(
 
 #[cfg(test)]
 mod tests {
-    use super::{process_tap_available, resolve, fourcc, SYMBOL_CREATE_PROCESS_TAP};
+    use super::{
+        build_resampler, fourcc, needs_resampler_rebuild, process_tap_available, resolve,
+        SYMBOL_CREATE_PROCESS_TAP,
+    };
 
     #[test]
     fn capability_probe_is_cached_and_consistent() {
@@ -578,12 +651,30 @@ mod tests {
 
     #[test]
     fn process_tap_symbol_name_is_nul_terminated() {
-        let symbol = std::str::from_utf8(
-            &SYMBOL_CREATE_PROCESS_TAP[..SYMBOL_CREATE_PROCESS_TAP.len() - 1],
-        )
-        .expect("symbol must be valid UTF-8");
+        let symbol =
+            std::str::from_utf8(&SYMBOL_CREATE_PROCESS_TAP[..SYMBOL_CREATE_PROCESS_TAP.len() - 1])
+                .expect("symbol must be valid UTF-8");
         assert_eq!(symbol, "AudioHardwareCreateProcessTap");
         assert_eq!(*SYMBOL_CREATE_PROCESS_TAP.last().unwrap(), 0);
+    }
+
+    #[test]
+    fn rate_changes_are_followed_but_missing_formats_are_not() {
+        assert!(needs_resampler_rebuild(44100, 48000));
+        assert!(needs_resampler_rebuild(48000, 44100));
+        // An unreadable format reports zero and must not trigger a rebuild.
+        assert!(!needs_resampler_rebuild(44100, 0));
+        assert!(!needs_resampler_rebuild(44100, 44100));
+    }
+
+    #[test]
+    fn resampler_is_only_built_when_the_rate_differs() {
+        assert!(build_resampler(crate::loopback::TARGET_RATE)
+            .expect("the target rate needs no resampler")
+            .is_none());
+        assert!(build_resampler(44100)
+            .expect("44100Hz needs a resampler")
+            .is_some());
     }
 
     #[test]

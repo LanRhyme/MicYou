@@ -107,7 +107,7 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 | `tauri-app/crates/micyou-protocol/proto/network.proto` | Wire format source (prost-compiled) |
 | `tauri-app/crates/micyou-audio/src/dsp.rs` | DSP settings struct + `DspProcessor` |
 | `tauri-app/crates/micyou-audio/src/aec.rs`, `loopback.rs` | AEC capability/failure codes and the cross-platform far-end capture (WASAPI loopback, PipeWire sink monitor, macOS process tap); no platform policy outside these files |
-| `tauri-app/crates/micyou-audio/src/macos_tap.rs` | macOS-only far-end reference via `AudioHardwareCreateProcessTap` (macOS 14.2+), resolved with `dlopen`/`dlsym` so older systems still load; needs `NSAudioCaptureUsageDescription` or macOS returns silence instead of failing |
+| `tauri-app/crates/micyou-audio/src/macos_tap.rs` | macOS-only far-end reference via `AudioHardwareCreateProcessTap` (macOS 14.2+), resolved with `dlopen`/`dlsym` so older systems still load; needs `NSAudioCaptureUsageDescription` or macOS returns silence instead of failing. Re-reads the tap rate while running, so switching the output device cannot leave a stale resampling ratio |
 
 ## Runtime/Tooling Preferences
 
