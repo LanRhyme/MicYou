@@ -1,6 +1,7 @@
-import { computed, ref, watchEffect } from 'vue';
+import { computed, ref, watch, watchEffect } from 'vue';
 import { useStorage } from '@vueuse/core';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { HslColor } from '../types';
 import type { SystemAccentColor, ThemeMode } from '../types';
 
@@ -191,6 +192,13 @@ async function initializeSystemAccent() {
   }
 }
 
+// The accent lives outside the app, so a cached answer is only valid until the user
+// changes it in System Settings.
+async function refreshSystemAccent() {
+  systemAccentInitialized.value = false;
+  await initializeSystemAccent();
+}
+
 function exportThemeToCli() {
   if (typeof document === 'undefined') return;
   try {
@@ -267,6 +275,17 @@ export async function resetThemeToDefaults(): Promise<boolean> {
 
 export function useTheme() {
   void initializeSystemAccent();
+
+  // Picking "system" is the moment the user expects the OS accent, so never answer
+  // that from a cached value - and re-read it when they come back from System Settings.
+  watch(themeMode, (mode) => {
+    if (mode === 'system') void refreshSystemAccent();
+  });
+  void getCurrentWindow()
+    .onFocusChanged(({ payload: focused }) => {
+      if (focused) void refreshSystemAccent();
+    })
+    .catch((error) => console.warn('System accent refresh on focus is unavailable:', error));
 
   const systemAccent = computed<SystemAccentColor>(() => ({
     hex: systemAccentHex.value,
