@@ -945,7 +945,14 @@
                         {{ $t('settings.audioParams.aecDesc') }}
                       </p>
                       <p
-                        v-if="!isAecSupported"
+                        v-if="aecReason === 'permission_denied'"
+                        class="text-xs text-on-surface-variant mt-1 flex items-center gap-1"
+                      >
+                        <Ban class="w-3 h-3 shrink-0" />
+                        {{ $t('settings.audioParams.aecPermissionDenied') }}
+                      </p>
+                      <p
+                        v-else-if="!isAecSupported"
                         class="text-xs text-on-surface-variant mt-1 flex items-center gap-1"
                       >
                         <Ban class="w-3 h-3 shrink-0" />
@@ -1672,6 +1679,7 @@ import ContributorsDialog from './ContributorsDialog.vue';
 import SponsorsDialog from './SponsorsDialog.vue';
 import LicensesDialog from './LicensesDialog.vue';
 import AudioChainDialog from '@/features/audio/components/AudioChainDialog.vue';
+import { useAecStatus } from '@/shared/composables/useAecStatus';
 import { chainStageLabel } from '@/features/audio/chain';
 import CustomCssDialog from '@/features/theme/components/CustomCssDialog.vue';
 import ThemeCatalogDialog from '@/features/theme/components/ThemeCatalogDialog.vue';
@@ -2127,8 +2135,13 @@ const isAutoFallbackToPhysical = computed(() => {
   return !isVirtualDeviceSelected.value;
 });
 
-const isAecSupported = !isMacOS;
-const aecRuntimeAvailable = ref(true);
+// AEC availability comes from the backend, so the GUI, the CLI and the TUI share
+// one answer instead of each deciding what the platform supports.
+const {
+  aecSupported: isAecSupported,
+  aecAvailable: aecRuntimeAvailable,
+  aecReason,
+} = useAecStatus();
 const pipewireStatus = ref<{
   available: boolean;
   setup: boolean;
@@ -2170,7 +2183,6 @@ const copyPipewireCommand = async () => {
 const vbcableInstalling = ref(false);
 const vbcableInstallProgress = ref('');
 let unlistenVbcableProgress: UnlistenFn | null = null;
-let unlistenAecStatus: UnlistenFn | null = null;
 
 interface BlackHoleStatus {
   installed: boolean;
@@ -2310,7 +2322,7 @@ const updateProcessingChain = (newChain: string[]) => {
 };
 
 const displayChain = computed(() =>
-  isAecSupported ? settings.processingChain : settings.processingChain.filter((i) => i !== 'AEC'),
+  isAecSupported.value ? settings.processingChain : settings.processingChain.filter((i) => i !== 'AEC'),
 );
 
 // 链节点内联预览标签：Plugin:<id> 节点显示插件名而非翻译键（#347）
@@ -2504,13 +2516,6 @@ onMounted(async () => {
   unlistenVbcableProgress = await listen<string>('vbcable-install-progress', (event) => {
     vbcableInstallProgress.value = event.payload;
   });
-  unlistenAecStatus = await listen<{
-    available: boolean;
-    enabled: boolean;
-    reason?: string | null;
-  }>('aec-status-changed', (event) => {
-    aecRuntimeAvailable.value = event.payload.available;
-  });
   checkBlackHoleStatus();
 });
 
@@ -2532,7 +2537,6 @@ onUnmounted(() => {
   isMounted = false;
   stopAudioMonitoring();
   if (unlistenVbcableProgress) unlistenVbcableProgress();
-  if (unlistenAecStatus) unlistenAecStatus();
 });
 
 const fetchDevices = async () => {
@@ -2579,10 +2583,10 @@ const loadSettings = async () => {
 
   // AEC 在 Linux/Windows 可用，在 macOS 禁用；可用平台强制置顶
   const savedChain = settings.processingChain ?? [];
-  settings.processingChain = isAecSupported
+  settings.processingChain = isAecSupported.value
     ? ['AEC', ...savedChain.filter((i) => i !== 'AEC')]
     : savedChain.filter((i) => i !== 'AEC');
-  if (!isAecSupported) settings.aecEnabled = false;
+  if (!isAecSupported.value) settings.aecEnabled = false;
 
   // Legacy support
   const savedDevice = localStorage.getItem('micyou_output_device');
@@ -2600,7 +2604,7 @@ const syncSettingsToBackend = async () => {
     await invoke('update_audio_settings', {
       settings: {
         gain: settings.gain,
-        aecEnabled: isAecSupported ? settings.aecEnabled : false,
+        aecEnabled: isAecSupported.value ? settings.aecEnabled : false,
         nsEnabled: settings.nsEnabled,
         nsType: settings.nsType,
         nsIntensity: settings.nsIntensity,
@@ -2613,7 +2617,7 @@ const syncSettingsToBackend = async () => {
         vadEnabled: settings.vadEnabled,
         vadThreshold: settings.vadThreshold,
         outputBufferMs: settings.outputBufferMs,
-        processingChain: isAecSupported
+        processingChain: isAecSupported.value
           ? settings.processingChain
           : settings.processingChain.filter((i) => i !== 'AEC'),
         equalizer: settings.equalizer,
@@ -2690,10 +2694,10 @@ async function doRestoreDefaultSettings() {
     });
     Object.assign(settings, defaults);
     // Platform normalization (AEC pinning is runtime, not a "default")
-    settings.processingChain = isAecSupported
+    settings.processingChain = isAecSupported.value
       ? ['AEC', ...settings.processingChain.filter((i) => i !== 'AEC')]
       : settings.processingChain.filter((i) => i !== 'AEC');
-    if (!isAecSupported) settings.aecEnabled = false;
+    if (!isAecSupported.value) settings.aecEnabled = false;
     await nextTick(); // watcher flushes while still suppressed → no-op
     suppressAutosave.value = false;
     saveSettings(); // exactly one real persist + backend sync

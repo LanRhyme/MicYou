@@ -12,5 +12,11 @@
 	     build-macos-icon.js script, which verifies the three agree. -->
 	<key>CFBundleIconName</key>
 	<string>MicYou</string>
+	<!-- macOS 14.2 and newer build the AEC far-end reference from a Core Audio
+	     process tap of the system playback. This key is mandatory: without it
+	     macOS refuses the authorization request outright and then feeds the tap
+	     silence, so the capture appears to run while producing nothing. -->
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>MicYou records system playback to cancel the echo that would otherwise be sent back to your caller.</string>
 </dict>
 </plist>
