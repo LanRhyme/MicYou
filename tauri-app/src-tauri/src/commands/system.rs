@@ -845,16 +845,13 @@ pub async fn start_server_inner(
         // selects the platform source (WASAPI loopback, PipeWire sink monitor or a
         // Core Audio process tap), so the transport only knows that a reference may
         // exist. It starts lazily once an AEC-enabled session sends audio.
-        let loopback: Option<micyou_audio::LoopbackCapture> =
-            Some(micyou_audio::LoopbackCapture::new());
+        let loopback = micyou_audio::LoopbackCapture::new();
 
         let mut audio_received_for_session = false;
         let mut aec_runtime_available = micyou_audio::aec_reference_availability().available;
         // A newly started server always begins with a fresh runtime state, even
         // before the first client session arrives.
-        if loopback.is_some() {
-            restore_aec_runtime(&mut aec_runtime_available, &dsp_settings, &events_audio);
-        }
+        restore_aec_runtime(&mut aec_runtime_available, &dsp_settings, &events_audio);
         // Sync the AEC far-end capture with actual audio flow. A control session
         // alone is not enough: while waiting for the first valid audio packet,
         // there is no microphone stream that needs an echo reference.
@@ -869,9 +866,7 @@ pub async fn start_server_inner(
                 *audio_received = false;
             }
 
-            let Some(lb) = &loopback else {
-                return transport_active;
-            };
+            let lb = &loopback;
             let aec_enabled = dsp_settings
                 .read()
                 .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -927,18 +922,14 @@ pub async fn start_server_inner(
                     match event {
                         AudioStreamEvent::SessionStarting { expected, epoch } => {
                             audio_received_for_session = false;
-                            if let Some(lb) = &loopback {
-                                lb.reset_session();
-                            }
+                            loopback.reset_session();
                             dsp_processor.reset_aec_session();
                             opus_decoder = None;
-                            if loopback.is_some() {
-                                restore_aec_runtime(
-                                    &mut aec_runtime_available,
-                                    &dsp_settings,
-                                    &events_audio,
-                                );
-                            }
+                            restore_aec_runtime(
+                                &mut aec_runtime_available,
+                                &dsp_settings,
+                                &events_audio,
+                            );
                             jb.prepare_transport_session_epoch(expected, epoch);
                             continue;
                         }
@@ -1105,11 +1096,8 @@ pub async fn start_server_inner(
                                     // Matching the processed frame count prevents drift when
                                     // packet sizes or input sample rates vary.
                                     let near_frames = pcm_f32.len() / channels.max(1);
-                                    if let Some(far_data) = loopback
-                                        .as_ref()
-                                        .filter(|capture| capture.is_active())
-                                        .map(|capture| capture.read(near_frames))
-                                    {
+                                    if loopback.is_active() {
+                                        let far_data = loopback.read(near_frames);
                                         dsp_processor.set_far_end_audio(&far_data);
                                     }
                                     let (raw, processed) = dsp_processor.process(
@@ -1167,12 +1155,10 @@ pub async fn start_server_inner(
             }
         }
 
-        if let Some(lb) = &loopback {
-            let was_active = lb.is_active();
-            lb.stop();
-            if was_active {
-                log::info!("[Audio] Speaker loopback stopped");
-            }
+        let was_active = loopback.is_active();
+        loopback.stop();
+        if was_active {
+            log::info!("[Audio] Speaker loopback stopped");
         }
     });
 
@@ -1579,14 +1565,10 @@ pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
 
 /// Places the macOS traffic lights for the active header layout. No-op elsewhere.
 #[tauri::command]
-pub fn apply_macos_window_layout(
-    app: AppHandle,
-    mode: String,
-) -> Result<crate::macos_window::LayoutMetrics, String> {
+pub fn apply_macos_window_layout(app: AppHandle, mode: String) -> Result<(), String> {
     let mode = crate::macos_window::Mode::parse(&mode);
     let win = main_window(&app)?;
-    crate::macos_window::apply(&win.as_ref().window(), mode)?;
-    Ok(mode.metrics())
+    crate::macos_window::apply(&win.as_ref().window(), mode)
 }
 
 /// Sets the macOS Dock badge label (`None` clears it). No-op elsewhere.
