@@ -47,6 +47,10 @@ if (isMacOS && typeof document !== 'undefined') {
   document.documentElement.classList.add('platform-macos');
 }
 
+// macOS drags its windows by the titlebar without a grab affordance, so the header keeps
+// the regular pointer there while Windows and Linux keep the grab cursor.
+const dragSurfaceClass = isMacOS ? 'cursor-default' : 'cursor-grab active:cursor-grabbing';
+
 const { t, locale } = useI18n();
 
 // Initialize shared features
@@ -495,7 +499,7 @@ onUnmounted(() => {
     <CustomBackground />
 
     <!-- Pocket Mode -->
-    <div v-if="pocketMode" class="absolute inset-0 flex items-center p-1.5 cursor-grab active:cursor-grabbing" @mousedown="startDrag">
+    <div v-if="pocketMode" class="absolute inset-0 flex items-center p-1.5" :class="dragSurfaceClass" @mousedown="startDrag">
       <div
         v-if="pocketPopupOpen"
         class="absolute inset-0 z-10"
@@ -538,7 +542,7 @@ onUnmounted(() => {
     <!-- Full Mode -->
     <div v-else class="absolute inset-0 flex flex-col p-3 gap-3">
       <!-- Header Section -->
-      <div class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0 cursor-grab active:cursor-grabbing relative z-30" @mousedown="startDrag">
+      <div class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0 relative z-30" :class="dragSurfaceClass" @mousedown="startDrag">
         <div class="flex items-center gap-3">
           <!-- macOS uses the native window controls; keep their footprint clear -->
           <div
