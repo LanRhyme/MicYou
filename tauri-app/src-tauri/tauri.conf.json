@@ -62,6 +62,21 @@
       "minimumSystemVersion": "11.0",
       "files": {
         "Resources/Assets.car": "icons/Assets.car"
+      },
+      "dmg": {
+        "background": "packaging/dmg-background.png",
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "appPosition": {
+          "x": 180,
+          "y": 180
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 180
+        }
       }
     }
   }
