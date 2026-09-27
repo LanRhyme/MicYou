@@ -26,5 +26,11 @@ ort = { version = "=2.0.0-rc.13", default-features = false, features = ["load-dy
 rustfft = { version = "6.4.1", optional = true }
 ndarray = { version = "0.17", optional = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+# Core Audio process taps need Objective-C runtime access and a CoreFoundation
+# dictionary for the aggregate device description.
+objc = "0.2"
+core-foundation = "0.10"
+
 [target.'cfg(windows)'.dependencies]
 wasapi = "0.16"

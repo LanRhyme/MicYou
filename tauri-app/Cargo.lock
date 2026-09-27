@@ -3491,11 +3491,13 @@ dependencies = [
 name = "micyou-audio"
 version = "2.0.3"
 dependencies = [
+ "core-foundation 0.10.1",
  "cpal",
  "log",
  "micyou-protocol",
  "ndarray",
  "nnnoiseless",
+ "objc",
  "ort",
  "ringbuf",
  "rubato",

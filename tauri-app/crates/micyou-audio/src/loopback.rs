@@ -22,15 +22,15 @@ use ringbuf::{HeapRb, Rb};
 use crate::AecFailure;
 
 const RING_BUF_SEC: usize = 2;
-const TARGET_RATE: u32 = 48000;
+pub(crate) const TARGET_RATE: u32 = 48000;
 const MAX_REFERENCE_LAG_SAMPLES: usize = TARGET_RATE as usize * 300 / 1000;
 const CAPTURE_JOIN_TIMEOUT: Duration = Duration::from_millis(500);
 const CAPTURE_JOIN_POLL: Duration = Duration::from_millis(10);
 
 /// Cross-platform speaker loopback capture for AEC far-end reference.
 ///
-/// - Windows: WASAPI loopback on default render device (no virtual device needed)
-/// - macOS: cpal input from BlackHole
+/// - Windows: WASAPI loopback on the default render device (no virtual device needed)
+/// - macOS: Core Audio process tap of the system playback, excluding MicYou (macOS 14.2+)
 /// - Linux: pw-record on the default physical playback sink monitor
 pub struct LoopbackCapture {
     active: Arc<AtomicBool>,
@@ -83,7 +83,7 @@ impl LoopbackCapture {
                 #[cfg(target_os = "linux")]
                 pipewire_loopback_thread(active, buffer, failure);
                 #[cfg(target_os = "macos")]
-                cpal_capture_thread(active, buffer, failure);
+                crate::macos_tap::capture_thread(active, buffer, failure);
                 #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
                 {
                     set_failure(&failure, AecFailure::ReferenceLost);
@@ -193,20 +193,20 @@ impl Default for LoopbackCapture {
     }
 }
 
-fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+pub(crate) fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-fn set_failure(failure: &Mutex<Option<AecFailure>>, reason: AecFailure) {
+pub(crate) fn set_failure(failure: &Mutex<Option<AecFailure>>, reason: AecFailure) {
     *lock(failure) = Some(reason);
 }
 
 // ─── Helper: downmix + resample + push to buffer ─────────────────────────
 
 #[cfg(any(target_os = "windows", target_os = "macos"))]
-fn push_to_buffer(
+pub(crate) fn push_to_buffer(
     data: &[f32],
     channels: usize,
     _device_rate: u32,
@@ -488,148 +488,6 @@ fn pipewire_loopback_thread(
     let _ = reader.join();
     active.store(false, Ordering::Relaxed);
     log::info!("[Loopback] PipeWire default playback monitor stopped");
-}
-
-// ─── macOS: cpal capture from BlackHole ──────────────────────────────────
-
-#[cfg(target_os = "macos")]
-fn cpal_capture_thread(
-    active: Arc<AtomicBool>,
-    buffer: Arc<Mutex<HeapRb<f32>>>,
-    failure: Arc<Mutex<Option<AecFailure>>>,
-) {
-    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-
-    let host = cpal::default_host();
-
-    let device = {
-        let mut found = None;
-        if let Ok(devices) = host.input_devices() {
-            'outer: for dev in devices {
-                if let Ok(name) = dev.name() {
-                    let lower = name.to_lowercase();
-                    let matches = lower.contains("blackhole");
-                    if matches {
-                        log::info!("[Loopback] Found virtual device: '{}'", name);
-                        found = Some(dev);
-                        break 'outer;
-                    }
-                }
-            }
-        }
-        match found {
-            Some(d) => d,
-            None => {
-                log::error!(
-                    "[Loopback] No virtual audio device found. \
-                     Install BlackHole (macOS) or start MicYou PipeWire routing (Linux)."
-                );
-                set_failure(&failure, AecFailure::VirtualSourceMissing);
-                active.store(false, Ordering::Relaxed);
-                return;
-            }
-        }
-    };
-
-    let config = match device.default_input_config() {
-        Ok(c) => c,
-        Err(e) => {
-            log::error!("[Loopback] Failed to get input config: {}", e);
-            set_failure(&failure, AecFailure::ReferenceLost);
-            active.store(false, Ordering::Relaxed);
-            return;
-        }
-    };
-
-    let channels = config.channels() as usize;
-    let device_rate = config.sample_rate().0;
-    let sample_format = config.sample_format();
-
-    log::info!(
-        "[Loopback] cpal capture started: {}Hz {}ch",
-        device_rate,
-        channels
-    );
-
-    let resampler = if device_rate != TARGET_RATE {
-        match crate::engine::RubatoResampler::new(device_rate, TARGET_RATE, 1) {
-            Ok(r) => Some(Arc::new(Mutex::new(r))),
-            Err(e) => {
-                log::error!("[Loopback] Failed to create resampler: {}", e);
-                set_failure(&failure, AecFailure::ReferenceLost);
-                None
-            }
-        }
-    } else {
-        None
-    };
-
-    let stream_active = active.clone();
-    let stream_failure = failure.clone();
-    let err_fn = move |err: cpal::StreamError| {
-        log::error!("[Loopback] Stream error: {}", err);
-        set_failure(&stream_failure, AecFailure::ReferenceLost);
-        stream_active.store(false, Ordering::Relaxed);
-    };
-
-    let buf_clone = buffer.clone();
-    let active_clone = active.clone();
-    let resampler_clone = resampler.clone();
-
-    let stream_result = match sample_format {
-        cpal::SampleFormat::F32 => device.build_input_stream(
-            &config.into(),
-            move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                push_to_buffer(data, channels, device_rate, &resampler_clone, &buf_clone);
-            },
-            err_fn,
-            None,
-        ),
-        cpal::SampleFormat::I16 => device.build_input_stream(
-            &config.into(),
-            move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                let f32_data: Vec<f32> = data.iter().map(|&s| s as f32 / 32768.0).collect();
-                push_to_buffer(
-                    &f32_data,
-                    channels,
-                    device_rate,
-                    &resampler_clone,
-                    &buf_clone,
-                );
-            },
-            err_fn,
-            None,
-        ),
-        fmt => {
-            log::error!("[Loopback] Unsupported sample format: {:?}", fmt);
-            set_failure(&failure, AecFailure::ReferenceLost);
-            active.store(false, Ordering::Relaxed);
-            return;
-        }
-    };
-
-    match stream_result {
-        Ok(stream) => {
-            if let Err(e) = stream.play() {
-                log::error!("[Loopback] Failed to start stream: {}", e);
-                set_failure(&failure, AecFailure::ReferenceLost);
-                active.store(false, Ordering::Relaxed);
-                return;
-            }
-
-            while active_clone.load(Ordering::Relaxed) {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-            }
-
-            drop(stream);
-            log::info!("[Loopback] Stopped");
-        }
-        Err(e) => {
-            log::error!("[Loopback] Failed to build stream: {}", e);
-            set_failure(&failure, AecFailure::ReferenceLost);
-            active.store(false, Ordering::Relaxed);
-        }
-    }
 }
 
 #[cfg(test)]
