@@ -10,6 +10,7 @@
     "dev": "npm run licenses && vite",
     "build": "npm run licenses && vue-tsc --noEmit && vite build",
     "build-macos-icon": "node build-macos-icon.js",
+    "build-dmg-background": "node build-dmg-background.js",
     "preview": "vite preview",
     "prepare-sidecars": "node prepare-sidecars.js",
     "prepare-sidecars:dev": "node prepare-sidecars.js --debug",

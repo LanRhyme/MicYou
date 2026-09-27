@@ -8,7 +8,7 @@
     "beforeDevCommand": "npm run prepare-sidecars:dev && npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run sync-version && npm run prepare-sidecars && npm run build",
-    "beforeBundleCommand": "npm run clean-bundles && npm run build-macos-icon",
+    "beforeBundleCommand": "npm run clean-bundles && npm run build-macos-icon && npm run build-dmg-background",
     "frontendDist": "../dist"
   },
   "app": {
