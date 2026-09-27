@@ -103,8 +103,11 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 | `tauri-app/src/main.ts` | Frontend entry; i18n registration; hash-based multi-window routing |
 | `tauri-app/src/App.vue` | Main window (full + pocket modes), wires all composables |
 | `tauri-app/src/shared/composables/useAppMenu.ts` | Builds and pushes the app menu descriptor from i18n + app state; dispatches `app-menu-action` ids |
+| `tauri-app/src/shared/composables/useAecStatus.ts` | Single shared source of AEC availability (`get_aec_status` + `aec-status-changed`); capability reasons disable the toggle, runtime reasons do not |
 | `tauri-app/crates/micyou-protocol/proto/network.proto` | Wire format source (prost-compiled) |
 | `tauri-app/crates/micyou-audio/src/dsp.rs` | DSP settings struct + `DspProcessor` |
+| `tauri-app/crates/micyou-audio/src/aec.rs`, `loopback.rs` | AEC capability/failure codes and the cross-platform far-end capture (WASAPI loopback, PipeWire sink monitor, macOS process tap); no platform policy outside these files |
+| `tauri-app/crates/micyou-audio/src/macos_tap.rs` | macOS-only far-end reference via `AudioHardwareCreateProcessTap` (macOS 14.2+), resolved with `dlopen`/`dlsym` so older systems still load; needs `NSAudioCaptureUsageDescription` or macOS returns silence instead of failing |
 
 ## Runtime/Tooling Preferences
 
