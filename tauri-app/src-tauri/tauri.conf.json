@@ -60,6 +60,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
+      "minimumSystemVersion": "11.0",
       "files": {
         "Resources/Assets.car": "icons/Assets.car"
       }
