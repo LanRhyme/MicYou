@@ -243,6 +243,53 @@ mod system_accent_tests {
         assert_eq!(components_to_hex(-0.5, 2.0, 0.5), "#00ff80");
     }
 
+    // Every InfoPlist.strings key has to match a usage description in Info.plist: a typo
+    // or a missing locale makes macOS fall back to the English text without any warning,
+    // which stays invisible until a localized system shows the prompt. The bundled
+    // macOS metadata is OS-environment surface, like the runtime lookups above.
+    #[test]
+    fn macos_permission_prompts_are_localized_for_every_usage_description() {
+        let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let plist = std::fs::read_to_string(manifest.join("Info.plist")).expect("Info.plist");
+        let mut expected = plist
+            .match_indices("<key>NS")
+            .filter_map(|(start, _)| plist[start + 5..].split("</key>").next())
+            .filter(|key| key.ends_with("UsageDescription"))
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert!(!expected.is_empty(), "no usage descriptions found in Info.plist");
+
+        let mut locales = 0;
+        for entry in std::fs::read_dir(manifest.join("packaging/InfoPlist")).expect("locales") {
+            let strings_path = entry.expect("locale entry").path().join("InfoPlist.strings");
+            if !strings_path.is_file() {
+                continue;
+            }
+            locales += 1;
+
+            let strings = std::fs::read_to_string(&strings_path).expect("InfoPlist.strings");
+            let mut found = Vec::new();
+            for line in strings.lines().filter(|line| line.starts_with('"')) {
+                let (key, value) = line.split_once(" = ").expect("a .strings entry needs ' = '");
+                let value = value
+                    .trim_start_matches('"')
+                    .trim_end_matches(';')
+                    .trim_end_matches('"');
+                assert!(!value.is_empty(), "empty value in {}", strings_path.display());
+                found.push(key.trim_matches('"').to_string());
+            }
+            found.sort();
+            assert_eq!(
+                found,
+                expected,
+                "{} does not match Info.plist",
+                strings_path.display()
+            );
+        }
+        assert_eq!(locales, 3, "expected one .lproj per localized language");
+    }
+
     #[cfg(windows)]
     use super::argb_to_hex;
 

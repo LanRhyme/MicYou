@@ -61,7 +61,10 @@
     "macOS": {
       "minimumSystemVersion": "11.0",
       "files": {
-        "Resources/Assets.car": "icons/Assets.car"
+        "Resources/Assets.car": "icons/Assets.car",
+        "Resources/zh-Hans.lproj": "packaging/InfoPlist/zh-Hans.lproj",
+        "Resources/zh-Hant.lproj": "packaging/InfoPlist/zh-Hant.lproj",
+        "Resources/zh-HK.lproj": "packaging/InfoPlist/zh-HK.lproj"
       },
       "dmg": {
         "background": "packaging/dmg-background.png",
