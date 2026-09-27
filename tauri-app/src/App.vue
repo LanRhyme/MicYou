@@ -396,6 +396,21 @@ watch(pocketModalOpen, async (open) => {
   }
 });
 
+// Dock 徽标：串流时显示已连接客户端数（Wi-Fi/USB 模式下即为 1 台设备），
+// 其余时间清除。
+const dockBadge = computed(() => {
+  if (!isMacOS || server.serverState.value !== 'streaming') return null;
+  return String(Math.max(server.webClientCount.value, 1));
+});
+
+watch(dockBadge, async (label) => {
+  try {
+    await invoke('set_dock_badge', { label });
+  } catch (e) {
+    console.error('set_dock_badge failed:', e);
+  }
+}, { immediate: true });
+
 // Central action button hover animations
 const onCentralBtnHover = () => {
   if (centralBtnRef.value) {

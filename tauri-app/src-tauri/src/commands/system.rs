@@ -1457,6 +1457,13 @@ pub fn apply_macos_window_layout(
     Ok(mode.metrics())
 }
 
+/// Sets the macOS Dock badge label (`None` clears it). No-op elsewhere.
+#[tauri::command]
+pub fn set_dock_badge(app: AppHandle, label: Option<String>) -> Result<(), String> {
+    let win = main_window(&app)?;
+    crate::macos_dock::set_badge(&win.as_ref().window(), label)
+}
+
 /// Replaces the app-wide menu with the descriptor the frontend sent. No-op elsewhere.
 #[tauri::command]
 pub fn set_app_menu(app: AppHandle, menu: Vec<MenuNode>) -> Result<(), String> {

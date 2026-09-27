@@ -23,6 +23,7 @@ pub mod blackhole;
 pub mod commands;
 pub mod events;
 pub mod jitter_buffer;
+pub mod macos_dock;
 pub mod macos_window;
 pub mod menubar;
 pub mod mode_lock;
@@ -277,6 +278,7 @@ pub fn run() {
             commands::minimize_main_window,
             commands::hide_main_window,
             commands::apply_macos_window_layout,
+            commands::set_dock_badge,
             commands::set_app_menu,
             commands::show_floating_window,
             commands::hide_floating_window,
