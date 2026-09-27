@@ -22,10 +22,10 @@ jobs:
             filename: 'MicYou-Win-*-installer.exe'
           - os: macos
             arch: x64
-            filename: 'MicYou-macOS-*-x64.dmg'
+            filename: 'MicYou-macOS-*-universal.dmg'
           - os: macos
             arch: arm64
-            filename: 'MicYou-macOS-*-arm64.dmg'
+            filename: 'MicYou-macOS-*-universal.dmg'
           - os: linux
             arch: x64
             filename: 'MicYou-Linux-*.deb'
