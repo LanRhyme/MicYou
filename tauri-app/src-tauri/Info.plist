@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Tauri merges these keys into the generated Info.plist.
+
+	     CFBundleIconName points at the icon compiled from icons/MicYou.icon,
+	     which is what lets macOS 26 use the layered Liquid Glass artwork
+	     instead of the flat fallback. CFBundleIconFile is deliberately left
+	     alone: Tauri already sets it to the icon.icns this project produces.
+	     Keep the name in sync with icons/MicYou.icon and the
+	     build-macos-icon.js script, which verifies the three agree. -->
+	<key>CFBundleIconName</key>
+	<string>MicYou</string>
+</dict>
+</plist>

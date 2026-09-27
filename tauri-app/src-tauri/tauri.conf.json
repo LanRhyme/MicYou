@@ -8,7 +8,7 @@
     "beforeDevCommand": "npm run prepare-sidecars:dev && npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run sync-version && npm run prepare-sidecars && npm run build",
-    "beforeBundleCommand": "npm run clean-bundles",
+    "beforeBundleCommand": "npm run clean-bundles && npm run build-macos-icon",
     "frontendDist": "../dist"
   },
   "app": {
@@ -58,6 +58,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "files": {
+        "Resources/Assets.car": "icons/Assets.car"
+      }
+    }
   }
 }
