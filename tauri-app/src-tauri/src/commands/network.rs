@@ -13,30 +13,27 @@
  * GNU General Public License for more details.
  */
 
-use crate::adb_manager;
-use crate::server::{query_network_interfaces, NetworkInfo, NetworkInterfaceInfo, ServerState};
+use micyou_core::discovery::{query_network_interfaces, NetworkInfo, NetworkInterfaceInfo};
+use micyou_core::platform::adb;
+use micyou_core::server::ServerState;
+use serde::Serialize;
 use tauri::State;
 
 #[tauri::command]
-pub fn enable_usb_mode(
-    port: u16,
-    device_serial: Option<String>,
-) -> Result<adb_manager::UsbModeResult, String> {
-    adb_manager::enable_usb_mode(port, device_serial.as_deref())
+pub fn enable_usb_mode(port: u16, device_serial: Option<String>) -> Result<adb::UsbModeResult, String> {
+    adb::enable_usb_mode(port, device_serial.as_deref())
 }
 
 #[tauri::command]
-pub fn list_adb_devices() -> Result<Vec<adb_manager::AdbDevice>, String> {
-    adb_manager::list_adb_devices()
+pub fn list_adb_devices() -> Result<Vec<adb::AdbDevice>, String> {
+    adb::list_adb_devices()
 }
 
 #[tauri::command]
 pub fn get_network_info() -> NetworkInfo {
-    let interfaces = query_network_interfaces();
-    let ips: Vec<String> = interfaces.iter().map(|i| i.ip.clone()).collect();
     NetworkInfo {
-        ips,
-        port: micyou_protocol::PORT,
+        ips: query_network_interfaces().into_iter().map(|i| i.ip).collect(),
+        port: micyou_core::micyou_protocol::PORT,
     }
 }
 
@@ -45,32 +42,28 @@ pub fn get_network_interfaces() -> Vec<NetworkInterfaceInfo> {
     query_network_interfaces()
 }
 
-#[derive(serde::Serialize)]
+#[tauri::command]
+pub async fn allow_firewall() -> Result<(), String> {
+    micyou_core::platform::firewall::allow_inbound()
+}
+
+#[derive(Serialize)]
 pub struct WebStatus {
     pub running: bool,
     pub client_count: u32,
 }
 
-#[cfg(feature = "web-server")]
 #[tauri::command]
 pub async fn get_web_status(state: State<'_, ServerState>) -> Result<WebStatus, String> {
-    let lock = state.web_server.lock().await;
-    if let Some(web) = lock.as_ref() {
-        Ok(WebStatus {
+    #[cfg(feature = "web-server")]
+    if let Some(web) = state.web_server.lock().await.as_ref() {
+        return Ok(WebStatus {
             running: web.is_running(),
             client_count: web.client_count() as u32,
-        })
-    } else {
-        Ok(WebStatus {
-            running: false,
-            client_count: 0,
-        })
+        });
     }
-}
-
-#[cfg(not(feature = "web-server"))]
-#[tauri::command]
-pub async fn get_web_status(_state: State<'_, ServerState>) -> Result<WebStatus, String> {
+    #[cfg(not(feature = "web-server"))]
+    let _ = state;
     Ok(WebStatus {
         running: false,
         client_count: 0,

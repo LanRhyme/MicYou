@@ -13,7 +13,6 @@
  * GNU General Public License for more details.
  */
 
-use log;
 use mdns_sd::{ServiceDaemon, ServiceInfo};
 use micyou_protocol::MDNS_SERVICE_TYPE;
 use std::collections::HashMap;
@@ -23,9 +22,6 @@ pub struct NetworkManager {
     service_fullname: String,
 }
 
-/// Interface-name filter for IPv6 advertisement, mirroring the virtual
-/// interface exclusions `get_best_ip` applies for IPv4.
-const V6_EXCLUDE_KEYWORDS: &[&str] = &["tailscale", "virtual", "wsl", "veth", "flclash", "clash"];
 
 impl NetworkManager {
     pub fn start_mdns(port: u16, bind_address: &str) -> Result<Self, Box<dyn std::error::Error>> {
@@ -44,41 +40,14 @@ impl NetworkManager {
         let _ = self.mdns.shutdown();
     }
 
+    /// Best LAN IPv4 to advertise: the top-ranked entry of
+    /// [`query_network_interfaces`], else whatever the OS routes through.
     fn get_best_ip() -> Option<String> {
-        if let Ok(interfaces) = local_ip_address::list_afinet_netifas() {
-            let mut best_ip = None;
-            for (name, ip) in interfaces {
-                if ip.is_loopback() || !ip.is_ipv4() {
-                    continue;
-                }
-                let ip_str = ip.to_string();
-                let name_lower = name.to_lowercase();
-
-                // Filter out common TUN/VPN and virtual interfaces
-                if ip_str.starts_with("198.18.")
-                    || name_lower.contains("tailscale")
-                    || name_lower.contains("virtual")
-                    || name_lower.contains("wsl")
-                    || name_lower.contains("veth")
-                    || name_lower.contains("flclash")
-                    || name_lower.contains("clash")
-                {
-                    continue;
-                }
-
-                if ip_str.starts_with("192.168.") {
-                    return Some(ip_str); // Prefer 192.168.x.x
-                }
-                if best_ip.is_none() {
-                    best_ip = Some(ip_str);
-                }
-            }
-            if best_ip.is_some() {
-                return best_ip;
-            }
-        }
-        // Fallback
-        local_ip_address::local_ip().map(|ip| ip.to_string()).ok()
+        query_network_interfaces()
+            .into_iter()
+            .find(|iface| iface.ip.parse::<std::net::Ipv4Addr>().is_ok_and(|ip| !ip.is_loopback()))
+            .map(|iface| iface.ip)
+            .or_else(|| local_ip_address::local_ip().map(|ip| ip.to_string()).ok())
     }
 
     /// Resolves which address to advertise in mDNS for a configured bind
@@ -96,18 +65,18 @@ impl NetworkManager {
     fn mdns_advertise_ip(bind_address: &str) -> String {
         if bind_address == "0.0.0.0" {
             let v4 = Self::get_best_ip().unwrap_or_else(|| "127.0.0.1".to_string());
-            return match crate::net_bind::best_ipv6(V6_EXCLUDE_KEYWORDS) {
+            return match crate::transport::net_bind::best_ipv6(VIRTUAL_KEYWORDS) {
                 Some(v6) => format!("{},{}", v4, v6),
                 None => v4,
             };
         }
-        if crate::net_bind::is_unspecified_v6(bind_address) {
-            if let Some(ip) = crate::net_bind::best_ipv6(V6_EXCLUDE_KEYWORDS) {
+        if crate::transport::net_bind::is_unspecified_v6(bind_address) {
+            if let Some(ip) = crate::transport::net_bind::best_ipv6(VIRTUAL_KEYWORDS) {
                 return ip;
             }
             return Self::get_best_ip().unwrap_or_else(|| "::1".to_string());
         }
-        crate::net_bind::strip_brackets(bind_address).to_string()
+        crate::transport::net_bind::strip_brackets(bind_address).to_string()
     }
 
     fn start_mdns_helper(
@@ -148,6 +117,123 @@ impl NetworkManager {
             mdns,
             service_fullname,
         })
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct NetworkInfo {
+    pub ips: Vec<String>,
+    pub port: u16,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct NetworkInterfaceInfo {
+    pub ip: String,
+    pub interface_name: String,
+}
+
+/// Interface-name fragments of virtual, container and VPN adapters that a
+/// phone on the LAN can never reach. Shared by the IP picker and mDNS.
+const VIRTUAL_KEYWORDS: &[&str] = &[
+    "vmware",
+    "virtual",
+    "hyper-v",
+    "veth",
+    "wsl",
+    "docker",
+    "tunnel",
+    "teredo",
+    "isatap",
+    "vpn",
+    "tailscale",
+    "clash",
+    "flclash",
+];
+
+pub fn score_ip(ip: &str) -> i32 {
+    if ip.starts_with("192.168.") {
+        100
+    } else if ip.starts_with("172.") {
+        if let Some(second) = ip.split('.').nth(1) {
+            if let Ok(n) = second.parse::<u32>() {
+                if (16..=31).contains(&n) {
+                    return 80;
+                }
+            }
+        }
+        0
+    } else if ip.starts_with("10.") {
+        50
+    } else if ip.starts_with("198.18.") {
+        -10
+    } else if ip.starts_with("169.254.") {
+        -20
+    } else {
+        0
+    }
+}
+
+pub fn query_network_interfaces() -> Vec<NetworkInterfaceInfo> {
+    let mut candidates: Vec<(std::net::IpAddr, String)> = Vec::new();
+    if let Ok(interfaces) = local_ip_address::list_afinet_netifas() {
+        for (name, ip) in interfaces {
+            if ip.is_loopback() || !ip.is_ipv4() {
+                continue;
+            }
+            let name_lower = name.to_lowercase();
+            if VIRTUAL_KEYWORDS.iter().any(|kw| name_lower.contains(kw)) {
+                continue;
+            }
+            candidates.push((ip, name));
+        }
+    }
+
+    candidates.sort_by(|a, b| {
+        let score_a = score_ip(&a.0.to_string());
+        let score_b = score_ip(&b.0.to_string());
+        score_b
+            .cmp(&score_a)
+            .then_with(|| a.0.to_string().cmp(&b.0.to_string()))
+            .then_with(|| a.1.cmp(&b.1))
+    });
+
+    let mut result: Vec<NetworkInterfaceInfo> = candidates
+        .into_iter()
+        .map(|(ip, name)| NetworkInterfaceInfo {
+            ip: ip.to_string(),
+            interface_name: name,
+        })
+        .collect();
+
+    // Append bindable IPv6 addresses (ULA/GUA) after every IPv4 entry, so
+    // consumers that pick the first address keep seeing the same best IPv4
+    // as before. On hosts without IPv6 this list is empty and nothing
+    // changes.
+    result.extend(
+        crate::transport::net_bind::collect_ipv6_interfaces(VIRTUAL_KEYWORDS)
+            .into_iter()
+            .map(|(ip, name)| NetworkInterfaceInfo {
+                ip: ip.to_string(),
+                interface_name: name,
+            }),
+    );
+
+    if result.is_empty() {
+        // Diagnostic for the "dropdown only shows 127.0.0.1" case: no
+        // bindable address survived the filters. Link-local IPv6 (fe80::/10)
+        // is intentionally excluded — its %zone scope is host-local, so it
+        // can never be used by another device to connect.
+        log::info!(
+            "query_network_interfaces: no bindable IPv4/IPv6 addresses found \
+             (virtual/VPN interfaces and link-local fe80:: IPv6 are excluded); \
+             falling back to 127.0.0.1"
+        );
+        vec![NetworkInterfaceInfo {
+            ip: "127.0.0.1".to_string(),
+            interface_name: "Local".to_string(),
+        }]
+    } else {
+        result
     }
 }
 

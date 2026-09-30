@@ -16,9 +16,9 @@
 use std::sync::mpsc::Sender;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
-use tauri_app_lib::events::{AecStatus, ServerEvents};
-use tauri_app_lib::stats::AudioMetrics;
-use tauri_app_lib::tcp_server::DeviceInfo;
+use micyou_core::events::{AecStatus, DownloadProgress, ServerEvents, SpectrumPayload};
+use micyou_core::stats::AudioMetrics;
+use micyou_core::transport::tcp::DeviceInfo;
 
 /// Server events consumed by the interactive terminal UI.
 #[derive(Debug, Clone)]
@@ -85,12 +85,12 @@ impl ServerEvents for TuiEventSink {
         }
     }
 
-    fn audio_spectrum(&self, raw: Vec<f32>, processed: Vec<f32>) {
+    fn audio_spectrum(&self, spectrum: SpectrumPayload) {
         let mut last = self.last_spectrum.lock().unwrap();
         if last.elapsed() >= Duration::from_millis(70) {
             *last = Instant::now();
             drop(last);
-            let _ = self.tx.send(Event::Spectrum(raw, processed));
+            let _ = self.tx.send(Event::Spectrum(spectrum.raw, spectrum.processed));
         }
     }
 
@@ -109,4 +109,8 @@ impl ServerEvents for TuiEventSink {
     fn aec_status_changed(&self, status: AecStatus) {
         let _ = self.tx.send(Event::AecStatus(status));
     }
+
+    fn monitoring_state_changed(&self, _enabled: bool) {}
+
+    fn plugin_download_progress(&self, _progress: DownloadProgress) {}
 }

@@ -93,7 +93,7 @@ fn fallback() -> Theme {
 
 /// Load the theme from ~/.config/micyou/theme.json (GUI export) with fallback.
 pub fn load() -> Theme {
-    let colors = tauri_app_lib::app_config::load_theme_colors();
+    let colors = micyou_core::config::load_theme_colors();
     let mut theme = fallback();
     let mut any = false;
 

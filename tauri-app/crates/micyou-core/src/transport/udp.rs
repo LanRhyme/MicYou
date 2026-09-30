@@ -24,7 +24,7 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc::Sender;
 use tokio_util::sync::CancellationToken;
 
-use crate::audio_stream::{can_bind_legacy_packet, validate_audio_packet, AudioStreamEvent};
+use crate::transport::session::{can_bind_legacy_packet, validate_audio_packet, AudioStreamEvent};
 use micyou_protocol::micyou::AudioPacketMessageOrdered;
 
 const UDP_HEADER_LEN: usize = 8;
@@ -127,7 +127,7 @@ pub async fn start_udp_server(
         // exactly (same "host:port" parse, AF_INET, 2MB recv buffer,
         // non-blocking); IPv6 literals select AF_INET6 instead.
         let std_socket: std::net::UdpSocket =
-            crate::net_bind::bind_udp_socket(&bind_address, port)?;
+            crate::transport::net_bind::bind_udp_socket(&bind_address, port)?;
         Ok(UdpSocket::from_std(std_socket)?)
     })();
     let socket = match result {
@@ -143,8 +143,8 @@ pub async fn start_udp_server(
     // (the audio-session gate compares TCP peer IP against UDP source IP).
     // Failure is non-fatal and only logged. Bound BEFORE signalling ready so
     // no datagram window is missed.
-    let v6_socket = if crate::net_bind::wants_v6_companion(&bind_address) {
-        match crate::net_bind::bind_udp_socket_v6only(port).and_then(UdpSocket::from_std) {
+    let v6_socket = if crate::transport::net_bind::wants_v6_companion(&bind_address) {
+        match crate::transport::net_bind::bind_udp_socket_v6only(port).and_then(UdpSocket::from_std) {
             Ok(socket) => {
                 log::info!(
                     "UDP Audio Server also listening on [::]:{} (IPv6 companion)",
@@ -158,7 +158,7 @@ pub async fn start_udp_server(
                 println!(
                     "IPv6 companion UDP socket not started: {}{}",
                     error,
-                    crate::net_bind::companion_failure_hint(&error)
+                    crate::transport::net_bind::companion_failure_hint(&error)
                 );
                 log::warn!("IPv6 companion UDP socket not started: {}", error);
                 None
@@ -195,7 +195,7 @@ pub async fn start_udp_server(
                 println!("UDP Server cancelled");
                 break;
             }
-            recv_result = crate::net_bind::recv_from_either(&socket, v6_socket.as_ref(), &mut buf, &mut buf_v6) => {
+            recv_result = crate::transport::net_bind::recv_from_either(&socket, v6_socket.as_ref(), &mut buf, &mut buf_v6) => {
                 let (len, addr, from_v6) = match recv_result {
                     Ok(res) => res,
                     Err(e) => {

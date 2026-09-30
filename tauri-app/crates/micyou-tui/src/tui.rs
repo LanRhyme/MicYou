@@ -24,7 +24,7 @@ use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use micyou_audio::dsp::AudioDspSettings;
+use micyou_core::micyou_audio::dsp::AudioDspSettings;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -36,10 +36,10 @@ use std::sync::mpsc::Receiver;
 use std::sync::Arc;
 use std::time::Instant;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
-use tauri_app_lib::app_config::ServerPrefs;
-use tauri_app_lib::server::ServerState;
-use tauri_app_lib::stats::AudioMetrics;
-use tauri_app_lib::tcp_server::DeviceInfo;
+use micyou_core::config::ServerPrefs;
+use micyou_core::server::ServerState;
+use micyou_core::stats::AudioMetrics;
+use micyou_core::transport::tcp::DeviceInfo;
 
 /// Vertical split of the whole screen: [title, tabs, body, footer].
 fn split_layout(area: Rect) -> std::rc::Rc<[Rect]> {
@@ -103,7 +103,7 @@ pub struct TuiApp {
 impl TuiApp {
     pub fn new(settings: AudioDspSettings, port: u16, mode: String) -> Self {
         let lang = i18n::detect_lang();
-        let ips = tauri_app_lib::server::query_network_interfaces()
+        let ips = micyou_core::discovery::query_network_interfaces()
             .into_iter()
             .map(|i| i.ip)
             .filter(|ip| !ip.is_empty())
@@ -120,7 +120,7 @@ impl TuiApp {
             web_clients: 0,
             // The desktop backend currently has no macOS loopback reference
             // implementation, so do not expose a toggle that cannot take effect.
-            aec_runtime_available: tauri_app_lib::commands::audio::aec_supported(),
+            aec_runtime_available: micyou_core::settings::aec_supported(),
             settings,
             selected_setting: 0,
             chain_index: 0,
@@ -133,7 +133,7 @@ impl TuiApp {
             lang,
             theme: theme::load(),
             ips,
-            prefs: tauri_app_lib::app_config::load_server_prefs(),
+            prefs: micyou_core::config::load_server_prefs(),
             selected_conn: 0,
             sys: System::new(),
             last_sample: Instant::now(),
@@ -999,7 +999,7 @@ impl TuiApp {
                     other => {
                         // Per-plugin DSP node `Plugin:<id>` (issue #347)
                         if let Some(plugin_id) =
-                            other.strip_prefix(micyou_audio::dsp::PLUGIN_NODE_PREFIX)
+                            other.strip_prefix(micyou_core::micyou_audio::dsp::PLUGIN_NODE_PREFIX)
                         {
                             (format!("Plugin: {plugin_id}"), false)
                         } else {
@@ -1395,7 +1395,7 @@ fn toggle_setting(app: &mut TuiApp, idx: usize, state: &ServerState) {
         5 => app.settings.vad_enabled = !app.settings.vad_enabled,
         _ => {}
     }
-    sync_settings(&app.settings, state);
+    sync_settings(app, state);
 }
 
 fn act_conn(app: &mut TuiApp, idx: usize) {
@@ -1448,7 +1448,7 @@ fn handle_key(app: &mut TuiApp, key: KeyEvent, state: &ServerState) -> bool {
                 if app.chain_index > 1 {
                     chain.swap(app.chain_index, app.chain_index - 1);
                     app.chain_index -= 1;
-                    sync_chain(&app.settings, state);
+                    sync_settings(app, state);
                 }
             }
             _ => {}
@@ -1466,7 +1466,7 @@ fn handle_key(app: &mut TuiApp, key: KeyEvent, state: &ServerState) -> bool {
                 if app.chain_index + 1 < chain.len() && app.chain_index >= 1 {
                     chain.swap(app.chain_index, app.chain_index + 1);
                     app.chain_index += 1;
-                    sync_chain(&app.settings, state);
+                    sync_settings(app, state);
                 }
             }
             _ => {}
@@ -1488,7 +1488,7 @@ fn handle_key(app: &mut TuiApp, key: KeyEvent, state: &ServerState) -> bool {
                     }
                     _ => {}
                 }
-                sync_settings(&app.settings, state);
+                sync_settings(app, state);
             } else if app.tab == 3 {
                 match app.selected_conn {
                     1 => {
@@ -1514,7 +1514,7 @@ fn handle_key(app: &mut TuiApp, key: KeyEvent, state: &ServerState) -> bool {
                     }
                     _ => {}
                 }
-                sync_settings(&app.settings, state);
+                sync_settings(app, state);
             } else if app.tab == 3 {
                 match app.selected_conn {
                     1 => {
@@ -1536,30 +1536,23 @@ fn handle_key(app: &mut TuiApp, key: KeyEvent, state: &ServerState) -> bool {
 }
 
 /// Persist settings to the shared config file and apply to the running DSP.
-fn sync_settings(settings: &AudioDspSettings, state: &ServerState) {
-    // Re-apply plugin chain reconciliation so TUI edits can neither drop the
-    // per-plugin nodes of registered DSP plugins nor keep stale ones (#347).
-    let mut next = settings.clone();
-    state.plugins.reconcile_settings_chain(&mut next);
-    if let Ok(mut lock) = state.dsp_settings.write() {
-        *lock = next.clone();
+fn sync_settings(app: &mut TuiApp, state: &ServerState) {
+    if let Err(e) = state.controls().apply_dsp_settings(app.settings.clone()) {
+        app.log(format!("[err] {e}"));
     }
-    let _ = crate::config::save_settings(&next);
-}
-
-fn sync_chain(settings: &AudioDspSettings, state: &ServerState) {
-    sync_settings(settings, state);
 }
 
 /// Persist the edited connection settings to the shared server.json.
-fn sync_server_prefs(app: &TuiApp) {
-    let _ = tauri_app_lib::app_config::save_server_prefs(&app.prefs);
+fn sync_server_prefs(app: &mut TuiApp) {
+    if let Err(e) = micyou_core::config::save_server_prefs(&app.prefs) {
+        app.log(format!("[err] {e}"));
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tauri_app_lib::events::AecStatus;
+    use micyou_core::events::AecStatus;
 
     #[test]
     fn runtime_failure_does_not_overwrite_aec_preference() {
@@ -1572,7 +1565,7 @@ mod tests {
         app.on_event(Event::AecStatus(AecStatus {
             available: false,
             enabled: false,
-            reason: Some(micyou_audio::AecFailure::ReferenceLost),
+            reason: Some(micyou_core::micyou_audio::AecFailure::ReferenceLost),
         }));
 
         assert!(app.settings.aec_enabled);

@@ -6,6 +6,7 @@ members = [
   "crates/micyou-audio",
   "crates/micyou-plugin",
   "crates/micyou-plugin/fixtures/native",
+  "crates/micyou-core",
   "crates/micyou-cli",
   "crates/micyou-tui",
 ]
@@ -18,6 +19,26 @@ version = "2.0.3"
 authors = ["LanRhyme"]
 edition = "2021"
 license = "GPL-3.0-or-later"
+
+[workspace.dependencies]
+micyou-audio = { path = "crates/micyou-audio" }
+micyou-core = { path = "crates/micyou-core", default-features = false }
+micyou-plugin = { path = "crates/micyou-plugin" }
+micyou-protocol = { path = "crates/micyou-protocol" }
+
+clap = { version = "4", features = ["derive"] }
+cpal = "0.15.3"
+libc = "0.2.186"
+log = "0.4.32"
+prost = "0.14.4"
+reqwest = { version = "0.13.4", features = ["json", "blocking"] }
+semver = "1.0.28"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+tauri-winres = "0.3.6"
+tokio = "1.52.3"
+wat = "1.255.0"
+zip = "2.4.2"
 
 [workspace.metadata.tools]
 cargo-about = "0.9.1"

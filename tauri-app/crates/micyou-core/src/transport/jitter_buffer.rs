@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-use crate::audio_stream::{audio_payload_len, can_bind_legacy_packet, ExpectedAudioSession};
+use crate::transport::session::{audio_payload_len, can_bind_legacy_packet, ExpectedAudioSession};
 use micyou_protocol::micyou::{AudioPacketMessage, AudioPacketMessageOrdered};
 use std::collections::{BTreeMap, HashSet, VecDeque};
 

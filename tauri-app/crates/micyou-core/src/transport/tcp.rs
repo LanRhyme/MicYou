@@ -14,6 +14,7 @@
  */
 
 use crate::events::SharedEvents;
+use crate::server::service::ConnectionMode;
 use micyou_protocol::micyou::MessageWrapper;
 use micyou_protocol::{HANDSHAKE_CLIENT_STR, HANDSHAKE_SERVER_STR, PACKET_MAGIC};
 use prost::Message;
@@ -31,8 +32,8 @@ use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 
-use crate::audio_stream::{validate_audio_packet, AudioStreamEvent, ExpectedAudioSession};
-use crate::udp_server::{
+use crate::transport::session::{validate_audio_packet, AudioStreamEvent, ExpectedAudioSession};
+use crate::transport::udp::{
     try_accept_audio_packet, ActiveAudioSession, AudioPacketAcceptance, SharedActiveAudioSession,
 };
 
@@ -96,25 +97,52 @@ pub struct DeviceInfo {
     pub latency: u32,
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn start_tcp_server(
-    events: SharedEvents,
-    port: u16,
-    bind_address: String,
-    cancel_token: CancellationToken,
-    audio_tx: tokio::sync::mpsc::Sender<AudioStreamEvent>,
-    stats: Arc<crate::stats::NetworkStats>,
-    mode: String,
-    active_connection: SharedActiveConnection,
-    takeover_lock: SharedTakeoverLock,
-    active_audio_session: SharedActiveAudioSession,
-    plugins: Arc<crate::plugins::PluginHost>,
+pub struct TcpServerConfig {
+    pub events: SharedEvents,
+    pub port: u16,
+    pub bind_address: String,
+    pub cancel_token: CancellationToken,
+    pub audio_tx: tokio::sync::mpsc::Sender<AudioStreamEvent>,
+    pub stats: Arc<crate::stats::NetworkStats>,
+    pub mode: ConnectionMode,
+    pub active_connection: SharedActiveConnection,
+    pub takeover_lock: SharedTakeoverLock,
+    pub active_audio_session: SharedActiveAudioSession,
+    pub plugins: Arc<crate::plugins::PluginHost>,
+}
+
+/// Run the TCP control server until cancelled; startup success or failure
+/// is reported through `ready`.
+pub async fn run_tcp_server(
+    config: TcpServerConfig,
+    ready: tokio::sync::oneshot::Sender<Result<(), String>>,
+) {
+    if let Err(e) = serve(config, ready).await {
+        log::error!("[Server] TCP server error: {e}");
+    }
+}
+
+async fn serve(
+    config: TcpServerConfig,
     ready: tokio::sync::oneshot::Sender<Result<(), String>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let TcpServerConfig {
+        events,
+        port,
+        bind_address,
+        cancel_token,
+        audio_tx,
+        stats,
+        mode,
+        active_connection,
+        takeover_lock,
+        active_audio_session,
+        plugins,
+    } = config;
     // IPv6-aware bind: for IPv4 literals and hostnames this is exactly the
     // legacy `TcpListener::bind(format!("{}:{}", bind_address, port))` path.
-    let bind_target = crate::net_bind::normalize_socket_addr(&bind_address, port);
-    let listener = match crate::net_bind::bind_tcp_listener(&bind_address, port).await {
+    let bind_target = crate::transport::net_bind::normalize_socket_addr(&bind_address, port);
+    let listener = match crate::transport::net_bind::bind_tcp_listener(&bind_address, port).await {
         Ok(listener) => listener,
         Err(error) => {
             let _ = ready.send(Err(error.to_string()));
@@ -128,8 +156,8 @@ pub async fn start_tcp_server(
     // touched; a companion failure (no IPv6 stack, port unavailable) is
     // non-fatal and only logged. Bound BEFORE signalling ready so clients
     // can never observe a half-started server.
-    let v6_listener = if crate::net_bind::wants_v6_companion(&bind_address) {
-        match crate::net_bind::bind_tcp_listener_v6only(port) {
+    let v6_listener = if crate::transport::net_bind::wants_v6_companion(&bind_address) {
+        match crate::transport::net_bind::bind_tcp_listener_v6only(port) {
             Ok(listener) => {
                 log::info!(
                     "TCP Control Server also listening on [::]:{} (IPv6 companion)",
@@ -143,7 +171,7 @@ pub async fn start_tcp_server(
                 println!(
                     "IPv6 companion TCP listener not started: {}{}",
                     error,
-                    crate::net_bind::companion_failure_hint(&error)
+                    crate::transport::net_bind::companion_failure_hint(&error)
                 );
                 log::warn!("IPv6 companion TCP listener not started: {}", error);
                 None
@@ -188,7 +216,6 @@ pub async fn start_tcp_server(
                     let events = events.clone();
                     let audio_tx = audio_tx.clone();
                     let stats = stats.clone();
-                    let mode = mode.clone();
                     let active_connection = active_connection.clone();
                     let takeover_lock = takeover_lock.clone();
                     let active_audio_session = active_audio_session.clone();
@@ -401,7 +428,7 @@ async fn handle_client(
     events: SharedEvents,
     audio_tx: tokio::sync::mpsc::Sender<AudioStreamEvent>,
     stats: Arc<crate::stats::NetworkStats>,
-    mode: String,
+    mode: ConnectionMode,
     active_connection: SharedActiveConnection,
     takeover_lock: SharedTakeoverLock,
     active_audio_session: SharedActiveAudioSession,
@@ -529,7 +556,7 @@ async fn handle_client(
         .as_millis() as u64;
     run_if_active(&active_connection, &takeover_token, connection_id, || {
         plugins.broadcast_event(&micyou_plugin::PluginEvent::DeviceConnected {
-            mode: "wifi".to_string(),
+            mode: mode.as_str().to_string(),
             label: device_info.name.clone(),
         });
         events.device_connected(device_info);
@@ -616,10 +643,10 @@ async fn handle_client(
         let mut warning_fired = false;
         loop {
             interval.tick().await;
-            let buffer_duration = if mode == "usb" { 5 } else { 30 };
+            let buffer_duration = if mode == ConnectionMode::Usb { 5 } else { 30 };
             events_emit.audio_metrics(stats_emit.to_metrics(buffer_duration));
-            if cfg!(target_os = "windows") && mode == "wifi" {
-                if !stats_emit.is_muted() {
+            if cfg!(target_os = "windows") && mode == ConnectionMode::Wifi
+                && !stats_emit.is_muted() {
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .unwrap()
@@ -629,14 +656,12 @@ async fn handle_client(
                     // If last_udp > 0, UDP audio has been successfully received in this session,
                     // meaning Windows Firewall is NOT blocking the UDP port.
                     // Only warn if TCP has been active for > 10s and zero UDP packets have ever arrived.
-                    if tcp_time > 0 && last_udp == 0 && now.saturating_sub(tcp_time) > 10000 {
-                        if !warning_fired {
+                    if tcp_time > 0 && last_udp == 0 && now.saturating_sub(tcp_time) > 10000
+                        && !warning_fired {
                             events_emit.udp_audio_warning();
                             warning_fired = true;
                         }
-                    }
                 }
-            }
         }
     });
     let task_guard = TaskGuard::new(vec![writer_task, ping_task, monitor_task]);
@@ -777,7 +802,7 @@ async fn handle_message(
     if let Some(mute) = msg.mute {
         // Mute sync disabled (server.json): ignore mute state coming from the
         // mobile client so it can neither change local state nor the UI.
-        if crate::app_config::load_server_prefs().mute_sync {
+        if crate::config::load_server_prefs().mute_sync {
             let is_muted = mute.is_muted.unwrap_or(false);
             stats.set_muted(is_muted);
             plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted: is_muted });
