@@ -9,19 +9,16 @@ API 版本：`HOST_API_VERSION = 1`（见 manifest `apiVersion`）
 - manifest `minHostVersion` 声明插件所需的最低宿主 API 版本，major 超过宿主版本即拒绝加载
 - 插件能力（capabilities）在 manifest 中声明，宿主在每次调用时强制检查，越权返回 `MPL_ERR_PERMISSION`
 
-### ⚠️ 使用注意事项
+### 调用约定与并发安全约束
 
-由于插件直接运行在宿主进程内，不当的 API 调用可能导致宿主进程崩溃。请严格遵守以下规范：
+Native 插件与宿主进程共享同一进程空间，需遵循以下调用约定：
 
-1. **Host API 结构体按值拷贝**
-   `micyou_plugin_init(host)` 接收到的 `host` 指针仅在 `init` 函数执行期间有效。宿主在 `init` 返回后可能会释放或重置该内存区域。因此，**严禁直接保存 `host` 指针**到全局变量或跨函数传递。
-   - **正确做法**：在 `init` 阶段将 `mpl_host_api_t` 结构体**按值完整拷贝**（Deep Copy by Value）到插件自己的全局状态中，后续所有 API 调用均通过拷贝后的结构体实例进行。
+1. **结构体按值拷贝**：
+   `micyou_plugin_init(host)` 传入的 `host` 指针仅在初始化调用期间保证有效。插件应在 `init` 阶段将 `mpl_host_api_t` 结构体按值完整拷贝至插件私有静态或全局状态中，而非仅保留指针引用。
 
-2. **严格的线程调用限制**
-   宿主内部的资源锁和状态机**不具备跨线程并发安全性**。
-   - 所有的 Host API（包括控制面、配置、文件、定时器等）**必须**在宿主分发的线程中调用（例如 `micyou_plugin_handle_message`、`micyou_plugin_handle_event`，或由宿主 `set_interval` 触发的消息回调中）。
-   - **禁止在自定义子线程中调用**：如果插件自行创建了后台线程（如独立的 UI 事件循环、网络请求线程等），**绝对不能**在这些子线程中直接调用 Host API。正确的架构是：子线程通过 Channel 等机制将操作意图发送给主线程，由主线程代为调用 Host API，再将结果返回给子线程。
-   - **禁止在实时音频线程中调用**：`micyou_plugin_process` 处于极高优先级的实时音频线程，**绝对禁止**调用任何 Host API，否则会导致音频流阻塞、爆音或死锁。
+2. **调用线程上下文约束**：
+   - **禁止在实时音频线程中调用**：`micyou_plugin_process` 运行于极低延迟优先级的实时音频渲染线程，严禁在此方法内调用任何 Host API（包括 I/O、配置读取与日志），以避免音频流欠载或死锁。
+   - **线程分发约束**：Host API 通常要求在宿主派发的回调线程（如 `handle_message`、`handle_event` 或定时器回调）中执行。插件自行派生的后台工作线程如需调用宿主能力，建议通过通道或任务队列交由派发线程代为调用。
 
 ### Native（C ABI，`mpl_host_api_t`）
 

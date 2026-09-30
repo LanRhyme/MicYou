@@ -70,48 +70,43 @@ micyou-cli plugin install ./myplugin            # 一键部署到应用插件目
 micyou-cli plugin dev ./myplugin                # 监听变更自动重装（开发循环）
 micyou-cli plugin package ./myplugin -o out.zip
 micyou-cli plugin bump ./myplugin               # 版本 patch +1
-micyou-cli plugin list                          # 列出已安装插件（id/版本/运行时/状态）
+```bash
+# 常用 CLI 插件命令（在 tauri-app/ 下通过 cargo 运行或直接使用 micyou-cli）
+micyou-cli plugin list                          # 列出已安装插件及状态
 micyou-cli plugin enable <id>                   # 启用指定插件
 micyou-cli plugin disable <id>                  # 禁用指定插件
-
-应用内：设置-插件 → 插件市场（浏览 MicYou-Plugins 仓库：封面图/运行时/能力/平台/架构，
-安装前展示能力确认，一键安装；插件 zip 由各插件仓库 CI 打包发布 GitHub Release，
-市场仓库只维护元数据 index.json（CI 自动生成并部署到 GitHub Pages，
-不直接提交二进制）
+micyou-cli plugin install ./myplugin            # 安装插件目录到配置目录
+micyou-cli plugin validate ./myplugin           # 校验清单与入口文件
+micyou-cli plugin package ./myplugin -o out.zip # 打包为分发 zip
+micyou-cli plugin dev ./myplugin                # 监听变更自动重装
+micyou-cli plugin create dev.micyou.demo        # 生成 WASM 插件骨架
 ```
+
+### 插件市场
+
+GUI 客户端提供内置插件市场（**设置 → 插件 → 插件市场**）：
+- 在线浏览官方索引的插件（封面、能力要求、支持平台等）
+- 安装前支持权限与风险确认
+- 支持检查并一键更新版本
 
 ## 代码结构
 
 ```text
-crates/micyou-plugin/            # 插件框架（桌面 + 未来安卓共用）
-├── src/manifest.rs              # 统一清单模型与校验
-├── src/plugin.rs                # 统一插件抽象（双运行时）
-├── src/native.rs                # Native 加载器（libloading + C ABI）
-├── src/wasm.rs                  # WASM 运行时（wasmi 沙箱 + 燃料计量）
-├── src/abi.rs                   # C ABI host 回调桥
-├── src/dsp.rs                   # DSP 节点注册表与链桥
-├── src/bus.rs                   # 消息总线（发布订阅 / RPC）
-├── src/sync.rs                  # 跨端线协议编解码
-├── include/micyou_plugin_abi.h  # Native 插件 ABI 头文件（v1）
-├── fixtures/                    # 测试夹具（native cdylib + wasm）
-└── tests/                       # 集成测试
-src-tauri/src/plugins.rs         # 桌面宿主接线（PluginHost）
-src-tauri/src/commands/plugins.rs# 前端管理命令
-src/features/plugins/            # 前端管理界面（Vue）
-plugins/examples/                # 示例插件
-docs/plugins/                    # 本文档
+tauri-app/crates/micyou-plugin/            # 插件框架核心（清单校验、双运行时、消息总线、DSP 集成）
+├── src/manifest.rs                        # 清单模型与结构校验
+├── src/plugin.rs                          # 插件统一接口抽象
+├── src/native.rs                          # Native 动态库加载器（libloading + C ABI）
+├── src/wasm.rs                            # WASM 沙箱运行时（wasmi）
+├── src/abi.rs                             # C ABI 宿主接口桥接
+├── src/dsp.rs                             # DSP 节点注册与音频链调用
+├── src/bus.rs                             # 插件消息总线（Pub/Sub 与 RPC）
+├── src/sync.rs                            # 跨端线协议编解码
+├── include/micyou_plugin_abi.h            # Native C ABI 接口头文件
+├── fixtures/                              # 测试用夹具产物
+└── tests/                                 # 单元与集成测试
+tauri-app/crates/micyou-core/src/plugins/  # 服务端宿主实现（PluginHost / API 桥接 / 持久化）
+tauri-app/src-tauri/src/commands/plugins.rs# GUI Tauri 命令转接
+tauri-app/src/features/plugins/            # 桌面端管理界面（Vue 3）
+plugins/examples/                          # 官方示例插件源码
+docs/plugins/                              # 插件系统文档
 ```
-
-## 状态
-
-- [x] 统一接口抽象 + PluginManager
-- [x] Native 插件加载（C ABI v1）
-- [x] WASM 插件运行时（wasmi）
-- [x] DSP 链路集成（合成链节点 `Plugins`）
-- [x] 跨端消息同步协议（protobuf `PluginMessage`）
-- [x] 前端插件管理界面
-- [x] 音效板面板（ui.route=buttons + 虚拟麦克风混音播放）
-- [x] 插件专属设置页（ui.panels + postMessage 桥，设置侧边栏动态渲染）
-- [x] 全局快捷键（register_hotkey，热键消息投递）
-- [x] 示例插件与文档（音效板 / 降噪引擎）
-- [ ] 安卓端运行时（协议已就绪，见 [架构与扩展](architecture-extensibility.md)）
