@@ -34,6 +34,7 @@
 - 透過 Windows 的 VB-CABLE、Linux 的 PipeWire 或 macOS 的 BlackHole，將手機音訊用於通話、遊戲、直播與錄音軟體
 - 支援 Material 3、深淺色主題、動態取色、自訂背景、桌面袖珍模式、系統匣控制及多語言介面
 - 桌面端 GUI、CLI 與 TUI 共用連線、DSP、語言及主題設定
+- 支援外掛程式擴充生態（Native 與 WASM 雙執行時期），內建應用程式內外掛市場，支援自訂 DSP 節點、音效板與控制擴充
 
 ## 軟體截圖
 
@@ -96,7 +97,7 @@ Made with [contrib.rocks](https://contrib.rocks).
 
 特別感謝 [Mirror 醬](https://mirrorchyan.com/zh/get-start) 為本專案提供高速鏡像下載服務。
 
-特別感謝所有的 [貢獻者](https://github.com/LanRhyme/MicYou/graphs/contributors) 你們讓專案變得更好。
+特別感謝所有的 [貢獻者](https://github.com/LanRhyme/MicYou/graphs/contributors)，你們讓專案變得更好。
 
 ## 許可證
 

@@ -27,3 +27,6 @@ QWEN.md
 composeApp/micyou.conf
 agentchattr/
 .reasonix/
+.pi/
+handsoff.md
+*.local.md

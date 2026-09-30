@@ -37,8 +37,10 @@ flowchart LR
 | `tauri-app/src-tauri/` | Tauri 2 GUI shell: `app.rs` (builder/setup), thin `commands/`, `events.rs`, `host.rs`, `tray.rs`, `window.rs` |
 | `tauri-app/crates/micyou-protocol/` | protobuf wire format + magic constants (shared with Android `network/Protocol.kt`) |
 | `tauri-app/crates/micyou-audio/` | cpal output engine, DSP chain (ONNX/RNNoise), loopback capture |
+| `tauri-app/crates/micyou-plugin/` | Plugin runtime framework (manifest, WASM sandboxing via wasmi, Native C ABI, bus, DSP hook) |
 | `tauri-app/crates/micyou-cli/`, `micyou-tui/` | CLI and TUI frontends on top of `micyou-core` (no Tauri in their dependency tree) |
-| `docs/` | FAQ stubs redirecting to micyou.top (full content preserved in HTML comments) |
+| `plugins/` | Example plugins (`native-soundpad`, `wasm-voicechanger`, `wasm-audioinspector`) |
+| `docs/` | FAQ stubs redirecting to micyou.top, plugin specifications, and Android compatibility guide |
 | `.github/workflows/` | CI: development, release, pre-release, MirrorChyan uploads, opencode AI review |
 
 ## Development Commands
