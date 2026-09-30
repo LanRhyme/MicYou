@@ -13,12 +13,28 @@
  * GNU General Public License for more details.
  */
 
-use micyou_audio::dsp::AudioDspSettings;
+//! MicYou's desktop audio server, independent of any UI toolkit.
+//!
+//! Frontends construct a [`server::ServerState`] with their own
+//! [`events::ServerEvents`] sink and [`host::HostIntegration`], then drive it
+//! through [`server::start_server`] / [`server::stop_server`] and the
+//! runtime controls in [`settings`].
 
-pub fn load_settings() -> AudioDspSettings {
-    tauri_app_lib::app_config::load_dsp_settings()
-}
+pub mod about;
+pub mod config;
+pub mod discovery;
+pub mod events;
+pub mod host;
+pub mod mode_lock;
+pub mod modes;
+pub mod platform;
+pub mod plugins;
+pub mod server;
+pub mod settings;
+pub mod stats;
+pub mod themes;
+pub mod transport;
 
-pub fn save_settings(settings: &AudioDspSettings) -> Result<(), String> {
-    tauri_app_lib::app_config::save_dsp_settings(settings)
-}
+pub use micyou_audio;
+pub use micyou_plugin;
+pub use micyou_protocol;

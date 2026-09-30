@@ -26,13 +26,13 @@ use std::sync::Arc;
 
 /// Plays WAV files into the virtual microphone output
 pub struct SoundPlayer {
-    output: Arc<crate::audio_output::AudioOutputHandle>,
+    output: Arc<crate::server::output::AudioOutputHandle>,
 }
 
 impl SoundPlayer {
-    /// Create a shared player bound to the persistent output device handle
-    pub fn new(output: Arc<crate::audio_output::AudioOutputHandle>) -> Arc<Self> {
-        Arc::new(Self { output })
+    /// Create a player bound to the persistent output device handle
+    pub fn new(output: Arc<crate::server::output::AudioOutputHandle>) -> Self {
+        Self { output }
     }
 
     /// Queue a WAV file for playback, returning once parsing succeeds

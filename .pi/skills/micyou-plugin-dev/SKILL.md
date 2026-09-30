@@ -97,8 +97,8 @@ WASM 插件用字符串包含判断即可
 ```bash
 # 单元/集成测试（宿主核心）
 cargo test -p micyou-plugin
-# 端到端链路回归（真实 PluginHost：enable -> trigger -> config 落盘）
-cargo test -p micyou-app --lib soundpad_trigger_end_to_end
+# 宿主接线（PluginHost / HostApi / 链节点同步）
+cargo test -p micyou-core
 # 独立验证器模式：~/tmp/<name>scan 项目，依赖 micyou-plugin，MockHost 实现 HostApi trait，
 # 直接 load_native_instance / load_wasm_instance 验证行为（记着 serde_json 要直接依赖）
 ```

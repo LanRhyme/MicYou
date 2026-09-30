@@ -39,12 +39,6 @@ pub struct AudioOutputHandle {
     tx: Sender<AudioOutputCommand>,
 }
 
-impl Default for AudioOutputHandle {
-    fn default() -> Self {
-        Self::with_mute_flag(Arc::new(AtomicBool::new(false)))
-    }
-}
-
 impl AudioOutputHandle {
     /// Spawn the device thread with an externally owned hard-mute flag (the
     /// engine watches it directly, so mute toggles silence the output within
@@ -65,7 +59,7 @@ impl AudioOutputHandle {
                                     true
                                 }
                                 Err(e) => {
-                                    eprintln!("[Audio] Failed to open output device: {}", e);
+                                    log::error!("[Audio] Failed to open output device: {e}");
                                     false
                                 }
                             }
@@ -94,14 +88,9 @@ impl AudioOutputHandle {
         Self { tx }
     }
 
-    /// Spawn the persistent device thread and return a shared handle.
-    pub fn spawn() -> Arc<Self> {
-        Arc::new(Self::default())
-    }
-
     /// Spawn the persistent device thread whose hard-mute gate is driven by
     /// `muted` — pass `NetworkStats::mute_flag()` so every mute change
-    /// (GUI, tray, floating window, plugins, phone) silences local output
+    /// (GUI, tray, plugins, phone) silences local output
     /// immediately.
     pub fn spawn_with_mute_flag(muted: Arc<AtomicBool>) -> Arc<Self> {
         Arc::new(Self::with_mute_flag(muted))
@@ -150,4 +139,41 @@ impl AudioOutputHandle {
     pub fn shutdown(&self) {
         let _ = self.tx.send(AudioOutputCommand::Shutdown);
     }
+}
+
+/// Normalize a persisted output-device value ("", "auto", "default" all mean
+/// "no explicit device") to the form the audio engine expects.
+pub fn normalize_output_device(raw: &str) -> Option<String> {
+    let device = raw.trim();
+    if device.is_empty() || device == "auto" || device == "default" {
+        None
+    } else {
+        Some(device.to_string())
+    }
+}
+
+/// Open the persistent output device (and on Linux the PipeWire virtual
+/// sink/source it routes into). Idempotent, so app startup and every server
+/// start may call it. `resource_dir` is the resolved bundle directory.
+pub fn ensure_started(
+    output: &AudioOutputHandle,
+    device: Option<String>,
+    buffer_ms: usize,
+    resource_dir: Option<&std::path::Path>,
+) -> bool {
+    #[cfg(target_os = "linux")]
+    if device.is_none()
+        && crate::platform::pipewire::is_available()
+        && !crate::platform::pipewire::is_setup()
+    {
+        if crate::platform::pipewire::setup(resource_dir) {
+            log::info!("[PipeWire] Virtual device ready, ALSA will route to virtual sink");
+        } else {
+            log::warn!("[PipeWire] Setup failed, falling back to default device");
+        }
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = resource_dir;
+
+    output.ensure_open(device, buffer_ms)
 }

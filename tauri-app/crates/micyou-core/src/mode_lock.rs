@@ -20,7 +20,7 @@ use std::path::PathBuf;
 
 /// Mode lock: guarantees GUI, CLI and TUI never run the audio server at the same time.
 /// Stored at the platform data dir as `mode.lock` with JSON `{ mode, pid }`.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RunMode {
     #[serde(rename = "gui")]
     Gui,
@@ -65,13 +65,8 @@ pub fn lock_path() -> PathBuf {
     data_dir().join("mode.lock")
 }
 
-/// Public wrapper so GUI/CLI/TUI commands can check liveness.
-pub fn pid_alive_public(pid: u32) -> bool {
-    pid_alive(pid)
-}
-
 /// Returns true when a process with `pid` is alive on this system.
-fn pid_alive(pid: u32) -> bool {
+pub fn pid_alive(pid: u32) -> bool {
     if pid == 0 {
         return false;
     }
@@ -149,7 +144,9 @@ pub fn acquire(mode: RunMode) -> Result<(), String> {
 pub fn release() {
     if let Some(existing) = read_lock() {
         if existing.pid == std::process::id() {
-            let _ = fs::remove_file(lock_path());
+            if let Err(e) = fs::remove_file(lock_path()) {
+                log::warn!("[mode] failed to remove mode lock: {e}");
+            }
         }
     }
 }

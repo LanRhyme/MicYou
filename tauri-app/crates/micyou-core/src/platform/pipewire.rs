@@ -36,9 +36,6 @@ struct PipeWireState {
 }
 
 pub fn is_available() -> bool {
-    if !cfg!(target_os = "linux") {
-        return false;
-    }
     Command::new("pw-cli")
         .arg("--version")
         .output()
@@ -55,11 +52,6 @@ pub fn virtual_sink_name() -> &'static str {
 }
 
 pub fn setup(resource_dir: Option<&std::path::Path>) -> bool {
-    if !cfg!(target_os = "linux") {
-        log::warn!("[PipeWire] PipeWire virtual audio device only supports Linux");
-        return false;
-    }
-
     if !is_available() {
         log::error!("[PipeWire] PipeWire is not available");
         return false;
@@ -132,53 +124,12 @@ fn setup_alsa_config(resource_dir: Option<&std::path::Path>) {
     }
 }
 
-/// Find the bundled micyou-pipewire.conf file
+/// Locate the bundled micyou-pipewire.conf inside the resolved resource
+/// directory (see [`crate::platform::resources::find_resource_dir`]).
 fn find_alsa_config(resource_dir: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
-    let relative_path = "alsa/micyou-pipewire.conf";
-
-    // Prefer the runtime resource directory resolved by Tauri (correct for both
-    // development and packaged deb/appimage/app builds).
-    if let Some(dir) = resource_dir {
-        // Packaged layout: resources live under <resource_dir>/resources.
-        let resources_path = dir.join("resources").join(relative_path);
-        if resources_path.exists() {
-            return Some(resources_path);
-        }
-        // Development layout: resources live directly under <resource_dir>.
-        let res_path = dir.join(relative_path);
-        if res_path.exists() {
-            return Some(res_path.canonicalize().unwrap_or(res_path));
-        }
-    }
-
-    // Try resources directory relative to executable
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            // Check in resources/ subdirectory
-            let resources_path = exe_dir.join("resources").join(relative_path);
-            if resources_path.exists() {
-                return Some(resources_path);
-            }
-        }
-    }
-
-    // Try relative to current directory (for development)
-    let dev_path = std::path::PathBuf::from("src-tauri/resources").join(relative_path);
-    if dev_path.exists() {
-        return Some(dev_path);
-    }
-
-    // Try CARGO_MANIFEST_DIR (for cargo run)
-    if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        let cargo_path = std::path::PathBuf::from(manifest_dir)
-            .join("resources")
-            .join(relative_path);
-        if cargo_path.exists() {
-            return Some(cargo_path);
-        }
-    }
-
-    None
+    resource_dir
+        .map(|dir| dir.join("alsa").join("micyou-pipewire.conf"))
+        .filter(|path| path.exists())
 }
 
 pub fn cleanup() {
@@ -554,10 +505,6 @@ pub fn device_exists() -> bool {
 
 /// Detects Linux distribution and returns `(distro_key, install_command)`.
 pub fn detect_install_info() -> (String, String) {
-    if !cfg!(target_os = "linux") {
-        return ("other".to_string(), String::new());
-    }
-
     // 1. Check /etc/os-release or /usr/lib/os-release
     if let Some(info) = detect_from_os_release() {
         return info;

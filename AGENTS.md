@@ -13,14 +13,14 @@ flowchart LR
   U --> J[JitterBuffer + FEC]
   J --> D[DSP chain AEC→NR→Dereverb→EQ→AGC→VAD]
   D --> O[cpal output / virtual mic / WebSocket]
-  G[Vue GUI] -- "invoke / listen" --> C[server core: start_server_inner]
+  G[Vue GUI] -- "invoke / listen" --> C[micyou-core: server::start_server]
   L[micyou-cli] -- serve subcommand --> C
   Y[micyou-tui] -- serve subcommand --> C
   C --> U & T
 ```
 
 - **Android**: single Activity (`MainActivity`) hosting a Compose tree (`App.kt` → `MobileHome`); no Fragments/Navigation. MVVM: `AudioStreamViewModel` (owns `AudioEngine` + mDNS discovery), `SettingsViewModel`, and `UpdateViewModel` are merged by a facade `MainViewModel` via `combine()` into one `AppUiState` StateFlow. `AudioEngine` captures via `AudioRecord`, applies a Kotlin DSP chain, and sends protobuf packets over TCP (control: connect/mute/ping/pong) + UDP (audio, port = TCP+1, FEC every 12 packets, magics `0x4D696359`/`0x4D696355`). A foreground `AudioService` keeps streaming alive; a Quick Settings tile starts/stops it.
-- **Desktop backend** (`tauri-app/src-tauri` + `crates/`): the wire protocol is compiled by `micyou-protocol` (prost from `proto/network.proto`). `udp_server` validates/parses audio datagrams into an `mpsc(128)` channel; a dedicated audio thread reorders + FEC-recovers (jitter_buffer), decodes PCM (16/8/float/24-bit), runs the `micyou-audio` DSP chain (AEC pinned first, ONNX/RNNoise noise suppression), and plays via cpal. All events fan out through the `ServerEvents` trait — `TauriEventSink` (webview events), `CliEventSink` (log lines), `TuiEventSink` (throttled mpsc) — so CLI/TUI reuse the GUI's server core via `start_server_inner`/`stop_server_inner`. Three connection modes: **wifi** (LAN, mDNS `_micyou._tcp.`), **usb** (`adb reverse`), **web** (axum TLS WebSocket, feature-gated). GUI/CLI/TUI are mutually exclusive via a `mode.lock` file.
+- **Desktop backend** (`tauri-app/crates/micyou-core` + `src-tauri` shell): all server logic lives in `micyou-core`, which has no Tauri dependency; `src-tauri` is a thin adapter (commands, tray, windows, `TauriEventSink`, `TauriHost`). The wire protocol is compiled by `micyou-protocol` (prost from `proto/network.proto`). `transport::udp` validates/parses audio datagrams into an `mpsc(128)` channel; a dedicated audio thread (`server::audio_pipeline`) reorders + FEC-recovers (`transport::jitter_buffer`), decodes PCM (16/8/float/24-bit), runs the `micyou-audio` DSP chain (AEC pinned first, ONNX/RNNoise noise suppression), and plays via cpal. All events fan out through the `ServerEvents` trait — `TauriEventSink` (webview events), `CliEventSink` (log lines), `TuiEventSink` (throttled mpsc) ; OS integration the core needs (open URL, notify, global hotkeys, plugin panel windows) goes through the `HostIntegration` trait — `TauriHost` for the GUI, `HeadlessHost` (feature `headless-host`) for CLI/TUI. Every frontend builds `ServerState::new(events, host, resource_hint)` and calls `server::start_server`/`stop_server`; runtime controls (mute, monitoring, DSP settings) go through `ServerState::controls()`, which the plugin host API shares. Three connection modes: **wifi** (LAN, mDNS `_micyou._tcp.`), **usb** (`adb reverse`), **web** (axum TLS WebSocket, feature-gated). GUI/CLI/TUI are mutually exclusive via a `mode.lock` file.
 - **Shared config**: `~/.config/micyou/` (Linux) / `%APPDATA%\micyou` (Windows): `settings.json` (DSP), `server.json` (port 8554, webPort 8443, mode, bindAddress, outputDevice), `ui.json` (language/theme), `theme.json` (theme colors exported GUI → CLI/TUI). All three frontends read/write the same files.
 - **Version flow**: root `gradle.properties` (`project.version`, `project.version.code`) is the single source of truth; `npm run sync-version` rewrites `tauri.conf.json`, `src-tauri/Cargo.toml`, and `package.json` (it does NOT touch the workspace root `Cargo.toml` — a known drift risk). It also runs automatically via `beforeBuildCommand` on every `tauri build`.
 
@@ -33,10 +33,11 @@ flowchart LR
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/network/` | Protobuf wire protocol, mDNS discovery, connection error mapping |
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/{service,viewmodel,ui,settings,theme,util,update}` | Foreground service, ViewModels, Compose UI, prefs, theming, localization, update flow |
 | `tauri-app/src/` | Vue 3 frontend: `features/` (connection, audio, theme, pocket), `shared/` (composables, components/ui, locales, assets) |
-| `tauri-app/src-tauri/` | Tauri 2 Rust backend: `src/commands/`, `server.rs`, `app_config.rs`, tray, mode_lock, tcp/udp/web servers |
+| `tauri-app/crates/micyou-core/` | Tauri-free server core: `server/` (state, lifecycle, service, audio pipeline, output), `transport/` (tcp/udp/web, jitter buffer, opus, net_bind), `plugins/`, `platform/` (adb, pipewire, vbcable, blackhole, accent, firewall, terminal), `config`, `settings`, `events`, `host`, `modes` |
+| `tauri-app/src-tauri/` | Tauri 2 GUI shell: `app.rs` (builder/setup), thin `commands/`, `events.rs`, `host.rs`, `tray.rs`, `window.rs` |
 | `tauri-app/crates/micyou-protocol/` | protobuf wire format + magic constants (shared with Android `network/Protocol.kt`) |
 | `tauri-app/crates/micyou-audio/` | cpal output engine, DSP chain (ONNX/RNNoise), loopback capture |
-| `tauri-app/crates/micyou-cli/`, `micyou-tui/` | CLI and TUI frontends reusing the GUI server core |
+| `tauri-app/crates/micyou-cli/`, `micyou-tui/` | CLI and TUI frontends on top of `micyou-core` (no Tauri in their dependency tree) |
 | `docs/` | FAQ stubs redirecting to micyou.top (full content preserved in HTML comments) |
 | `.github/workflows/` | CI: development, release, pre-release, MirrorChyan uploads, opencode AI review |
 
@@ -93,10 +94,10 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 | `tauri-app/package.json` | npm scripts (dev/build/tauri/sync-version); version synced from gradle.properties |
 | `tauri-app/sync-version.js` | Version propagation script (also `beforeBuildCommand`) |
 | `tauri-app/src-tauri/tauri.conf.json` | Tauri app config (window, bundle targets, beforeBuildCommand) |
-| `tauri-app/src-tauri/src/lib.rs` | Backend entry; module list + ~40 commands in `invoke_handler` |
-| `tauri-app/src-tauri/src/commands/system.rs` | `start_server`/`start_server_inner` — shared server lifecycle |
-| `tauri-app/src-tauri/src/app_config.rs` | Shared config load/save (`settings.json`, `server.json`, `ui.json`, `theme.json`) |
-| `tauri-app/src-tauri/src/events.rs` | `ServerEvents` trait decoupling server core from Tauri/CLI/TUI |
+| `tauri-app/src-tauri/src/app.rs` | GUI entry; plugins, setup and every command in `invoke_handler` |
+| `tauri-app/crates/micyou-core/src/server/service.rs` | `start_server`/`stop_server`, `StartRequest` — shared server lifecycle |
+| `tauri-app/crates/micyou-core/src/config.rs` | Shared config load/save (`settings.json`, `server.json`, `ui.json`, `theme.json`) |
+| `tauri-app/crates/micyou-core/src/events.rs`, `host/mod.rs` | `ServerEvents` and `HostIntegration` traits every frontend implements |
 | `tauri-app/src/main.ts` | Frontend entry; i18n registration; hash-based multi-window routing |
 | `tauri-app/src/App.vue` | Main window (full + pocket modes), wires all composables |
 | `tauri-app/crates/micyou-protocol/proto/network.proto` | Wire format source (prost-compiled) |
@@ -112,7 +113,7 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 
 ## Testing & QA
 
-- **Tests are minimal by design.** Evidence: no `src/test`/`src/androidTest` in `composeApp` (kotlin-test in the version catalog is unused); no integration test dirs in the Rust workspace. The only Rust unit tests are inline `#[cfg(test)]` modules in 9 `src-tauri` files plus `micyou-audio/src/dsp.rs` (server, audio_stream, udp_server, tcp_server, jitter_buffer, stats, tray, mode_lock, commands/system); `micyou-protocol`, `micyou-cli`, and `micyou-tui` have zero tests.
+- **Tests are minimal by design.** Evidence: no `src/test`/`src/androidTest` in `composeApp` (kotlin-test in the version catalog is unused); no integration test dirs in the Rust workspace. Rust unit tests are inline `#[cfg(test)]` modules, mostly in `micyou-core` (server, transport, plugins, platform, modes), plus `micyou-audio`, `micyou-plugin` and the GUI tray; `micyou-protocol` and `micyou-cli` have none.
 - **Run Rust tests**: `cargo test` from `tauri-app/` (workspace).
 - **Static checks**: the only automated gate is `vue-tsc --noEmit` inside `npm run build`. There is no lint/format automation.
 - **CI** (`.github/workflows/`): `development.yml` builds the debug APK + Tauri packages on Windows/macOS/Linux for push/PR; `release.yml`/`pre-release.yml` build release artifacts and publish GitHub/MirrorChyan releases. Android CI steps run with `continue-on-error: true` and releases do not depend on the Android job — Android failures never block releases. `opencode.yml` runs an AI code review (Chinese prompt) on PR comments.

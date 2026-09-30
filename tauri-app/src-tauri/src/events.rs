@@ -13,84 +13,67 @@
  * GNU General Public License for more details.
  */
 
-use crate::commands::system::SpectrumPayload;
-use crate::stats::AudioMetrics;
-use crate::tcp_server::DeviceInfo;
-use std::sync::Arc;
-use tauri::Emitter;
-use tauri::Manager;
+//! Forwards core server events to the webview.
 
-/// Events emitted by the audio server core, decoupled from Tauri.
-///
-/// The GUI implements this via `TauriEventSink` (wraps `AppHandle.emit`); CLI/TUI
-/// implement it by updating TUI state or writing log lines. This keeps the server
-/// core callable without a running Tauri runtime.
-pub trait ServerEvents: Send + Sync + 'static {
-    fn device_connected(&self, info: DeviceInfo);
-    fn device_disconnected(&self);
-    fn audio_metrics(&self, metrics: AudioMetrics);
-    fn udp_audio_warning(&self);
-    fn mute_state_changed(&self, is_muted: bool);
-    fn audio_level(&self, level: u32);
-    fn audio_spectrum(&self, raw: Vec<f32>, processed: Vec<f32>);
-    fn server_stopped(&self);
-    fn web_client_count(&self, count: u32);
-    fn install_progress(&self, message: String);
-    fn aec_status_changed(&self, status: AecStatus);
-    fn monitoring_state_changed(&self, _enabled: bool) {}
+use micyou_core::events::{AecStatus, DownloadProgress, ServerEvents, SpectrumPayload};
+use micyou_core::stats::AudioMetrics;
+use micyou_core::transport::tcp::DeviceInfo;
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager};
+
+pub struct TauriEventSink(pub AppHandle);
+
+impl TauriEventSink {
+    fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) {
+        if let Err(e) = self.0.emit(event, payload) {
+            log::warn!("failed to emit {event}: {e}");
+        }
+    }
 }
-
-#[derive(serde::Serialize, Clone, Debug)]
-pub struct AecStatus {
-    pub available: bool,
-    pub enabled: bool,
-    pub reason: Option<micyou_audio::AecFailure>,
-}
-
-pub type SharedEvents = Arc<dyn ServerEvents>;
-
-/// Tauri adapter: forwards server events to the webview as Tauri events.
-pub struct TauriEventSink(pub tauri::AppHandle);
 
 impl ServerEvents for TauriEventSink {
     fn device_connected(&self, info: DeviceInfo) {
-        let _ = self.0.emit("device-connected", info);
+        self.emit("device-connected", info);
     }
     fn device_disconnected(&self) {
-        let _ = self.0.emit("device-disconnected", ());
+        self.emit("device-disconnected", ());
     }
     fn audio_metrics(&self, metrics: AudioMetrics) {
-        let _ = self.0.emit("audio-metrics", metrics);
+        self.emit("audio-metrics", metrics);
     }
     fn udp_audio_warning(&self) {
-        let _ = self.0.emit("udp_audio_warning", ());
+        self.emit("udp_audio_warning", ());
     }
     fn mute_state_changed(&self, is_muted: bool) {
-        let _ = self.0.emit("mute-state-changed", is_muted);
+        self.emit("mute-state-changed", is_muted);
     }
     fn audio_level(&self, level: u32) {
-        let _ = self.0.emit("audio-level", level);
+        self.emit("audio-level", level);
     }
-    fn audio_spectrum(&self, raw: Vec<f32>, processed: Vec<f32>) {
-        if let Some(main_window) = self.0.get_webview_window("main") {
-            let _ = main_window.emit("audio-spectrum", SpectrumPayload { raw, processed });
+    fn audio_spectrum(&self, spectrum: SpectrumPayload) {
+        // High-rate payload: only the main window draws the spectrum.
+        if let Some(main) = self.0.get_webview_window("main") {
+            if let Err(e) = main.emit("audio-spectrum", spectrum) {
+                log::warn!("failed to emit audio-spectrum: {e}");
+            }
         }
     }
     fn server_stopped(&self) {
-        let _ = self.0.emit("server-stopped", ());
+        self.emit("server-stopped", ());
     }
     fn web_client_count(&self, count: u32) {
-        let _ = self.0.emit("web-client-count", count);
+        self.emit("web-client-count", count);
     }
     fn install_progress(&self, message: String) {
-        let _ = self.0.emit("vbcable-install-progress", message);
+        self.emit("vbcable-install-progress", message);
     }
-
     fn aec_status_changed(&self, status: AecStatus) {
-        let _ = self.0.emit("aec-status-changed", status);
+        self.emit("aec-status-changed", status);
     }
-
     fn monitoring_state_changed(&self, enabled: bool) {
-        let _ = self.0.emit("monitoring-enabled-changed", enabled);
+        self.emit("monitoring-enabled-changed", enabled);
+    }
+    fn plugin_download_progress(&self, progress: DownloadProgress) {
+        self.emit("plugin-download-progress", progress);
     }
 }

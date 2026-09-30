@@ -63,7 +63,7 @@ pub fn get_lan_ips() -> Vec<String> {
 /// Bindable LAN IPv6 addresses (ULA/GUA, best first). Additive companion to
 /// `get_lan_ips`, used for the WebSocket origin check and certificate SANs.
 pub fn get_lan_ipv6s() -> Vec<String> {
-    crate::net_bind::collect_ipv6_interfaces(&[])
+    crate::transport::net_bind::collect_ipv6_interfaces(&[])
         .into_iter()
         .map(|(ip, _)| ip.to_string())
         .collect()
@@ -177,7 +177,7 @@ mod tests {
             let parsed = ip.parse::<IpAddr>().expect("Invalid IPv6 string");
             match parsed {
                 IpAddr::V6(v6) => {
-                    assert!(crate::net_bind::is_bindable_v6(&v6), "Not bindable: {}", ip)
+                    assert!(crate::transport::net_bind::is_bindable_v6(&v6), "Not bindable: {}", ip)
                 }
                 IpAddr::V4(_) => panic!("get_lan_ipv6s returned IPv4: {}", ip),
             }
@@ -292,8 +292,8 @@ const MAX_TLS_HANDSHAKES: usize = 32;
 const MAX_WEBSOCKET_CONNECTIONS: usize = 8;
 const TLS_HANDSHAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
-const WEB_CLIENT_HTML: &str = include_str!("../resources/web_client.html");
-const ALPINE_JS: &str = include_str!("../resources/alpine.min.js");
+const WEB_CLIENT_HTML: &str = include_str!("../../assets/web_client.html");
+const ALPINE_JS: &str = include_str!("../../assets/alpine.min.js");
 
 fn is_valid_origin(origin: Option<&str>) -> bool {
     match origin {
@@ -351,7 +351,7 @@ async fn handle_ws_socket(
     if count == 1 && !replaced {
         state
             .events
-            .device_connected(crate::tcp_server::DeviceInfo {
+            .device_connected(crate::transport::tcp::DeviceInfo {
                 name: "Web Browser".to_string(),
                 ip: "browser".to_string(),
                 latency: 0,
@@ -658,7 +658,7 @@ impl WebServer {
         // keeps the two sockets from conflicting, and a failure here (no
         // IPv6 stack, port unavailable) only logs and leaves web mode
         // working exactly as before over IPv4.
-        match crate::net_bind::bind_tcp_listener_v6only(port) {
+        match crate::transport::net_bind::bind_tcp_listener_v6only(port) {
             Ok(tcp_v6) => {
                 let (completed_v6, completed_rx_v6) =
                     tokio::sync::mpsc::channel(MAX_TLS_HANDSHAKES);
@@ -684,7 +684,7 @@ impl WebServer {
                 println!(
                     "IPv6 web listener not started: {}{}",
                     e,
-                    crate::net_bind::companion_failure_hint(&e)
+                    crate::transport::net_bind::companion_failure_hint(&e)
                 );
                 log::warn!("IPv6 web listener not started: {}", e);
             }

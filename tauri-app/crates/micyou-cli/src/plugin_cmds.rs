@@ -132,7 +132,7 @@ pub fn run(action: PluginAction) -> Result<(), String> {
 
 /// 列出已安装插件
 fn list_installed() -> Result<(), String> {
-    let plugins_dir = crate::config::config_dir()
+    let plugins_dir = micyou_core::config::config_dir()
         .join("plugins");
     if !plugins_dir.exists() {
         println!("(插件目录不存在: {})", plugins_dir.display());
@@ -150,7 +150,7 @@ fn list_installed() -> Result<(), String> {
         let text = std::fs::read_to_string(&manifest_path).unwrap_or_default();
         let enabled = {
             // 读取全局插件状态文件（与应用共用 ~/.config/micyou/plugin-state.json）
-            let state_path = crate::config::config_dir().join("plugin-state.json");
+            let state_path = micyou_core::config::config_dir().join("plugin-state.json");
             let enabled = std::fs::read_to_string(&state_path)
                 .ok()
                 .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
@@ -197,8 +197,8 @@ fn list_installed() -> Result<(), String> {
 }
 
 fn enable_plugin(id: &str) -> Result<(), String> {
-    let plugins_dir = crate::config::config_dir().join("plugins");
-    let state_path = crate::config::config_dir().join("plugin-state.json");
+    let plugins_dir = micyou_core::config::config_dir().join("plugins");
+    let state_path = micyou_core::config::config_dir().join("plugin-state.json");
     let mut manager = micyou_plugin::PluginManager::new(plugins_dir, state_path);
     manager.scan().map_err(|e| e.to_string())?;
     manager.set_enabled(id, true).map_err(|e| e.to_string())?;
@@ -207,8 +207,8 @@ fn enable_plugin(id: &str) -> Result<(), String> {
 }
 
 fn disable_plugin(id: &str) -> Result<(), String> {
-    let plugins_dir = crate::config::config_dir().join("plugins");
-    let state_path = crate::config::config_dir().join("plugin-state.json");
+    let plugins_dir = micyou_core::config::config_dir().join("plugins");
+    let state_path = micyou_core::config::config_dir().join("plugin-state.json");
     let mut manager = micyou_plugin::PluginManager::new(plugins_dir, state_path);
     manager.scan().map_err(|e| e.to_string())?;
     manager.set_enabled(id, false).map_err(|e| e.to_string())?;
@@ -933,7 +933,7 @@ fn install(dir: &str) -> Result<(), String> {
         .map_err(|e| format!("read plugin.json: {e}"))?;
     let manifest = micyou_plugin::PluginManifest::from_json(&manifest_text)
         .map_err(|e| format!("invalid plugin.json: {e}"))?;
-    let plugins_dir = crate::config::config_dir().join("plugins");
+    let plugins_dir = micyou_core::config::config_dir().join("plugins");
     let target = plugins_dir.join(&manifest.id);
     std::fs::create_dir_all(&target).map_err(|e| format!("mkdir {}: {e}", target.display()))?;
     let mut copied = 0u32;
