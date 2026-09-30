@@ -76,6 +76,14 @@ impl AecAvailability {
             reason: Some(AecFailure::UnsupportedOs),
         }
     }
+
+    /// The system could capture, but this process is not allowed to.
+    pub const fn permission_denied() -> Self {
+        Self {
+            available: false,
+            reason: Some(AecFailure::PermissionDenied),
+        }
+    }
 }
 
 /// Whether this platform can capture an AEC far-end reference right now.
@@ -97,11 +105,16 @@ fn detect_reference_availability() -> AecAvailability {
 
 #[cfg(target_os = "macos")]
 fn detect_reference_availability() -> AecAvailability {
-    // Core Audio process taps exist from macOS 14.2.
-    if crate::macos_tap::process_tap_available() {
-        AecAvailability::ready()
-    } else {
+    // Core Audio process taps exist from macOS 14.2, and only a bundle declaring
+    // NSAudioCaptureUsageDescription gets real audio from them. Both are fixed for
+    // the life of the process, so they belong here rather than in a runtime
+    // failure that every new session would reset.
+    if !crate::macos_tap::process_tap_available() {
         AecAvailability::unsupported()
+    } else if !crate::macos_tap::bundle_declares_audio_capture() {
+        AecAvailability::permission_denied()
+    } else {
+        AecAvailability::ready()
     }
 }
 
@@ -154,6 +167,11 @@ mod tests {
         assert_eq!(
             AecAvailability::unsupported().reason,
             Some(AecFailure::UnsupportedOs)
+        );
+        assert!(!AecAvailability::permission_denied().available);
+        assert_eq!(
+            AecAvailability::permission_denied().reason,
+            Some(AecFailure::PermissionDenied)
         );
     }
 }

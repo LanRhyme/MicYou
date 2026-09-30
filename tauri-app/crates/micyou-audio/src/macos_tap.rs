@@ -40,7 +40,7 @@ use core_foundation::base::TCFType;
 use core_foundation::dictionary::CFDictionary;
 use core_foundation::number::CFNumber;
 use core_foundation::string::CFString;
-use objc::runtime::Object;
+use objc::runtime::{Class, Object};
 use objc::{class, msg_send, sel, sel_impl};
 use ringbuf::HeapRb;
 
@@ -326,15 +326,22 @@ unsafe extern "C" fn tap_io_proc(
 /// macOS refuses the authorization request outright when the key is missing and
 /// then feeds the tap silence, so this is checked up front to turn a silent
 /// failure into an actionable one. A bare development binary has no bundle
-/// metadata and therefore cannot capture at all.
-fn bundle_declares_audio_capture() -> bool {
+/// metadata and therefore cannot capture at all. The answer is fixed for the
+/// lifetime of the process, so it is part of the capability `crate::aec` caches.
+pub(crate) fn bundle_declares_audio_capture() -> bool {
+    // Looked up rather than `class!`, which panics when Foundation is not loaded.
+    let (Some(bundle_class), Some(string_class)) =
+        (Class::get("NSBundle"), Class::get("NSString"))
+    else {
+        return false;
+    };
     unsafe {
-        let bundle: *mut Object = msg_send![class!(NSBundle), mainBundle];
+        let bundle: *mut Object = msg_send![bundle_class, mainBundle];
         if bundle.is_null() {
             return false;
         }
         let key: *mut Object = msg_send![
-            class!(NSString),
+            string_class,
             stringWithUTF8String: USAGE_DESCRIPTION_KEY.as_ptr() as *const c_char
         ];
         if key.is_null() {

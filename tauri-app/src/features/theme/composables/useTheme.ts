@@ -199,6 +199,25 @@ async function refreshSystemAccent() {
   await initializeSystemAccent();
 }
 
+// Picking "system" is the moment the user expects the OS accent, so never answer
+// that from a cached value - and re-read it when they come back from System Settings.
+// useTheme() runs in several components, so the watcher and the focus listener are
+// registered once per window instead of once per caller.
+let systemAccentWatched = false;
+
+function watchSystemAccent() {
+  if (systemAccentWatched) return;
+  systemAccentWatched = true;
+  watch(themeMode, (mode) => {
+    if (mode === 'system') void refreshSystemAccent();
+  });
+  void getCurrentWindow()
+    .onFocusChanged(({ payload: focused }) => {
+      if (focused) void refreshSystemAccent();
+    })
+    .catch((error) => console.warn('System accent refresh on focus is unavailable:', error));
+}
+
 function exportThemeToCli() {
   if (typeof document === 'undefined') return;
   try {
@@ -276,16 +295,7 @@ export async function resetThemeToDefaults(): Promise<boolean> {
 export function useTheme() {
   void initializeSystemAccent();
 
-  // Picking "system" is the moment the user expects the OS accent, so never answer
-  // that from a cached value - and re-read it when they come back from System Settings.
-  watch(themeMode, (mode) => {
-    if (mode === 'system') void refreshSystemAccent();
-  });
-  void getCurrentWindow()
-    .onFocusChanged(({ payload: focused }) => {
-      if (focused) void refreshSystemAccent();
-    })
-    .catch((error) => console.warn('System accent refresh on focus is unavailable:', error));
+  watchSystemAccent();
 
   const systemAccent = computed<SystemAccentColor>(() => ({
     hex: systemAccentHex.value,
