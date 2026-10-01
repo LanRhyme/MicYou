@@ -6,6 +6,7 @@
  */
 import { ref, onMounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { usePluginPanelBridge } from '@/shared/composables/usePluginPanelBridge';
 
 const hash = window.location.hash; // #/plugin/<pluginId>/<panelId>
@@ -44,7 +45,7 @@ async function load() {
 }
 
 function closeWindow() {
-  window.close();
+  void getCurrentWindow().close();
 }
 
 onMounted(() => {
@@ -59,10 +60,12 @@ onMounted(() => {
     style="background: hsl(var(--surface))"
   >
     <header
+      data-tauri-drag-region
       class="flex items-center justify-between px-4 py-2.5 shrink-0 border-b"
       style="border-color: hsl(var(--border))"
     >
       <div
+        data-tauri-drag-region
         class="flex items-center gap-2 text-sm font-semibold"
         style="color: hsl(var(--on-surface))"
       >
@@ -82,7 +85,7 @@ onMounted(() => {
     </header>
     <div class="flex-1 overflow-hidden p-4">
       <div v-if="loading" class="text-sm" style="color: hsl(var(--on-surface-variant))">
-        加载中…
+        {{ $t('plugins.panelLoading') }}
       </div>
       <div
         v-else-if="error"

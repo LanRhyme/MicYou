@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, watchEffect, watch, nextTick } f
 import { useStorage, onClickOutside } from '@vueuse/core';
 import { LogicalSize } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { useI18n } from 'vue-i18n';
 
 // UI icons imported from lucide-vue
@@ -15,19 +16,19 @@ import {
 // Composables managing server connection, audio, theme, window, and system tray
 import { useServer } from './features/connection/composables/useServer';
 import { useAudio } from './features/audio/composables/useAudio';
-import { useTheme } from './features/theme/composables/useTheme';
+import { useTheme, saveUiPrefs } from './features/theme/composables/useTheme';
 import { useWindow } from './shared/composables/useWindow';
 import { useTray } from './shared/composables/useTray';
+import { useWindowEffects } from './shared/composables/useWindowEffects';
+import { applyPlatformClasses, isMacOS } from './shared/lib/platform';
 
 // UI components for connection flows, onboarding, and layouts
 import ConnectionErrorDialog from './features/connection/components/ConnectionErrorDialog.vue';
 import QrCodeDialog from './features/connection/components/QrCodeDialog.vue';
 import AudioRing from './features/audio/components/AudioRing.vue';
 import MonitoringPanel from './features/audio/components/MonitoringPanel.vue';
-import SettingsDialog from './features/settings/components/SettingsDialog.vue';
 import OnboardingWizard from './features/onboarding/components/OnboardingWizard.vue';
 import PocketLayout from './features/pocket/components/PocketLayout.vue';
-import CustomBackground from './shared/components/CustomBackground.vue';
 import CloseConfirmDialog from './shared/components/CloseConfirmDialog.vue';
 import UdpWarningDialog from './shared/components/UdpWarningDialog.vue';
 import MonitoringWarningDialog from './shared/components/MonitoringWarningDialog.vue';
@@ -36,21 +37,16 @@ import MonitoringWarningDialog from './shared/components/MonitoringWarningDialog
 import appIconSvg from './shared/assets/app_icon.svg?raw';
 import anime from 'animejs';
 
-// Detect macOS platform to enable platform-specific classes and native vibrancy behaviors
-const isMacOS = typeof navigator !== 'undefined' &&
-  /Mac/.test(navigator.platform || navigator.userAgent) &&
-  !/iPhone|iPad|iPod/.test(navigator.userAgent) &&
-  !(navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
-if (isMacOS && typeof document !== 'undefined') {
-  document.documentElement.classList.add('platform-macos');
-}
+applyPlatformClasses();
 
 const { t } = useI18n();
 
 // Initialize shared features
 const audio = useAudio();
 const server = useServer({ audioLevel: audio.audioLevel, isMuted: audio.isMuted });
-useTheme();
+const theme = useTheme();
+// The CLI/TUI read language and theme color from ui.json.
+onMounted(() => saveUiPrefs());
 const win = useWindow();
 
 /**
@@ -83,10 +79,28 @@ let dotPulseAnim: ReturnType<typeof anime> | null = null;
 
 // App wizard and pocket mode settings
 const showOnboarding = ref(localStorage.getItem('micyou_onboarding_completed') !== 'true');
-const isSettingsOpen = ref(false);
+// Settings open in their own window; the main window only follows the
+// output device chosen there.
+const openSettings = async () => {
+  try {
+    await invoke('open_settings_window', { title: t('settings.title') });
+  } catch (e) {
+    console.error('open_settings_window failed:', e);
+  }
+};
+let unlistenOutputDevice: (() => void) | null = null;
+onMounted(async () => {
+  unlistenOutputDevice = await listen<string>('output-device-changed', (event) => {
+    server.outputDevice.value = event.payload;
+  });
+});
+onUnmounted(() => unlistenOutputDevice?.());
 const pocketMode = useStorage('micyou_pocket_mode', false);
-const pocketPopupOpen = ref(false);
-const pocketLayoutRef = ref<InstanceType<typeof PocketLayout> | null>(null);
+useWindowEffects({
+  blur: computed(() => theme.uiStyle.value === 'style-glass'),
+  // Pocket mode is just the floating bar; the shadow frames the full window.
+  shadowRadius: computed(() => (pocketMode.value ? null : 16)),
+});
 
 // IP configuration selector panel behavior
 const ipMenuRef = ref<HTMLDivElement | null>(null);
@@ -95,16 +109,11 @@ onClickOutside(ipMenuRef, () => {
 });
 
 // Close IP menu on window blur to maintain clean UI focus
-onMounted(() => {
-  window.addEventListener('blur', () => {
-    server.showIpMenu.value = false;
-  });
-});
-onUnmounted(() => {
-  window.removeEventListener('blur', () => {
-    server.showIpMenu.value = false;
-  });
-});
+const closeIpMenu = () => {
+  server.showIpMenu.value = false;
+};
+onMounted(() => window.addEventListener('blur', closeIpMenu));
+onUnmounted(() => window.removeEventListener('blur', closeIpMenu));
 
 /**
  * Coordinates server stream toggle and trigger scale rebound animations on the central button
@@ -129,7 +138,8 @@ const visibilityRef = computed(() => !win.isHidden.value);
 useTray(
   {
     onShow: async () => {
-      if (win.isHidden.value) {
+      // A minimized window is still "shown"; the tray click brings it back.
+      if (win.isHidden.value || await win.appWindow.isMinimized()) {
         await win.showMainWindow();
       } else {
         await win.hideMainWindow();
@@ -171,62 +181,56 @@ onMounted(async () => {
   }
 });
 
-// Watch and adjust physical window dimensions when entering or leaving pocket layout mode.
-// In pocket mode the width is driven by the auto-size logic below (content width);
-// in full mode we always restore the standard 800x600 window.
-watchEffect(async () => {
-  if (pocketMode.value) return; // 袖珍模式宽度由自适应逻辑控制
-  try {
-    await win.appWindow.setSize(new LogicalSize(800, 600));
-  } catch (e) {
-    console.error('Failed to resize window:', e);
-  }
-});
+// Window sizing. Full mode is a fixed 800x600 window; pocket mode follows its
+// content, including the expanded menus, so no transparent area is left over.
+const FULL_SIZE = new LogicalSize(800, 600);
+const POCKET_PADDING = 12; // p-1.5 on both sides
+const POCKET_MIN_WIDTH = 240;
 
-// Revert to full size layout (800x600) when settings modal opens within pocket mode
-watchEffect(async () => {
-  if (pocketMode.value && isSettingsOpen.value) {
-    try {
-      await win.appWindow.setSize(new LogicalSize(800, 600));
-    } catch (e) {
-      console.error('Failed to resize window for settings:', e);
-    }
-  }
-});
-
-// --- 袖珍模式窗口宽度自适应 ---
-// 窗口宽度跟随内容宽度自动伸缩(避免固定 420px 下长文本如猫猫语导致控件溢出)。
-// 防循环关键: PocketLayout 根容器使用 w-max(宽度由内容决定)，窗口 resize 不会改变内容宽度，
-// 因此 ResizeObserver -> setSize 不会再次触发内容宽度变化，不会形成死循环。
 const pocketContentRef = ref<HTMLElement | null>(null);
 let pocketObserver: ResizeObserver | null = null;
 let pocketRaf = 0;
-const POCKET_HEIGHT = 52;
-const POCKET_X_PADDING = 12; // 外层 p-1.5 左右各 6px
-const POCKET_MIN_WIDTH = 240;
+
+// Linux keeps the window resizable with min = max (GTK3 adds 48px to
+// non-resizable windows on Wayland), so every resize moves the bounds too.
+async function setFixedSize(size: LogicalSize) {
+  await win.appWindow.setMinSize(null);
+  await win.appWindow.setMaxSize(null);
+  await win.appWindow.setSize(size);
+  await win.appWindow.setMinSize(size);
+  await win.appWindow.setMaxSize(size);
+}
+
+async function applyFullSize() {
+  try {
+    await setFixedSize(FULL_SIZE);
+  } catch (e) {
+    console.error('Failed to resize window:', e);
+  }
+}
 
 async function resizePocketToContent() {
   const el = pocketContentRef.value;
   if (!el) return;
-  const targetW = Math.max(
-    Math.ceil(el.getBoundingClientRect().width + POCKET_X_PADDING),
-    POCKET_MIN_WIDTH,
+  const rect = el.getBoundingClientRect();
+  const size = new LogicalSize(
+    Math.max(Math.ceil(rect.width + POCKET_PADDING), POCKET_MIN_WIDTH),
+    Math.ceil(rect.height + POCKET_PADDING),
   );
   try {
-    await win.appWindow.setSize(new LogicalSize(targetW, POCKET_HEIGHT));
+    await setFixedSize(size);
   } catch (e) {
     console.error('Failed to resize pocket window:', e);
   }
 }
 
+// The content box is w-max/h-auto, so resizing the window never feeds back
+// into the observed size.
 function startPocketObserver() {
   stopPocketObserver();
   const el = pocketContentRef.value;
   if (!el) return;
-  pocketObserver = new ResizeObserver((entries) => {
-    if (!pocketMode.value || isSettingsOpen.value) return;
-    const entry = entries[0];
-    if (!entry) return;
+  pocketObserver = new ResizeObserver(() => {
     if (pocketRaf) cancelAnimationFrame(pocketRaf);
     pocketRaf = requestAnimationFrame(() => void resizePocketToContent());
   });
@@ -240,28 +244,20 @@ function stopPocketObserver() {
   pocketRaf = 0;
 }
 
-// 进入/退出袖珍模式时启停自适应
-watch(pocketMode, async (isPocket) => {
+async function enterPocketLayout() {
+  await nextTick();
+  startPocketObserver();
+  await resizePocketToContent();
+}
+
+watch(pocketMode, async (isPocket, wasPocket) => {
   if (isPocket) {
-    await nextTick();
-    startPocketObserver();
-    if (!isSettingsOpen.value) await resizePocketToContent();
+    await enterPocketLayout();
   } else {
     stopPocketObserver();
+    if (wasPocket) await applyFullSize();
   }
 }, { immediate: true });
-
-// 设置对话框打开时暂停自适应(由上方 watchEffect 展开到 800)，关闭后恢复自适应宽度
-watch(isSettingsOpen, async (open) => {
-  if (!pocketMode.value) return;
-  if (open) {
-    stopPocketObserver();
-  } else {
-    await nextTick();
-    startPocketObserver();
-    await resizePocketToContent();
-  }
-});
 
 // Central action button hover animations
 const onCentralBtnHover = () => {
@@ -344,46 +340,35 @@ onUnmounted(() => {
 <template>
   <OnboardingWizard :visible="showOnboarding" @complete="showOnboarding = false" />
   <div class="relative w-full h-screen overflow-hidden overscroll-none text-foreground bg-transparent">
-    <CustomBackground />
+    <!-- Rounded window background; pocket mode draws only its own bar and menus -->
+    <div v-if="!pocketMode" data-blur-region class="absolute inset-0 -z-10 rounded-2xl bg-surface-container" />
 
     <!-- Pocket Mode -->
-    <div v-if="pocketMode" class="absolute inset-0 flex items-center p-1.5 cursor-grab active:cursor-grabbing" @mousedown="startDrag">
-      <div
-        v-if="pocketPopupOpen"
-        class="absolute inset-0 z-10"
-        @click="pocketLayoutRef?.closePopup()"
-      />
-
-      <!-- 包裹层: 宽度由内容决定(w-max)，供窗口自适应宽度测量 -->
-      <div ref="pocketContentRef" class="relative z-20 w-max">
-      <PocketLayout
-        ref="pocketLayoutRef"
-        class="relative"
-        :serverState="server.serverState.value"
-        :connectionMode="server.connectionMode.value"
-        :serverPort="server.serverPort.value"
-        :displayIp="server.displayIp.value"
-        :isAutoBind="server.isAutoBind.value"
-        :selectedIp="server.selectedIp.value"
-        :networkInterfaces="server.networkInterfaces.value"
-        :isMuted="audio.isMuted.value"
-        :isMonitoringEnabled="audio.isMonitoringEnabled.value"
-        :showMonitoringPanel="audio.showMonitoringPanel.value"
-        :audioLevel="audio.audioLevel.value"
-        :outputDevice="server.outputDevice.value"
-        :audioMetrics="audio.audioMetrics.value"
-        :popupOpen="pocketPopupOpen"
-        @toggleStream="toggleStreaming"
-        @selectIp="(ip, auto) => server.selectIp(ip, auto)"
-        @updateMode="m => server.connectionMode.value = m"
-        @updatePort="p => server.serverPort.value = p"
-        @toggleMute="audio.toggleMute"
-        @toggleMonitoringEnabled="audio.toggleMonitoringEnabled"
-        @toggleMonitoring="audio.toggleMonitoring"
-        @openSettings="isSettingsOpen = true"
-        @minimize="win.minimizeWindow"
-        @update:popupOpen="v => pocketPopupOpen = v"
-      />
+    <div v-if="pocketMode" class="pocket-root p-1.5">
+      <div ref="pocketContentRef" class="w-max cursor-grab active:cursor-grabbing" @mousedown="startDrag">
+        <PocketLayout
+          :serverState="server.serverState.value"
+          :connectionMode="server.connectionMode.value"
+          :serverPort="server.serverPort.value"
+          :webPort="server.webPort.value"
+          :displayIp="server.displayIp.value"
+          :isAutoBind="server.isAutoBind.value"
+          :selectedIp="server.selectedIp.value"
+          :networkInterfaces="server.networkInterfaces.value"
+          :isMuted="audio.isMuted.value"
+          :isMonitoringEnabled="audio.isMonitoringEnabled.value"
+          :isMacOS="isMacOS"
+          @toggleStream="toggleStreaming"
+          @selectIp="(ip, auto) => server.selectIp(ip, auto)"
+          @updateMode="m => server.connectionMode.value = m"
+          @updatePort="p => server.serverPort.value = p"
+          @updateWebPort="p => server.webPort.value = p"
+          @toggleMute="audio.toggleMute"
+          @toggleMonitoringEnabled="audio.toggleMonitoringEnabled"
+          @openSettings="openSettings"
+          @minimize="win.minimizeWindow"
+          @close="win.requestClose"
+        />
       </div>
     </div>
 
@@ -616,18 +601,13 @@ onUnmounted(() => {
             <MonitoringIcon class="w-4 h-4" />
           </button>
 
-          <button @click="isSettingsOpen = true" class="w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90">
+          <button @click="openSettings" class="w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90">
             <Settings class="w-4 h-4 text-on-surface-variant" />
           </button>
         </div>
       </div>
     </div>
 
-    <SettingsDialog
-      :isOpen="isSettingsOpen"
-      @close="isSettingsOpen = false"
-      @updateDevice="dev => server.outputDevice.value = dev"
-    />
 
 
     <UdpWarningDialog

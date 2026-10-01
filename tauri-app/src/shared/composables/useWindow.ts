@@ -1,5 +1,6 @@
-import { ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
+import type { UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 export function useWindow() {
@@ -12,7 +13,6 @@ export function useWindow() {
   async function minimizeWindow() {
     try {
       await invoke('minimize_main_window');
-      isHidden.value = true;
     } catch (e) {
       console.error('minimize_main_window failed:', e);
     }
@@ -69,6 +69,17 @@ export function useWindow() {
       void exitApp();
     }
   }
+
+  // Compositor close requests (Alt+F4, taskbar) take the same path as the
+  // close button: the remembered choice or the confirm dialog decides.
+  let unlistenClose: UnlistenFn | null = null;
+  onMounted(async () => {
+    unlistenClose = await appWindow.onCloseRequested((event) => {
+      event.preventDefault();
+      requestClose();
+    });
+  });
+  onUnmounted(() => unlistenClose?.());
 
   return {
     appWindow, isHidden, showCloseConfirm,

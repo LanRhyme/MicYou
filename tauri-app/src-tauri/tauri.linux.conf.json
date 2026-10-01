@@ -6,10 +6,14 @@
       {
         "title": "MicYou",
         "decorations": false,
-        "resizable": false,
+        "resizable": true,
         "transparent": true,
         "shadow": false,
-        "backgroundColor": "#00000000"
+        "backgroundColor": "#00000000",
+        "minWidth": 800,
+        "maxWidth": 800,
+        "minHeight": 600,
+        "maxHeight": 600
       }
     ]
   },
