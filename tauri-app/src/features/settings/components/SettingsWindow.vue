@@ -1,5 +1,9 @@
 <template>
-  <div class="settings-panel settings-window relative isolate">
+  <div
+    data-drag-surface
+    class="settings-panel settings-window relative isolate"
+    @mousedown="startDrag"
+  >
     <!-- Window background; also the compositor blur region in glass style -->
     <div
       data-blur-region
@@ -12,11 +16,11 @@
       <X class="w-5 h-5 text-on-surface" />
     </button>
 
-    <!-- Left Sidebar; its empty space and title drag the frameless window -->
-    <div data-tauri-drag-region class="settings-nav space-y-2">
-      <div data-tauri-drag-region class="px-4 py-4 mb-4 flex items-center gap-3">
-        <SettingsIcon class="w-6 h-6 text-primary pointer-events-none" />
-        <h2 data-tauri-drag-region class="text-xl font-bold text-primary">{{ $t('settings.title') }}</h2>
+    <!-- Left Sidebar -->
+    <div class="settings-nav space-y-2">
+      <div class="px-4 py-4 mb-4 flex items-center gap-3">
+        <SettingsIcon class="w-6 h-6 text-primary" />
+        <h2 class="text-xl font-bold text-primary">{{ $t('settings.title') }}</h2>
       </div>
 
       <button
@@ -55,27 +59,29 @@
     <!-- Right Content -->
     <div
       ref="contentRef"
+      data-drag-surface
       class="settings-scrollbar flex-1 bg-surface-container-lowest/50 p-8 overflow-y-auto overscroll-contain"
     >
-      <div class="max-w-2xl mx-auto space-y-8">
-        <h3 class="text-3xl font-bold text-primary mb-6">{{ currentSectionName }}</h3>
+      <div data-drag-surface class="max-w-2xl mx-auto space-y-8">
+        <h3 data-drag-surface class="text-3xl font-bold text-primary mb-6">{{ currentSectionName }}</h3>
 
         <Transition name="fade-slide" mode="out-in">
-          <GeneralSection v-if="currentSection === 'general'" key="general" />
-          <AppearanceSection v-else-if="currentSection === 'appearance'" key="appearance" />
-          <AudioSection v-else-if="currentSection === 'audio'" key="audio" />
-          <div v-else-if="currentSection === 'equalizer'" key="equalizer" class="space-y-6 h-[600px]">
+          <GeneralSection v-if="currentSection === 'general'" key="general" data-drag-surface />
+          <AppearanceSection v-else-if="currentSection === 'appearance'" key="appearance" data-drag-surface />
+          <AudioSection v-else-if="currentSection === 'audio'" key="audio" data-drag-surface />
+          <div v-else-if="currentSection === 'equalizer'" key="equalizer" data-drag-surface class="space-y-6 h-[600px]">
             <EqualizerPanel :config="settings.equalizer" />
           </div>
-          <div v-else-if="currentSection === 'plugins'" key="plugins" class="space-y-6">
+          <div v-else-if="currentSection === 'plugins'" key="plugins" data-drag-surface class="space-y-6">
             <PluginsPanel />
           </div>
-          <AboutSection v-else-if="currentSection === 'about'" key="about" />
+          <AboutSection v-else-if="currentSection === 'about'" key="about" data-drag-surface />
           <PluginPanelSection
             v-else-if="activePanel"
             :key="activePanel.id"
             :plugin-id="activePanel.pluginId"
             :panel-id="activePanel.panelId"
+            data-drag-surface
           />
         </Transition>
       </div>
@@ -188,6 +194,18 @@ const restore = useRestoreDefaults();
 const { panels: pluginPanels, refresh: refreshPlugins } = usePluginPanels(locale);
 
 const closeWindow = () => void appWindow.closeCurrentWindow();
+
+// The frameless window drags from the sidebar and from the bare background
+// of the content pane (marked data-drag-surface), never from controls.
+const INTERACTIVE = 'button, a, input, select, textarea, iframe, [role="button"], [role="switch"], [role="combobox"]';
+function startDrag(e: MouseEvent) {
+  if (e.button !== 0) return;
+  const target = e.target as HTMLElement;
+  if (target.closest(INTERACTIVE)) return;
+  if (target.closest('.settings-nav') || target.hasAttribute('data-drag-surface')) {
+    void appWindow.startDragging().catch((err) => console.error('Drag failed:', err));
+  }
+}
 
 const baseSections = [
   { id: 'general', nameKey: 'settings.categories.general', icon: SettingsIcon },
