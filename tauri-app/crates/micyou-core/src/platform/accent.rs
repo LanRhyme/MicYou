@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-//! Desktop accent color, read once at startup to seed the "system" theme.
+//! Desktop accent color that seeds the "system" theme.
 
 use serde::Serialize;
 
@@ -90,6 +90,71 @@ fn platform_accent_color() -> Option<SystemAccentColor> {
 
 #[cfg(target_os = "linux")]
 fn platform_accent_color() -> Option<SystemAccentColor> {
+    let is_kde = std::env::var("XDG_CURRENT_DESKTOP")
+        .map(|d| d.split(':').any(|part| part.eq_ignore_ascii_case("KDE")))
+        .unwrap_or(false);
+    if is_kde {
+        kde_accent_color().or_else(gnome_accent_color)
+    } else {
+        gnome_accent_color().or_else(kde_accent_color)
+    }
+}
+
+/// Plasma writes the accent (custom or wallpaper-derived) to kdeglobals; without
+/// one, the color scheme's selection color is what Plasma uses as the accent.
+#[cfg(target_os = "linux")]
+fn kde_accent_color() -> Option<SystemAccentColor> {
+    let config_home = std::env::var_os("XDG_CONFIG_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(".config")))?;
+    let content = std::fs::read_to_string(config_home.join("kdeglobals")).ok()?;
+    let hex = kde_accent_from_globals(&content)?;
+    Some(accent_color(hex, "kde-accent"))
+}
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn kde_accent_from_globals(content: &str) -> Option<String> {
+    ini_value(content, "General", "AccentColor")
+        .or_else(|| ini_value(content, "Colors:Selection", "BackgroundNormal"))
+        .and_then(kde_color_to_hex)
+}
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn ini_value<'a>(content: &'a str, section: &str, key: &str) -> Option<&'a str> {
+    let mut in_section = false;
+    for line in content.lines().map(str::trim) {
+        if let Some(name) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
+            in_section = name == section;
+        } else if in_section {
+            if let Some((k, v)) = line.split_once('=') {
+                if k.trim() == key {
+                    return Some(v.trim());
+                }
+            }
+        }
+    }
+    None
+}
+
+/// KDE stores colors as "r,g,b" (optionally ",a"), occasionally as "#rrggbb".
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn kde_color_to_hex(value: &str) -> Option<String> {
+    if let Some(hex) = value.strip_prefix('#') {
+        return (hex.len() == 6 && hex.chars().all(|c| c.is_ascii_hexdigit()))
+            .then(|| format!("#{}", hex.to_ascii_lowercase()));
+    }
+    let parts: Vec<u8> = value
+        .split(',')
+        .map(|p| p.trim().parse::<u8>().ok())
+        .collect::<Option<_>>()?;
+    match parts.as_slice() {
+        [r, g, b] | [r, g, b, _] => Some(format!("#{r:02x}{g:02x}{b:02x}")),
+        _ => None,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn gnome_accent_color() -> Option<SystemAccentColor> {
     let output = std::process::Command::new("gsettings")
         .args(["get", "org.gnome.desktop.interface", "accent-color"])
         .output()
@@ -126,7 +191,7 @@ pub fn system_accent_color() -> SystemAccentColor {
 
 #[cfg(test)]
 mod tests {
-    use super::fallback_accent_color;
+    use super::{fallback_accent_color, kde_accent_from_globals, kde_color_to_hex};
 
     #[test]
     fn fallback_is_stable_and_marked_unsupported() {
@@ -134,6 +199,26 @@ mod tests {
         assert_eq!(color.hex, "#5b7cfa");
         assert_eq!(color.source, "fallback");
         assert!(!color.supported);
+    }
+
+    #[test]
+    fn reads_kde_accent_before_selection_color() {
+        let globals = "[Colors:Selection]\nBackgroundNormal=81,80,133\n\n[General]\nAccentColor=108,106,180\n";
+        assert_eq!(kde_accent_from_globals(globals).as_deref(), Some("#6c6ab4"));
+    }
+
+    #[test]
+    fn falls_back_to_kde_selection_color() {
+        let globals = "[General]\nColorScheme=BreezeDark\n\n[Colors:Selection]\nBackgroundNormal=61,174,233\n";
+        assert_eq!(kde_accent_from_globals(globals).as_deref(), Some("#3daee9"));
+    }
+
+    #[test]
+    fn parses_kde_color_formats() {
+        assert_eq!(kde_color_to_hex("61,174,233,255").as_deref(), Some("#3daee9"));
+        assert_eq!(kde_color_to_hex("#3DAEE9").as_deref(), Some("#3daee9"));
+        assert_eq!(kde_color_to_hex("300,0,0"), None);
+        assert_eq!(kde_color_to_hex("1,2"), None);
     }
 
     #[cfg(windows)]
