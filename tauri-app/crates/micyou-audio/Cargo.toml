@@ -11,10 +11,9 @@ dsp = ["dep:nnnoiseless", "dep:ort", "dep:rustfft", "dep:ndarray"]
 noise-suppression = ["dsp"]
 
 [dependencies]
-micyou-protocol = { path = "../micyou-protocol" }
 serde = { version = "1", features = ["derive"] }
 log = "0.4.32"
-cpal = "0.15.3"
+cpal.workspace = true
 rubato = "3.0.0"
 ringbuf = "0.3.3"
 
