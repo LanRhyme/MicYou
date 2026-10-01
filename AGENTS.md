@@ -32,9 +32,9 @@ flowchart LR
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/audio/` | `AudioEngine`, audio settings/source/metrics |
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/network/` | Protobuf wire protocol, mDNS discovery, connection error mapping |
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/{service,viewmodel,ui,settings,theme,util,update}` | Foreground service, ViewModels, Compose UI, prefs, theming, localization, update flow |
-| `tauri-app/src/` | Vue 3 frontend: `features/` (connection, audio, theme, pocket), `shared/` (composables, components/ui, locales, assets) |
+| `tauri-app/src/` | Vue 3 frontend: `features/` (connection, audio, theme, pocket, settings, plugins), `shared/` (composables incl. `useWindowEffects`, `lib/platform.ts`, components/ui, locales, assets) |
 | `tauri-app/crates/micyou-core/` | Tauri-free server core: `server/` (state, lifecycle, service, audio pipeline, output), `transport/` (tcp/udp/web, jitter buffer, opus, net_bind), `plugins/`, `platform/` (adb, pipewire, vbcable, blackhole, accent, firewall, terminal), `config`, `settings`, `events`, `host`, `modes` |
-| `tauri-app/src-tauri/` | Tauri 2 GUI shell: `app.rs` (builder/setup), thin `commands/`, `events.rs`, `host.rs`, `tray.rs`, `window.rs` |
+| `tauri-app/src-tauri/` | Tauri 2 GUI shell: `app.rs` (builder/setup), thin `commands/`, `events.rs`, `host.rs`, `tray.rs`, `window.rs` (window commands, settings window, rounded corners), `kwin_effects.rs` (Linux: KWin blur + shadow on the GDK Wayland surface) |
 | `tauri-app/crates/micyou-protocol/` | protobuf wire format + magic constants (shared with Android `network/Protocol.kt`) |
 | `tauri-app/crates/micyou-audio/` | cpal output engine, DSP chain (ONNX/RNNoise), loopback capture |
 | `tauri-app/crates/micyou-plugin/` | Plugin runtime framework (manifest, WASM sandboxing via wasmi, Native C ABI, bus, DSP hook) |
@@ -76,7 +76,7 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 - **Localization**: user-facing strings never hardcoded. Android: `composeApp/src/main/res/values*/strings.xml` (base `values/` = English; also en, zh, zh-rTW, zh-rHK, plus easter eggs zh-rHD "hard mode", ca "cat speak"), languages registered in `util/Localization.kt` (`AppLanguage` enum). Desktop: `tauri-app/src/shared/locales/*.json` (en base, zh, zh-hk, zh-tw, zh-ss, cat, lzh), registered in `src/main.ts` i18n messages. **Adding/renaming a key requires updating every locale file.**
 - **Android**: MVVM with a single `AppUiState` facade collected by UI; settings stored in SharedPreferences (`"android_mic_prefs"`), **not** DataStore; settings-as-enums (`AudioSettings.kt`); wire constants centralized in `util/Constants.kt` + `network/Protocol.kt`; state-driven dialogs instead of navigation.
 - **Rust backend**: Tauri commands are `snake_case` in `invoke_handler`; long-lived state is `Arc`-wrapped inside `ServerState` (managed Tauri state); lifecycle serialized via `ServerLifecycleGate` + `CancellationToken`; audio/DSP settings use `serde` with `camelCase` field names; unit tests inline as `#[cfg(test)]` modules.
-- **Vue frontend**: no Pinia — state lives in singleton composables (`useServer`, `useAudio`, `useTheme`, `useWindow`, `useTray`) instantiated in `App.vue` and passed via props/events; persistence via `@vueuse/core useStorage` with `micyou_*` localStorage keys. Backend calls: `invoke('snake_case_cmd', args)`; events: `listen('kebab-or-snake-event')` (e.g. `audio-level`, `device-connected`, `tray-action`). Every invoke is try/catch-wrapped with optimistic updates + rollback; connection errors funnel into `ConnectionErrorDialog` via `utils/connectionError.ts`.
+- **Vue frontend**: no Pinia — state lives in singleton composables (`useServer`, `useAudio`, `useTheme`, `useWindow`, `useTray`) instantiated in `App.vue` and passed via props/events; persistence via `@vueuse/core useStorage` with `micyou_*` localStorage keys. Backend calls: `invoke('snake_case_cmd', args)`; events: `listen('kebab-or-snake-event')` (e.g. `audio-level`, `device-connected`, `tray-action`). Every invoke is try/catch-wrapped with optimistic updates + rollback; connection errors funnel into `ConnectionErrorDialog` via `utils/connectionError.ts`. Windows are frameless and transparent with self-drawn chrome; mark glass panels with `data-blur-region` so `useWindowEffects` can request matching native blur. The settings window is a separate webview: it shares state with the main window through `useStorage` keys (storage events) and `emitTo('main', …)`.
 - **Styling**: Tailwind utilities + Material 3 HSL CSS variables (8 themes × light/dark via `.dark` class); feature components use raw Tailwind, `src/shared/components/ui/*` use shadcn-vue/reka-ui primitives + `cva` variants; `cn() = twMerge(clsx(...))` from `@/shared/lib/utils`. Note: `components.json` (shadcn config) has **stale aliases** — the real paths are `src/shared/components` and `src/shared/lib/utils`.
 - **Versioning**: bump only `gradle.properties`; never hand-edit `tauri.conf.json`/`Cargo.toml`/`package.json` versions.
 - **Communication**: ALWAYS use Chinese (中文) for code reviews, issue comments, pull request comments, and any other user-facing communication.
@@ -95,13 +95,13 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/util/Localization.kt` | `AppLanguage` enum; locale switching |
 | `tauri-app/package.json` | npm scripts (dev/build/tauri/sync-version); version synced from gradle.properties |
 | `tauri-app/sync-version.js` | Version propagation script (also `beforeBuildCommand`) |
-| `tauri-app/src-tauri/tauri.conf.json` | Tauri app config (window, bundle targets, beforeBuildCommand) |
+| `tauri-app/src-tauri/tauri.conf.json` | Tauri app config (window, bundle targets, beforeBuildCommand); `tauri.linux.conf.json` pins the main window with min = max size because GTK3 grows non-resizable windows by 48px on Wayland |
 | `tauri-app/src-tauri/src/app.rs` | GUI entry; plugins, setup and every command in `invoke_handler` |
 | `tauri-app/crates/micyou-core/src/server/service.rs` | `start_server`/`stop_server`, `StartRequest` — shared server lifecycle |
 | `tauri-app/crates/micyou-core/src/config.rs` | Shared config load/save (`settings.json`, `server.json`, `ui.json`, `theme.json`) |
 | `tauri-app/crates/micyou-core/src/events.rs`, `host/mod.rs` | `ServerEvents` and `HostIntegration` traits every frontend implements |
-| `tauri-app/src/main.ts` | Frontend entry; i18n registration; hash-based multi-window routing |
-| `tauri-app/src/App.vue` | Main window (full + pocket modes), wires all composables |
+| `tauri-app/src/main.ts` | Frontend entry; i18n registration; hash-based multi-window routing (`#/settings` → `SettingsWindow`, `#/plugin/` → `PluginPanelWindow`, else `App`) |
+| `tauri-app/src/App.vue` | Main window (full + pocket modes, self-drawn titlebar), wires all composables; opens settings via `open_settings_window` |
 | `tauri-app/crates/micyou-protocol/proto/network.proto` | Wire format source (prost-compiled) |
 | `tauri-app/crates/micyou-audio/src/dsp.rs` | DSP settings struct + `DspProcessor` |
 
