@@ -5,10 +5,10 @@
   "version": "2.0.3",
   "identifier": "com.lanrhyme.micyou",
   "build": {
-    "beforeDevCommand": "npm run prepare-sidecars:dev && npm run dev",
+    "beforeDevCommand": "bun run prepare-sidecars:dev && bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run sync-version && npm run prepare-sidecars && npm run build",
-    "beforeBundleCommand": "npm run clean-bundles",
+    "beforeBuildCommand": "bun run sync-version && bun run prepare-sidecars && bun run build",
+    "beforeBundleCommand": "bun run clean-bundles",
     "frontendDist": "../dist"
   },
   "app": {
