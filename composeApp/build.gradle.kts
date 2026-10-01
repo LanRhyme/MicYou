@@ -217,8 +217,9 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.serialization.protobuf)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.datetime)
-    implementation(if (androidCompat) "dev.chrisbanes.haze:haze:1.0.0" else "dev.chrisbanes.haze:haze:1.7.2") {
+    implementation(libs.haze) {
         if (androidCompat) {
             exclude(group = "org.jetbrains.compose.ui")
             exclude(group = "org.jetbrains.compose.runtime")
