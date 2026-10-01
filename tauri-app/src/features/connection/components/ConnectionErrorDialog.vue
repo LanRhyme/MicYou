@@ -62,8 +62,8 @@
 </template>
 
 <script setup lang="ts">
+import { openUrl } from '@/platform';
 import type { ConnectionErrorDetails } from '../utils/connectionError';
-import { openUrl } from '@tauri-apps/plugin-opener';
 
 defineProps<{
   show: boolean;

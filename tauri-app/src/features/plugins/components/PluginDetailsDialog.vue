@@ -130,7 +130,7 @@ import { useI18n } from 'vue-i18n';
 import { X } from '@lucide/vue';
 import PluginConfigForm from './PluginConfigForm.vue';
 import { usePlugins } from '../composables/usePlugins';
-import type { PluginView } from '../composables/usePlugins';
+import type { PluginView } from '@/platform';
 
 const props = defineProps<{ plugin: PluginView | null; tab: 'config' | 'logs' }>();
 const emit = defineEmits<{ close: [] }>();

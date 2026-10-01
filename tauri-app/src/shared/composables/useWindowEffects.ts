@@ -1,15 +1,5 @@
 import { onMounted, onUnmounted, watch, type Ref } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
-import type { UnlistenFn } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-
-interface BlurRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  radius: number;
-}
+import { appWindow, command, type BlurRect, type UnlistenFn } from '@/platform';
 
 interface WindowEffectsOptions {
   /** Blur the desktop behind the `data-blur-region` elements. */
@@ -60,7 +50,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     if (payload === lastBlur) return;
     lastBlur = payload;
     try {
-      const active = await invoke<boolean>('set_window_blur', { regions });
+      const active = await command('set_window_blur', { regions });
       if (!active && regions.length > 0) blurUnsupported = true;
       root.classList.toggle('native-blur', active);
     } catch (e) {
@@ -79,7 +69,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     if (shadowUnsupported) return;
     const radius = shadowRadius.value;
     try {
-      const active = await invoke<boolean>('set_window_shadow', { radius });
+      const active = await command('set_window_shadow', { radius });
       if (!active && radius !== null) shadowUnsupported = true;
     } catch (e) {
       shadowUnsupported = true;
@@ -101,9 +91,8 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     window.addEventListener('resize', scheduleBlur);
     scheduleBlur();
     void syncShadow();
-    const appWindow = getCurrentWindow();
     setInactive(!(await appWindow.isFocused()));
-    unlistenFocus = await appWindow.onFocusChanged(({ payload }) => setInactive(!payload));
+    unlistenFocus = await appWindow.onFocusChanged((focused) => setInactive(!focused));
   });
 
   onUnmounted(() => {

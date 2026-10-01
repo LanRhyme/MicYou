@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { command } from '@/platform';
 
 /**
  * 插件面板桥：沙箱 iframe 里的插件 HTML 通过 postMessage 与宿主通信
@@ -25,33 +25,33 @@ export function usePluginPanelBridge(pluginId: string) {
   async function routeApi(api: string, args: Record<string, unknown>): Promise<unknown> {
     switch (api) {
       case 'get_config':
-        return invoke('get_plugin_config', { id: pluginId });
+        return command('get_plugin_config', { id: pluginId });
       case 'set_config':
-        return invoke('set_plugin_config', {
+        return command('set_plugin_config', {
           id: pluginId,
-          key: args.key ?? '',
+          key: (args.key ?? '') as string,
           value: args.value,
         });
       case 'trigger':
-        return invoke('plugin_trigger', {
+        return command('plugin_trigger', {
           pluginId,
-          action: args.action ?? '',
-          payload: args.payload ?? null,
+          action: (args.action ?? '') as string,
+          payload: (args.payload ?? null) as string | null,
         });
       case 'open_window':
-        return invoke('plugin_trigger', {
+        return command('plugin_trigger', {
           pluginId,
           action: 'open_window',
           payload: JSON.stringify(args),
         });
       case 'play':
-        return invoke('plugin_trigger', {
+        return command('plugin_trigger', {
           pluginId,
           action: 'play',
           payload: JSON.stringify(args),
         });
       case 'log':
-        return invoke('plugin_trigger', {
+        return command('plugin_trigger', {
           pluginId,
           action: 'log',
           payload: JSON.stringify({
@@ -60,11 +60,11 @@ export function usePluginPanelBridge(pluginId: string) {
           }),
         });
       case 'get_logs':
-        return invoke('get_plugin_logs', { id: pluginId });
+        return command('get_plugin_logs', { id: pluginId });
       case 'get_sync_status':
-        return invoke('get_plugin_sync_status');
+        return command('get_plugin_sync_status');
       case 'locale':
-        return invoke('get_app_locale');
+        return command('get_app_locale');
       default:
         throw new Error(`unknown panel api: ${api}`);
     }

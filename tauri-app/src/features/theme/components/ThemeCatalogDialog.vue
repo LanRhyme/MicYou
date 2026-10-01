@@ -141,8 +141,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { GitPullRequest, Loader2, Palette, X } from '@lucide/vue';
-import { invoke } from '@tauri-apps/api/core';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { command, openUrl } from '@/platform';
 import {
   downloadThemePackage,
   githubThemeCatalogProvider,
@@ -182,7 +181,7 @@ const loadCatalog = async () => {
 
 const loadInstalledThemes = async () => {
   try {
-    installedThemeIds.value = await invoke<string[]>('list_installed_themes');
+    installedThemeIds.value = await command('list_installed_themes');
   } catch (cause) {
     console.warn('Failed to load installed themes:', cause);
   }
@@ -194,18 +193,13 @@ const isThemeBusy = (themeId: string) =>
   || switchingThemeId.value === themeId
   || uninstallingThemeId.value === themeId;
 
-interface InstalledTheme {
-  css: string;
-  controlsThemeColor: boolean;
-}
-
 const installTheme = async (theme: ThemeManifest) => {
   if (installingThemeId.value || isInstalled(theme.id)) return;
   installingThemeId.value = theme.id;
   installError.value = null;
   try {
     const themePackage = await downloadThemePackage(theme);
-    await invoke('install_theme', {
+    await command('install_theme', {
       themeId: theme.id,
       manifestJson: JSON.stringify(themePackage.manifest),
       css: themePackage.css,
@@ -228,7 +222,7 @@ const switchTheme = async (theme: ThemeManifest) => {
   switchingThemeId.value = theme.id;
   installError.value = null;
   try {
-    const installedTheme = await invoke<InstalledTheme>('get_installed_theme', {
+    const installedTheme = await command('get_installed_theme', {
       themeId: theme.id,
     });
     activateInstalledTheme(
@@ -248,7 +242,7 @@ const uninstallTheme = async (theme: ThemeManifest) => {
   uninstallingThemeId.value = theme.id;
   installError.value = null;
   try {
-    await invoke('remove_installed_theme', { themeId: theme.id });
+    await command('remove_installed_theme', { themeId: theme.id });
     installedThemeIds.value = installedThemeIds.value.filter((id) => id !== theme.id);
     if (localStorage.getItem('micyou_theme_v2_installed_id') === theme.id) clearInstalledTheme();
   } catch (cause) {
