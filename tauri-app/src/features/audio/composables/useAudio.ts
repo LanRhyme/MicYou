@@ -1,20 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
 import { useStorage } from '@vueuse/core';
-
-/**
- * Interface representing the real-time audio statistics from the audio engine
- */
-export interface AudioMetrics {
-  bitrate: number;
-  sampleRate: number;
-  latencyMs: number;
-  networkLatencyMs: number;
-  packetLossRate: number;
-  jitterMs: number;
-  bufferDurationMs: number;
-}
+import { command, onEvent, type AudioMetrics, type UnlistenFn } from '@/platform';
 
 /**
  * Composable for managing audio status, mute state, audio level, metrics and warning dialogs
@@ -57,7 +43,7 @@ export function useAudio() {
     const newVal = !isMuted.value;
     isMuted.value = newVal;
     try {
-      await invoke('set_mute_state', { isMuted: newVal });
+      await command('set_mute_state', { isMuted: newVal });
     } catch (e) {
       console.error('set_mute_state failed:', e);
       isMuted.value = !newVal;
@@ -70,7 +56,7 @@ export function useAudio() {
   async function executeSetMonitoring(enabled: boolean) {
     isMonitoringEnabled.value = enabled;
     try {
-      await invoke('set_monitoring', { enabled });
+      await command('set_monitoring', { enabled });
     } catch (e) {
       console.error('set_monitoring failed:', e);
       isMonitoringEnabled.value = !enabled;
@@ -113,41 +99,41 @@ export function useAudio() {
 
   onMounted(async () => {
     // Listen for real-time audio amplitude updates from backend
-    unlistenAudioLevel = await listen<number>('audio-level', (event) => {
-      audioLevel.value = event.payload;
-      if (event.payload > 0 && showUdpWarning.value) {
+    unlistenAudioLevel = await onEvent('audio-level', (payload) => {
+      audioLevel.value = payload;
+      if (payload > 0 && showUdpWarning.value) {
         showUdpWarning.value = false;
       }
     });
     
     // Listen for performance metrics updates from backend
-    unlistenAudioMetrics = await listen<AudioMetrics>('audio-metrics', (event) => {
-      audioMetrics.value = event.payload;
+    unlistenAudioMetrics = await onEvent('audio-metrics', (payload) => {
+      audioMetrics.value = payload;
     });
     
     // Listen for mute state synchronizations from other surfaces
-    unlistenMuteState = await listen<boolean>('mute-state-changed', (event) => {
-      isMuted.value = event.payload;
+    unlistenMuteState = await onEvent('mute-state-changed', (payload) => {
+      isMuted.value = payload;
     });
     
     // Listen for audio monitoring state synchronizations
-    unlistenMonitoringState = await listen<boolean>('monitoring-enabled-changed', (event) => {
-      isMonitoringEnabled.value = event.payload;
+    unlistenMonitoringState = await onEvent('monitoring-enabled-changed', (payload) => {
+      isMonitoringEnabled.value = payload;
     });
 
     // Listen for warnings if UDP traffic is blocked and falls back to TCP
-    unlistenUdpWarning = await listen('udp_audio_warning', () => {
+    unlistenUdpWarning = await onEvent('udp_audio_warning', () => {
       if (!isMuted.value) {
         showUdpWarning.value = true;
       }
     });
 
     // Automatically dismiss warning if client disconnects or server stops
-    unlistenDeviceDisconnected = await listen('device-disconnected', () => {
+    unlistenDeviceDisconnected = await onEvent('device-disconnected', () => {
       showUdpWarning.value = false;
     });
 
-    unlistenServerStopped = await listen('server-stopped', () => {
+    unlistenServerStopped = await onEvent('server-stopped', () => {
       showUdpWarning.value = false;
     });
   });

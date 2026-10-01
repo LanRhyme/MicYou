@@ -1622,19 +1622,22 @@
 </template>
 
 <script setup lang="ts">
+import {
+  appWindow,
+  autostart,
+  command,
+  emitToWindow,
+  onEvent,
+  openUrl,
+  type BlackHoleStatus,
+  type ModeStatus,
+  type PipeWireStatus,
+  type UnlistenFn,
+} from '@/platform';
 import MD3Slider from '@/shared/components/ui/slider/MD3Slider.vue';
 import { ref, computed, watch, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStorage } from '@vueuse/core';
-import { invoke } from '@tauri-apps/api/core';
-import { emitTo, listen, UnlistenFn } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { openUrl } from '@tauri-apps/plugin-opener';
-import {
-  isEnabled as isAutostartEnabled,
-  enable as enableAutostart,
-  disable as disableAutostart,
-} from '@tauri-apps/plugin-autostart';
 import {
   Settings as SettingsIcon,
   X,
@@ -1699,11 +1702,11 @@ import {
 
 // Settings live in their own window (#/settings); the main window learns
 // about output device changes through an event.
-const closeWindow = () => void getCurrentWindow().close();
+const closeWindow = () => void appWindow.closeCurrentWindow();
 
 applyPlatformClasses();
 const notifyOutputDevice = (device: string) =>
-  void emitTo('main', 'output-device-changed', device).catch((e) =>
+  void emitToWindow('main', 'output-device-changed', device).catch((e) =>
     console.warn('Failed to notify the main window of the output device:', e),
   );
 
@@ -1755,19 +1758,13 @@ const deactivateInstalledTheme = async () => {
   if (!themeId) return;
   clearInstalledTheme();
   try {
-    await invoke('remove_installed_theme', { themeId });
+    await command('remove_installed_theme', { themeId });
   } catch (error) {
     console.warn('Failed to remove installed theme:', error);
   }
 };
 
 // --- Run mode (GUI / CLI / TUI) ---
-interface ModeStatus {
-  mode: 'gui' | 'cli' | 'tui' | 'none';
-  pid: number | null;
-  running: boolean;
-}
-
 const modeStatus = ref<ModeStatus>({ mode: 'none', pid: null, running: false });
 
 const modeLabel = computed(() => {
@@ -1782,7 +1779,7 @@ const modeLabel = computed(() => {
 
 async function refreshModeStatus() {
   try {
-    modeStatus.value = await invoke<ModeStatus>('get_mode_status');
+    modeStatus.value = await command('get_mode_status');
   } catch (e) {
     console.error('get_mode_status failed:', e);
   }
@@ -1792,8 +1789,8 @@ async function switchToCli() {
   const ok = confirm(t('settings.runMode.confirmSwitch'));
   if (!ok) return;
   try {
-    await invoke('switch_to_cli');
-    await invoke('exit_app');
+    await command('switch_to_cli');
+    await command('exit_app');
   } catch (e) {
     console.error('switch_to_cli failed:', e);
     alert(`${t('settings.runMode.switchFailed')}: ${e}`);
@@ -1805,8 +1802,8 @@ async function switchToTui() {
   const ok = confirm(t('settings.runMode.confirmSwitchTui'));
   if (!ok) return;
   try {
-    await invoke('switch_to_tui');
-    await invoke('exit_app');
+    await command('switch_to_tui');
+    await command('exit_app');
   } catch (e) {
     console.error('switch_to_tui failed:', e);
     alert(`${t('settings.runMode.switchFailed')}: ${e}`);
@@ -1844,7 +1841,7 @@ async function loadPanelIcons() {
   for (const plugin of pluginsState.plugins.value) {
     if (!plugin.enabled || !plugin.ui?.panels?.length) continue;
     try {
-      const got = await invoke<Record<string, string>>('get_plugin_panel_icons', {
+      const got = await command('get_plugin_panel_icons', {
         id: plugin.id,
       });
       for (const [pid, icon] of Object.entries(got)) {
@@ -1927,7 +1924,7 @@ async function loadPanel(pluginId: string, panelId: string) {
   panelLoading.value = true;
   panelError.value = null;
   try {
-    const html = await invoke<string>('get_plugin_panel', { pluginId, panelId });
+    const html = await command('get_plugin_panel', { pluginId, panelId });
     // 注入当前主题 CSS 变量，使插件页面与软件整体风格一致并自动跟随主题
     // 同时 hook console，把面板的 log/warn/error 转发为插件日志（利于开发者调试面板）
     const consoleHook = `<script>
@@ -2113,13 +2110,7 @@ const isAutoFallbackToPhysical = computed(() => {
 
 const isAecSupported = !isMacOS;
 const aecRuntimeAvailable = ref(true);
-const pipewireStatus = ref<{
-  available: boolean;
-  setup: boolean;
-  device_exists: boolean;
-  install_command?: string;
-  distro?: string;
-}>({
+const pipewireStatus = ref<PipeWireStatus>({
   available: false,
   setup: false,
   device_exists: false,
@@ -2156,11 +2147,6 @@ const vbcableInstallProgress = ref('');
 let unlistenVbcableProgress: UnlistenFn | null = null;
 let unlistenAecStatus: UnlistenFn | null = null;
 
-interface BlackHoleStatus {
-  installed: boolean;
-  switch_audio_source: boolean;
-  device_name: string | null;
-}
 const blackholeStatus = ref<BlackHoleStatus>({
   installed: false,
   switch_audio_source: false,
@@ -2179,17 +2165,12 @@ let animationFrameId: number | null = null;
 const rawSpectrum = ref<number[]>(new Array(64).fill(0));
 const processedSpectrum = ref<number[]>(new Array(64).fill(0));
 
-interface SpectrumPayload {
-  raw: number[];
-  processed: number[];
-}
-
 function canDrawSpectrum() {
   return currentSection.value === 'audio';
 }
 
 async function setBackendSpectrumStreaming(enabled: boolean) {
-  await invoke('set_spectrum_streaming', { enabled });
+  await command('set_spectrum_streaming', { enabled });
 }
 
 function stopSpectrumAnimation() {
@@ -2311,15 +2292,7 @@ const openDialog = async (name: string) => {
     try {
       const cdkParam =
         useMirrorDownload.value && mirrorCdk.value.trim() ? mirrorCdk.value.trim() : null;
-      const res = await invoke<{
-        hasUpdate: boolean;
-        currentVersion: string;
-        latestVersion: string;
-        releaseUrl: string;
-        releaseNotes?: string;
-        isMirror: boolean;
-        cdkExpiredTime?: number;
-      }>('check_app_update', { cdk: cdkParam });
+      const res = await command('check_app_update', { cdk: cdkParam });
       if (res.hasUpdate) {
         const msg = res.isMirror
           ? t('dialogs.update.mirrorAvailable', { version: `v${res.latestVersion}` })
@@ -2344,7 +2317,7 @@ const copiedPath = ref(false);
 
 const loadLogPath = async () => {
   try {
-    logPath.value = await invoke<string>('get_log_path');
+    logPath.value = await command('get_log_path');
   } catch (e) {
     console.error('Failed to get log path:', e);
   }
@@ -2352,7 +2325,7 @@ const loadLogPath = async () => {
 
 const openLogDir = async () => {
   try {
-    await invoke('open_log_dir');
+    await command('open_log_dir');
   } catch (e: any) {
     alert(t('dialogs.logs.failed', { error: e.toString() }));
   }
@@ -2360,7 +2333,7 @@ const openLogDir = async () => {
 
 const copyLogContent = async () => {
   try {
-    const content = await invoke<string>('get_log_content');
+    const content = await command('get_log_content');
     await navigator.clipboard.writeText(content);
     copiedLog.value = true;
     setTimeout(() => {
@@ -2374,7 +2347,7 @@ const copyLogContent = async () => {
 const copyLogPath = async () => {
   try {
     if (!logPath.value) {
-      logPath.value = await invoke<string>('get_log_path');
+      logPath.value = await command('get_log_path');
     }
     await navigator.clipboard.writeText(logPath.value);
     copiedPath.value = true;
@@ -2388,7 +2361,7 @@ const copyLogPath = async () => {
 
 const exportLog = async () => {
   try {
-    await invoke('export_log');
+    await command('export_log');
     alert(t('dialogs.logs.success'));
   } catch (e: any) {
     alert(t('dialogs.logs.failed', { error: e.toString() }));
@@ -2399,12 +2372,12 @@ async function installVBCableFromSettings() {
   vbcableInstalling.value = true;
   vbcableInstallProgress.value = '';
   try {
-    const result = await invoke<{ success: boolean; error_type?: string; message?: string }>(
+    const result = await command(
       'install_vbcable',
     );
     if (result.success) {
       await checkVBCableStatus();
-      audioDevices.value = await invoke<string[]>('get_audio_devices');
+      audioDevices.value = await command('get_audio_devices');
     }
   } catch (e) {
     console.error('VB-CABLE install failed:', e);
@@ -2417,7 +2390,7 @@ async function installVBCableFromSettings() {
 async function checkVBCableStatus() {
   if (!isWindows) return;
   try {
-    vbcableDetected.value = await invoke<boolean>('check_vbcable');
+    vbcableDetected.value = await command('check_vbcable');
   } catch (e) {
     console.error('Failed to check VB-CABLE status:', e);
   }
@@ -2435,7 +2408,7 @@ async function checkBlackHoleStatus() {
   if (!isMacOS) return;
   blackholeChecking.value = true;
   try {
-    blackholeStatus.value = await invoke<BlackHoleStatus>('check_blackhole');
+    blackholeStatus.value = await command('check_blackhole');
   } catch (e) {
     console.error('Failed to check BlackHole status:', e);
   } finally {
@@ -2446,13 +2419,7 @@ async function checkBlackHoleStatus() {
 async function checkPipeWireStatus() {
   if (!isLinux) return;
   try {
-    pipewireStatus.value = await invoke<{
-      available: boolean;
-      setup: boolean;
-      device_exists: boolean;
-      install_command?: string;
-      distro?: string;
-    }>('check_pipewire');
+    pipewireStatus.value = await command('check_pipewire');
     if (pipewireStatus.value.distro && supportedDistros.some((d) => d.id === pipewireStatus.value.distro)) {
       selectedDistro.value = pipewireStatus.value.distro;
     }
@@ -2476,24 +2443,20 @@ onMounted(async () => {
     console.error('Failed to reload settings on open:', e);
   }
   try {
-    appVersion.value = await invoke('get_app_version');
+    appVersion.value = await command('get_app_version');
   } catch (e) {
     console.error('Failed to get version', e);
   }
   try {
-    autostartEnabled.value = await isAutostartEnabled();
+    autostartEnabled.value = await autostart.isEnabled();
   } catch (e) {
     console.error('Failed to read autostart state:', e);
   }
-  unlistenVbcableProgress = await listen<string>('vbcable-install-progress', (event) => {
-    vbcableInstallProgress.value = event.payload;
+  unlistenVbcableProgress = await onEvent('vbcable-install-progress', (payload) => {
+    vbcableInstallProgress.value = payload;
   });
-  unlistenAecStatus = await listen<{
-    available: boolean;
-    enabled: boolean;
-    reason?: string | null;
-  }>('aec-status-changed', (event) => {
-    aecRuntimeAvailable.value = event.payload.available;
+  unlistenAecStatus = await onEvent('aec-status-changed', (payload) => {
+    aecRuntimeAvailable.value = payload.available;
   });
   checkBlackHoleStatus();
 });
@@ -2501,10 +2464,10 @@ onMounted(async () => {
 async function toggleAutostart() {
   try {
     if (autostartEnabled.value) {
-      await disableAutostart();
+      await autostart.disable();
       autostartEnabled.value = false;
     } else {
-      await enableAutostart();
+      await autostart.enable();
       autostartEnabled.value = true;
     }
   } catch (e) {
@@ -2521,7 +2484,7 @@ onUnmounted(() => {
 
 const fetchDevices = async () => {
   try {
-    audioDevices.value = await invoke<string[]>('get_audio_devices');
+    audioDevices.value = await command('get_audio_devices');
   } catch (e) {
     console.error('Failed to fetch audio devices', e);
   }
@@ -2545,7 +2508,7 @@ const loadSettings = async () => {
   // Prefer the shared settings.json (written by update_audio_settings, also used
   // by the CLI) so GUI and CLI stay in sync; localStorage stays as a fallback.
   try {
-    const backend = await invoke<Record<string, unknown>>('get_audio_settings');
+    const backend = await command('get_audio_settings');
     if (Object.keys(backend).length > 0) {
       Object.assign(settings, backend);
       localStorage.setItem('micyou_audio_settings', JSON.stringify(settings));
@@ -2581,7 +2544,7 @@ const loadSettings = async () => {
 
 const syncSettingsToBackend = async () => {
   try {
-    await invoke('update_audio_settings', {
+    await command('update_audio_settings', {
       settings: {
         gain: settings.gain,
         aecEnabled: isAecSupported ? settings.aecEnabled : false,
@@ -2686,7 +2649,7 @@ async function doRestoreDefaultSettings() {
     // (previously swallowed → UI falsely showed full success)
     if (autostartEnabled.value) {
       try {
-        await disableAutostart();
+        await autostart.disable();
         autostartEnabled.value = false;
       } catch (e) {
         autostartFailed = true;
@@ -2783,15 +2746,15 @@ async function startAudioMonitoring() {
     await syncSettingsToBackend();
     if (!isMonitoringCurrent(token)) return;
 
-    levelListener = await listen<number>('audio-level', (event) => {
-      if (isMonitoringCurrent(token)) audioLevel.value = event.payload;
+    levelListener = await onEvent('audio-level', (payload) => {
+      if (isMonitoringCurrent(token)) audioLevel.value = payload;
     });
     if (!isMonitoringCurrent(token)) return;
 
-    spectrumListener = await listen<SpectrumPayload>('audio-spectrum', (event) => {
+    spectrumListener = await onEvent('audio-spectrum', (payload) => {
       if (isMonitoringCurrent(token)) {
-        rawSpectrum.value = event.payload.raw;
-        processedSpectrum.value = event.payload.processed;
+        rawSpectrum.value = payload.raw;
+        processedSpectrum.value = payload.processed;
       }
     });
     if (!isMonitoringCurrent(token)) return;

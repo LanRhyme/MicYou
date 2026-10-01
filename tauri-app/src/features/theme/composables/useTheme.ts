@@ -1,8 +1,8 @@
 import { computed, ref, watchEffect } from 'vue';
 import { useColorMode, useStorage } from '@vueuse/core';
-import { invoke } from '@tauri-apps/api/core';
+import { command, type SystemAccentColor } from '@/platform';
 import type { HslColor } from '../types';
-import type { SystemAccentColor, ThemeMode } from '../types';
+import type { ThemeMode } from '../types';
 
 export type { HslColor } from '../types';
 
@@ -175,7 +175,7 @@ function activeBaseColor(): HslColor {
 async function loadSystemAccent() {
   systemAccentLoading.value = true;
   try {
-    const result = await invoke<SystemAccentColor>('get_system_accent_color');
+    const result = await command('get_system_accent_color');
     systemAccentHex.value = result.supported && result.hex ? result.hex : DEFAULT_SYSTEM_COLOR;
     systemAccentSupported.value = result.supported;
     systemAccentSource.value = result.source || (result.supported ? 'system' : 'fallback');
@@ -212,7 +212,7 @@ function exportThemeToCli() {
       if (parts.length < 3 || parts.some(Number.isNaN)) return '';
       return hslToHex(parts[0], parts[1], parts[2]);
     };
-    void invoke('save_theme_colors', {
+    void command('save_theme_colors', {
       primary: read('--primary') || '#8d8768',
       secondary: read('--secondary') || '#8d8768',
       tertiary: read('--tertiary') || '#8d8768',
@@ -268,7 +268,7 @@ export async function resetThemeToDefaults(): Promise<boolean> {
   if (id) {
     clearInstalledTheme();
     try {
-      await invoke('remove_installed_theme', { themeId: id });
+      await command('remove_installed_theme', { themeId: id });
     } catch (e) {
       console.warn('Failed to remove installed theme:', e);
       return true; // installed-theme package removal failed (frontend already cleared)
@@ -285,7 +285,7 @@ export function saveUiPrefs(languageSetting = localStorage.getItem('micyou_langu
   const language = languageSetting === 'system'
     ? navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en'
     : languageSetting;
-  void invoke('save_ui_prefs', {
+  void command('save_ui_prefs', {
     language,
     themeColor: themeMode.value === 'system' ? 'theme-system' : themeColor.value,
   }).catch((e) => console.error('save_ui_prefs failed:', e));

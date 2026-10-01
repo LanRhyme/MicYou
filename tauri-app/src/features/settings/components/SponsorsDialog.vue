@@ -67,7 +67,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { X, Heart } from '@lucide/vue';
-import { invoke } from '@tauri-apps/api/core';
+import { command } from '@/platform';
 
 const props = defineProps<{ isOpen: boolean }>();
 const emit = defineEmits(['close']);
@@ -89,7 +89,7 @@ const fetchSponsors = async () => {
   error.value = null;
   
   try {
-    const res: string = await invoke('get_sponsors');
+    const res: string = await command('get_sponsors');
     const data = JSON.parse(res);
     if (data.ec === 200 && data.data && data.data.list) {
       const list = data.data.list;

@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watchEffect, watch, nextTick } from 'vue';
 import { useStorage, onClickOutside } from '@vueuse/core';
-import { LogicalSize } from '@tauri-apps/api/window';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { useI18n } from 'vue-i18n';
 
 // UI icons imported from lucide-vue
@@ -14,6 +11,7 @@ import {
 } from '@lucide/vue';
 
 // Composables managing server connection, audio, theme, window, and system tray
+import { appWindow, command, onEvent } from '@/platform';
 import { useServer } from './features/connection/composables/useServer';
 import { useAudio } from './features/audio/composables/useAudio';
 import { useTheme, saveUiPrefs } from './features/theme/composables/useTheme';
@@ -58,11 +56,11 @@ const startDrag = async (e: MouseEvent) => {
   const target = e.target as HTMLElement;
   if (target.closest('button, a, input, select, textarea, [role="button"]')) return;
   try {
-    await invoke('start_window_drag');
+    await command('start_window_drag');
   } catch {
     // Non-Windows fallback to Tauri's native startDragging
     try {
-      await win.appWindow.startDragging();
+      await appWindow.startDragging();
     } catch (err) {
       console.error('Drag failed:', err);
     }
@@ -83,15 +81,15 @@ const showOnboarding = ref(localStorage.getItem('micyou_onboarding_completed') !
 // output device chosen there.
 const openSettings = async () => {
   try {
-    await invoke('open_settings_window', { title: t('settings.title') });
+    await command('open_settings_window', { title: t('settings.title') });
   } catch (e) {
     console.error('open_settings_window failed:', e);
   }
 };
 let unlistenOutputDevice: (() => void) | null = null;
 onMounted(async () => {
-  unlistenOutputDevice = await listen<string>('output-device-changed', (event) => {
-    server.outputDevice.value = event.payload;
+  unlistenOutputDevice = await onEvent('output-device-changed', (payload) => {
+    server.outputDevice.value = payload;
   });
 });
 onUnmounted(() => unlistenOutputDevice?.());
@@ -139,7 +137,7 @@ useTray(
   {
     onShow: async () => {
       // A minimized window is still "shown"; the tray click brings it back.
-      if (win.isHidden.value || await win.appWindow.isMinimized()) {
+      if (win.isHidden.value || await appWindow.isMinimized()) {
         await win.showMainWindow();
       } else {
         await win.hideMainWindow();
@@ -151,7 +149,7 @@ useTray(
       const confirmSwitch = confirm(t('settings.runMode.confirmSwitch'));
       if (!confirmSwitch) return;
       try {
-        await invoke('switch_to_cli');
+        await command('switch_to_cli');
         await win.exitApp();
       } catch (e) {
         console.error('switch_to_cli failed:', e);
@@ -162,7 +160,7 @@ useTray(
       const confirmSwitch = confirm(t('settings.runMode.confirmSwitchTui'));
       if (!confirmSwitch) return;
       try {
-        await invoke('switch_to_tui');
+        await command('switch_to_tui');
         await win.exitApp();
       } catch (e) {
         console.error('switch_to_tui failed:', e);
@@ -183,7 +181,7 @@ onMounted(async () => {
 
 // Window sizing. Full mode is a fixed 800x600 window; pocket mode follows its
 // content, including the expanded menus, so no transparent area is left over.
-const FULL_SIZE = new LogicalSize(800, 600);
+const FULL_SIZE = { width: 800, height: 600 };
 const POCKET_PADDING = 12; // p-1.5 on both sides
 const POCKET_MIN_WIDTH = 240;
 
@@ -193,17 +191,9 @@ let pocketRaf = 0;
 
 // Linux keeps the window resizable with min = max (GTK3 adds 48px to
 // non-resizable windows on Wayland), so every resize moves the bounds too.
-async function setFixedSize(size: LogicalSize) {
-  await win.appWindow.setMinSize(null);
-  await win.appWindow.setMaxSize(null);
-  await win.appWindow.setSize(size);
-  await win.appWindow.setMinSize(size);
-  await win.appWindow.setMaxSize(size);
-}
-
 async function applyFullSize() {
   try {
-    await setFixedSize(FULL_SIZE);
+    await appWindow.setFixedSize(FULL_SIZE.width, FULL_SIZE.height);
   } catch (e) {
     console.error('Failed to resize window:', e);
   }
@@ -213,12 +203,11 @@ async function resizePocketToContent() {
   const el = pocketContentRef.value;
   if (!el) return;
   const rect = el.getBoundingClientRect();
-  const size = new LogicalSize(
-    Math.max(Math.ceil(rect.width + POCKET_PADDING), POCKET_MIN_WIDTH),
-    Math.ceil(rect.height + POCKET_PADDING),
-  );
   try {
-    await setFixedSize(size);
+    await appWindow.setFixedSize(
+      Math.max(Math.ceil(rect.width + POCKET_PADDING), POCKET_MIN_WIDTH),
+      Math.ceil(rect.height + POCKET_PADDING),
+    );
   } catch (e) {
     console.error('Failed to resize pocket window:', e);
   }

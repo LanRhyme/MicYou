@@ -1,23 +1,6 @@
 import { onMounted, onBeforeUnmount, watch, type Ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { useI18n } from "vue-i18n";
-
-export interface TrayMenuStrings {
-  tooltip: string;
-  show: string;
-  hide: string;
-  start: string;
-  stop: string;
-  exit: string;
-  switchCli: string;
-  switchTui: string;
-}
-
-export interface TrayState {
-  windowVisible: boolean;
-  isStreaming: boolean;
-}
+import { command, onEvent, type TrayMenuStrings, type UnlistenFn } from "@/platform";
 
 export interface TrayCallbacks {
   onShow: () => void | Promise<void>;
@@ -57,7 +40,7 @@ export function useTray(
     if (key === lastPushedStrings) return;
     lastPushedStrings = key;
     try {
-      await invoke("set_tray_strings", { strings });
+      await command("set_tray_strings", { strings });
     } catch (e) {
       console.error("set_tray_strings failed:", e);
     }
@@ -65,7 +48,7 @@ export function useTray(
 
   async function pushState() {
     try {
-      await invoke("set_tray_state", {
+      await command("set_tray_state", {
         state: {
           windowVisible: visibility.value,
           isStreaming: streaming.value,
@@ -77,8 +60,8 @@ export function useTray(
   }
 
   onMounted(async () => {
-    unlisten = await listen<string>("tray-action", (event) => {
-      const id = event.payload;
+    unlisten = await onEvent("tray-action", (payload) => {
+      const id = payload;
       switch (id) {
         case "show":
           void callbacks.onShow();

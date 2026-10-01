@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n';
 import PluginDetailsDialog from './PluginDetailsDialog.vue';
 import PluginMarketDialog from './PluginMarketDialog.vue';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { appWindow, type PluginView, type UnlistenFn } from '@/platform';
 import {
   RefreshCw,
   Puzzle,
@@ -16,7 +16,7 @@ import {
   Store,
   Search,
 } from '@lucide/vue';
-import { usePlugins, type PluginView } from '../composables/usePlugins';
+import { usePlugins } from '../composables/usePlugins';
 
 // 可复用的插件管理面板：用于设置对话框的「插件」页面
 // 首次挂载即拉取插件列表（单例状态，两个入口共享）
@@ -48,22 +48,20 @@ function displayDescription(plugin: {
 }
 
 const dragOver = ref(false);
-let unlistenDragDrop: (() => void) | null = null;
+let unlistenDragDrop: UnlistenFn | null = null;
 
 onMounted(async () => {
   p.refresh();
   // 拖拽插件文件夹 / .zip 上传（对应文案「把插件文件夹或 .zip 放进来」）
   try {
-    const win = getCurrentWebviewWindow();
-    unlistenDragDrop = await win.onDragDropEvent((event) => {
-      const type = event.payload.type;
-      if (type === 'enter' || type === 'over') {
+    unlistenDragDrop = await appWindow.onFileDrop((event) => {
+      if (event.type === 'enter' || event.type === 'over') {
         dragOver.value = true;
-      } else if (type === 'leave') {
+      } else if (event.type === 'leave') {
         dragOver.value = false;
-      } else if (type === 'drop') {
+      } else {
         dragOver.value = false;
-        for (const path of event.payload.paths) {
+        for (const path of event.paths) {
           void p.importFromPath(path);
         }
       }

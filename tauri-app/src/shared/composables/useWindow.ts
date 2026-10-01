@@ -1,10 +1,7 @@
 import { onMounted, onUnmounted, ref } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
-import type { UnlistenFn } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { appWindow, command, type UnlistenFn } from '@/platform';
 
 export function useWindow() {
-  const appWindow = getCurrentWindow();
   const isHidden = ref(localStorage.getItem('micyou_start_minimized') === 'true');
   const showCloseConfirm = ref(false);
 
@@ -12,7 +9,7 @@ export function useWindow() {
 
   async function minimizeWindow() {
     try {
-      await invoke('minimize_main_window');
+      await command('minimize_main_window');
     } catch (e) {
       console.error('minimize_main_window failed:', e);
     }
@@ -20,7 +17,7 @@ export function useWindow() {
 
   async function showMainWindow() {
     try {
-      await invoke('show_main_window');
+      await command('show_main_window');
     } catch (e) {
       console.error('show_main_window failed:', e);
     }
@@ -29,7 +26,7 @@ export function useWindow() {
 
   async function hideMainWindow() {
     try {
-      await invoke('hide_main_window');
+      await command('hide_main_window');
     } catch (e) {
       console.error('hide_main_window failed:', e);
     }
@@ -38,7 +35,7 @@ export function useWindow() {
 
   async function exitApp() {
     try {
-      await invoke('exit_app');
+      await command('exit_app');
     } catch (e) {
       console.error('exit_app failed:', e);
     }
@@ -74,15 +71,12 @@ export function useWindow() {
   // close button: the remembered choice or the confirm dialog decides.
   let unlistenClose: UnlistenFn | null = null;
   onMounted(async () => {
-    unlistenClose = await appWindow.onCloseRequested((event) => {
-      event.preventDefault();
-      requestClose();
-    });
+    unlistenClose = await appWindow.onCloseRequested(requestClose);
   });
   onUnmounted(() => unlistenClose?.());
 
   return {
-    appWindow, isHidden, showCloseConfirm,
+    isHidden, showCloseConfirm,
     minimizeWindow, showMainWindow, hideMainWindow, exitApp,
     requestClose, handleCloseSelect,
   };

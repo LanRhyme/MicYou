@@ -1,15 +1,5 @@
 import { onMounted, onUnmounted, watch, type Ref } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
-import type { UnlistenFn } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-
-interface BlurRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  radius: number;
-}
+import { appWindow, command, type BlurRect, type UnlistenFn } from '@/platform';
 
 interface WindowEffectsOptions {
   /** Blur the desktop behind the `data-blur-region` elements. */
@@ -61,7 +51,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     if (payload === lastBlur) return;
     lastBlur = payload;
     try {
-      const active = await invoke<boolean>('set_window_blur', { regions });
+      const active = await command('set_window_blur', { regions });
       if (!active && regions.length > 0) {
         if (await isHidden()) {
           // Stored and applied by the backend once the window is shown;
@@ -89,7 +79,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     const radius = shadowRadius.value;
     shadowPending = false;
     try {
-      const active = await invoke<boolean>('set_window_shadow', { radius });
+      const active = await command('set_window_shadow', { radius });
       if (!active && radius !== null) {
         if (await isHidden()) {
           shadowPending = true;
@@ -106,7 +96,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
   // A hidden window has no surface, so the backend reports false without
   // telling us anything about compositor support.
   async function isHidden() {
-    return !(await getCurrentWindow().isVisible());
+    return !(await appWindow.isVisible());
   }
 
   // Window focus, not document focus: plugin panels are iframes and taking
@@ -123,11 +113,10 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     window.addEventListener('resize', scheduleBlur);
     scheduleBlur();
     void syncShadow();
-    const appWindow = getCurrentWindow();
     setInactive(!(await appWindow.isFocused()));
-    unlistenFocus = await appWindow.onFocusChanged(({ payload }) => {
-      setInactive(!payload);
-      if (!payload) return;
+    unlistenFocus = await appWindow.onFocusChanged((focused) => {
+      setInactive(!focused);
+      if (!focused) return;
       // Shown again (e.g. from the tray): retry what was deferred while hidden.
       scheduleBlur();
       if (shadowPending) void syncShadow();

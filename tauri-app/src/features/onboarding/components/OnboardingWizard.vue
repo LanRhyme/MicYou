@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { openUrl } from '@tauri-apps/plugin-opener';
 import { useI18n } from 'vue-i18n';
 import { X, CheckCircle2, Download, Loader2, ArrowRight } from '@lucide/vue';
+import { command, onEvent, openUrl, type UnlistenFn } from '@/platform';
 
 const { t } = useI18n();
 
@@ -36,7 +34,7 @@ onMounted(async () => {
 
   if (isWindows.value) {
     try {
-      vbcableInstalled.value = await invoke<boolean>('check_vbcable');
+      vbcableInstalled.value = await command('check_vbcable');
       if (vbcableInstalled.value) {
         step.value = 4;
       }
@@ -45,8 +43,8 @@ onMounted(async () => {
     }
   }
 
-  unlistenProgress = await listen<string>('vbcable-install-progress', (event) => {
-    installProgress.value = event.payload;
+  unlistenProgress = await onEvent('vbcable-install-progress', (payload) => {
+    installProgress.value = payload;
   });
 });
 
@@ -79,7 +77,7 @@ async function installVBCable() {
   installProgress.value = '';
 
   try {
-    const result = await invoke<{ success: boolean; error_type?: string; message?: string }>('install_vbcable');
+    const result = await command('install_vbcable');
 
     if (result.success) {
       installSuccess.value = true;
