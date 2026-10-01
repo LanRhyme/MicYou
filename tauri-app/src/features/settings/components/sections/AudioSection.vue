@@ -143,11 +143,11 @@ onUnmounted(() => {
         <div class="flex gap-4">
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm bg-surface-variant"></div>
-            <span class="text-[10px] text-on-surface-variant">原始 (Raw)</span>
+            <span class="text-[10px] text-on-surface-variant">{{ $t('settings.spectrum.raw') }}</span>
           </div>
           <div class="flex items-center gap-2">
             <div class="w-3 h-3 rounded-sm bg-primary"></div>
-            <span class="text-[10px] text-on-surface-variant">处理后 (Processed)</span>
+            <span class="text-[10px] text-on-surface-variant">{{ $t('settings.spectrum.processed') }}</span>
           </div>
         </div>
       </div>

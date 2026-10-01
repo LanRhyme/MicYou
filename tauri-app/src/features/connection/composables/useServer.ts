@@ -92,7 +92,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
   const errorDetails = ref<ConnectionErrorDetails | null>(null);
   
   // Selected audio output device target (e.g. system default or virtual sound card)
-  const outputDevice = ref<string>(localStorage.getItem('micyou_output_device') || '');
+  const outputDevice = ref<string>('');
   const showQrDialog = ref(false);
 
   // Active configurations when the server is running
@@ -418,13 +418,6 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
   // ---- Shared server prefs (server.json, also read/written by the CLI) ----
   async function loadServerPrefs() {
     try {
-      // First run of a synced version: migrate localStorage values
-      // (written by older builds) into the shared server.json.
-      const exists = await command('server_prefs_exists');
-      if (!exists) {
-        persistServerPrefs();
-        return;
-      }
       const prefs = await command('get_server_prefs');
       if (!prefs) return;
       if (prefs.port) serverPort.value = prefs.port;
@@ -436,10 +429,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
       if (prefs.bindAddress && prefs.bindAddress !== '0.0.0.0') {
         selectedIp.value = prefs.bindAddress;
       }
-      if (prefs.outputDevice) {
-        outputDevice.value = prefs.outputDevice;
-        localStorage.setItem('micyou_output_device', prefs.outputDevice);
-      }
+      if (prefs.outputDevice) outputDevice.value = prefs.outputDevice;
       if (prefs.muteSync !== undefined) muteSyncEnabled.value = prefs.muteSync;
     } catch (e) {
       console.error('Failed to load server prefs:', e);

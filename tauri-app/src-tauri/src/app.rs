@@ -94,7 +94,6 @@ pub fn run() {
             commands::audio::get_audio_devices,
             commands::audio::update_audio_settings,
             commands::audio::get_audio_settings,
-            commands::audio::server_prefs_exists,
             commands::audio::get_server_prefs,
             commands::audio::save_server_prefs,
             commands::audio::check_pipewire,
