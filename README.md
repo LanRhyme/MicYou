@@ -51,7 +51,7 @@
 
 ## Getting Started
 
-1. Download the Android APK and the desktop package for your operating system from [GitHub Releases](https://github.com/LanRhyme/MicYou/releases).
+1. Download the Android APK and the desktop package for your operating system from [GitHub Releases](https://github.com/MicYou-Dev/MicYou/releases).
 2. Set up a virtual microphone for your platform by following the [Quick Start guide](https://micyou.top/en/docs/quick-start).
 3. Choose a connection method:
    - Wi-Fi: Keep the phone and PC on the same network, then select Wi-Fi on both apps.
@@ -73,19 +73,19 @@ We welcome contributions of all kinds! Whether you want to report a bug, suggest
 
 ## Contributors
 
-<a href="https://github.com/LanRhyme/MicYou/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=LanRhyme/MicYou" />
+<a href="https://github.com/MicYou-Dev/MicYou/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=MicYou-Dev/MicYou" />
 </a>
 
 Made with [contrib.rocks](https://contrib.rocks).
 
 ## Star History
 
-<a href="https://star-history.dera.page/#LanRhyme/MicYou&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#MicYou-Dev/MicYou&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=LanRhyme/MicYou&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=LanRhyme/MicYou&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=LanRhyme/MicYou&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=MicYou-Dev/MicYou&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=MicYou-Dev/MicYou&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=MicYou-Dev/MicYou&type=date&legend=top-left" />
  </picture>
 </a>
 
@@ -99,7 +99,7 @@ Special thanks to [CQU Open Source Software Mirror](https://mirrors.cqu.edu.cn/)
 
 Special thanks to [MirrorChyan](https://mirrorchyan.com/en/get-start) for providing a high-speed mirror download service for this project.
 
-Special thanks to all the [contributors](https://github.com/LanRhyme/MicYou/graphs/contributors) for helping to make the project even better.
+Special thanks to all the [contributors](https://github.com/MicYou-Dev/MicYou/graphs/contributors) for helping to make the project even better.
 
 ## License
 

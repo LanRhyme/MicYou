@@ -7,7 +7,7 @@
 ## Issue #325
 
 - **标题**: [Bug]: 手机端 -- 删除IP 的时候，删除到最后一个数字，删除不掉，而且光标会跳到数字前面
-- **链接**: https://github.com/LanRhyme/MicYou/issues/325
+- **链接**: https://github.com/MicYou-Dev/MicYou/issues/325
 - **类型**: Bug
 - **影响平台**: Android
 - **原因分析**: `AudioStreamViewModel.setIp` 在接收到空输入时使用了 `ip.ifBlank { _uiState.value.ipAddress }`，导致用户清空输入框时状态值被重置为删除前的最后一位字符，使得 Compose BasicTextField 内部状态检测到值未变，光标被迫跳至首位
@@ -30,7 +30,7 @@
 ## Issue #323
 
 - **标题**: [Bug]: Transparent window on launch (fixed with WEBKIT_DISABLE_DMABUF_RENDERER=1)
-- **链接**: https://github.com/LanRhyme/MicYou/issues/323
+- **链接**: https://github.com/MicYou-Dev/MicYou/issues/323
 - **类型**: Bug
 - **影响平台**: Linux (WebKitGTK / NVIDIA / 部分窗口管理器如 bspwm + picom)
 - **原因分析**: WebKitGTK 默认启用的 DMA-BUF 硬件加速渲染路径在特定显卡驱动或合成器环境下无法正常构建 framebuffer，导致窗口透明或黑屏
@@ -48,7 +48,7 @@
 ## Issue #322
 
 - **标题**: Windows 下未正确选择虚拟音频设备时会回落到物理音响，导致严重回声；耳返开关无法解决
-- **链接**: https://github.com/LanRhyme/MicYou/issues/322
+- **链接**: https://github.com/MicYou-Dev/MicYou/issues/322
 - **类型**: Enhancement / Bug
 - **影响平台**: Windows / macOS / Linux
 - **原因分析**:
@@ -84,7 +84,7 @@
 ## Issue #287
 
 - **标题**: [Bug]: 手机端会发两次相同的包给PC端，XOR手机端跟电脑端的序号对不上无法进行乱序恢复
-- **链接**: https://github.com/LanRhyme/MicYou/issues/287
+- **链接**: https://github.com/MicYou-Dev/MicYou/issues/287
 - **类型**: Bug
 - **影响平台**: Android / Desktop (UDP / FEC / JitterBuffer)
 - **原因分析**:
@@ -114,7 +114,7 @@
 ## Issue #307
 
 - **标题**: 建议：希望能找回悬浮窗 / Overlay 功能 (Feature Request: Floating Window)
-- **链接**: https://github.com/LanRhyme/MicYou/issues/307
+- **链接**: https://github.com/MicYou-Dev/MicYou/issues/307
 - **类型**: Feature / Enhancement
 - **影响平台**: Windows / macOS / Linux
 - **原因分析**: 旧版 KMP (`FloatingMicWindow.kt`) 中的桌面置顶麦克风悬浮球在迁移到 Tauri 2 初期暂未移植，用户在游戏或全屏应用中无法便捷查看麦克风状态或快速静音
@@ -144,7 +144,7 @@
 ## Issue #308
 
 - **标题**: 将插件系统从Tauri GUI 的专属生命周期解耦，使CLI与TUI能使用插件系统
-- **链接**: https://github.com/LanRhyme/MicYou/issues/308
+- **链接**: https://github.com/MicYou-Dev/MicYou/issues/308
 - **类型**: Feat
 - **影响平台**: All platforms (CLI / TUI / Desktop Core)
 - **原因分析**: 插件生命周期过去绑定在 GUI 运行时中，CLI 与 TUI 作为独立前端无法复用已启用的插件，导致插件生态在非 GUI 场景下失效
@@ -163,7 +163,7 @@
 ## Issue #309
 
 - **标题**: 扩展插件能力边界：引入控制面信令的观察与拦截机制
-- **链接**: https://github.com/LanRhyme/MicYou/issues/309
+- **链接**: https://github.com/MicYou-Dev/MicYou/issues/309
 - **类型**: Feat
 - **影响平台**: All platforms (Plugin Host / C ABI / WASM)
 - **原因分析**: 插件缺乏对宿主控制面（静音、耳返监听、DSP 设置等）的系统性读写能力与一致的变更感知事件
@@ -188,7 +188,7 @@
 ## Issue #310
 
 - **标题**: 优化插件开发日志体验：支持文本选中、崩溃日志落盘与官方日志预制件
-- **链接**: https://github.com/LanRhyme/MicYou/issues/310
+- **链接**: https://github.com/MicYou-Dev/MicYou/issues/310
 - **类型**: Feat
 - **影响平台**: Desktop GUI / Plugin DX
 - **原因分析**: 插件运行日志排查困难，缺少对日志物理路径的直接查看、一键打开与文件导出能力

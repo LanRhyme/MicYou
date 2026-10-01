@@ -50,7 +50,7 @@
 
 ## 使用指南
 
-1. 从 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载 Android APK 和对应操作系统的桌面端安装包
+1. 从 [GitHub Releases](https://github.com/MicYou-Dev/MicYou/releases) 下载 Android APK 和对应操作系统的桌面端安装包
 2. 按照[快速开始指南](https://micyou.top/docs/quick-start)为电脑配置虚拟麦克风
 3. 选择连接方式：
    - Wi-Fi：确保手机与电脑处于同一网络，并在两端选择 Wi-Fi 模式
@@ -71,19 +71,19 @@
 我们欢迎各种形式的贡献！无论是报告 Bug、提出功能建议、协助翻译还是贡献代码，都请参阅我们的 [贡献指南](./CONTRIBUTING_zh-cn.md) 以开始参与。
 
 ## 贡献者
-<a href="https://github.com/LanRhyme/MicYou/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=LanRhyme/MicYou" />
+<a href="https://github.com/MicYou-Dev/MicYou/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=MicYou-Dev/MicYou" />
 </a>
 
 Made with [contrib.rocks](https://contrib.rocks).
 
 ## Star History
 
-<a href="https://star-history.dera.page/#LanRhyme/MicYou&type=date&legend=top-left">
+<a href="https://star-history.dera.page/#MicYou-Dev/MicYou&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=LanRhyme/MicYou&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=LanRhyme/MicYou&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=LanRhyme/MicYou&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=MicYou-Dev/MicYou&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=MicYou-Dev/MicYou&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=MicYou-Dev/MicYou&type=date&legend=top-left" />
  </picture>
 </a>
 
@@ -97,7 +97,7 @@ Made with [contrib.rocks](https://contrib.rocks).
 
 特别感谢 [Mirror 酱](https://mirrorchyan.com/zh/get-start) 为本项目提供高速镜像下载服务。
 
-特别感谢所有的 [贡献者](https://github.com/LanRhyme/MicYou/graphs/contributors) 你们让项目变得更好。
+特别感谢所有的 [贡献者](https://github.com/MicYou-Dev/MicYou/graphs/contributors) 你们让项目变得更好。
 
 ## 许可证
 

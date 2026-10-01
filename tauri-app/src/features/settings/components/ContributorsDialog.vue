@@ -67,7 +67,7 @@ const fetchContributors = async () => {
   error.value = null;
   
   try {
-    const res = await fetch('https://api.github.com/repos/LanRhyme/MicYou/contributors', {
+    const res = await fetch('https://api.github.com/repos/MicYou-Dev/MicYou/contributors', {
       headers: {
         'Accept': 'application/vnd.github.v3+json'
       }

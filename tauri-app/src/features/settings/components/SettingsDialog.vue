@@ -1340,7 +1340,7 @@
                   <div class="h-px bg-border mx-4"></div>
 
                   <a
-                    href="https://github.com/LanRhyme/MicYou"
+                    href="https://github.com/MicYou-Dev/MicYou"
                     target="_blank"
                     class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer group"
                   >
@@ -1348,7 +1348,7 @@
                     <div class="flex-1">
                       <h4 class="text-sm font-medium text-on-surface">GitHub Repository</h4>
                       <p class="text-xs text-primary group-hover:underline">
-                        https://github.com/LanRhyme/MicYou
+                        https://github.com/MicYou-Dev/MicYou
                       </p>
                     </div>
                   </a>
