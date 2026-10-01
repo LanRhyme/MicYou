@@ -1,6 +1,6 @@
 /*
  * MicYou — Turns your Android device into a high-quality PC microphone.
- * Copyright (C) 2026 LanRhyme <https://github.com/LanRhyme/MicYou>
+ * Copyright (C) 2026 LanRhyme <https://github.com/MicYou-Dev/MicYou>
  *
  * Haze bridge — compat mode: simple semi-transparent background fallbacks.
  * Real haze/blur effects require newer Compose versions not available on minSdk 21.

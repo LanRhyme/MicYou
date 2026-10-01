@@ -1,6 +1,6 @@
 /*
  * MicYou — Turns your Android device into a high-quality PC microphone.
- * Copyright (C) 2026 LanRhyme <https://github.com/LanRhyme/MicYou>
+ * Copyright (C) 2026 LanRhyme <https://github.com/MicYou-Dev/MicYou>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -224,7 +224,7 @@ object ConnectionErrorHelper {
                     getString(R.string.errorSuggestionCheckLogs)
                 ),
                 showHelpButton = true,
-                helpUrl = "https://github.com/LanRhyme/MicYou/issues"
+                helpUrl = "https://github.com/MicYou-Dev/MicYou/issues"
             )
 
             ConnectionErrorType.UdpPortBlocked -> ConnectionErrorDetails(
@@ -237,7 +237,7 @@ object ConnectionErrorHelper {
                     getString(R.string.errorSuggestionRestartApp)
                 ),
                 showHelpButton = true,
-                helpUrl = "https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md"
+                helpUrl = "https://github.com/MicYou-Dev/MicYou/blob/master/docs/FAQ.md"
             )
         }
     }

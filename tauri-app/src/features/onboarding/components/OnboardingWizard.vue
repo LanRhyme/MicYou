@@ -104,7 +104,7 @@ async function openVideoGuide() {
 }
 
 async function openTextGuide() {
-  await openUrl('https://github.com/LanRhyme/MicYou/blob/master/docs/FAQ.md');
+  await openUrl('https://github.com/MicYou-Dev/MicYou/blob/master/docs/FAQ.md');
 }
 </script>
 

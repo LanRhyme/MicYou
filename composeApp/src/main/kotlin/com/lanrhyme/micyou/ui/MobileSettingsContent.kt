@@ -1,6 +1,6 @@
 /*
  * MicYou — Turns your Android device into a high-quality PC microphone.
- * Copyright (C) 2026 LanRhyme <https://github.com/LanRhyme/MicYou>
+ * Copyright (C) 2026 LanRhyme <https://github.com/MicYou-Dev/MicYou>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -971,7 +971,7 @@ private fun LazyListScope.aboutSettingsItems(
             ExpressiveListItem(
                 isFirst = isFirst,
                 isLast = isLast,
-                onClick = { uriHandler.openUri("https://github.com/LanRhyme/MicYou") },
+                onClick = { uriHandler.openUri("https://github.com/MicYou-Dev/MicYou") },
                 containerColor = containerColor,
                 hazeState = hazeState,
                 enableHaze = enableHaze
@@ -988,7 +988,7 @@ private fun LazyListScope.aboutSettingsItems(
                         Text(stringResource(R.string.githubRepoLabel), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "https://github.com/LanRhyme/MicYou",
+                            "https://github.com/MicYou-Dev/MicYou",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary,
                             textDecoration = TextDecoration.Underline

@@ -8,7 +8,7 @@ body:
       value: |
         感謝您花時間填寫這份 Bug 回報！請提供盡可能詳細的資訊，這能幫助我們更快地定位和解決問題。
 
-        ⚠️ **注意**：我們**只處理最新版本**的問題。在提交前，請確認您已升級到 [最新版本](https://github.com/LanRhyme/MicYou/releases)。
+        ⚠️ **注意**：我們**只處理最新版本**的問題。在提交前，請確認您已升級到 [最新版本](https://github.com/MicYou-Dev/MicYou/releases)。
 
   - type: checkboxes
     id: latest_version_confirmation

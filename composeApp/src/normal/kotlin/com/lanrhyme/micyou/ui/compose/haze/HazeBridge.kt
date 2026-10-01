@@ -1,6 +1,6 @@
 /*
  * MicYou — Turns your Android device into a high-quality PC microphone.
- * Copyright (C) 2026 LanRhyme <https://github.com/LanRhyme/MicYou>
+ * Copyright (C) 2026 LanRhyme <https://github.com/MicYou-Dev/MicYou>
  *
  * Haze bridge — normal mode: delegates to dev.chrisbanes.haze library.
  */

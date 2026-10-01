@@ -21,7 +21,7 @@ jobs:
           mirrorchyan_rid: MicYou
           version_name: ${{ inputs.tag }}
 
-          owner: LanRhyme
+          owner: MicYou-Dev
           repo: MicYou
           github_token: ${{ secrets.GITHUB_TOKEN }}
           upload_token: ${{ secrets.MirrorChyanUploadToken }}

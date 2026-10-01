@@ -56,7 +56,7 @@ brew install switchaudio-osx --formulae
 
 Please restart your Mac after installation.
 
-After downloading the app from [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) and installing it in your Applications folder, Gatekeeper may block it during first use:
+After downloading the app from [GitHub Releases](https://github.com/MicYou-Dev/MicYou/releases) and installing it in your Applications folder, Gatekeeper may block it during first use:
 
 - If prompted with "Untrusted Developer," navigate to **System Settings/System Preferences > Privacy & Security** to allow the app to run.
 - If prompted with "The application is damaged," execute the following command:
@@ -71,7 +71,7 @@ You will need to enter your account password during the process. The password wi
 
 #### Using pre-built packages (recommended)
 
-Pre-built packages are available in [GitHub Releases](https://github.com/LanRhyme/MicYou/releases). Choose the appropriate package for your Linux distribution.
+Pre-built packages are available in [GitHub Releases](https://github.com/MicYou-Dev/MicYou/releases). Choose the appropriate package for your Linux distribution.
 
 **DEB package (Debian/Ubuntu/Mint etc.):**
 

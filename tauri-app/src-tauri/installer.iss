@@ -3,7 +3,7 @@
   #define MyAppVersion "2.0.3"
 #endif
 #define MyAppPublisher "LanRhyme"
-#define MyAppURL "https://github.com/LanRhyme/MicYou"
+#define MyAppURL "https://github.com/MicYou-Dev/MicYou"
 #define MyAppExeName "micyou.exe"
 
 [Setup]

@@ -56,7 +56,7 @@ brew install switchaudio-osx --formulae
 
 完成后请重启您的 Mac。
 
-在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载应用并安装到“应用程序”目录后，首次启动可能会被 Gatekeeper 拦截。
+在 [GitHub Releases](https://github.com/MicYou-Dev/MicYou/releases) 下载应用并安装到“应用程序”目录后，首次启动可能会被 Gatekeeper 拦截。
 
 - 若提示「不受信任的开发者」，请前往 **「系统设置」/「系统偏好设置」 > 「隐私与安全」** 允许应用运行。
 - 若提示「应用已损坏」，请在终端执行：
@@ -69,7 +69,7 @@ sudo xattr -r -d com.apple.quarantine /Applications/MicYou.app
 ### Linux
 
 #### 使用预编译包（推荐）
-预编译包可在 [GitHub Releases](https://github.com/LanRhyme/MicYou/releases) 下载。
+预编译包可在 [GitHub Releases](https://github.com/MicYou-Dev/MicYou/releases) 下载。
 
 **DEB 包（适用于 Debian/Ubuntu/Mint 等发行版）：**
 ```bash

@@ -1,6 +1,6 @@
 /*
  * MicYou — Turns your Android device into a high-quality PC microphone.
- * Copyright (C) 2026 LanRhyme <https://github.com/LanRhyme/MicYou>
+ * Copyright (C) 2026 LanRhyme <https://github.com/MicYou-Dev/MicYou>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -121,8 +121,8 @@ class UpdateChecker {
     companion object {
         const val MIRROR_RID = "MicYou"
         const val MIRROR_API_BASE = "https://mirrorchyan.com/api"
-        private const val GITHUB_RELEASE_API = "https://api.github.com/repos/LanRhyme/MicYou/releases/latest"
-        private const val GITHUB_RELEASE_WEB = "https://github.com/LanRhyme/MicYou/releases/latest"
+        private const val GITHUB_RELEASE_API = "https://api.github.com/repos/MicYou-Dev/MicYou/releases/latest"
+        private const val GITHUB_RELEASE_WEB = "https://github.com/MicYou-Dev/MicYou/releases/latest"
         private const val DEFAULT_USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
     }
 

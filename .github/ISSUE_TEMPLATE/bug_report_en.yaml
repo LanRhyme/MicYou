@@ -8,7 +8,7 @@ body:
       value: |
         Thank you for taking the time to fill out this bug report! Please provide as much detail as possible to help us locate and resolve the issue quickly.
 
-        ⚠️ **Important**: We **only process issues for the latest version**. Before submitting, please ensure you have upgraded to the [latest release](https://github.com/LanRhyme/MicYou/releases).
+        ⚠️ **Important**: We **only process issues for the latest version**. Before submitting, please ensure you have upgraded to the [latest release](https://github.com/MicYou-Dev/MicYou/releases).
 
   - type: checkboxes
     id: latest_version_confirmation
