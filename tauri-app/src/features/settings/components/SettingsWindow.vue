@@ -1677,12 +1677,12 @@ import PluginsPanel from '@/features/plugins/components/PluginsPanel.vue';
 import { usePlugins } from '@/features/plugins/composables/usePlugins';
 import { muteSyncEnabled } from '@/features/connection/composables/useMuteSync';
 import { marketPluginName } from '@/features/plugins/market';
-import { usePluginPanelBridge } from '@/shared/composables/usePluginPanelBridge';
+import { usePluginPanelBridge } from '@/features/plugins/composables/usePluginPanelBridge';
 import ThemeSelector from '@/features/theme/components/ThemeSelector.vue';
 import CustomColorPicker from '@/features/theme/components/CustomColorPicker.vue';
 import { useTheme, DEFAULT_THEME, saveUiPrefs as saveThemeUiPrefs } from '@/features/theme/composables/useTheme';
-import { useWindowEffects } from '@/shared/composables/useWindowEffects';
-import { applyPlatformClasses } from '@/shared/lib/platform';
+import { useWindowEffects } from '@/features/window/composables/useWindowEffects';
+import { applyPlatformClasses, isLinux, isMacOS, isWindows } from '@/shared/lib/os';
 
 onMounted(() => {
   window.addEventListener('message', onPanelMessage);
@@ -2071,15 +2071,6 @@ const hasBlackHole = computed(() =>
   blackholeStatus.value.installed ||
   audioDevices.value.some((d) => d.toLowerCase().includes('blackhole')),
 );
-const isMacOS =
-  typeof navigator !== 'undefined' &&
-  /Mac/.test(navigator.platform || navigator.userAgent) &&
-  !/iPhone|iPad|iPod/.test(navigator.userAgent);
-const isLinux =
-  typeof navigator !== 'undefined' &&
-  /Linux/.test(navigator.platform || navigator.userAgent) &&
-  !/Android/.test(navigator.userAgent);
-const isWindows = !isMacOS && !isLinux;
 
 const isVirtualDeviceSelected = computed(() => {
   if (!settings.audioDevice || settings.audioDevice === 'auto') {

@@ -5,7 +5,7 @@
  * 复用设置对话框的面板渲染逻辑（沙箱 iframe + postMessage 桥 + 主题注入）
  */
 import { ref, onMounted } from 'vue';
-import { usePluginPanelBridge } from '@/shared/composables/usePluginPanelBridge';
+import { usePluginPanelBridge } from '../composables/usePluginPanelBridge';
 import { appWindow, command } from '@/platform';
 
 const hash = window.location.hash; // #/plugin/<pluginId>/<panelId>

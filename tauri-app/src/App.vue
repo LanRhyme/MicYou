@@ -15,10 +15,10 @@ import { appWindow, command, onEvent } from '@/platform';
 import { useServer } from './features/connection/composables/useServer';
 import { useAudio } from './features/audio/composables/useAudio';
 import { useTheme, saveUiPrefs } from './features/theme/composables/useTheme';
-import { useWindow } from './shared/composables/useWindow';
-import { useTray } from './shared/composables/useTray';
-import { useWindowEffects } from './shared/composables/useWindowEffects';
-import { applyPlatformClasses, isMacOS } from './shared/lib/platform';
+import { useWindow } from './features/window/composables/useWindow';
+import { useTray } from './features/tray/useTray';
+import { useWindowEffects } from './features/window/composables/useWindowEffects';
+import { applyPlatformClasses, isMacOS } from './shared/lib/os';
 
 // UI components for connection flows, onboarding, and layouts
 import ConnectionErrorDialog from './features/connection/components/ConnectionErrorDialog.vue';
@@ -27,9 +27,9 @@ import AudioRing from './features/audio/components/AudioRing.vue';
 import MonitoringPanel from './features/audio/components/MonitoringPanel.vue';
 import OnboardingWizard from './features/onboarding/components/OnboardingWizard.vue';
 import PocketLayout from './features/pocket/components/PocketLayout.vue';
-import CloseConfirmDialog from './shared/components/CloseConfirmDialog.vue';
-import UdpWarningDialog from './shared/components/UdpWarningDialog.vue';
-import MonitoringWarningDialog from './shared/components/MonitoringWarningDialog.vue';
+import CloseConfirmDialog from './features/window/components/CloseConfirmDialog.vue';
+import UdpWarningDialog from './features/connection/components/UdpWarningDialog.vue';
+import MonitoringWarningDialog from './features/audio/components/MonitoringWarningDialog.vue';
 
 // Raw asset content and animation utilities
 import appIconSvg from './shared/assets/app_icon.svg?raw';
