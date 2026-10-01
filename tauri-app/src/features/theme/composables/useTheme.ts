@@ -295,7 +295,7 @@ export function saveUiPrefs(languageSetting = localStorage.getItem('micyou_langu
 // through localStorage, so a change in the settings window reaches the rest.
 // Created once per window, however many components call useTheme().
 let colorModeRef: ReturnType<typeof useColorMode> | null = null;
-function sharedColorMode() {
+export function sharedColorMode() {
   colorModeRef ??= useColorMode({
     emitAuto: true,
     modes: {
