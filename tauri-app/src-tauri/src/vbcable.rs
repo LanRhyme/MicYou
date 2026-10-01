@@ -61,39 +61,127 @@ pub fn is_installed() -> bool {
     }
 
     // 2. Registry verification: check services and software keys (64-bit and 32-bit views)
-    use winreg::enums::{HKEY_LOCAL_MACHINE, KEY_READ};
+    use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ};
     use winreg::RegKey;
 
-    let registry_paths = [
-        // Windows Services (service names created by official driver)
-        "SYSTEM\\CurrentControlSet\\Services\\VBCABLE",
-        "SYSTEM\\CurrentControlSet\\Services\\VBCABLEA",
-        "SYSTEM\\CurrentControlSet\\Services\\VBCABLEB",
-        "SYSTEM\\CurrentControlSet\\Services\\VB-Cable",
-        // Software keys
-        "SOFTWARE\\VB-Audio\\Cable",
-        "SOFTWARE\\VB-Audio\\VB-Cable",
-        "SOFTWARE\\WOW6432Node\\VB-Audio\\Cable",
-        "SOFTWARE\\WOW6432Node\\VB-Audio\\VB-Cable",
-    ];
-
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-    for path in &registry_paths {
+
+    // 2a. Kernel service created by the official driver. All shipped
+    // vbMmeCable*.inf variants (win10/win7/vista, x64/x86) register the
+    // service as "VBAudioVACMME". Legacy names are kept for older or
+    // repackaged drivers (VB-Cable A+B uses VBCABLEA/VBCABLEB).
+    let service_names = [
+        "VBAudioVACMME",
+        "VBCABLE",
+        "VBCABLEA",
+        "VBCABLEB",
+        "VB-Cable",
+    ];
+    for name in &service_names {
+        let path = format!("SYSTEM\\CurrentControlSet\\Services\\{name}");
+        if hklm.open_subkey_with_flags(&path, KEY_READ).is_ok() {
+            return true;
+        }
+    }
+
+    // 2b. Uninstall entry written by the official VBCABLE_Setup(_x64).exe.
+    let uninstall_paths = [
+        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VB:VBCABLE {87459874-1236-4469}",
+        "SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\VB:VBCABLE {87459874-1236-4469}",
+    ];
+    for path in &uninstall_paths {
         if hklm.open_subkey_with_flags(path, KEY_READ).is_ok() {
             return true;
         }
     }
 
-    // 3. File system verification: check driver and utility files
+    // 2c. Software keys (written by the control panel; may live per-user).
+    let software_paths = [
+        "SOFTWARE\\VB-Audio\\Cable",
+        "SOFTWARE\\VB-Audio\\VB-Cable",
+        "SOFTWARE\\WOW6432Node\\VB-Audio\\Cable",
+        "SOFTWARE\\WOW6432Node\\VB-Audio\\VB-Cable",
+    ];
+    for path in &software_paths {
+        if hklm.open_subkey_with_flags(path, KEY_READ).is_ok() {
+            return true;
+        }
+    }
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    for path in ["SOFTWARE\\VB-Audio\\Cable", "SOFTWARE\\VB-Audio\\VB-Cable"] {
+        if hkcu.open_subkey_with_flags(path, KEY_READ).is_ok() {
+            return true;
+        }
+    }
+
+    // 2d. PnP device instance: the official driver enumerates under
+    // ROOT\MEDIA\* with HardwareID "VBAudioVACWDM" (root-enumerated software
+    // device, survives even when the audio endpoints are not yet started).
+    if let Ok(media) =
+        hklm.open_subkey_with_flags("SYSTEM\\CurrentControlSet\\Enum\\ROOT\\MEDIA", KEY_READ)
+    {
+        for instance in media.enum_keys().flatten() {
+            if let Ok(dev) = media.open_subkey_with_flags(&instance, KEY_READ) {
+                if let Ok(hwids) = dev.get_value::<Vec<String>, _>("HardwareID") {
+                    if hwids
+                        .iter()
+                        .any(|id| id.eq_ignore_ascii_case("VBAudioVACWDM"))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. File system verification: check driver and utility files.
+    // The official installer places the control panel as
+    // VBCABLE_ControlPanel.exe under %ProgramFiles%\VB\CABLE, and ships the
+    // kernel driver as vbaudio_cable64_*.sys (win7-era INFs copy it into
+    // System32\drivers; the win10 INF installs it into the DriverStore).
+    let sysroot = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".to_string());
+    let program_files =
+        std::env::var("ProgramFiles").unwrap_or_else(|_| r"C:\Program Files".to_string());
+    let program_files_x86 =
+        std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| format!("{program_files} (x86)"));
+
     let file_paths = [
-        r"C:\Program Files\VB\CABLE\vbcable_control_panel.exe",
-        r"C:\Program Files (x86)\VB\CABLE\vbcable_control_panel.exe",
-        r"C:\Windows\System32\drivers\vbcable.sys",
-        r"C:\Windows\System32\drivers\vbcable_win7_x64.sys",
+        format!(r"{program_files}\VB\CABLE\VBCABLE_ControlPanel.exe"),
+        format!(r"{program_files_x86}\VB\CABLE\VBCABLE_ControlPanel.exe"),
+        format!(r"{sysroot}\System32\drivers\vbaudio_cable64_win10.sys"),
+        format!(r"{sysroot}\System32\drivers\vbaudio_cable64_win7.sys"),
+        format!(r"{sysroot}\System32\drivers\vbaudio_cable64_vista.sys"),
+        format!(r"{sysroot}\System32\drivers\vbaudio_cable_win7.sys"),
+        // Legacy guesses kept for compatibility with older repacks.
+        format!(r"{program_files}\VB\CABLE\vbcable_control_panel.exe"),
+        format!(r"{sysroot}\System32\drivers\vbcable.sys"),
+        format!(r"{sysroot}\System32\drivers\vbcable_win7_x64.sys"),
     ];
     for path in &file_paths {
         if std::path::Path::new(path).exists() {
             return true;
+        }
+    }
+
+    // 3b. DriverStore: the win10 INF (vbMmeCable64_win10.inf) is staged under
+    // FileRepository\vbmme cable64_win10.inf_amd64_<hash>\ together with
+    // vbaudio_cable64_win10.sys.
+    let file_repository = std::path::Path::new(&sysroot)
+        .join("System32")
+        .join("DriverStore")
+        .join("FileRepository");
+    if let Ok(entries) = std::fs::read_dir(&file_repository) {
+        for entry in entries.flatten() {
+            if !entry.path().is_dir() {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            if name.starts_with("vbmme")
+                || name.starts_with("vbcable")
+                || name.starts_with("vbaudio")
+            {
+                return true;
+            }
         }
     }
 

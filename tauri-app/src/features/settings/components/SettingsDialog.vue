@@ -406,7 +406,7 @@
                           <SelectItem value="auto">{{
                             $t('settings.audioOutput.auto')
                           }}</SelectItem>
-                          <SelectItem v-for="dev in audioDevices" :key="dev" :value="dev">{{
+                          <SelectItem v-for="dev in outputDeviceOptions" :key="dev" :value="dev">{{
                             dev
                           }}</SelectItem>
                         </SelectGroup>
@@ -2089,6 +2089,19 @@ const hasBlackHole = computed(() =>
   blackholeStatus.value.installed ||
   audioDevices.value.some((d) => d.toLowerCase().includes('blackhole')),
 );
+// Always keep the persisted output device selectable, even before the device
+// list has been fetched (or when enumeration fails / the device is temporarily
+// missing). Without this the Select shows "Auto" while `settings.audioDevice`
+// still holds a concrete device, which misleads the user and risks silently
+// overwriting the saved choice. See issue #330.
+const outputDeviceOptions = computed(() => {
+  const devices = [...audioDevices.value];
+  const saved = settings.audioDevice;
+  if (saved && saved !== 'auto' && !devices.includes(saved)) {
+    devices.unshift(saved);
+  }
+  return devices;
+});
 const isMacOS =
   typeof navigator !== 'undefined' &&
   /Mac/.test(navigator.platform || navigator.userAgent) &&
@@ -2482,6 +2495,11 @@ let isMounted = false;
 onMounted(async () => {
   isMounted = true;
   handleOpenState(props.isOpen);
+  // Load audio devices / virtual-cable state independently of the spectrum
+  // monitoring (which only runs on the "audio" section): the VB-Cable badge,
+  // the fallback warnings and the output-device dropdown all live on the
+  // default "general" section. See issue #330.
+  if (props.isOpen) void fetchDevices();
   refreshModeStatus();
   saveUiPrefs();
   // Refresh from the shared settings.json so CLI-side changes show up
@@ -2853,8 +2871,16 @@ function handleOpenState(_isOpen: boolean) {
 
 watch(
   () => props.isOpen,
-  () => {
-    if (isMounted) handleMonitoringState();
+  (isOpen) => {
+    if (!isMounted) return;
+    // Refresh device list + VB-Cable/BlackHole/PipeWire detection on every
+    // open, regardless of the active section. Previously this only happened
+    // via startAudioMonitoring(), which is gated behind
+    // `currentSection === 'audio'`, so the default "general" section showed
+    // stale "not detected" state until the user visited the audio tab.
+    // See issue #330.
+    if (isOpen) void fetchDevices();
+    handleMonitoringState();
   },
 );
 </script>
