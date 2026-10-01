@@ -21,6 +21,8 @@ mod app;
 mod commands;
 mod events;
 mod host;
+#[cfg(target_os = "linux")]
+mod kwin_effects;
 mod tray;
 mod window;
 
