@@ -7,6 +7,30 @@ import {
   type PluginUpdate,
   type PluginView,
 } from '@/platform';
+import { i18n } from '@/i18n';
+
+/** Permission preview shown before a .zip plugin is installed. */
+function formatImportPreview(preview: PluginPreview): string {
+  const t = i18n.global.t;
+  const field = (key: string, value: string) => `${t(`plugins.importPreview.${key}`)}: ${value}`;
+  const lines = [
+    t('plugins.importPreview.title'),
+    '',
+    field('name', `${preview.name} (${preview.id})`),
+    field('version', preview.version),
+    ...(preview.author ? [field('author', preview.author)] : []),
+    ...(preview.license ? [field('license', preview.license)] : []),
+    field('runtime', preview.runtime),
+    '',
+    `${t('plugins.importPreview.capabilities')}:`,
+    ...(preview.capabilities.length
+      ? preview.capabilities.map((c) => `  · ${c}`)
+      : [`  ${t('plugins.importPreview.none')}`]),
+    '',
+    t('plugins.marketConfirmText'),
+  ];
+  return lines.join('\n');
+}
 
 // 模块级单例：设置对话框与（曾经的）独立对话框共享同一份状态
 const plugins = ref<PluginView[]>([]);
@@ -161,9 +185,7 @@ export function usePlugins() {
       if (isZip) {
         // 权限预览：名称/作者/许可/请求的能力
         const preview: PluginPreview = await previewPlugin(path);
-        const confirmed = window.confirm(
-          `安装插件？\n\n名称: ${preview.name} (${preview.id})\n版本: ${preview.version}${preview.author ? `\n作者: ${preview.author}` : ''}${preview.license ? `\n许可: ${preview.license}` : ''}\n类型: ${preview.runtime}\n\n请求的能力:\n${preview.capabilities.length ? preview.capabilities.map((c: string) => `  · ${c}`).join('\n') : '  (无)'}\n\n⚠ 请确认来源可信后安装（插件可获得所声明的能力）`,
-        );
+        const confirmed = window.confirm(formatImportPreview(preview));
         if (!confirmed) return false;
       }
       busyId.value = 'import';

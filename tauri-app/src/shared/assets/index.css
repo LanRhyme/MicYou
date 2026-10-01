@@ -30,6 +30,22 @@
     --error: 0 40% 55%;
     --on-error: 0 40% 92%;
     --radius: 1rem;
+    /* shadcn-vue token names used by shared/components/ui, mapped onto the
+       Material 3 tokens above so they follow the generated theme. */
+    --card: var(--surface-bright);
+    --card-foreground: var(--on-surface);
+    --popover: var(--surface-container);
+    --popover-foreground: var(--on-surface);
+    --primary-foreground: var(--on-primary);
+    --secondary-foreground: var(--on-secondary);
+    --muted: var(--surface-variant);
+    --muted-foreground: var(--on-surface-variant);
+    --accent: var(--secondary-container);
+    --accent-foreground: var(--on-secondary-container);
+    --destructive: var(--error);
+    --destructive-foreground: var(--on-error);
+    --input: var(--outline);
+    --ring: var(--primary);
     --haze-bg: hsl(var(--surface-bright));
     --haze-border: hsl(var(--border));
     --haze-backdrop: none;

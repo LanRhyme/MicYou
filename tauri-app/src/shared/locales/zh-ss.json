@@ -629,6 +629,17 @@
     "uninstallConfirm": "真卸 {name}？",
     "marketSearch": "搜铁插件商店",
     "marketAll": "全铁",
-    "marketContribute": "贡献铁插件"
+    "marketContribute": "贡献铁插件",
+    "saving": "存着…",
+    "importPreview": {
+      "title": "装这个插件？",
+      "name": "名字",
+      "version": "版本",
+      "author": "谁写的",
+      "license": "许可",
+      "runtime": "类型",
+      "capabilities": "要的权限",
+      "none": "（没有）"
+    }
   }
 }

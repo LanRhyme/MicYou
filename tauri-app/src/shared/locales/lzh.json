@@ -628,6 +628,17 @@
     "uninstallConfirm": "欲卸 {name} 乎？",
     "marketSearch": "搜插件坊",
     "marketAll": "諸類",
-    "marketContribute": "獻插件"
+    "marketContribute": "獻插件",
+    "saving": "存儲中…",
+    "importPreview": {
+      "title": "載此外掛乎？",
+      "name": "名",
+      "version": "版",
+      "author": "作者",
+      "license": "許可",
+      "runtime": "類",
+      "capabilities": "所求之能",
+      "none": "（無）"
+    }
   }
 }

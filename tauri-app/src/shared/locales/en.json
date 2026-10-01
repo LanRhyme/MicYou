@@ -631,6 +631,17 @@
     "uninstallConfirm": "Uninstall {name}?",
     "marketSearch": "Search plugin market",
     "marketAll": "All",
-    "marketContribute": "Contribute plugin"
+    "marketContribute": "Contribute plugin",
+    "saving": "Saving…",
+    "importPreview": {
+      "title": "Install this plugin?",
+      "name": "Name",
+      "version": "Version",
+      "author": "Author",
+      "license": "License",
+      "runtime": "Type",
+      "capabilities": "Requested capabilities",
+      "none": "(none)"
+    }
   }
 }

@@ -185,7 +185,7 @@
                         @click.stop="cancelInstall(plugin.id)"
                       >
                         <X class="w-3.5 h-3.5" />
-                        <span>取消</span>
+                        <span>{{ $t('plugins.cancel') }}</span>
                       </button>
 
                       <button
@@ -203,7 +203,7 @@
                           <span v-if="downloadProgress[plugin.id] && downloadProgress[plugin.id].total > 0">
                             {{ Math.round((downloadProgress[plugin.id].downloaded / downloadProgress[plugin.id].total) * 100) }}%
                           </span>
-                          <span v-else>准备中...</span>
+                          <span v-else>{{ $t('plugins.marketInstalling') }}</span>
                         </template>
                         <Check v-else-if="installedIds.includes(plugin.id)" class="w-3.5 h-3.5" />
                         <span v-else>
@@ -495,9 +495,8 @@ async function confirmInstall(plugin: MarketPlugin) {
     if (!installedIds.value.includes(plugin.id)) installedIds.value.push(plugin.id);
     void refreshInstalled();
   } catch (cause) {
-    if (cause instanceof Error && cause.message.includes("取消")) {
-      // ignore cancellation error
-    } else {
+    // A cancelled download rejects too; that is not an error to show.
+    if (!cancelledIds.delete(plugin.id)) {
       loadError.value = cause instanceof Error ? cause.message : String(cause);
     }
   } finally {
@@ -507,7 +506,10 @@ async function confirmInstall(plugin: MarketPlugin) {
   }
 }
 
+const cancelledIds = new Set<string>();
+
 async function cancelInstall(id: string) {
+  cancelledIds.add(id);
   try {
     await command('cancel_plugin_download', { id });
   } catch (e) {

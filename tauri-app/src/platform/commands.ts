@@ -46,7 +46,6 @@ export interface Commands {
   get_audio_devices: { args: NoArgs; result: string[] };
   get_audio_settings: { args: NoArgs; result: Partial<AudioDspSettings> };
   update_audio_settings: { args: { settings: AudioDspSettings }; result: string };
-  server_prefs_exists: { args: NoArgs; result: boolean };
   get_server_prefs: { args: NoArgs; result: ServerPrefs };
   save_server_prefs: { args: { prefs: ServerPrefs }; result: string };
   check_pipewire: { args: NoArgs; result: PipeWireStatus };

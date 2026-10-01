@@ -1,12 +1,9 @@
 import { ref, watch } from 'vue';
-import { setLocale } from '@/i18n';
+import { isLocale, setLocale } from '@/i18n';
 import { saveUiPrefs } from '@/features/theme/composables/useTheme';
 
-let stored = localStorage.getItem('micyou_language') || 'system';
-if (stored === 'English') stored = 'en';
-if (stored === '简体中文') stored = 'zh';
-
-const currentLanguage = ref(stored);
+const stored = localStorage.getItem('micyou_language');
+const currentLanguage = ref(isLocale(stored) ? stored : 'system');
 
 watch(currentLanguage, (language) => {
   localStorage.setItem('micyou_language', language);

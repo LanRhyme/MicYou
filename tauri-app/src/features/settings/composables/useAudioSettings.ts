@@ -52,46 +52,25 @@ function normalizeAec() {
   if (!isAecSupported) settings.aecEnabled = false;
 }
 
-function loadLocalAudioSettings() {
-  const saved = localStorage.getItem('micyou_audio_settings');
-  if (!saved) return;
-  try {
-    Object.assign(settings, JSON.parse(saved));
-  } catch (error) {
-    console.error('Failed to parse settings', error);
-  }
-}
-
 async function loadSettings() {
-  // Prefer the shared settings.json (written by update_audio_settings, also used
-  // by the CLI) so GUI and CLI stay in sync; localStorage stays as a fallback.
+  // DSP settings live in the shared settings.json and the output device in
+  // server.json, both also used by the CLI and TUI.
   try {
-    const backend = await command('get_audio_settings');
-    if (Object.keys(backend).length > 0) {
-      Object.assign(settings, backend);
-      localStorage.setItem('micyou_audio_settings', JSON.stringify(settings));
-    } else {
-      loadLocalAudioSettings();
-    }
+    Object.assign(settings, await command('get_audio_settings'));
   } catch (error) {
-    console.error('get_audio_settings failed, using localStorage', error);
-    loadLocalAudioSettings();
+    console.error('get_audio_settings failed:', error);
+  }
+  try {
+    const { outputDevice } = await command('get_server_prefs');
+    settings.audioDevice = outputDevice && outputDevice !== 'default' ? outputDevice : 'auto';
+  } catch (error) {
+    console.error('get_server_prefs failed:', error);
   }
 
   if (!['PureVox', 'RNNoise', 'Speexdsp'].includes(settings.nsType)) {
     settings.nsType = 'PureVox';
   }
   normalizeAec();
-
-  // Legacy support
-  const savedDevice = localStorage.getItem('micyou_output_device');
-  if (savedDevice && !settings.audioDevice) {
-    settings.audioDevice = savedDevice === 'default' ? 'auto' : savedDevice;
-  }
-
-  if (settings.audioDevice) {
-    notifyOutputDevice(settings.audioDevice);
-  }
 }
 
 async function syncSettingsToBackend() {
@@ -124,8 +103,7 @@ async function syncSettingsToBackend() {
 }
 
 function saveSettings() {
-  localStorage.setItem('micyou_audio_settings', JSON.stringify(settings));
-  localStorage.setItem('micyou_output_device', settings.audioDevice);
+  // The main window owns server.json and persists the output device.
   notifyOutputDevice(settings.audioDevice);
   void syncSettingsToBackend();
 }
