@@ -39,8 +39,11 @@
     @apply border-border;
   }
 
+  /* Windows are transparent and frameless; clip-path also clips fixed
+     overlays such as dialog backdrops, which overflow: hidden would not. */
   body {
     @apply bg-transparent text-foreground;
+    clip-path: inset(0 round 1rem);
   }
 
   *:not(input):not(textarea):not(select):not([contenteditable]):not([contenteditable="true"]):not([contenteditable=""]) {
@@ -89,6 +92,11 @@
 
   .settings-panel {
     @apply flex h-full max-h-[80vh] w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-surface-bright/85 shadow-2xl;
+  }
+
+  /* The settings panel filling its own frameless window. */
+  .settings-panel.settings-window {
+    @apply h-screen max-h-none max-w-none rounded-2xl border-0 bg-transparent shadow-none;
   }
 
   .settings-nav {
@@ -190,6 +198,103 @@
 
   .platform-macos.style-glass .bg-surface-container {
     background-color: hsl(var(--surface-container) / 0.3) !important;
+  }
+
+  /* Linux has no compositor blur behind the webview (no acrylic or vibrancy),
+     so glass panels sit on the raw desktop. Keep them mostly opaque to stay
+     readable and skip backdrop-filter, which only blurs page content. */
+  .platform-linux.style-glass {
+    --haze-bg: hsl(var(--surface-bright) / 0.6);
+    --haze-border: hsl(var(--border) / 0.4);
+    --haze-backdrop: none;
+  }
+
+  .dark.platform-linux.style-glass {
+    --haze-bg: hsl(var(--surface-bright) / 0.5);
+    --haze-border: hsl(var(--border) / 0.35);
+  }
+
+  .platform-linux.style-glass .bg-surface-container {
+    background-color: hsl(var(--surface-container) / 0.85) !important;
+  }
+
+  .dark.platform-linux.style-glass .bg-surface-container {
+    background-color: hsl(var(--surface-container) / 0.8) !important;
+  }
+
+  /* Pocket mode has no window background behind the bar and menus. */
+  .platform-linux.style-glass .pocket-root {
+    --haze-bg: hsl(var(--surface-bright) / 0.88);
+  }
+
+  /* KWin blurs the desktop behind the panels (ext_background_effect_v1 or
+     org_kde_kwin_blur). A frosted look still needs a solid tint, fine grain
+     and a light rim on top of the compositor blur. */
+  .platform-linux.native-blur.style-glass {
+    --haze-bg: hsl(var(--surface-bright) / 0.38);
+    --haze-border: hsl(0 0% 100% / 0.35);
+  }
+
+  .dark.platform-linux.native-blur.style-glass {
+    --haze-bg: hsl(var(--surface-bright) / 0.28);
+    --haze-border: hsl(0 0% 100% / 0.12);
+  }
+
+  .platform-linux.native-blur.style-glass .bg-surface-container {
+    background-color: hsl(var(--surface-container) / 0.45) !important;
+  }
+
+  .dark.platform-linux.native-blur.style-glass .bg-surface-container {
+    background-color: hsl(var(--surface-container) / 0.38) !important;
+  }
+
+  .platform-linux.native-blur.style-glass .pocket-root {
+    --haze-bg: hsl(var(--surface-bright) / 0.52);
+  }
+
+  .platform-linux.native-blur.style-glass .popup-panel {
+    background-color: hsl(var(--surface-container) / 0.58);
+  }
+
+  .platform-linux.native-blur.style-glass [data-blur-region] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E");
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.18), inset 0 0 0 1px hsl(0 0% 100% / 0.08);
+  }
+
+  .dark.platform-linux.native-blur.style-glass [data-blur-region] {
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.1), inset 0 0 0 1px hsl(0 0% 100% / 0.06);
+  }
+
+  .platform-linux.native-blur.style-glass [data-blur-region],
+  .platform-linux.native-blur.style-glass .haze-surface {
+    transition-property: background-color, border-color, box-shadow;
+    transition-duration: 200ms;
+  }
+
+  /* Unfocused windows thicken the tint, like Mica on Windows 11, so whatever
+     moves behind them is less distracting. */
+  .platform-linux.native-blur.style-glass.window-inactive {
+    --haze-bg: hsl(var(--surface-bright) / 0.58);
+  }
+
+  .dark.platform-linux.native-blur.style-glass.window-inactive {
+    --haze-bg: hsl(var(--surface-bright) / 0.48);
+  }
+
+  .platform-linux.native-blur.style-glass.window-inactive .bg-surface-container {
+    background-color: hsl(var(--surface-container) / 0.7) !important;
+  }
+
+  .dark.platform-linux.native-blur.style-glass.window-inactive .bg-surface-container {
+    background-color: hsl(var(--surface-container) / 0.64) !important;
+  }
+
+  .platform-linux.native-blur.style-glass.window-inactive .pocket-root {
+    --haze-bg: hsl(var(--surface-bright) / 0.72);
+  }
+
+  .platform-linux.native-blur.style-glass.window-inactive .popup-panel {
+    background-color: hsl(var(--surface-container) / 0.78);
   }
 }
 

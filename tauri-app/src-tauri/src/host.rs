@@ -65,6 +65,8 @@ impl HostIntegration for TauriHost {
         .title(title)
         .inner_size(520.0, 720.0)
         .min_inner_size(360.0, 480.0)
+        .decorations(false)
+        .transparent(true)
         .build()
         .map(|_| ())
         .map_err(|e| e.to_string())

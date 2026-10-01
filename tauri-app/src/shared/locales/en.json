@@ -417,10 +417,6 @@
     "title": "Run at Startup",
     "desc": "Automatically start MicYou when you log in to your computer."
   },
-  "floatingWindow": {
-    "title": "Desktop Floating Window",
-    "desc": "Show an always-on-top floating mic overlay on the desktop with click-to-mute and dragging"
-  },
   "notifications": {
     "title": "Notifications",
     "desc": "Show system notifications when device connects or disconnects."
@@ -585,6 +581,7 @@
     "desc": "Extend MicYou with native or WASM plugins",
     "refresh": "Refresh",
     "loading": "Loading plugins…",
+    "panelLoading": "Loading panel…",
     "noPlugins": "No plugins installed yet",
     "openDir": "Open plugins folder",
     "installHint": "Drop a plugin folder or .zip into the plugins folder, then refresh",
@@ -622,7 +619,7 @@
     "marketLoading": "Loading market catalog…",
     "marketEmpty": "No plugins in the market yet",
     "marketFailed": "Failed to load market: {error}",
-    "marketHomepage": "Homepage", 
+    "marketHomepage": "Homepage",
     "marketInstall": "Install",
     "marketInstalling": "Installing…",
     "marketInstalled": "Installed",
