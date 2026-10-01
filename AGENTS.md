@@ -22,7 +22,7 @@ flowchart LR
 - **Android**: single Activity (`MainActivity`) hosting a Compose tree (`App.kt` → `MobileHome`); no Fragments/Navigation. MVVM: `AudioStreamViewModel` (owns `AudioEngine` + mDNS discovery), `SettingsViewModel`, and `UpdateViewModel` are merged by a facade `MainViewModel` via `combine()` into one `AppUiState` StateFlow. `AudioEngine` captures via `AudioRecord`, applies a Kotlin DSP chain, and sends protobuf packets over TCP (control: connect/mute/ping/pong) + UDP (audio, port = TCP+1, FEC every 12 packets, magics `0x4D696359`/`0x4D696355`). A foreground `AudioService` keeps streaming alive; a Quick Settings tile starts/stops it.
 - **Desktop backend** (`tauri-app/crates/micyou-core` + `src-tauri` shell): all server logic lives in `micyou-core`, which has no Tauri dependency; `src-tauri` is a thin adapter (commands, tray, windows, `TauriEventSink`, `TauriHost`). The wire protocol is compiled by `micyou-protocol` (prost from `proto/network.proto`). `transport::udp` validates/parses audio datagrams into an `mpsc(128)` channel; a dedicated audio thread (`server::audio_pipeline`) reorders + FEC-recovers (`transport::jitter_buffer`), decodes PCM (16/8/float/24-bit), runs the `micyou-audio` DSP chain (AEC pinned first, ONNX/RNNoise noise suppression), and plays via cpal. All events fan out through the `ServerEvents` trait — `TauriEventSink` (webview events), `CliEventSink` (log lines), `TuiEventSink` (throttled mpsc) ; OS integration the core needs (open URL, notify, global hotkeys, plugin panel windows) goes through the `HostIntegration` trait — `TauriHost` for the GUI, `HeadlessHost` (feature `headless-host`) for CLI/TUI. Every frontend builds `ServerState::new(events, host, resource_hint)` and calls `server::start_server`/`stop_server`; runtime controls (mute, monitoring, DSP settings) go through `ServerState::controls()`, which the plugin host API shares. Three connection modes: **wifi** (LAN, mDNS `_micyou._tcp.`), **usb** (`adb reverse`), **web** (axum TLS WebSocket, feature-gated). GUI/CLI/TUI are mutually exclusive via a `mode.lock` file.
 - **Shared config**: `~/.config/micyou/` (Linux) / `%APPDATA%\micyou` (Windows): `settings.json` (DSP), `server.json` (port 8554, webPort 8443, mode, bindAddress, outputDevice), `ui.json` (language/theme), `theme.json` (theme colors exported GUI → CLI/TUI). All three frontends read/write the same files.
-- **Version flow**: root `gradle.properties` (`project.version`, `project.version.code`) is the single source of truth; `npm run sync-version` rewrites `tauri.conf.json`, `src-tauri/Cargo.toml`, and `package.json` (it does NOT touch the workspace root `Cargo.toml` — a known drift risk). It also runs automatically via `beforeBuildCommand` on every `tauri build`.
+- **Version flow**: root `gradle.properties` (`project.version`, `project.version.code`) is the single source of truth; `bun run sync-version` rewrites `tauri.conf.json`, `src-tauri/Cargo.toml`, and `package.json` (it does NOT touch the workspace root `Cargo.toml` — a known drift risk). It also runs automatically via `beforeBuildCommand` on every `tauri build`.
 
 ## Key Directories
 
@@ -51,13 +51,13 @@ flowchart LR
 ./gradlew :composeApp:assembleRelease
 
 # Desktop frontend (from tauri-app/)
-npm run dev            # Vite dev server, port 1420 (strict)
-npm run build          # vue-tsc --noEmit && vite build — the only static type gate
-npm run preview
+bun run dev            # Vite dev server, port 1420 (strict)
+bun run build          # vue-tsc --noEmit && vite build — the only static type gate
+bun run preview
 
 # Tauri desktop app (GUI)
-npm run tauri dev
-npm run tauri build    # runs sync-version + npm run build first (beforeBuildCommand)
+bun run tauri dev
+bun run tauri build    # runs sync-version + bun run build first (beforeBuildCommand)
 
 # Alternate frontends (Rust workspace, from tauri-app/)
 cargo run -p micyou-cli -- serve            # CLI server (binary: micyou-cli)
@@ -66,7 +66,7 @@ cargo run -p micyou-tui                 # TUI frontend
 
 # Version bump flow
 # 1. edit gradle.properties (project.version / project.version.code)
-# 2. npm run sync-version                # propagates to tauri.conf.json / Cargo.toml / package.json
+# 2. bun run sync-version                # propagates to tauri.conf.json / Cargo.toml / package.json
 ```
 
 There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktlint wiring).
@@ -93,7 +93,7 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/viewmodel/MainViewModel.kt` | UI state facade; app-wide state enums |
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/network/Protocol.kt` | Wire protocol (must stay in sync with `micyou-protocol`) |
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/util/Localization.kt` | `AppLanguage` enum; locale switching |
-| `tauri-app/package.json` | npm scripts (dev/build/tauri/sync-version); version synced from gradle.properties |
+| `tauri-app/package.json` | bun scripts (dev/build/tauri/sync-version); version synced from gradle.properties; `packageManager` pins the bun version CI installs |
 | `tauri-app/sync-version.js` | Version propagation script (also `beforeBuildCommand`) |
 | `tauri-app/src-tauri/tauri.conf.json` | Tauri app config (window, bundle targets, beforeBuildCommand); `tauri.linux.conf.json` pins the main window with min = max size because GTK3 grows non-resizable windows by 48px on Wayland |
 | `tauri-app/src-tauri/src/app.rs` | GUI entry; plugins, setup and every command in `invoke_handler` |
@@ -108,7 +108,7 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 ## Runtime/Tooling Preferences
 
 - **Android**: JDK 21 (Java 11 bytecode target), Gradle 9.5.0 wrapper, AGP 9.3.1, Kotlin 2.4.10, compileSdk/targetSdk 36, minSdk 24, build-tools 36.1.0. Optional build-time config in `local.properties`: `AIFADIAN_API_TOKEN`, `AIFADIAN_USER_ID`.
-- **Desktop**: Node 22 + npm (package-lock.json committed; CI uses `npm ci --include=dev`); Rust stable (edition 2021) via cargo; Tauri CLI 2 (`npx @tauri-apps/cli`); Vite dev server fixed at port 1420 with `TAURI_DEV_HOST` for HMR.
+- **Desktop**: Bun (`bun.lock` committed; CI uses `oven-sh/setup-bun` + `bun install --frozen-lockfile`; helper scripts run under bun; `generate-licenses.js` reads the production dependency tree from `bun.lock`); Rust stable (edition 2021) via cargo; Tauri CLI 2 (`bun run tauri`); Vite dev server fixed at port 1420 with `TAURI_DEV_HOST` for HMR.
 - **Release signing**: all four of `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` required, else release builds are unsigned. CI uses `ANDROID_KEYSTORE_BASE64`.
 - **VS Code**: extensions.json recommends Volar, tauri-vscode, rust-analyzer. `.prettierrc` exists (2-space, singleQuote, printWidth 100) but no formatter is wired into scripts.
 - **Known oddities**: `gradle.properties` and `gradle/wrapper/gradle-wrapper.properties` are gitignored but required by CI; `composeApp/micyou.conf` is a gitignored leftover with zero code references; `docs/FAQ*.md` are redirect stubs (content lives at micyou.top).
@@ -117,6 +117,6 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 
 - **Tests are minimal by design.** Evidence: no `src/test`/`src/androidTest` in `composeApp` (kotlin-test in the version catalog is unused); no integration test dirs in the Rust workspace. Rust unit tests are inline `#[cfg(test)]` modules, mostly in `micyou-core` (server, transport, plugins, platform, modes), plus `micyou-audio`, `micyou-plugin` and the GUI tray; `micyou-protocol` and `micyou-cli` have none.
 - **Run Rust tests**: `cargo test` from `tauri-app/` (workspace).
-- **Static checks**: the only automated gate is `vue-tsc --noEmit` inside `npm run build`. There is no lint/format automation.
+- **Static checks**: the only automated gate is `vue-tsc --noEmit` inside `bun run build`. There is no lint/format automation.
 - **CI** (`.github/workflows/`): `development.yml` builds the debug APK + Tauri packages on Windows/macOS/Linux for push/PR; `release.yml`/`pre-release.yml` build release artifacts and publish GitHub/MirrorChyan releases. Android CI steps run with `continue-on-error: true` and releases do not depend on the Android job — Android failures never block releases. `opencode.yml` runs an AI code review (Chinese prompt) on PR comments.
-- **QA expectation**: manual end-to-end verification of the audio path (phone → server → virtual mic) is the de facto pipeline; keep changes build-green (`assembleDebug` + `npm run build`) and preserve `#[cfg(test)]` conventions for new Rust logic.
+- **QA expectation**: manual end-to-end verification of the audio path (phone → server → virtual mic) is the de facto pipeline; keep changes build-green (`assembleDebug` + `bun run build`) and preserve `#[cfg(test)]` conventions for new Rust logic.
