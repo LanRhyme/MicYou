@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { X, CheckCircle2, Download, Loader2, ArrowRight } from '@lucide/vue';
 import { command, onEvent, openUrl, type UnlistenFn } from '@/platform';
+import { isWindows } from '@/shared/lib/os';
 
 const { t } = useI18n();
 
@@ -13,7 +14,6 @@ defineProps<{
 }>();
 
 const step = ref(1);
-const isWindows = ref(false);
 const vbcableInstalled = ref(false);
 const installing = ref(false);
 const installProgress = ref('');
@@ -25,14 +25,10 @@ let unlistenProgress: UnlistenFn | null = null;
 const TOTAL_STEPS_WINDOWS = 4;
 const TOTAL_STEPS_OTHER = 2;
 
-const totalSteps = ref(TOTAL_STEPS_OTHER);
+const totalSteps = isWindows ? TOTAL_STEPS_WINDOWS : TOTAL_STEPS_OTHER;
 
 onMounted(async () => {
-  const platform = navigator.platform.toLowerCase();
-  isWindows.value = platform.includes('win');
-  totalSteps.value = isWindows.value ? TOTAL_STEPS_WINDOWS : TOTAL_STEPS_OTHER;
-
-  if (isWindows.value) {
+  if (isWindows) {
     try {
       vbcableInstalled.value = await command('check_vbcable');
       if (vbcableInstalled.value) {
@@ -53,13 +49,13 @@ onUnmounted(() => {
 });
 
 function nextStep() {
-  if (step.value < totalSteps.value) {
+  if (step.value < totalSteps) {
     step.value++;
   }
 }
 
 function skip() {
-  if (isWindows.value && step.value === 1) {
+  if (isWindows && step.value === 1) {
     step.value = 4;
   } else {
     complete();

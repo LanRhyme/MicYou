@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import QRCode from 'qrcode';
 import { analyzeError, generateErrorDetails, type ConnectionErrorDetails } from '../utils/connectionError';
 import { muteSyncEnabled } from './useMuteSync';
+import { isMacOS } from '@/shared/lib/os';
 import {
   command,
   notify,
@@ -155,9 +156,6 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
       void notify(t('app.notify.connected'));
     }
   }
-
-  // OS detection for macOS visual behavior
-  const isMacOS = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform || navigator.userAgent) && !/iPhone|iPad|iPod/.test(navigator.userAgent);
 
   /**
    * Toggles the server state between started and stopped

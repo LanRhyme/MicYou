@@ -90,6 +90,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue';
 import { usePlugins } from '@/features/plugins/composables/usePlugins';
+import { isMacOS } from '@/shared/lib/os';
 import { X, GripVertical, RotateCcw, Lock, Puzzle } from '@lucide/vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -105,10 +106,6 @@ const emit = defineEmits(['close', 'update:chain']);
 const { t, locale } = useI18n();
 
 // AEC 在 Linux/Windows 可用；macOS 上隐藏该选项
-const isMacOS =
-  typeof navigator !== 'undefined' &&
-  /Mac/.test(navigator.platform || navigator.userAgent) &&
-  !/iPhone|iPad|iPod/.test(navigator.userAgent);
 const isAecSupported = !isMacOS;
 
 const localChain = ref<string[]>([]);
