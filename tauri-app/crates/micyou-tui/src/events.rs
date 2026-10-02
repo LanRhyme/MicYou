@@ -34,6 +34,8 @@ pub enum Event {
     WebClientCount(u32),
     InstallProgress(String),
     AecStatus(AecStatus),
+    /// A `log` record already formatted with its level tag.
+    Log(String),
 }
 
 /// Forward server events to the TUI channel while throttling high-frequency

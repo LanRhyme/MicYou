@@ -23,8 +23,8 @@ cpal.workspace = true
 hostname = "0.4.2"
 local-ip-address = "0.6.13"
 log.workspace = true
-md-5 = "0.11.0"
-mdns-sd = "0.20.0"
+md-5 = "0.10.6"
+mdns-sd = "0.21"
 opus-decoder = "0.1.1"
 prost.workspace = true
 reqwest.workspace = true
@@ -37,7 +37,7 @@ tokio-util = "0.7.18"
 zip.workspace = true
 
 axum = { version = "0.8.9", features = ["ws"], optional = true }
-rcgen = { version = "0.13.2", optional = true }
+rcgen = { version = "0.14", optional = true }
 rustls = { version = "0.23.40", optional = true }
 rustls-pemfile = { version = "2.2.0", optional = true }
 tokio-rustls = { version = "0.26.4", optional = true }

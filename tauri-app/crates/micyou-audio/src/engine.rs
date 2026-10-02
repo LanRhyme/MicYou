@@ -19,7 +19,7 @@ use ringbuf::{HeapRb, Producer};
 use rubato::audioadapter::{Adapter, AdapterMut};
 use rubato::audioadapter_buffers::owned::InterleavedOwned;
 use rubato::{Async, FixedAsync, PolynomialDegree, Resampler};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 
 const BUFFER_HEADROOM_MS: usize = 300;
@@ -102,7 +102,7 @@ impl RubatoResampler {
                     }
                 }
                 Err(e) => {
-                    eprintln!("Resample error: {}", e);
+                    log::warn!("Resample error: {}", e);
                     output.extend_from_slice(chunk_input);
                 }
             }
@@ -148,6 +148,20 @@ fn map_channels(input: &[f32], in_channels: usize, out_channels: usize, output: 
     }
 }
 
+/// Error callback shared by the output and monitor streams: it logs the first
+/// error only and raises `failed`, because cpal re-invokes it on every poll
+/// iteration while the device stays broken.
+fn stream_error_callback(
+    failed: Arc<AtomicBool>,
+    label: &'static str,
+) -> impl FnMut(cpal::StreamError) + Send + 'static {
+    move |err| {
+        if !failed.swap(true, Ordering::Relaxed) {
+            log::error!("[Audio] {label} stream error: {err}");
+        }
+    }
+}
+
 pub struct AudioOutputManager {
     stream: Option<cpal::Stream>,
     producer: Option<Producer<f32, Arc<HeapRb<f32>>>>,
@@ -181,6 +195,15 @@ pub struct AudioOutputManager {
     /// the output callbacks drain their rings and emit pure silence, so muting
     /// takes effect within one device callback period.
     muted: Arc<AtomicBool>,
+    /// Set by the stream error callbacks. cpal keeps invoking the callback
+    /// in a tight loop once a device is gone (ALSA POLLERR), so the callbacks
+    /// only flip this flag and log once; the owning thread drops the dead
+    /// stream via `take_stream_failure`.
+    stream_failed: Arc<AtomicBool>,
+    /// Bumped by every output data callback. A backend can stop calling back
+    /// without reporting an error (PipeWire dropping the ALSA stream leaves
+    /// cpal blocked in poll), so the owner watches this for stalls.
+    callback_ticks: Arc<AtomicU64>,
     /// Last observed value of `muted`, used to detect transitions on the
     /// device thread (e.g. to clear queued sound effects when muting).
     was_muted: bool,
@@ -223,6 +246,8 @@ impl AudioOutputManager {
             is_monitoring: false,
             mixer: crate::mixer::SoundMixer::new(),
             muted,
+            stream_failed: Arc::new(AtomicBool::new(false)),
+            callback_ticks: Arc::new(AtomicU64::new(0)),
             was_muted: false,
             #[cfg(target_os = "linux")]
             pw_loopback_child: None,
@@ -335,7 +360,7 @@ impl AudioOutputManager {
             self.monitor_producer = Some(producer);
 
             let stream_config: StreamConfig = config.clone().into();
-            let err_fn = |err| log::error!("[Audio] Error on monitor stream: {}", err);
+            let err_fn = stream_error_callback(self.stream_failed.clone(), "monitor");
 
             let stream = match config.sample_format() {
                 SampleFormat::F32 => {
@@ -470,7 +495,7 @@ impl AudioOutputManager {
                 }
             }
             if matched_device.is_none() {
-                eprintln!(
+                log::warn!(
                     "Could not find exact device: {}, falling back to default.",
                     target
                 );
@@ -552,16 +577,19 @@ impl AudioOutputManager {
         self.producer = Some(producer);
 
         let stream_config: StreamConfig = config.clone().into();
-        let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
+        self.stream_failed.store(false, Ordering::Relaxed);
+        let err_fn = stream_error_callback(self.stream_failed.clone(), "output");
 
         let stream = match config.sample_format() {
             SampleFormat::F32 => {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
                 let mut last_sample = 0.0f32;
                 let muted_flag = self.muted.clone();
+                let ticks = self.callback_ticks.clone();
                 device.build_output_stream(
                     &stream_config,
                     move |data: &mut [f32], _: &OutputCallbackInfo| {
+                        ticks.fetch_add(1, Ordering::Relaxed);
                         if muted_flag.load(Ordering::Relaxed) {
                             // Hard-muted: drop everything queued and emit pure
                             // silence so muting takes effect within this
@@ -598,9 +626,11 @@ impl AudioOutputManager {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
                 let mut last_sample = 0.0f32;
                 let muted_flag = self.muted.clone();
+                let ticks = self.callback_ticks.clone();
                 device.build_output_stream(
                     &stream_config,
                     move |data: &mut [i16], _: &OutputCallbackInfo| {
+                        ticks.fetch_add(1, Ordering::Relaxed);
                         if muted_flag.load(Ordering::Relaxed) {
                             // Hard-muted: drop everything queued and emit pure
                             // silence so muting takes effect within this
@@ -654,6 +684,19 @@ impl AudioOutputManager {
     /// Whether the cpal output stream is currently open.
     pub fn is_open(&self) -> bool {
         self.stream.is_some()
+    }
+
+    /// Whether a stream reported an error since the last call. The caller is
+    /// expected to `close()` the manager, which stops cpal's error loop, and
+    /// reopen it later.
+    pub fn take_stream_failure(&self) -> bool {
+        self.stream_failed.swap(false, Ordering::Relaxed)
+    }
+
+    /// Number of output data callbacks so far; stops advancing when the
+    /// device stalls.
+    pub fn callback_ticks(&self) -> u64 {
+        self.callback_ticks.load(Ordering::Relaxed)
     }
 
     /// Close the output stream while keeping the instance alive so it can be

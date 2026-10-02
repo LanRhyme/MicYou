@@ -153,14 +153,11 @@ pub async fn start_udp_server(
                 Some(socket)
             }
             Err(error) => {
-                // stdout on purpose: CLI/TUI users must see why IPv6 is
-                // unavailable; log:: additionally feeds the GUI log file.
-                println!(
+                log::warn!(
                     "IPv6 companion UDP socket not started: {}{}",
                     error,
                     crate::transport::net_bind::companion_failure_hint(&error)
                 );
-                log::warn!("IPv6 companion UDP socket not started: {}", error);
                 None
             }
         }
@@ -169,10 +166,7 @@ pub async fn start_udp_server(
     };
 
     let _ = ready.send(Ok(()));
-    println!("UDP Audio Server listening on {}", port);
-    if v6_socket.is_some() {
-        println!("UDP Audio Server also listening on [::]:{} (IPv6)", port);
-    }
+    log::info!("UDP Audio Server listening on {}", port);
 
     let mut buf = vec![0u8; 65535];
     // Separate receive buffer for the IPv6 companion socket; stays empty
@@ -192,14 +186,14 @@ pub async fn start_udp_server(
     loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
-                println!("UDP Server cancelled");
+                log::info!("UDP Server cancelled");
                 break;
             }
             recv_result = crate::transport::net_bind::recv_from_either(&socket, v6_socket.as_ref(), &mut buf, &mut buf_v6) => {
                 let (len, addr, from_v6) = match recv_result {
                     Ok(res) => res,
                     Err(e) => {
-                        eprintln!("UDP recv error: {}", e);
+                        log::warn!("UDP recv error: {}", e);
                         continue;
                     }
                 };
@@ -264,7 +258,7 @@ pub async fn start_udp_server(
                         }
                     }
                     Err(e) => {
-                        eprintln!("Failed to decode UDP payload from {}: {}", addr, e);
+                        log::debug!("Failed to decode UDP payload from {}: {}", addr, e);
                     }
                 }
             }

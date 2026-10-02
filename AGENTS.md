@@ -77,7 +77,7 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 - **Android**: MVVM with a single `AppUiState` facade collected by UI; settings stored in SharedPreferences (`"android_mic_prefs"`), **not** DataStore; settings-as-enums (`AudioSettings.kt`); wire constants centralized in `util/Constants.kt` + `network/Protocol.kt`; state-driven dialogs instead of navigation.
 - **Rust backend**: Tauri commands are `snake_case` in `invoke_handler`; long-lived state is `Arc`-wrapped inside `ServerState` (managed Tauri state); lifecycle serialized via `ServerLifecycleGate` + `CancellationToken`; audio/DSP settings use `serde` with `camelCase` field names; unit tests inline as `#[cfg(test)]` modules.
 - **Vue frontend**: no Pinia — state lives in singleton composables (`useServer`, `useAudio`, `useTheme`, `useWindow`, `useTray`) instantiated in `App.vue` and passed via props/events; UI-only prefs persist via `@vueuse/core useStorage` with `micyou_*` localStorage keys, while anything the CLI/TUI also reads lives in the shared config files. Backend access goes through `src/platform/` only: `command('snake_case_cmd', args)` is typed by the `Commands` map in `platform/commands.ts` and `onEvent('event-name', payload => …)` by `AppEvents` in `platform/events.ts`; a new command or event must be added there first. Never import `@tauri-apps/*` outside `src/platform/`. Every invoke is try/catch-wrapped with optimistic updates + rollback; connection errors funnel into `ConnectionErrorDialog` via `utils/connectionError.ts`. Windows are frameless and transparent with self-drawn chrome; mark glass panels with `data-blur-region` so `useWindowEffects` can request matching native blur. The settings window is a separate webview (`features/settings/components/SettingsWindow.vue` shell + one component per page under `sections/`, state in `features/settings/composables/`): it shares state with the main window through `useStorage` keys (storage events) and `emitToWindow('main', …)`; it drags from any element marked `data-drag-surface` that is not a control. Use `MD3Switch` for toggles. Dialogs rendered inside a section use `<Teleport to="body">` so `fixed` positioning escapes the page transition.
-- **Styling**: Tailwind utilities + Material 3 HSL CSS variables (8 themes × light/dark via `.dark` class); feature components use raw Tailwind, `src/shared/components/ui/*` use shadcn-vue/reka-ui primitives + `cva` variants; `cn() = twMerge(clsx(...))` from `@/shared/lib/utils`. Note: `components.json` (shadcn config) has **stale aliases** — the real paths are `src/shared/components` and `src/shared/lib/utils`.
+- **Styling**: Tailwind utilities + Material 3 HSL CSS variables (8 themes × light/dark via `.dark` class); feature components use raw Tailwind, `src/shared/components/ui/*` holds only what is used (reka-ui `select`, `MD3Slider`, `MD3Switch`); the shadcn-only color names (`popover`, `accent`, `muted`, …) are aliased to Material 3 tokens in `src/shared/assets/index.css`; `cn() = twMerge(clsx(...))` from `@/shared/lib/utils`.
 - **Versioning**: bump only `gradle.properties`; never hand-edit `tauri.conf.json`/`Cargo.toml`/`package.json` versions.
 - **Communication**: ALWAYS use Chinese (中文) for code reviews, issue comments, pull request comments, and any other user-facing communication.
 
@@ -85,8 +85,8 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 
 | File | Role |
 |---|---|
-| `gradle.properties` | Version source of truth (`project.version`, `project.version.code`) — gitignored but required by CI |
-| `gradle/libs.versions.toml` | All Android dependency/SDK versions (AGP, Kotlin, compileSdk 36, minSdk 24, targetSdk 36) |
+| `gradle.properties` | Version source of truth (`project.version`, `project.version.code`) |
+| `gradle/libs.versions.toml` | All Android dependency/SDK versions (AGP, Kotlin, compileSdk 37, minSdk 24, targetSdk 36); the `-Pmicyou.androidCompat=api21` downgrades live in `settings.gradle.kts` |
 | `composeApp/build.gradle.kts` | Android module config; release signing gated on `ANDROID_KEYSTORE_*` env vars |
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/MainActivity.kt`, `App.kt` | Android entry points |
 | `composeApp/src/main/kotlin/com/lanrhyme/micyou/audio/AudioEngine.kt` | Core streaming engine (capture → DSP → TCP/UDP transport) |
@@ -107,11 +107,11 @@ There are **no** lint, format, or test scripts anywhere (no eslint/prettier/ktli
 
 ## Runtime/Tooling Preferences
 
-- **Android**: JDK 21 (Java 11 bytecode target), Gradle 9.5.0 wrapper, AGP 9.3.1, Kotlin 2.4.10, compileSdk/targetSdk 36, minSdk 24, build-tools 36.1.0. Optional build-time config in `local.properties`: `AIFADIAN_API_TOKEN`, `AIFADIAN_USER_ID`.
-- **Desktop**: Bun (`bun.lock` committed; CI uses `oven-sh/setup-bun` + `bun install --frozen-lockfile`; helper scripts run under bun; `generate-licenses.js` reads the production dependency tree from `bun.lock`); Rust stable (edition 2021) via cargo; Tauri CLI 2 (`bun run tauri`); Vite dev server fixed at port 1420 with `TAURI_DEV_HOST` for HMR.
+- **Android**: JDK 21 (Java 11 bytecode target), Gradle 9.8.0 wrapper, AGP 9.4.1, Kotlin 2.4.20, compileSdk 37, targetSdk 36, minSdk 24, build-tools 36.1.0. Optional build-time config in `local.properties`: `AIFADIAN_API_TOKEN`, `AIFADIAN_USER_ID`.
+- **Desktop**: Bun (`bun.lock` committed; CI uses `oven-sh/setup-bun` + `bun install --frozen-lockfile`; helper scripts run under bun; `generate-licenses.js` reads the production dependency tree from `bun.lock` and reruns cargo-about only when its inputs change, `bun generate-licenses.js --force` rebuilds); Rust stable (edition 2021) via cargo; Tauri CLI 2 (`bun run tauri`); Vite dev server fixed at port 1420 with `TAURI_DEV_HOST` for HMR.
 - **Release signing**: all four of `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` required, else release builds are unsigned. CI uses `ANDROID_KEYSTORE_BASE64`.
 - **VS Code**: extensions.json recommends Volar, tauri-vscode, rust-analyzer. `.prettierrc` exists (2-space, singleQuote, printWidth 100) but no formatter is wired into scripts.
-- **Known oddities**: `gradle.properties` and `gradle/wrapper/gradle-wrapper.properties` are gitignored but required by CI; `composeApp/micyou.conf` is a gitignored leftover with zero code references; `docs/FAQ*.md` are redirect stubs (content lives at micyou.top).
+- **Known oddities**: `haze` stays on 1.x because 2.x splits the blur API and needs a migration; the `api21` compat build fails at the `kotlin {}` block in `composeApp/build.gradle.kts` (pre-existing); `composeApp/micyou.conf` is a gitignored leftover with zero code references; `docs/FAQ*.md` are redirect stubs (content lives at micyou.top).
 
 ## Testing & QA
 
