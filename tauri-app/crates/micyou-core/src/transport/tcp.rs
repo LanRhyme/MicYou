@@ -166,14 +166,11 @@ async fn serve(
                 Some(listener)
             }
             Err(error) => {
-                // stdout on purpose: CLI/TUI users must see why IPv6 is
-                // unavailable; log:: additionally feeds the GUI log file.
-                println!(
+                log::warn!(
                     "IPv6 companion TCP listener not started: {}{}",
                     error,
                     crate::transport::net_bind::companion_failure_hint(&error)
                 );
-                log::warn!("IPv6 companion TCP listener not started: {}", error);
                 None
             }
         }
@@ -182,10 +179,7 @@ async fn serve(
     };
 
     let _ = ready.send(Ok(()));
-    println!("TCP Control Server listening on {}", bind_target);
-    if v6_listener.is_some() {
-        println!("TCP Control Server also listening on [::]:{} (IPv6)", port);
-    }
+    log::info!("TCP Control Server listening on {}", bind_target);
 
     let mut clients = JoinSet::new();
     let client_slots = Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT_CLIENTS));
@@ -212,7 +206,7 @@ async fn serve(
                             continue;
                         }
                     };
-                    println!("New client connected: {}", addr);
+                    log::info!("New client connected: {}", addr);
                     let events = events.clone();
                     let audio_tx = audio_tx.clone();
                     let stats = stats.clone();
@@ -238,12 +232,12 @@ async fn serve(
                         )
                         .await
                         {
-                            eprintln!("Client {} error: {}", addr, e);
+                            log::warn!("Client {} error: {}", addr, e);
                         }
-                        println!("Client {} disconnected", addr);
+                        log::info!("Client {} disconnected", addr);
                     });
                 }
-                Err(e) => eprintln!("Failed to accept TCP connection: {}", e),
+                Err(e) => log::warn!("Failed to accept TCP connection: {}", e),
             }
         };
     }
@@ -251,12 +245,12 @@ async fn serve(
     loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
-                println!("TCP Server cancelled");
+                log::info!("TCP Server cancelled");
                 break;
             }
             Some(result) = clients.join_next(), if !clients.is_empty() => {
                 if let Err(e) = result {
-                    eprintln!("TCP client task failed: {}", e);
+                    log::warn!("TCP client task failed: {}", e);
                 }
             }
             accept_result = listener.accept() => {
@@ -353,7 +347,7 @@ fn safe_shutdown_socket(raw: RawSocketHandle) -> std::io::Result<()> {
 
 pub fn force_close_socket(raw: RawSocketHandle) {
     if let Err(e) = safe_shutdown_socket(raw) {
-        eprintln!("Force close socket error: {}", e);
+        log::warn!("Force close socket error: {}", e);
     }
 }
 
@@ -544,7 +538,7 @@ async fn handle_client(
     drop(old);
     drop(_takeover_guard);
 
-    println!("Handshake successful with {}", addr);
+    log::info!("Handshake successful with {}", addr);
     let device_info = DeviceInfo {
         name: "MicYou Mobile".to_string(),
         ip: addr.ip().to_string(),
@@ -584,7 +578,7 @@ async fn handle_client(
         while let Some(msg) = rx.recv().await {
             let payload = msg.encode_to_vec();
             if payload.len() > MAX_CONTROL_PAYLOAD_LEN {
-                eprintln!("Outgoing control payload exceeds protocol limit");
+                log::warn!("Outgoing control payload exceeds protocol limit");
                 break;
             }
             let Ok(payload_len) = i32::try_from(payload.len()) else {
@@ -601,11 +595,11 @@ async fn handle_client(
             match timeout(FRAME_WRITE_TIMEOUT, write_half.write_all(&frame)).await {
                 Ok(Ok(())) => {}
                 Ok(Err(e)) => {
-                    eprintln!("Write failed: {}", e);
+                    log::warn!("Write failed: {}", e);
                     break;
                 }
                 Err(_) => {
-                    eprintln!("Control frame write timed out");
+                    log::warn!("Control frame write timed out");
                     break;
                 }
             }
@@ -807,7 +801,7 @@ async fn handle_message(
             stats.set_muted(is_muted);
             plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted: is_muted });
             run_if_active(active_connection, takeover_token, connection_id, || {
-                println!("Received mute state: {}", is_muted);
+                log::info!("Received mute state: {}", is_muted);
                 events.mute_state_changed(is_muted);
             })
             .await;

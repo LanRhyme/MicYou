@@ -302,7 +302,7 @@ impl PureVoxProcessor {
         ]) {
             Ok(o) => o,
             Err(e) => {
-                eprintln!("PureVox ONNX inference failed: {}", e);
+                log::warn!("PureVox ONNX inference failed: {}", e);
                 return input.to_vec();
             }
         };

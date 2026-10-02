@@ -102,7 +102,7 @@ impl RubatoResampler {
                     }
                 }
                 Err(e) => {
-                    eprintln!("Resample error: {}", e);
+                    log::warn!("Resample error: {}", e);
                     output.extend_from_slice(chunk_input);
                 }
             }
@@ -490,7 +490,7 @@ impl AudioOutputManager {
                 }
             }
             if matched_device.is_none() {
-                eprintln!(
+                log::warn!(
                     "Could not find exact device: {}, falling back to default.",
                     target
                 );

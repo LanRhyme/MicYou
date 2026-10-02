@@ -80,7 +80,10 @@ impl Recovery {
             }
             Err(e) => {
                 self.backoff = (self.backoff * 2).min(REOPEN_BACKOFF_MAX);
-                log::debug!("[Audio] Reopen failed, next attempt in {:?}: {e}", self.backoff);
+                log::debug!(
+                    "[Audio] Reopen failed, next attempt in {:?}: {e}",
+                    self.backoff
+                );
                 self.retry_at = Some(Instant::now() + self.backoff);
             }
         }

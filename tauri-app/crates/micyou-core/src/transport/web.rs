@@ -696,12 +696,11 @@ impl WebServer {
                 *self.task_v6.lock().unwrap() = Some(task_v6);
             }
             Err(e) => {
-                println!(
+                log::warn!(
                     "IPv6 web listener not started: {}{}",
                     e,
                     crate::transport::net_bind::companion_failure_hint(&e)
                 );
-                log::warn!("IPv6 web listener not started: {}", e);
             }
         }
 
