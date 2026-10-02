@@ -119,21 +119,46 @@ impl Controls {
         if !crate::config::load_server_prefs().mute_sync {
             return;
         }
-        let Ok(connection) = self.active_connection.try_lock() else {
-            log::warn!("[Mute] connection busy, mute state not sent to the phone");
+        self.send_mute_to_phone(muted);
+    }
+
+    /// Push the mute state to the connected phone without dropping it when
+    /// the connection lock is briefly held by the TCP handler. Inside a tokio
+    /// runtime the send runs as a task that reads the state at send time, so
+    /// rapid toggles still converge on the latest value; elsewhere (the GUI
+    /// main thread, plugin threads) it waits for the lock directly.
+    fn send_mute_to_phone(&self, muted: bool) {
+        fn message(muted: bool) -> MessageWrapper {
+            MessageWrapper {
+                mute: Some(MuteMessage {
+                    is_muted: Some(muted),
+                }),
+                ..Default::default()
+            }
+        }
+
+        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+            let stats = self.stats.clone();
+            let active_connection = self.active_connection.clone();
+            runtime.spawn(async move {
+                let sender = active_connection
+                    .lock()
+                    .await
+                    .as_ref()
+                    .map(|connection| connection.sender.clone());
+                if let Some(sender) = sender {
+                    if let Err(e) = sender.send(message(stats.is_muted())).await {
+                        log::warn!("[Mute] failed to send mute state to the phone: {e}");
+                    }
+                }
+            });
             return;
-        };
-        let Some(connection) = connection.as_ref() else {
-            return;
-        };
-        let message = MessageWrapper {
-            mute: Some(MuteMessage {
-                is_muted: Some(muted),
-            }),
-            ..Default::default()
-        };
-        if let Err(e) = connection.sender.try_send(message) {
-            log::warn!("[Mute] failed to send mute state to the phone: {e}");
+        }
+        let connection = self.active_connection.blocking_lock();
+        if let Some(connection) = connection.as_ref() {
+            if let Err(e) = connection.sender.try_send(message(muted)) {
+                log::warn!("[Mute] failed to send mute state to the phone: {e}");
+            }
         }
     }
 
@@ -256,5 +281,78 @@ impl ServerState {
             is_connected: control_connected || audio_active || web_connected,
             is_muted: self.network_stats.is_muted(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::events::{AecStatus, DownloadProgress, ServerEvents, SpectrumPayload};
+    use crate::host::{HostIntegration, HotkeyCallback};
+    use crate::server::ServerState;
+    use crate::stats::AudioMetrics;
+    use crate::transport::tcp::{ActiveConnection, DeviceInfo};
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio_util::sync::CancellationToken;
+
+    struct NoEvents;
+
+    impl ServerEvents for NoEvents {
+        fn device_connected(&self, _: DeviceInfo) {}
+        fn device_disconnected(&self) {}
+        fn audio_metrics(&self, _: AudioMetrics) {}
+        fn udp_audio_warning(&self) {}
+        fn mute_state_changed(&self, _: bool) {}
+        fn audio_level(&self, _: u32) {}
+        fn audio_spectrum(&self, _: SpectrumPayload) {}
+        fn server_stopped(&self) {}
+        fn web_client_count(&self, _: u32) {}
+        fn install_progress(&self, _: String) {}
+        fn aec_status_changed(&self, _: AecStatus) {}
+        fn monitoring_state_changed(&self, _: bool) {}
+        fn plugin_download_progress(&self, _: DownloadProgress) {}
+    }
+
+    struct NoHost;
+
+    impl HostIntegration for NoHost {
+        fn open_url(&self, _: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn notify(&self, _: &str, _: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn register_hotkey(&self, _: &str, _: HotkeyCallback) -> Result<(), String> {
+            Ok(())
+        }
+        fn open_plugin_panel(&self, _: &str, _: &str, _: &str) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn mute_reaches_the_phone_while_the_connection_lock_is_busy() {
+        let state = ServerState::new(Arc::new(NoEvents), Arc::new(NoHost), None);
+        let (sender, mut receiver) = tokio::sync::mpsc::channel(4);
+        *state.active_connection.lock().await = Some(ActiveConnection {
+            sender,
+            raw_socket: Default::default(),
+            connection_id: 1,
+            takeover_token: CancellationToken::new(),
+        });
+
+        let busy = state.active_connection.lock().await;
+        let controls = state.controls();
+        controls.stats.set_muted(true);
+        controls.send_mute_to_phone(true);
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(receiver.try_recv().is_err(), "sent while the lock was held");
+        drop(busy);
+
+        let message = tokio::time::timeout(Duration::from_secs(1), receiver.recv())
+            .await
+            .expect("mute state was dropped")
+            .expect("channel closed");
+        assert_eq!(message.mute.and_then(|m| m.is_muted), Some(true));
     }
 }
