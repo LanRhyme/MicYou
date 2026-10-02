@@ -603,9 +603,12 @@ fn cpal_capture_thread(
     let stream_active = active.clone();
     let stream_failure = failure.clone();
     let err_fn = move |err: cpal::StreamError| {
-        log::error!("[Loopback] Stream error: {}", err);
-        set_failure(&stream_failure, AecFailure::ReferenceLost);
-        stream_active.store(false, Ordering::Relaxed);
+        // cpal repeats the callback while the device stays broken; only the
+        // first error after the stream was active is worth reporting
+        if stream_active.swap(false, Ordering::Relaxed) {
+            log::error!("[Loopback] Stream error: {}", err);
+            set_failure(&stream_failure, AecFailure::ReferenceLost);
+        }
     };
 
     let buf_clone = buffer.clone();

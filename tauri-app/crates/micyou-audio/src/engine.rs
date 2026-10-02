@@ -148,6 +148,20 @@ fn map_channels(input: &[f32], in_channels: usize, out_channels: usize, output: 
     }
 }
 
+/// Error callback shared by the output and monitor streams: it logs the first
+/// error only and raises `failed`, because cpal re-invokes it on every poll
+/// iteration while the device stays broken.
+fn stream_error_callback(
+    failed: Arc<AtomicBool>,
+    label: &'static str,
+) -> impl FnMut(cpal::StreamError) + Send + 'static {
+    move |err| {
+        if !failed.swap(true, Ordering::Relaxed) {
+            log::error!("[Audio] {label} stream error: {err}");
+        }
+    }
+}
+
 pub struct AudioOutputManager {
     stream: Option<cpal::Stream>,
     producer: Option<Producer<f32, Arc<HeapRb<f32>>>>,
@@ -181,6 +195,11 @@ pub struct AudioOutputManager {
     /// the output callbacks drain their rings and emit pure silence, so muting
     /// takes effect within one device callback period.
     muted: Arc<AtomicBool>,
+    /// Set by the stream error callbacks. cpal keeps invoking the callback
+    /// in a tight loop once a device is gone (ALSA POLLERR), so the callbacks
+    /// only flip this flag and log once; the owning thread drops the dead
+    /// stream via `take_stream_failure`.
+    stream_failed: Arc<AtomicBool>,
     /// Last observed value of `muted`, used to detect transitions on the
     /// device thread (e.g. to clear queued sound effects when muting).
     was_muted: bool,
@@ -223,6 +242,7 @@ impl AudioOutputManager {
             is_monitoring: false,
             mixer: crate::mixer::SoundMixer::new(),
             muted,
+            stream_failed: Arc::new(AtomicBool::new(false)),
             was_muted: false,
             #[cfg(target_os = "linux")]
             pw_loopback_child: None,
@@ -335,7 +355,7 @@ impl AudioOutputManager {
             self.monitor_producer = Some(producer);
 
             let stream_config: StreamConfig = config.clone().into();
-            let err_fn = |err| log::error!("[Audio] Error on monitor stream: {}", err);
+            let err_fn = stream_error_callback(self.stream_failed.clone(), "monitor");
 
             let stream = match config.sample_format() {
                 SampleFormat::F32 => {
@@ -552,7 +572,8 @@ impl AudioOutputManager {
         self.producer = Some(producer);
 
         let stream_config: StreamConfig = config.clone().into();
-        let err_fn = |err| eprintln!("an error occurred on stream: {}", err);
+        self.stream_failed.store(false, Ordering::Relaxed);
+        let err_fn = stream_error_callback(self.stream_failed.clone(), "output");
 
         let stream = match config.sample_format() {
             SampleFormat::F32 => {
@@ -654,6 +675,13 @@ impl AudioOutputManager {
     /// Whether the cpal output stream is currently open.
     pub fn is_open(&self) -> bool {
         self.stream.is_some()
+    }
+
+    /// Whether a stream reported an error since the last call. The caller is
+    /// expected to `close()` the manager, which stops cpal's error loop, and
+    /// reopen it later.
+    pub fn take_stream_failure(&self) -> bool {
+        self.stream_failed.swap(false, Ordering::Relaxed)
     }
 
     /// Close the output stream while keeping the instance alive so it can be
