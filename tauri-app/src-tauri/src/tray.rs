@@ -97,12 +97,12 @@ impl Default for TrayContext {
     }
 }
 
-struct TrayHandleStorage<R: Runtime>(Mutex<Option<tauri::tray::TrayIcon<R>>>);
+const TRAY_ID: &str = "micyou-main-tray";
 
 pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let ctx = app.state::<TrayContext>();
-    let strings = ctx.strings.lock().unwrap().clone();
-    let state = *ctx.state.lock().unwrap();
+    let strings = ctx.strings.lock().unwrap_or_else(|p| p.into_inner()).clone();
+    let state = *ctx.state.lock().unwrap_or_else(|p| p.into_inner());
 
     let menu = build_menu(app, &strings, state)?;
 
@@ -121,7 +121,7 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         false,
     );
 
-    let tray = TrayIconBuilder::with_id("micyou-main-tray")
+    TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .icon_as_template(icon_is_template)
         .tooltip(&strings.tooltip)
@@ -136,13 +136,13 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 | MENU_ID_EXIT
                 | MENU_ID_SWITCH_CLI
                 | MENU_ID_SWITCH_TUI => {
-                    let _ = app.emit("tray-action", id);
+                    if let Err(e) = app.emit("tray-action", id) {
+                        log::error!(target: "tray", "failed to forward tray action {id}: {e}");
+                    }
                 }
-                other => {
-                    // The app menu bar shares this handler (Tauri installs one global
-                    // menu listener), so its `menu:` ids land here too.
-                    log::debug!(target: "tray", "unknown menu id: {other}");
-                }
+                // The app menu bar shares this handler (Tauri installs one global
+                // menu listener), so its `menu:` ids land here too.
+                other => log::debug!(target: "tray", "unknown menu id: {other}"),
             }
         })
         .on_tray_icon_event(|tray, event| {
@@ -151,30 +151,42 @@ pub fn build_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 ..
             } = event
             {
-                let app = tray.app_handle();
-                let _ = app.emit("tray-action", MENU_ID_SHOW);
+                if let Err(e) = tray.app_handle().emit("tray-action", MENU_ID_SHOW) {
+                    log::error!(target: "tray", "failed to forward tray double click: {e}");
+                }
             }
         })
         .build(app)?;
-
-    app.manage(TrayHandleStorage(Mutex::new(Some(tray))));
     Ok(())
 }
 
-pub fn rebuild_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+fn rebuild_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let ctx = app.state::<TrayContext>();
-    let strings = ctx.strings.lock().unwrap().clone();
-    let state = *ctx.state.lock().unwrap();
-    let menu = build_menu(app, &strings, state)?;
-    if let Some(storage) = app.try_state::<TrayHandleStorage<R>>() {
-        if let Some(tray) = storage.0.lock().unwrap().as_ref() {
-            tray.set_menu(Some(menu))?;
-        }
-    }
-    if let Some(tray) = app.tray_by_id("micyou-main-tray") {
-        tray.set_tooltip(Some(&strings.tooltip))?;
-    }
-    Ok(())
+    let strings = ctx.strings.lock().unwrap_or_else(|p| p.into_inner()).clone();
+    let state = *ctx.state.lock().unwrap_or_else(|p| p.into_inner());
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return Ok(());
+    };
+    tray.set_menu(Some(build_menu(app, &strings, state)?))?;
+    tray.set_tooltip(Some(&strings.tooltip))
+}
+
+#[tauri::command]
+pub fn set_tray_strings(app: AppHandle, strings: TrayMenuStrings) -> Result<(), String> {
+    *app.state::<TrayContext>()
+        .strings
+        .lock()
+        .unwrap_or_else(|p| p.into_inner()) = strings;
+    rebuild_menu(&app).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_tray_state(app: AppHandle, state: TrayState) -> Result<(), String> {
+    *app.state::<TrayContext>()
+        .state
+        .lock()
+        .unwrap_or_else(|p| p.into_inner()) = state;
+    rebuild_menu(&app).map_err(|e| e.to_string())
 }
 
 fn build_menu<R: Runtime>(

@@ -26,7 +26,7 @@ pub const LOCALES: &[&str] = &["zh", "en", "cat", "lzh", "zh-hk", "zh-ss", "zh-t
 /// Detect the effective language.
 pub fn detect_lang() -> String {
     // 1. GUI-written ui.json
-    if let Ok(prefs) = std::fs::read_to_string(tauri_app_lib::app_config::ui_prefs_path()) {
+    if let Ok(prefs) = std::fs::read_to_string(micyou_core::config::ui_prefs_path()) {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&prefs) {
             if let Some(lang) = json.get("language").and_then(|v| v.as_str()) {
                 if LOCALES.contains(&lang) {

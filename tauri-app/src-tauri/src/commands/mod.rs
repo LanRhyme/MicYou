@@ -13,14 +13,21 @@
  * GNU General Public License for more details.
  */
 
+//! Tauri commands: argument plumbing between the webview and micyou-core.
+
 pub mod about;
 pub mod audio;
 pub mod mode;
-pub mod plugins;
 pub mod network;
-pub mod system;
+pub mod plugins;
+pub mod server;
 pub mod theme;
 
-pub use audio::*;
-pub use network::*;
-pub use system::*;
+/// Run blocking core work (HTTP, file IO) off the main thread.
+async fn blocking<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|e| format!("background task failed: {e}"))?
+}

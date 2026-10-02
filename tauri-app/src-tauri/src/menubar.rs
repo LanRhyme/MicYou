@@ -13,6 +13,9 @@
  * GNU General Public License for more details.
  */
 
+// Only the macOS build drives these types; elsewhere the commands are no-ops.
+#![cfg_attr(not(target_os = "macos"), allow(dead_code))]
+
 use serde::Deserialize;
 use tauri::AppHandle;
 

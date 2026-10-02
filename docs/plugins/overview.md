@@ -44,14 +44,14 @@ flowchart LR
 | 典型用途 | 实时 DSP、虚拟设备、深度集成 | 逻辑扩展、UI 面板、自动化、轻量处理 |
 | 跨平台 | 每平台独立构建产物 | 单产物全平台（含未来安卓） |
 
-## 与现有 DSP / 音频服务的关系
+## 与 DSP 音频链路的关系
 
-- 音频线程位于 `src-tauri/src/commands/system.rs`（`start_server_inner`），解码后调用 `micyou_audio::DspProcessor::process`
-- 处理链由 `settings.json` 的 `processing_chain` 驱动（AEC → 降噪 → 去混响 → EQ → 放大 → AGC → VAD）
-- 插件系统通过 `DspProcessor::set_external_hook` 注入外部阶段，链中合成节点 **`Plugins`** 触发
-- 宿主启动时若存在已启用的 DSP 插件，自动把 `Plugins` 节点插入 AEC 之后（用户可在 GUI 中重新排序）
-- 插件节点间顺序由 `PluginDspRegistry` 管理（`first` 优先，再按插件 id 排序保证确定性）
-- 单个插件节点失败只记日志并旁路，不影响整条链
+- 服务端音频管线运行在专用音频线程（`crates/micyou-core/src/server/audio_pipeline.rs`），PCM 解码后经由 `micyou_audio::DspProcessor::process` 进行链式处理
+- 处理链由 `settings.json` 的 `processing_chain` 驱动（默认包含 AEC、降噪、去混响、EQ、放大、AGC、VAD）
+- 插件系统通过 `DspProcessor::set_external_hook` 接入音频链，由合成节点 **`Plugins`** 负责调度已启用的 DSP 插件
+- 若存在已启用的 DSP 插件，默认在 AEC 节点之后执行（用户可在 GUI 设置中自由调整顺序）
+- 插件内部节点执行顺序由 `PluginDspRegistry` 管理（支持 `first` 标记优先，其余按插件 ID 确定性排序）
+- 单个插件处理异常时仅记录日志并自动旁路（Bypass），不阻断主音频流水线
 
 ## 跨端同步模型
 

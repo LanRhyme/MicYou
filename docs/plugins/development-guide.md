@@ -33,42 +33,57 @@
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `id` | string | 是 | 反向域名，如 `dev.micyou.example.gain`，小写字母数字 + `.` `-`，必须含点 |
-| `name` | string | 是 | 显示名 |
-| `version` | string | 是 | SemVer |
-| `author` | string | 否 | 作者 |
-| `description` | string | 否 | 描述 |
-| `runtime` | string | 是 | `native` 或 `wasm` |
-| `entry` | string | 是 | 入口文件名（相对插件目录）。Native 插件跨平台分发时建议**省略后缀与 `lib` 前缀**（如填 `my_plugin`），宿主会自动补全当前平台的后缀（.dll/.so/.dylib） |
-| `platforms` | string[] | 否 | `linux` / `windows` / `macos` / `android`，空 = 全部 |
-| `apiVersion` | number | 否 | Host API 版本，默认 1；与宿主不一致拒绝加载 |
-| `capabilities` | string[] | 否 | 申请的能力，见 [API 参考](api-reference.md#权限清单) |
-| `kind` | string | 否 | `dsp` / `utility` / `ui` / `bridge`，默认 `utility` |
-| `ui` | object | 否 | UI 面板注册（kind 为 `ui` 时必填）：`{ route, label, entry? }` |
-| `dsp` | object | 否 | DSP 节点注册（kind 为 `dsp`）：`{ insertAfter?, first?, frameSize?, realtimeSafe }` |
-| `config` | object | 否 | 默认配置（首次启用时合并进插件配置） |
-| `homepage` | string | 否 | 插件主页的 URL，在插件市场点击 查看主页/Homepage 按钮后跳转 |
-| `readmeUrl` | string | 否 | 插件 README 文档的 URL，在插件市场点击 README 按钮后加载并渲染 |
+| `id` | string | 是 | 唯一反向域名标识，如 `dev.micyou.example.gain`（仅支持小写字母、数字、点号和连字符） |
+| `name` | string | 是 | 插件显示名称 |
+| `version` | string | 是 | SemVer 版本号（如 `1.0.0`） |
+| `runtime` | string | 是 | 运行时类型：`wasm`（推荐）或 `native` |
+| `entry` | string | 是 | 入口文件。Native 插件建议省略 `lib` 前缀与平台后缀（如填 `my_plugin`），宿主将根据 OS 自动补全 |
+| `apiVersion` | number | 是 | 宿主 API 版本，当前为 `1` |
+| `author` | string | 否 | 作者昵称或联系邮箱 |
+| `description` | string | 否 | 插件功能简述 |
+| `license` | string | 否 | SPDX 许可证标识（如 `MIT`, `Apache-2.0`） |
+| `homepage` | string | 否 | 项目主页或官方仓库 URL |
+| `repository` | string | 否 | 源码仓库地址 |
+| `keywords` | string[] | 否 | 检索关键词列表 |
+| `platforms` | string[] | 否 | 支持的操作系统（`linux`, `windows`, `macos`, `android`），空表示全部 |
+| `arches` | string[] | 否 | Native 插件支持的 CPU 架构（`x86_64`, `aarch64` 等），空表示全部 |
+| `minHostVersion` | string | 否 | 所需最低宿主 API 版本（SemVer 格式） |
+| `capabilities` | string[] | 否 | 申请的宿主能力清单，参见 [API 参考](api-reference.md#权限清单) |
+| `kind` | string | 否 | 插件类型：`dsp` / `utility` / `ui` / `bridge`，默认为 `utility` |
+| `ui` | object | 否 | UI 面板配置：`{ route, label, panels }` |
+| `dsp` | object | 否 | DSP 节点声明：`{ insertAfter, first, frameSize, realtimeSafe }` |
+| `config` | object | 否 | 首次启用时初始化的默认配置对象 |
+| `configSchema` | object | 否 | 声明式配置项描述，宿主据此自动生成原生风格设置表单 |
+| `dependencies` | object[] | 否 | 前置插件依赖声明：`[{ id, version, optional }]` |
+| `nameI18n` | object | 否 | 多语言名称字典（键为 BCP-47 标签，如 `zh`, `en`） |
+| `descriptionI18n` | object | 否 | 多语言描述字典 |
+| `updateUrl` | string | 否 | 远端 Manifest JSON 地址，用于应用内检查更新 |
 
-示例（Native DSP 插件）：
+Manifest 示例（`plugin.json`）：
 
 ```json
 {
   "id": "dev.micyou.example.gain",
-  "name": "Example Native Gain",
+  "name": "Audio Gain",
+  "nameI18n": { "zh": "音频增益", "en": "Audio Gain" },
   "version": "1.0.0",
-  "author": "MicYou",
-  "description": "可配置增益的 DSP 节点",
+  "author": "MicYou Team",
+  "description": "实时音频增益 DSP 插件",
+  "license": "MIT",
   "runtime": "native",
-  "entry": "micyou_example_native_gain",
+  "entry": "micyou_example_gain",
   "platforms": ["linux", "windows", "macos"],
+  "arches": ["x86_64", "aarch64"],
   "apiVersion": 1,
   "capabilities": ["dsp.node", "config.read"],
   "kind": "dsp",
   "dsp": { "insertAfter": "AEC", "realtimeSafe": true },
-  "config": { "gain": 2.0 },
-  "homepage": "https://github.com/MicYou-Dev/MicYou-Plugins",
-  "readmeUrl": "https://github.com/MicYou-Dev/MicYou-Plugins/blob/main/plugin/dev.micyou.example.audioinspector/README.md"
+  "config": { "gain": 1.5 },
+  "configSchema": {
+    "fields": [
+      { "key": "gain", "fieldType": "number", "label": "增益倍数", "min": 0.0, "max": 5.0, "step": 0.1, "default": 1.5 }
+    ]
+  }
 }
 ```
 
@@ -160,62 +175,6 @@ micyou-cli plugin package ./myplugin -o out.zip       # 打包为可导入 zip
 - wasm 骨架（默认 Rust 高级语言）：cargo build --release 产出 main.wasm（create 已内置编译）
 - native 骨架：cargo build --release 后复制产物并按 entry 命名
 - `package` 自动跳过 target/ 与隐藏文件，产物根目录含 plugin.json，应用内可直接导入
-
-### 字段完整参考
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `id` | string | ✅ | 反向域名（如 dev.micyou.eq），小写字母数字与点连字符，须含点 |
-| `name` | string | ✅ | 显示名 |
-| `version` | string | ✅ | semver |
-| `author` | string | | 作者（邮箱或昵称） |
-| `description` | string | | 简述 |
-| `license` | string | | SPDX 许可标识（非商业插件可为 MIT、Apache-2.0 等，详见市场与许可规范） |
-| `homepage` | string | | 项目主页 |
-| `repository` | string | | 源码仓库 |
-| `keywords` | string[] | | 搜索关键词 |
-| `runtime` | string | ✅ | `wasm` \| `native` |
-| `entry` | string | ✅ | 入口产物文件名。Native 跨平台建议省略后缀与 `lib` 前缀（如 `my_plugin`），宿主自动补全平台后缀 |
-| `platforms` | string[] | | 支持系统，空 = 全部（linux / windows / macos / android） |
-| `arches` | string[] | | **native 插件支持的 CPU 架构**（x86_64 / aarch64 / i686 / armv7 / riscv64），空 = 全部 |
-| `apiVersion` | number | ✅ | 宿主 API 版本（当前 1） |
-| `minHostVersion` | string | | 最低宿主 API 版本（semver，major 超过宿主即拒绝） |
-| `capabilities` | string[] | | 请求的能力（见 API 参考权限清单） |
-| `kind` | string | | `dsp` \| `utility` \| `ui` \| `bridge`，默认 utility |
-| `ui` | object | | ui 描述（route / label / panels） |
-| `dsp` | object | | dsp 描述（insertAfter / first / frameSize / realtimeSafe） |
-| `config` | object | | 默认配置（首次启用时合入状态） |
-| `icon` | string | | 图标文件名（PNG，相对插件目录） |
-| `nameI18n` | object | | 本地化名称（BCP-47 标签 → 名称） |
-| `descriptionI18n` | object | | 本地化描述（BCP-47 标签 → 描述） |
-| `dependencies` | object[] | | 前置插件依赖 [{id, version, optional}]，启用前校验 |
-| `configSchema` | object | | 声明式配置 schema，宿主自动生成设置表单 |
-| `updateUrl` | string | | 远端 manifest JSON（更新检查与一键更新） |
-
-示例（带新字段）：
-
-```json
-{
-  "id": "dev.micyou.example.demo",
-  "name": "Demo",
-  "version": "1.0.0",
-  "author": "you@example.com",
-  "description": "示例插件",
-  "license": "MIT",
-  "homepage": "https://example.com",
-  "keywords": ["demo", "utility"],
-  "runtime": "wasm",
-  "entry": "main.wasm",
-  "platforms": ["linux", "windows", "macos"],
-  "arches": ["x86_64", "aarch64"],
-  "apiVersion": 1,
-  "minHostVersion": "1.0.0",
-  "capabilities": ["config.read", "config.write", "network.io"],
-  "kind": "utility",
-  "config": {},
-  "nameI18n": { "zh-CN": "演示" }
-}
-```
 
 ## 编写 Native 插件
 
@@ -443,19 +402,19 @@ pub extern "C" fn handle_message(ptr: *const u8, len: i32) -> i32 {
 > 完整模板含全部工具函数（字符串写入/读取、payload 读取）与 `process` DSP 示例，
 > 见 `micyou-cli plugin create --runtime wasm` 生成的骨架
 
-### 高级场景：手写 WAT（不推荐）
+### 高级场景：手写 WAT（仅限特殊需求）
 
-仅当需要极致体积或无法引入工具链时，用 `micyou-cli plugin create <id> --runtime wasm --lang wat`
-生成 WAT 骨架（内置 wat crate 直接编译 main.wasm）
+仅在需要极致体积或无法引入完整编译器时，可手写 WebAssembly 文本格式（WAT）：
 
+```bash
+micyou-cli plugin create <id> --runtime wasm --lang wat
 ```
 
-要点：
-
-- 字符串放数据段，指针即线性内存地址；`alloc` 供宿主写入（如 `get_config` 返回的 JSON）
-- 宿主调用任何导出前都会注入燃料预算（默认 100 000），死循环会被 trap 而非挂起宿主
-- WASM 插件不得声明 `realtimeSafe`（解释执行无法保证实时性），宿主按 best-effort 处理
-- 每个入口调用都是新的燃料预算，宿主函数调用（如 `emit_event`）也受燃料计量
+要点说明：
+- 静态字符串存放在数据段（data segment），指针对应模块线性内存起始偏移。
+- 宿主调用导出函数前会注入燃料预算（默认 100,000 instructions），防止死循环挂死宿主。
+- WASM 解释执行无法保证硬实时，因此 WASM DSP 插件不得声明 `realtimeSafe`。
+- 每次函数调用重置燃料计数，宿主回调函数同样受燃料计量约束。
 
 ## Host API 使用
 
@@ -515,28 +474,21 @@ host->send_message(host->ctx,
 - 插件可用 `emit_event` 发布事件；本地与远端订阅者都会收到
 - 宿主总线内置 `handle_incoming` 路由：响应完成 pending RPC，请求/事件投递给本地分发器与主题订阅者
 
-## 高级示例（直接可跑的参考实现）
+## 官方示例参考
 
-`plugins/examples/` 提供两个示例，覆盖核心能力
+`plugins/examples/` 目录下提供了完整可运行的参考插件：
 
-### 音频状态监视器（wasm-audioinspector）：纯 WASM 标准示例（市场）
-- `set_interval(2000)` 定时采样 `audio_state` + `connected_devices`
-- 宿主侧 scratch 缓冲区复用：高频采样不产生线性内存泄漏
-- `set_config` 持久化 audioState/devices，面板轮询 `get_config` 展示
-- `set_panel_icon` 📊 + 双语面板
-- 源码：`plugins/examples/wasm-audioinspector/`（WAT 手写示例，演示零依赖极限；新插件开发推荐用 Rust 骨架）
-- `set_interval` 每 2 秒采样 `audio_state` / `connected_devices`
-- `set_config` 持久化状态，面板轮询 `get_config` 实时显示
-- `set_panel_icon` 📊 + `locale` 本地化
-- 完整源码：`plugins/examples/wasm-audioinspector/`（MicYou-Plugins 市场的标准示例模板）
+### 音频状态监视器（wasm-audioinspector）
+- **类型**：纯 WASM 插件（WAT 编写）
+- **核心逻辑**：使用 `set_interval` 每 2 秒定时采样 `audio_state` 与 `connected_devices`，通过 `set_config` 持久化状态，前端面板轮询展示
+- **特性展示**：WASM 内存 scratch 缓冲区复用、双语面板、设置侧边栏图标 `set_panel_icon`
+- **源码路径**：`plugins/examples/wasm-audioinspector/`
 
-### 音效板（native-soundpad）：按钮面板 + 专属设置页 + 快捷键 + 音频播放
-
-- `ui.route=buttons` 通用按钮网格：前端读取 `config.sounds` 渲染按钮
-- `ui.panels` 专属设置页：`panel.html`（自包含单文件 HTML）在设置对话框侧边栏动态渲染，通过 postMessage 桥调用宿主
-- `register_hotkey("ctrl+shift+s")`：全局快捷键，按下后收到 `hotkey:<id>` 消息并播放第一个音效
-- `play_sound`：音效混入虚拟麦克风输出流，对方与用户都能听到
-- `init` 时自动生成三个正弦波 WAV（写入插件目录 `sounds/`）并持久化配置
+### 音效板（native-soundpad）
+- **类型**：Native (cdylib)
+- **核心逻辑**：动态注册全局快捷键（如 `Ctrl+Shift+S`），接收热键或前端按钮点击后通过 `play_sound` 触发音频混音播放
+- **特性展示**：通用按钮面板（`ui.route=buttons`）、专属设置页面（`ui.panels`）、自包含 HTML 面板通信
+- **源码路径**：`plugins/examples/native-soundpad/`
 
 ```json
 {
@@ -564,20 +516,19 @@ host->send_message(host->ctx,
 2. 宿主命令 `get_plugin_panel` 返回 HTML，前端用沙箱 iframe（`allow-scripts`，无 same-origin）渲染
 3. 可用 `set_panel_icon(panel_id, icon)` 设置侧边栏图标（emoji/文本）
 
-#### 面板开发工作流（单文件限制）
+#### 面板开发工作流（单文件自包含）
 
-面板以 iframe `srcdoc` 渲染，**无法加载相对路径的 JS/CSS**，需要自包含单文件 HTML
+面板通过沙箱 iframe 的 `srcdoc` 属性渲染，无法直接引用相对路径的外部 JS/CSS 文件，需采用自包含单文件：
 
-推荐工作流（任意一种）：
+- **单文件编写**：直接在一个 HTML 文件内编写内联 `<style>` 与 `<script>`。宿主会自动注入 Material 3 CSS 变量（如 `hsl(var(--primary))`），面板样式可自适应应用主题。
+- **打包工具内联**：如使用工程化开发，可在构建阶段打包内联为单文件：
+  - Vite: 结合 `vite-plugin-singlefile`
+  - esbuild: `esbuild src/main.ts --bundle --outfile=panel.html`
+- **本地调试**：修改 HTML 文件后无需重启服务端，在界面中重新打开面板即可读取最新内容。
 
-1. **直接写单文件**：示例插件均采用此方式（复用宿主注入的 `hsl(var(--*))` 主题变量即可跟随主题）
-2. **用构建工具内联**：vite/esbuild 开发时引用模块，发布前内联为单文件
-   - `vite build` + `vite-plugin-singlefile`
-   - esbuild：`esbuild src/main.ts --bundle --outfile=panel.html --loader:.html=copy`（CSS 用 `--bundle` 内联）
-3. **调试**：面板内 `call('log', {level:'debug', message: ...})` 写宿主日志，`micyou-cli plugin dev <dir>` 监听变更自动重装，重启应用即可看到新面板
+#### postMessage 通信桥
 
-主题变量：宿主注入全部 `--*` CSS 变量（Material 3 HSL 三元组，用 `hsl(var(--primary))` 等引用），切主题时面板自动重载
-3. 面板内联脚本通过 postMessage 桥与宿主通信（见 `usePluginPanelBridge`）：
+面板脚本通过标准 `window.postMessage` 契约与宿主双向通信：
 
 ```js
 function call(api, args) {
@@ -593,38 +544,37 @@ function call(api, args) {
     window.parent.postMessage({ __micyou: 1, id, api, args: args || {} }, '*');
   });
 }
+
+// 示例：读取配置与触发动作
 const cfg = await call('get_config', {});
 await call('play', { id: 'beep' });
 ```
 
-可用桥 API
+可用桥 API 清单：
 
-| api | 参数 | 说明 |
+| API | 参数 | 说明 |
 | --- | --- | --- |
-| `get_config` | `{}` | 读取插件配置（JSON） |
-| `set_config` | `{key, value}` | 写插件配置 |
-| `play` | `{id}` | 触发插件播放（`ui:play` 消息） |
-| `trigger` | `{action, payload}` | 触发任意插件 UI 动作 |
-| `log` | `{level, message}` | 记入插件日志 |
-| `get_logs` | `{}` | 读取插件日志 |
-| `get_sync_status` | `{}` | 跨端同步状态 |
-
-面板安全：iframe 沙箱隔离，面板脚本只能经 postMessage 与宿主通信，无法访问宿主 DOM
+| `get_config` | `{}` | 读取插件持久化配置 |
+| `set_config` | `{key, value}` | 保存插件配置项 |
+| `play` | `{id}` | 触发音效播放（投递 `ui:play` 消息） |
+| `trigger` | `{action, payload}` | 触发插件自定义 UI 动作 |
+| `log` | `{level, message}` | 输出到插件独立日志流 |
+| `get_logs` | `{}` | 获取最近日志记录 |
+| `get_sync_status` | `{}` | 查询与移动端的同步状态 |
 
 ## 使用全局快捷键
 
-- 插件在 `init` 中调用 `register_hotkey("ctrl+shift+s")` 获取句柄
-- 按下快捷键 → 宿主经总线投递 `hotkey:<id>` 消息 → 插件 `handle_message` 处理
-- 快捷键在插件进程退出时自动注销
-- 同一快捷键被多个插件注册时，所有注册插件都会收到
+- 插件在 `init` 阶段调用 `register_hotkey("ctrl+shift+s")` 注册系统级快捷键
+- 快捷键触发时，宿主将向插件派发 `hotkey:<id>` 消息，插件在 `handle_message` 中执行相应逻辑
+- 插件卸载或退出时，快捷键由宿主自动注销
+- **平台支持**：目前仅在 Linux X11 会话及支持全局快捷键的桌面环境下可用
 
-## 调试与测试## 调试与测试
+## 调试与测试
 
-- 插件日志：GUI 插件管理面板「日志」标签；宿主日志 `target: "plugin"` 前缀
-- 配置：面板「配置」编辑器直接读写 JSON
-- 失败定位：`list_plugins` 返回 `error` 字段（加载失败的详细原因）
-- 本地开发：把插件目录放入宿主插件目录，面板点「刷新」即可重扫
-- 测试夹具参考：`crates/micyou-plugin/tests/` 下的 native_loader / wasm_loader 集成测试
+- **独立日志**：在 GUI 插件面板的「日志」标签页中查看插件的标准输出与错误追踪
+- **配置管理**：直接在配置面板中编辑并验证 JSON 配置持久化
+- **加载排查**：若插件未能成功加载，`list_plugins` 命令将返回详细的 `error` 错误码与诊断信息
+- **单元测试**：可参考 `crates/micyou-plugin/tests/` 中的加载器与总线集成测试用例
 
 
 ## 端到端开发流程
@@ -682,39 +632,27 @@ micyou-cli plugin package <插件目录> -o myplugin.zip
 # zip 根目录含 plugin.json，应用内可导入
 ```
 
-### 第 5 步：发布到市场（MicYou-Plugins，llqqnt 模式）
+### 第 5 步：发布至官方市场
 
-市场仓库只维护**元数据**，二进制 zip 由插件仓库 CI 发布为 GitHub Release 资产：
+MicYou 插件市场索引仅维护元数据，插件二进制由开发者仓库的 CI 自动构建并通过 GitHub Releases 分发：
 
-1. 在插件仓库配 CI：打包 zip（wasm 插件 wat2wasm/Rust 构建后打包）并上传到
-   GitHub Release 资产（参考 `MicYou-Dev/MicYou-Plugins` 的
-   `.github/workflows/release-plugins.yml`：wat2wasm 每个 `plugin/*/*.wat` → zip 上传）
-2. manifest 添加 `updateUrl`（指向市场 manifest），如：
-   `https://micyou-dev.github.io/MicYou-Plugins/plugin/<id>/plugin.json`
-3. 向 `MicYou-Dev/MicYou-Plugins` PR 一个目录 `plugin/<id>/`，放：
-   - `plugin.json`：manifest + `downloadUrl`（指向第 1 步的 release 资产 URL）
-   - `preview.png`（可选，640x360 封面）
-   - 源码与 README（开源要求）
-   - **不提交 zip 二进制**
-4. 仓库 CI（scripts/generate_catalog.ts）自动生成 index.json 并部署到
-   GitHub Pages（micyou-dev.github.io/MicYou-Plugins/index.json），应用内市场与
-   检查更新即生效
-5. 用户路径：设置-插件 → 插件市场 → 预览能力 → 安装；或 检查更新 → 一键更新
+1. **配置构建流水线**：在插件仓库中通过 GitHub Actions 构建 WASM 或 Native 产物，打包为 ZIP 格式并发布为 Release 资产。
+2. **声明更新源**：在 `plugin.json` 中配置 `updateUrl`，指向市场目录下的元数据地址（例如 `https://micyou-dev.github.io/MicYou-Plugins/plugin/<id>/plugin.json`）。
+3. **提交 PR 登记元数据**：向 `MicYou-Dev/MicYou-Plugins` 仓库提交 Pull Request，包含：
+   - `plugin.json`：声明插件元信息及 `downloadUrl`（对应第一步生成的 Release ZIP 下载直链）
+   - `preview.png`（可选）：插件卡片封面图（建议比例 16:9）
+   - 源码与使用说明 README
+4. **自动集成与上架**：市场仓库合入后，CI 将自动生成全量 `index.json` 并部署至 GitHub Pages，客户端市场即刻同步生效。
 
-### 第 6 步：迭代与维护
+### 第 6 步：版本迭代与更新
 
 ```bash
-micyou-cli plugin bump <插件目录>        # patch +1
-micyou-cli plugin bump <插件目录> 2.0.0  # 指定版本
+# 升级小版本 (patch +1) 或指定版本
+micyou-cli plugin bump <插件目录>
+micyou-cli plugin bump <插件目录> 1.1.0
+
+# 重新打包
 micyou-cli plugin package <插件目录> -o plugin.zip
 ```
-发布新版本 = 插件仓库打新 release（新 zip 资产）+ 更新市场 `plugin/<id>/plugin.json`
-的 version 与 downloadUrl 并推送，用户应用内「检查更新」拉取
 
-### 面板开发提示
-
-- 面板是自包含单文件 HTML（iframe srcdoc，不能引相对资源）
-- 复用宿主注入的 Material 3 主题变量：`hsl(var(--primary))` 等，切主题自动重载
-- 语言跟随宿主：`call('locale')` 后自行本地化
-- 面板状态不跨页面保留，加载时用 `get_config` 恢复
-- 调试：`call('log', {level:'debug', message:'...'})` 写宿主日志，应用插件页可查看
+发布新版本只需在代码仓库创建新 Release 并向市场仓库同步更新 `plugin.json` 中的 `version` 与 `downloadUrl`，客户端检测到新版本后即可一键无感更新。

@@ -13,14 +13,14 @@
  * GNU General Public License for more details.
  */
 
-use crate::config;
-use micyou_audio::dsp::AudioDspSettings;
+use micyou_core::config;
+use micyou_core::micyou_audio::dsp::AudioDspSettings;
 #[cfg(target_os = "windows")]
 use std::process::exit;
-use tauri_app_lib::mode_lock as lock;
+use micyou_core::mode_lock as lock;
 
 pub fn cmd_devices() {
-    let devices = tauri_app_lib::commands::audio::get_audio_devices();
+    let devices = micyou_core::settings::audio_devices();
     if devices.is_empty() {
         println!("no audio output devices found");
         return;
@@ -94,7 +94,7 @@ fn print_settings(settings: &AudioDspSettings) {
 }
 
 pub fn cmd_settings_get(key: Option<String>) -> Result<(), String> {
-    let settings = config::load_settings();
+    let settings = config::load_dsp_settings();
     match key {
         None => print_settings(&settings),
         Some(k) => {
@@ -112,7 +112,7 @@ pub fn cmd_settings_get(key: Option<String>) -> Result<(), String> {
 }
 
 pub fn cmd_settings_set(key: String, value: String) -> Result<(), String> {
-    let mut settings = config::load_settings();
+    let mut settings = config::load_dsp_settings();
     let mut current = serde_json::to_value(&settings).map_err(|e| e.to_string())?;
 
     let parsed = parse_value(&value);
@@ -126,11 +126,11 @@ pub fn cmd_settings_set(key: String, value: String) -> Result<(), String> {
     }
     settings = serde_json::from_value(current).map_err(|e| e.to_string())?;
     if key == "aecEnabled" && settings.aec_enabled {
-        if let Some(reason) = micyou_audio::aec_reference_availability().reason {
+        if let Some(reason) = micyou_core::micyou_audio::aec_reference_availability().reason {
             return Err(format!("AEC is unavailable: {}", reason.as_str()));
         }
     }
-    config::save_settings(&settings)?;
+    config::save_dsp_settings(&settings)?;
     println!("{key} = {value}");
     Ok(())
 }
@@ -152,7 +152,7 @@ fn parse_value(value: &str) -> serde_json::Value {
 }
 
 pub fn cmd_chain_list() {
-    let settings = config::load_settings();
+    let settings = config::load_dsp_settings();
     if settings.processing_chain.is_empty() {
         println!("processing chain: (empty)");
         return;
@@ -164,7 +164,7 @@ pub fn cmd_chain_list() {
 }
 
 pub fn cmd_chain_set(chain: Vec<String>) -> Result<(), String> {
-    let mut settings = config::load_settings();
+    let mut settings = config::load_dsp_settings();
     let mut normalized: Vec<String> = Vec::new();
     for item in chain {
         if item == "AEC" && !normalized.is_empty() && normalized[0] == "AEC" {
@@ -173,7 +173,7 @@ pub fn cmd_chain_set(chain: Vec<String>) -> Result<(), String> {
         normalized.push(item);
     }
     settings.processing_chain = normalized;
-    config::save_settings(&settings)?;
+    config::save_dsp_settings(&settings)?;
     cmd_chain_list();
     Ok(())
 }
@@ -181,28 +181,23 @@ pub fn cmd_chain_set(chain: Vec<String>) -> Result<(), String> {
 pub fn cmd_mics() {
     #[cfg(target_os = "linux")]
     {
-        use tauri_app_lib::pipewire;
-        let available = pipewire::is_available();
-        let setup = pipewire::is_setup();
-        let device_exists = pipewire::device_exists();
+        let status = micyou_core::settings::pipewire_status();
         println!("PipeWire status:");
-        println!("  available: {available}");
-        println!("  virtual sink: {device_exists}");
-        if available && !device_exists {
+        println!("  available: {}", status.available);
+        println!("  virtual sink: {}", status.device_exists);
+        if status.available && !status.device_exists {
             println!("  run `micyou-cli serve` to auto-setup the virtual sink, or use the GUI");
         }
-        if !available {
+        if !status.available {
             println!("  PipeWire not detected (is pipewire-pulse running?)");
-            let cmd = pipewire::detect_install_command();
-            if !cmd.is_empty() {
-                println!("  Install command: {cmd}");
+            if !status.install_command.is_empty() {
+                println!("  Install command: {}", status.install_command);
             }
         }
-        let _ = setup;
     }
     #[cfg(target_os = "macos")]
     {
-        let installed = tauri_app_lib::blackhole::is_installed();
+        let installed = micyou_core::platform::blackhole::is_installed();
         println!("BlackHole status:");
         println!("  installed: {installed}");
         if !installed {
@@ -211,7 +206,7 @@ pub fn cmd_mics() {
     }
     #[cfg(target_os = "windows")]
     {
-        let installed = tauri_app_lib::vbcable::is_installed();
+        let installed = micyou_core::platform::vbcable::is_installed();
         println!("VB-CABLE status:");
         println!("  installed: {installed}");
         if !installed {
@@ -226,9 +221,9 @@ pub fn cmd_mics() {
 
 #[cfg(target_os = "windows")]
 pub async fn cmd_mics_install() -> Result<(), String> {
-    let events: std::sync::Arc<dyn tauri_app_lib::events::ServerEvents> =
+    let events: micyou_core::events::SharedEvents =
         std::sync::Arc::new(crate::events::CliEventSink::new(false));
-    let result = tauri_app_lib::vbcable::install(events).await;
+    let result = micyou_core::platform::vbcable::install(events).await;
     println!(
         "{}",
         serde_json::to_string_pretty(&result).unwrap_or_default()
@@ -241,7 +236,7 @@ pub async fn cmd_mics_install() -> Result<(), String> {
 }
 
 pub fn cmd_adb_devices() {
-    match tauri_app_lib::adb_manager::list_adb_devices() {
+    match micyou_core::platform::adb::list_adb_devices() {
         Ok(devices) if devices.is_empty() => {
             println!("no ADB devices found");
         }
@@ -267,7 +262,7 @@ pub fn cmd_config_path() {
 }
 
 pub fn cmd_server_get() {
-    let prefs = tauri_app_lib::app_config::load_server_prefs();
+    let prefs = config::load_server_prefs();
     println!("mode: {}", prefs.mode);
     println!("port: {}", prefs.port);
     println!("webPort: {}", prefs.web_port);
@@ -276,12 +271,12 @@ pub fn cmd_server_get() {
     println!("outputDevice: {}", prefs.output_device);
     println!(
         "file: {}",
-        tauri_app_lib::app_config::server_prefs_path().display()
+        config::server_prefs_path().display()
     );
 }
 
 pub fn cmd_server_set(key: &str, value: &str) -> Result<(), String> {
-    let mut prefs = tauri_app_lib::app_config::load_server_prefs();
+    let mut prefs = config::load_server_prefs();
     match key {
         "port" => {
             let v: u16 = value
@@ -323,7 +318,7 @@ pub fn cmd_server_set(key: &str, value: &str) -> Result<(), String> {
             ));
         }
     }
-    tauri_app_lib::app_config::save_server_prefs(&prefs)?;
+    config::save_server_prefs(&prefs)?;
     println!("{key} = {value}");
     Ok(())
 }
