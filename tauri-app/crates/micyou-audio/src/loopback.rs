@@ -308,11 +308,12 @@ fn wasapi_loopback_thread(
 
         let bytes_per_frame = mix_format.get_blockalign() as usize;
         let mut total_frames: u64 = 0;
+        let mut endpoint_idle = false;
 
         while active.load(Ordering::Relaxed) {
             let available = audio_client.get_available_space_in_frames()?;
             if available == 0 {
-                h_event.wait_for_event(100)?;
+                wait_for_reference_event(&h_event, &mut endpoint_idle)?;
                 continue;
             }
 
@@ -333,7 +334,7 @@ fn wasapi_loopback_thread(
                 }
             }
 
-            h_event.wait_for_event(100)?;
+            wait_for_reference_event(&h_event, &mut endpoint_idle)?;
         }
 
         audio_client.stop_stream()?;
@@ -349,6 +350,41 @@ fn wasapi_loopback_thread(
         set_failure(&failure, AecFailure::ReferenceLost);
     }
     active.store(false, Ordering::Relaxed);
+}
+
+/// Wait up to 100 ms for the next WASAPI loopback buffer event.
+///
+/// A loopback capture only receives buffer events while some stream is
+/// rendering to the endpoint. When the speakers go idle, Windows parks the
+/// shared endpoint a few seconds after the last stream stops and the wait
+/// simply times out. That means "no reference data yet", not a lost
+/// reference stream (#329): `LoopbackCapture::read` pads underruns with
+/// silence and playback can resume at any moment, so the capture loop must
+/// stay alive. Genuine device errors (e.g. the default render device being
+/// removed) still surface through the other WASAPI calls in the loop and
+/// tear the thread down as before.
+#[cfg(target_os = "windows")]
+fn wait_for_reference_event(
+    h_event: &wasapi::Handle,
+    endpoint_idle: &mut bool,
+) -> Result<(), wasapi::WasapiError> {
+    match h_event.wait_for_event(100) {
+        Ok(()) => {
+            if *endpoint_idle {
+                log::info!("[Loopback] WASAPI: render activity resumed");
+                *endpoint_idle = false;
+            }
+        }
+        // Idle endpoint: keep looping, the reader pads with silence.
+        Err(wasapi::WasapiError::EventTimeout) => {
+            if !*endpoint_idle {
+                log::info!("[Loopback] WASAPI: endpoint idle, waiting for render activity");
+                *endpoint_idle = true;
+            }
+        }
+        Err(error) => return Err(error),
+    }
+    Ok(())
 }
 
 // ─── Linux: PipeWire capture from the physical playback sink ──────────────
