@@ -490,17 +490,19 @@ async function install(plugin: MarketPlugin) {
 
 async function confirmInstall(plugin: MarketPlugin) {
   installingId.value = plugin.id;
+  cancelledIds.delete(plugin.id);
   try {
     await command('install_plugin_from_url', { id: plugin.id, zipUrl: plugin.downloadUrl });
     if (!installedIds.value.includes(plugin.id)) installedIds.value.push(plugin.id);
     void refreshInstalled();
   } catch (cause) {
     // A cancelled download rejects too; that is not an error to show.
-    if (!cancelledIds.delete(plugin.id)) {
+    if (!cancelledIds.has(plugin.id)) {
       loadError.value = cause instanceof Error ? cause.message : String(cause);
     }
   } finally {
     installingId.value = null;
+    cancelledIds.delete(plugin.id);
     delete downloadProgress.value[plugin.id];
     cancelConfirm();
   }
