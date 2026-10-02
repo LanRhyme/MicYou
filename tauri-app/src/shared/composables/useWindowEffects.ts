@@ -32,6 +32,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
   let blurUnsupported = false;
   let shadowUnsupported = false;
   let lastBlur = '[]';
+  let shadowPending = false;
   let frame = 0;
   const resizeObserver = new ResizeObserver(() => scheduleBlur());
   const mutationObserver = new MutationObserver(() => scheduleBlur());
@@ -61,7 +62,15 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     lastBlur = payload;
     try {
       const active = await invoke<boolean>('set_window_blur', { regions });
-      if (!active && regions.length > 0) blurUnsupported = true;
+      if (!active && regions.length > 0) {
+        if (await isHidden()) {
+          // Stored and applied by the backend once the window is shown;
+          // resend then so the result reflects real support.
+          lastBlur = '';
+          return;
+        }
+        blurUnsupported = true;
+      }
       root.classList.toggle('native-blur', active);
     } catch (e) {
       blurUnsupported = true;
@@ -78,13 +87,26 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
   async function syncShadow() {
     if (shadowUnsupported) return;
     const radius = shadowRadius.value;
+    shadowPending = false;
     try {
       const active = await invoke<boolean>('set_window_shadow', { radius });
-      if (!active && radius !== null) shadowUnsupported = true;
+      if (!active && radius !== null) {
+        if (await isHidden()) {
+          shadowPending = true;
+          return;
+        }
+        shadowUnsupported = true;
+      }
     } catch (e) {
       shadowUnsupported = true;
       console.warn('Window shadow is unavailable:', e);
     }
+  }
+
+  // A hidden window has no surface, so the backend reports false without
+  // telling us anything about compositor support.
+  async function isHidden() {
+    return !(await getCurrentWindow().isVisible());
   }
 
   // Window focus, not document focus: plugin panels are iframes and taking
@@ -103,7 +125,13 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     void syncShadow();
     const appWindow = getCurrentWindow();
     setInactive(!(await appWindow.isFocused()));
-    unlistenFocus = await appWindow.onFocusChanged(({ payload }) => setInactive(!payload));
+    unlistenFocus = await appWindow.onFocusChanged(({ payload }) => {
+      setInactive(!payload);
+      if (!payload) return;
+      // Shown again (e.g. from the tray): retry what was deferred while hidden.
+      scheduleBlur();
+      if (shadowPending) void syncShadow();
+    });
   });
 
   onUnmounted(() => {
