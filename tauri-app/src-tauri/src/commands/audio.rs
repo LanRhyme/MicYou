@@ -41,13 +41,6 @@ pub fn get_audio_settings(state: State<'_, ServerState>) -> AudioDspSettings {
     state.current_dsp_settings()
 }
 
-/// Whether the shared server.json exists (the GUI migrates older
-/// localStorage values on first run otherwise).
-#[tauri::command]
-pub fn server_prefs_exists() -> bool {
-    config::server_prefs_path().exists()
-}
-
 #[tauri::command]
 pub fn get_server_prefs() -> ServerPrefs {
     config::load_server_prefs()

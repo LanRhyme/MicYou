@@ -629,6 +629,17 @@
     "uninstallConfirm": "確定移除 {name}？",
     "marketSearch": "搜尋外掛程式商店",
     "marketAll": "全部",
-    "marketContribute": "貢獻外掛程式"
+    "marketContribute": "貢獻外掛程式",
+    "saving": "儲存中…",
+    "importPreview": {
+      "title": "安裝外掛程式？",
+      "name": "名稱",
+      "version": "版本",
+      "author": "作者",
+      "license": "授權",
+      "runtime": "類型",
+      "capabilities": "請求的能力",
+      "none": "（無）"
+    }
   }
 }

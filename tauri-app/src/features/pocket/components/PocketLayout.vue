@@ -5,11 +5,7 @@ import {
   VolumeX, Volume2, Headphones, Loader2, Wifi, Mic, Settings, CheckCircle2, Minus, X,
 } from '@lucide/vue';
 import type { ConnectionMode } from '@/features/connection/composables/useServer';
-
-interface NetworkInterface {
-  ip: string;
-  interface_name: string;
-}
+import type { NetworkInterfaceInfo } from '@/platform';
 
 const props = defineProps<{
   serverState: string;
@@ -19,7 +15,7 @@ const props = defineProps<{
   displayIp: string;
   isAutoBind: boolean;
   selectedIp: string;
-  networkInterfaces: NetworkInterface[];
+  networkInterfaces: NetworkInterfaceInfo[];
   isMuted: boolean;
   isMonitoringEnabled: boolean;
   isMacOS: boolean;

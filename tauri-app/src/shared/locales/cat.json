@@ -628,6 +628,17 @@
     "uninstallConfirm": "卸載 {name} 喵？",
     "marketSearch": "搜喵插件商店",
     "marketAll": "全喵",
-    "marketContribute": "贡献喵插件"
+    "marketContribute": "贡献喵插件",
+    "saving": "存着喵…",
+    "importPreview": {
+      "title": "要装这个插件喵？",
+      "name": "名字喵",
+      "version": "版本喵",
+      "author": "作者喵",
+      "license": "许可喵",
+      "runtime": "类型喵",
+      "capabilities": "要的能力喵",
+      "none": "（没有喵）"
+    }
   }
 }

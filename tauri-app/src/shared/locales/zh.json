@@ -631,6 +631,17 @@
     "uninstallConfirm": "确定卸载 {name}？",
     "marketSearch": "搜索插件市场",
     "marketAll": "全部",
-    "marketContribute": "贡献插件"
+    "marketContribute": "贡献插件",
+    "saving": "保存中…",
+    "importPreview": {
+      "title": "安装插件？",
+      "name": "名称",
+      "version": "版本",
+      "author": "作者",
+      "license": "许可",
+      "runtime": "类型",
+      "capabilities": "请求的能力",
+      "none": "（无）"
+    }
   }
 }

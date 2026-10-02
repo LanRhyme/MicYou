@@ -140,9 +140,9 @@ function label(f: { key: string; label?: string | null }) {
         :disabled="saving"
         @click="save"
       >
-        {{ saving ? '保存中…' : '保存' }}
+        {{ saving ? $t('plugins.saving') : $t('plugins.save') }}
       </button>
-      <span v-if="saved" class="text-xs text-primary">已保存</span>
+      <span v-if="saved" class="text-xs text-primary">{{ $t('plugins.configSaved') }}</span>
     </div>
   </div>
 </template>

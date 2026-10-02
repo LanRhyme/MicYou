@@ -7,6 +7,8 @@ export const isMacOS = !!nav &&
 
 export const isLinux = !!nav && /Linux/.test(nav.userAgent) && !/Android/.test(nav.userAgent);
 
+export const isWindows = !!nav && /Win/.test(nav.platform || nav.userAgent);
+
 /** Root classes that platform-specific glass styles hang off. */
 export function applyPlatformClasses() {
   const root = document.documentElement;

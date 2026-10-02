@@ -5,9 +5,8 @@
  * 复用设置对话框的面板渲染逻辑（沙箱 iframe + postMessage 桥 + 主题注入）
  */
 import { ref, onMounted } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { usePluginPanelBridge } from '@/shared/composables/usePluginPanelBridge';
+import { usePluginPanelBridge } from '../composables/usePluginPanelBridge';
+import { appWindow, command } from '@/platform';
 
 const hash = window.location.hash; // #/plugin/<pluginId>/<panelId>
 const parts = hash.replace('#/plugin/', '').split('/');
@@ -35,7 +34,7 @@ async function load() {
   loading.value = true;
   error.value = null;
   try {
-    const html = await invoke<string>('get_plugin_panel', { pluginId, panelId });
+    const html = await command('get_plugin_panel', { pluginId, panelId });
     panelHtml.value = `<style>:root{${collectThemeVars()}}</style>${html}`;
   } catch (e) {
     error.value = String(e);
@@ -45,7 +44,7 @@ async function load() {
 }
 
 function closeWindow() {
-  void getCurrentWindow().close();
+  void appWindow.closeCurrentWindow();
 }
 
 onMounted(() => {

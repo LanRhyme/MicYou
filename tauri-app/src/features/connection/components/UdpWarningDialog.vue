@@ -56,7 +56,7 @@
 
 <script setup lang="ts">
 import { ShieldAlert as ShieldAlertIcon } from '@lucide/vue'
-import { invoke } from '@tauri-apps/api/core'
+import { command } from '@/platform';
 
 defineProps<{
   show: boolean
@@ -69,7 +69,7 @@ const emit = defineEmits<{
 
 async function handleAllowFirewall() {
   try {
-    await invoke('allow_firewall')
+    await command('allow_firewall')
   } catch (e) {
     console.error('allow_firewall failed:', e)
   }
