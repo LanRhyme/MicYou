@@ -142,15 +142,16 @@ jobs:
         path: ci-artifacts/MicYou-Win-${{ steps.version.outputs.version }}-installer.exe
         if-no-files-found: ignore
 
-  # ----------------- Tauri macOS 构建 (arm64) -----------------
+  # --------------- Tauri macOS 构建 (universal) ---------------
   build-tauri-macos:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: arm64
+          - arch: universal
             runner: macos-latest
-            target: aarch64-apple-darwin
+            target: universal-apple-darwin
+            rust_targets: aarch64-apple-darwin x86_64-apple-darwin
     runs-on: ${{ matrix.runner }}
     steps:
     - uses: actions/checkout@v7
@@ -172,7 +173,7 @@ jobs:
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
     - name: Setup Rust Target
-      run: rustup target add ${{ matrix.target }}
+      run: rustup target add ${{ matrix.rust_targets }}
     - name: Cache Rust
       uses: Swatinem/rust-cache@v2
       with:

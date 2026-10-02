@@ -75,15 +75,18 @@ fn restore_aec_runtime(
     settings: &RwLock<AudioDspSettings>,
     events: &SharedEvents,
 ) {
-    *runtime_available = true;
+    // A platform without a reference source can never become available, so the
+    // restored state reports the capability instead of assuming success.
+    let availability = micyou_audio::aec_reference_availability();
+    *runtime_available = availability.available;
     let enabled = settings
         .read()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .aec_enabled;
     events.aec_status_changed(AecStatus {
-        available: true,
-        enabled,
-        reason: None,
+        available: availability.available,
+        enabled: enabled && availability.available,
+        reason: availability.reason,
     });
 }
 
@@ -170,22 +173,17 @@ fn run(pipeline: Pipeline) {
     let mut opus_decoder: Option<(u32, usize, opus::Decoder)> = None;
     let mut opus_float_buf: Vec<f32> = Vec::new();
 
-    // Speaker loopback capture for the AEC far-end reference. Windows uses
-    // WASAPI loopback; Linux records the default physical playback sink.
-    // Both start lazily only after an AEC-enabled session sends audio.
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
-    let loopback: Option<micyou_audio::LoopbackCapture> =
-        Some(micyou_audio::LoopbackCapture::new());
-    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-    let loopback: Option<micyou_audio::LoopbackCapture> = None;
+    // Speaker loopback capture for the AEC far-end reference. The audio crate
+    // selects the platform source (WASAPI loopback, PipeWire sink monitor or a
+    // Core Audio process tap), so the transport only knows that a reference may
+    // exist. It starts lazily once an AEC-enabled session sends audio.
+    let loopback = micyou_audio::LoopbackCapture::new();
 
     let mut audio_received_for_session = false;
-    let mut aec_runtime_available = true;
+    let mut aec_runtime_available = micyou_audio::aec_reference_availability().available;
     // A newly started server always begins with a fresh runtime state, even
     // before the first client session arrives.
-    if loopback.is_some() {
-        restore_aec_runtime(&mut aec_runtime_available, &dsp_settings, &events_audio);
-    }
+    restore_aec_runtime(&mut aec_runtime_available, &dsp_settings, &events_audio);
     // Sync the AEC far-end capture with actual audio flow. A control session
     // alone is not enough: while waiting for the first valid audio packet,
     // there is no microphone stream that needs an echo reference.
@@ -200,9 +198,7 @@ fn run(pipeline: Pipeline) {
             *audio_received = false;
         }
 
-        let Some(lb) = &loopback else {
-            return transport_active;
-        };
+        let lb = &loopback;
         let aec_enabled = dsp_settings
             .read()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -258,18 +254,14 @@ fn run(pipeline: Pipeline) {
                 match event {
                     AudioStreamEvent::SessionStarting { expected, epoch } => {
                         audio_received_for_session = false;
-                        if let Some(lb) = &loopback {
-                            lb.reset_session();
-                        }
+                        loopback.reset_session();
                         dsp_processor.reset_aec_session();
                         opus_decoder = None;
-                        if loopback.is_some() {
-                            restore_aec_runtime(
-                                &mut aec_runtime_available,
-                                &dsp_settings,
-                                &events_audio,
-                            );
-                        }
+                        restore_aec_runtime(
+                            &mut aec_runtime_available,
+                            &dsp_settings,
+                            &events_audio,
+                        );
                         jb.prepare_transport_session_epoch(expected, epoch);
                         continue;
                     }
@@ -390,17 +382,14 @@ fn run(pipeline: Pipeline) {
                                 (rms, rms)
                             } else {
                                 // Read speaker loopback for AEC far-end reference.
-                                // This captures the ACTUAL speaker output (WASAPI/BlackHole/PipeWire),
+                                // This captures the ACTUAL speaker output (WASAPI/process tap/PipeWire),
                                 // which is the true echo source the phone mic picks up.
                                 // Feed one mono reference sample for each near-end frame.
                                 // Matching the processed frame count prevents drift when
                                 // packet sizes or input sample rates vary.
                                 let near_frames = pcm_f32.len() / channels.max(1);
-                                if let Some(far_data) = loopback
-                                    .as_ref()
-                                    .filter(|capture| capture.is_active())
-                                    .map(|capture| capture.read(near_frames))
-                                {
+                                if loopback.is_active() {
+                                    let far_data = loopback.read(near_frames);
                                     dsp_processor.set_far_end_audio(&far_data);
                                 }
                                 let (raw, processed) = dsp_processor.process(
@@ -461,12 +450,10 @@ fn run(pipeline: Pipeline) {
         }
     }
 
-    if let Some(lb) = &loopback {
-        let was_active = lb.is_active();
-        lb.stop();
-        if was_active {
-            log::info!("[Audio] Speaker loopback stopped");
-        }
+    let was_active = loopback.is_active();
+    loopback.stop();
+    if was_active {
+        log::info!("[Audio] Speaker loopback stopped");
     }
 }
 

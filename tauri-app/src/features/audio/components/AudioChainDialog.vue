@@ -102,14 +102,13 @@ import {
 const props = defineProps<{ isOpen: boolean; chain: string[] }>();
 const emit = defineEmits(['close', 'update:chain']);
 
+import { useAecStatus } from '@/shared/composables/useAecStatus';
+
 const { t, locale } = useI18n();
 
-// AEC 在 Linux/Windows 可用；macOS 上隐藏该选项
-const isMacOS =
-  typeof navigator !== 'undefined' &&
-  /Mac/.test(navigator.platform || navigator.userAgent) &&
-  !/iPhone|iPad|iPod/.test(navigator.userAgent);
-const isAecSupported = !isMacOS;
+// AEC 可用性由后端判定：只有平台能提供远场参考时（macOS 14.2+ 的
+// Core Audio process tap，或 Windows/Linux 的现有实现）才开放该节点。
+const isAecSupported = useAecStatus().aecSupported;
 
 const localChain = ref<string[]>([]);
 
@@ -131,7 +130,7 @@ watch(
     if (newVal) {
       await pluginsState.refresh(); // 确保 DSP 插件列表最新（未进过插件页时缓存为空）
       // 去重 + AEC 置顶/剔除 + 插件节点对齐（展开旧节点/剔除失效/补插缺失）
-      localChain.value = normalizeChain(props.chain, activeDspPlugins.value, isAecSupported);
+      localChain.value = normalizeChain(props.chain, activeDspPlugins.value, isAecSupported.value);
     }
   },
 );
@@ -208,7 +207,7 @@ const resetChain = () => {
     'VAD',
   ];
   // 内置节点复位；启用中的 DSP 插件节点经 normalizeChain 重新插回默认位置
-  localChain.value = normalizeChain(defaultChain, activeDspPlugins.value, isAecSupported);
+  localChain.value = normalizeChain(defaultChain, activeDspPlugins.value, isAecSupported.value);
   emit('update:chain', localChain.value);
 };
 </script>
