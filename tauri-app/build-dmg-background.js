@@ -8,7 +8,7 @@
 // the window. Rendering at 2x and tagging it 144dpi gives the window exactly
 // 660x400 points of layout with twice the pixels behind it.
 //
-// Usage: node build-dmg-background.js [--force]
+// Usage: bun build-dmg-background.js [--force]
 //
 // Run with --force after editing the SVG. The tag check decides whether anything
 // has to happen, because sips does not encode byte-identical output and an mtime

@@ -13,7 +13,7 @@
 // icon: the view box below is cropped to the glyph's measured bounds plus a small
 // margin, which brings it back to ~16.8pt of the 18pt box.
 //
-// Usage: node build-tray-icon.js [--force]
+// Usage: bun build-tray-icon.js [--force]
 //
 // Run with --force after editing the SVG. The size check and the source timestamp
 // decide whether anything has to happen.

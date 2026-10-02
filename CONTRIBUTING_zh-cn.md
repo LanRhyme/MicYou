@@ -24,7 +24,7 @@
 ## 环境要求
 
 - Android SDK：compileSdk 36、minSdk 24、targetSdk 36（JDK 17 或 JDK 21）
-- 桌面前端：Node.js 22 + npm
+- 桌面前端：Bun 1.4+
 - 桌面后端：Rust stable + Cargo。在 Linux 上还需安装 Tauri 2 系统依赖：`libwebkit2gtk-4.1-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev`、`patchelf`、`libxdo-dev`、`libssl-dev`、`libasound2-dev`。
 
 ## 从源代码构建
@@ -45,16 +45,16 @@
 
 ```bash
 cd tauri-app
-npm install          # 仅在需要恢复或更新依赖时执行
-npm run build        # vue-tsc 类型检查 + vite 构建
+bun install          # 仅在需要恢复或更新依赖时执行
+bun run build        # vue-tsc 类型检查 + vite 构建
 ```
 
 ### 桌面 GUI（Tauri）
 
 ```bash
 cd tauri-app
-npm run tauri dev    # 开发模式
-npm run tauri build  # 发布包（Windows 为 NSIS 安装程序，Linux 为 .deb/.rpm/.AppImage，macOS 为 .dmg）
+bun run tauri dev    # 开发模式
+bun run tauri build  # 发布包（Windows 为 NSIS 安装程序，Linux 为 .deb/.rpm/.AppImage，macOS 为 .dmg）
 ```
 
 ### CLI 与 TUI 服务器
@@ -75,7 +75,7 @@ GUI、CLI 与 TUI 共享同一份服务器配置与 DSP 设置。
 
 ```bash
 cd tauri-app
-npm run sync-version
+bun run sync-version
 ```
 
 ## 国际化（i18n）
@@ -128,7 +128,7 @@ enum class AppLanguage(val label: String, val code: String) {
 ### 测试翻译
 
 - Android：构建 APK（`./gradlew :composeApp:assembleDebug`），然后在 **设置 → 语言** 中检查。
-- 桌面端：运行 `npm run tauri dev`，然后在 **设置 → 语言** 中检查。
+- 桌面端：运行 `bun run tauri dev`，然后在 **设置 → 语言** 中检查。
 - 确认所有字符串显示正确，布局没有裁剪或溢出。
 
 ## 提交更改
@@ -142,7 +142,7 @@ enum class AppLanguage(val label: String, val code: String) {
 在发起拉取请求前：
 
 - 确保你修改的平台的所有语言文件键集合一致。
-- 确保 Android 调试构建（`./gradlew :composeApp:assembleDebug`）与桌面端构建（`cd tauri-app && npm run build`）通过。
+- 确保 Android 调试构建（`./gradlew :composeApp:assembleDebug`）与桌面端构建（`cd tauri-app && bun run build`）通过。
 - CI（`.github/workflows/development.yml`）会在每次推送与拉取请求时构建 Android 调试 APK 以及 Windows、macOS、Linux 的 Tauri 安装包。
 
 参与贡献即表示您同意遵守项目的[行为准则](./CODE_OF_CONDUCT.md)。
