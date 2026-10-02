@@ -14,56 +14,11 @@
  */
 
 mod commands;
-mod config;
 mod events;
 mod plugin_cmds;
 mod serve;
 
 use clap::{Parser, Subcommand};
-
-/// On Linux, cpal/alsa-lib probes several PCM plugins (oss, dmix, route) while
-/// enumerating devices and spams stderr with "ALSA lib ..." errors. This installs
-/// a stderr filter that drops those lines while forwarding everything else.
-#[cfg(target_os = "linux")]
-fn install_alsa_stderr_filter() {
-    use std::os::unix::io::RawFd;
-    unsafe {
-        let orig = libc::dup(libc::STDERR_FILENO);
-        if orig < 0 {
-            return;
-        }
-        let mut fds: [RawFd; 2] = [0; 2];
-        if libc::pipe(fds.as_mut_ptr()) != 0 {
-            libc::close(orig);
-            return;
-        }
-        let (r, w) = (fds[0], fds[1]);
-        libc::dup2(w, libc::STDERR_FILENO);
-        libc::close(w);
-        std::thread::spawn(move || {
-            let mut buf = vec![0u8; 4096];
-            let mut pending: Vec<u8> = Vec::new();
-            loop {
-                let n = libc::read(r, buf.as_mut_ptr() as *mut libc::c_void, buf.len());
-                if n <= 0 {
-                    break;
-                }
-                pending.extend_from_slice(&buf[..n as usize]);
-                while let Some(pos) = pending.iter().position(|&b| b == b'\n') {
-                    let line: Vec<u8> = pending.drain(..=pos).collect();
-                    if !line.starts_with(b"ALSA lib ") {
-                        libc::write(orig, line.as_ptr() as *const libc::c_void, line.len());
-                    }
-                }
-            }
-            if !pending.is_empty() && !pending.starts_with(b"ALSA lib ") {
-                libc::write(orig, pending.as_ptr() as *const libc::c_void, pending.len());
-            }
-            libc::close(orig);
-            libc::close(r);
-        });
-    }
-}
 
 #[derive(Parser)]
 #[command(
@@ -181,7 +136,7 @@ enum ServerAction {
 #[tokio::main]
 async fn main() {
     #[cfg(target_os = "linux")]
-    install_alsa_stderr_filter();
+    micyou_core::platform::alsa::filter_alsa_stderr();
 
     let cli = Cli::parse();
     let result = match cli.command {
@@ -217,7 +172,7 @@ async fn main() {
             SettingsAction::Get { key } => commands::cmd_settings_get(key),
             SettingsAction::Set { key, value } => commands::cmd_settings_set(key, value),
             SettingsAction::Path => {
-                println!("{}", config::settings_path().display());
+                println!("{}", micyou_core::config::settings_path().display());
                 Ok(())
             }
         },

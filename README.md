@@ -34,6 +34,7 @@
 - Route audio through VB-CABLE on Windows, PipeWire on Linux, or BlackHole on macOS for use in calls, games, streaming, and recording apps.
 - Customize Material 3 interfaces with light/dark themes, dynamic colors, custom backgrounds, desktop pocket mode, system tray controls, and multiple languages.
 - Share connection, DSP, language, and theme preferences between the desktop GUI, CLI, and TUI.
+- Extend functionality with a dual-runtime plugin system (Native and WASM) and an in-app marketplace for custom DSP nodes, soundpads, and control widgets.
 
 ## Screenshots
 

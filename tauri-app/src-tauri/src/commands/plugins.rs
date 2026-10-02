@@ -13,189 +13,37 @@
  * GNU General Public License for more details.
  */
 
-//! Plugin management commands for the frontend.
-use crate::server::ServerState;
-use micyou_plugin::manifest::UiDescriptor;
-use micyou_plugin::PluginSyncTransport;
-use serde::Serialize;
-use tauri::Manager;
-use tauri::State;
-use tauri::Emitter; // 修复 E0599: emit 方法需要引入 Emitter trait
-use std::sync::{Arc, Mutex, OnceLock, atomic::{AtomicBool, Ordering}};
+//! Plugin management commands.
+
+use super::blocking;
+use micyou_core::host::HostIntegration;
+use micyou_core::plugins::install::{PluginPreview, PluginSyncStatus, PluginUpdate, PluginView};
+use micyou_core::server::ServerState;
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::path::PathBuf;
+use tauri::{AppHandle, Manager, State};
+use tauri_plugin_opener::OpenerExt;
 
-static DOWNLOAD_CANCELLATIONS: OnceLock<Mutex<HashMap<String, Arc<AtomicBool>>>> = OnceLock::new();
-
-fn get_cancel_flag(id: &str) -> Arc<AtomicBool> {
-    let map = DOWNLOAD_CANCELLATIONS.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut guard = map.lock().unwrap();
-    guard.entry(id.to_string()).or_insert_with(|| Arc::new(AtomicBool::new(false))).clone()
-}
-
-fn clear_cancel_flag(id: &str) {
-    if let Some(map) = DOWNLOAD_CANCELLATIONS.get() {
-        if let Ok(mut guard) = map.lock() {
-            guard.remove(id);
-        }
-    }
-}
-
-/// Frontend view of one plugin.
-#[derive(Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginView {
-    pub id: String,
-    pub name: String,
-    pub version: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    pub runtime: String,
-    pub kind: String,
-    pub platforms: Vec<String>,
-    pub capabilities: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ui: Option<UiDescriptor>,
-    pub enabled: bool,
-    pub loaded: bool,
-    pub dsp_node: bool,
-    /// Load/enable error surfaced to the user (e.g. artifact missing).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-    /// Localized names, keyed by BCP-47 locale tag. Serialized as `nameI18n`
-    /// (the key the frontend view model and marketplace manifests use).
-    #[serde(default, rename = "nameI18n", skip_serializing_if = "std::collections::HashMap::is_empty")]
-    pub name_i18n: std::collections::HashMap<String, String>,
-    /// Localized descriptions, keyed by BCP-47 locale tag (`descriptionI18n`).
-    #[serde(default, rename = "descriptionI18n", skip_serializing_if = "std::collections::HashMap::is_empty")]
-    pub description_i18n: std::collections::HashMap<String, String>,
-    /// Declared dependencies on other plugins (id, version requirement).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub dependencies: Vec<micyou_plugin::manifest::PluginDependency>,
-    /// Declarative settings schema for automatic form generation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub config_schema: Option<micyou_plugin::manifest::ConfigSchema>,
-}
-
-/// Cross-device sync status for the plugins page.
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginSyncStatus {
-    /// Whether a phone device session is connected.
-    pub device_connected: bool,
-    /// Plugins can currently reach the remote device.
-    pub transport_ready: bool,
-}
-
-/// List all installed plugins (registry + load state).
 #[tauri::command]
 pub fn list_plugins(state: State<'_, ServerState>) -> Result<Vec<PluginView>, String> {
-    let plugins = &state.plugins;
-    let manager = plugins
-        .manager
-        .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
-    let dsp_ids = plugins.dsp_registry.plugin_ids();
-    let mut views: Vec<PluginView> = manager
-        .entries()
-        .into_iter()
-        .map(|entry| {
-            let m = &entry.manifest;
-            let id = m.id.clone();
-            PluginView {
-                dsp_node: dsp_ids.contains(&id),
-                loaded: manager.is_loaded(&id),
-                enabled: entry.state.is_enabled(),
-                error: None,
-                id: m.id.clone(),
-                name: m.name.clone(),
-                name_i18n: m.name_i18n.clone(),
-                description_i18n: m.description_i18n.clone(),
-                dependencies: m.dependencies.clone(),
-                config_schema: m.config_schema.clone(),
-                version: m.version.clone(),
-                author: m.author.clone(),
-                description: m.description.clone(),
-                runtime: m.runtime.to_string(),
-                kind: m.kind.to_string(),
-                platforms: m.platforms.clone(),
-                capabilities: m.capabilities.clone(),
-                ui: m.ui.clone(),
-            }
-        })
-        .collect();
-    
-    // Re-attempt loading enabled-but-failed plugins lazily and report errors.
-    let ids: Vec<String> = views
-        .iter()
-        .filter(|v| v.enabled && !v.loaded)
-        .map(|v| v.id.clone())
-        .collect();
-    drop(manager);
-    let mut retried = false;
-    for id in ids.into_iter() { // 修复 E0277: 明确使用 into_iter()
-        retried = true;
-        if let Err(e) = plugins.enable_plugin(&id) {
-            if let Some(view) = views.iter_mut().find(|v| v.id == id) {
-                view.error = Some(e.to_string());
-            }
-        }
-    }
-    if retried {
-        // 懒重载可能注册了新的 DSP 节点：同步运行时处理链（#347）
-        plugins.ensure_plugin_chain_node(&state.dsp_settings);
-    }
-    Ok(views)
+    state.plugins.list()
 }
 
-/// Enable or disable a plugin (loads/unloads the runtime, updates DSP nodes).
 #[tauri::command]
-pub fn set_plugin_enabled(
-    state: State<'_, ServerState>,
-    id: String,
-    enabled: bool,
-) -> Result<(), String> {
-    let result = if enabled {
-        state.plugins.enable_plugin(&id)
-    } else {
-        state.plugins.disable_plugin(&id)
-    };
-    if result.is_ok() {
-        // 按注册表同步逐插件链节点 Plugin:<id>（#347）
-        state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
-    }
-    result.map_err(|e| e.to_string())
+pub fn set_plugin_enabled(state: State<'_, ServerState>, id: String, enabled: bool) -> Result<(), String> {
+    state.plugins.set_enabled(&id, enabled)
 }
 
-/// Uninstall a plugin (deletes its directory).
 #[tauri::command]
 pub fn uninstall_plugin(state: State<'_, ServerState>, id: String) -> Result<(), String> {
-    let result = state.plugins.uninstall_plugin(&id);
-    if result.is_ok() {
-        // 卸载会注销 DSP 节点：同步移除其链节点（#347）
-        state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
-    }
-    result.map_err(|e| e.to_string())
+    state.plugins.uninstall(&id)
 }
 
-/// Read a plugin's persisted config.
 #[tauri::command]
-pub fn get_plugin_config(
-    state: State<'_, ServerState>,
-    id: String,
-) -> Result<serde_json::Value, String> {
-    let manager = state
-        .plugins
-        .manager
-        .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
-    let map = manager.plugin_config(&id).map_err(|e| e.to_string())?;
-    Ok(serde_json::Value::Object(map))
+pub fn get_plugin_config(state: State<'_, ServerState>, id: String) -> Result<serde_json::Value, String> {
+    state.plugins.config(&id)
 }
 
-/// Write one plugin config value.
 #[tauri::command]
 pub fn set_plugin_config(
     state: State<'_, ServerState>,
@@ -203,145 +51,67 @@ pub fn set_plugin_config(
     key: String,
     value: serde_json::Value,
 ) -> Result<(), String> {
-    {
-        let manager = state
-            .plugins
-            .manager
-            .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
-        manager
-            .set_plugin_config(&id, &key, value.clone())
-            .map_err(|e| e.to_string())?;
-    }
-
-    let payload = serde_json::json!({ "key": key, "value": value });
-    let msg = micyou_plugin::bus::PluginMessage::new(
-        "host",
-        &id,
-        "config:changed",
-        payload.to_string().into_bytes(),
-    );
-    state.plugins.bus.handle_incoming(&msg);
-    Ok(())
+    state.plugins.set_config(&id, &key, value)
 }
 
-/// Recent log lines emitted by a plugin.
 #[tauri::command]
-pub fn get_plugin_logs(state: State<'_, ServerState>, id: String) -> Result<Vec<String>, String> {
-    Ok(state.plugins.logs.lines(&id))
+pub fn get_plugin_logs(state: State<'_, ServerState>, id: String) -> Vec<String> {
+    state.plugins.logs.lines(&id)
 }
 
-/// Cross-device plugin sync status.
 #[tauri::command]
-pub fn get_plugin_sync_status(state: State<'_, ServerState>) -> Result<PluginSyncStatus, String> {
-    let connected = state.plugins.sync.is_connected();
-    Ok(PluginSyncStatus {
-        device_connected: connected,
-        transport_ready: connected,
-    })
+pub fn get_plugin_sync_status(state: State<'_, ServerState>) -> PluginSyncStatus {
+    state.plugins.sync_status()
+}
+
+#[tauri::command]
+pub fn get_plugin_panel_icons(state: State<'_, ServerState>, id: String) -> HashMap<String, String> {
+    state.plugins.panel_icons(&id)
+}
+
+#[tauri::command]
+pub fn get_app_locale() -> String {
+    micyou_core::config::load_ui_prefs().language
 }
 
 /// Open the plugin directory in the system file manager.
 #[tauri::command]
-pub fn open_plugins_dir(
-    app: tauri::AppHandle,
-    state: State<'_, ServerState>,
-) -> Result<String, String> {
-    use tauri_plugin_opener::OpenerExt;
-    let dir = state
-        .plugins
-        .manager
-        .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())? // 修复 E0593
-        .plugins_dir()
-        .to_path_buf();
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-
+pub fn open_plugins_dir(app: AppHandle, state: State<'_, ServerState>) -> Result<String, String> {
+    let dir = state.plugins.plugin_dir_path()?.display().to_string();
     app.opener()
-        .open_path(dir.display().to_string(), None::<&str>)
+        .open_path(&dir, None::<&str>)
         .map_err(|e| format!("open plugins dir: {e}"))?;
-    Ok(dir.display().to_string())
-}
-
-pub(crate) fn open_plugin_window_impl(
-    app: &tauri::AppHandle,
-    plugin_id: &str,
-    panel_id: &str,
-) -> Result<(), String> {
-    let state = app
-        .try_state::<ServerState>()
-        .ok_or_else(|| "server state unavailable".to_string())?;
-    let (title, label) = {
-        let manager = state
-            .plugins
-            .manager
-            .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
-        let entry = manager
-            .entry(plugin_id)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| format!("unknown plugin {plugin_id}"))?;
-        let panel = entry
-            .manifest
-            .ui
-            .as_ref()
-            .and_then(|u| u.panels.iter().find(|p| p.id == panel_id))
-            .ok_or_else(|| format!("unknown panel {panel_id}"))?;
-        (
-            format!("{} · {}", entry.manifest.name, panel.label),
-            format!("plugin-window-{}", plugin_id.replace('.', "-")),
-        )
-    };
-
-    if app.get_webview_window(&label).is_some() {
-        return Ok(());
-    }
-
-    tauri::WebviewWindowBuilder::new(
-        app,
-        &label,
-        tauri::WebviewUrl::App(format!("index.html#/plugin/{plugin_id}/{panel_id}").into()),
-    )
-    .title(title)
-    .inner_size(520.0, 720.0)
-    .min_inner_size(360.0, 480.0)
-    .build()
-    .map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(dir)
 }
 
 #[tauri::command]
 pub fn open_plugin_window(
-    app: tauri::AppHandle,
-    plugin_id: String,
-    panel_id: String,
-) -> Result<(), String> {
-    open_plugin_window_impl(&app, &plugin_id, &panel_id)
-}
-
-#[tauri::command]
-pub fn get_plugin_panel(
+    app: AppHandle,
     state: State<'_, ServerState>,
     plugin_id: String,
     panel_id: String,
-) -> Result<String, String> {
-    let manager = state
+) -> Result<(), String> {
+    let title = state
         .plugins
-        .manager
-        .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
-    let entry = manager
-        .entry(&plugin_id)
-        .map_err(|e| e.to_string())?
+        .list()?
+        .into_iter()
+        .find(|plugin| plugin.id == plugin_id)
+        .map(|plugin| {
+            let panel = plugin
+                .ui
+                .as_ref()
+                .and_then(|ui| ui.panels.iter().find(|p| p.id == panel_id))
+                .map(|p| p.label.clone())
+                .unwrap_or_else(|| panel_id.clone());
+            format!("{} · {panel}", plugin.name)
+        })
         .ok_or_else(|| format!("unknown plugin {plugin_id}"))?;
-    let panel = entry
-        .manifest
-        .ui
-        .as_ref()
-        .and_then(|u| u.panels.iter().find(|p| p.id == panel_id))
-        .ok_or_else(|| format!("unknown panel {panel_id}"))?;
-    let path = entry.dir.join(&panel.entry);
-    std::fs::read_to_string(&path).map_err(|e| format!("read {}: {e}", path.display()))
+    crate::host::TauriHost(app).open_plugin_panel(&plugin_id, &panel_id, &title)
+}
+
+#[tauri::command]
+pub fn get_plugin_panel(state: State<'_, ServerState>, plugin_id: String, panel_id: String) -> Result<String, String> {
+    state.plugins.panel_html(&plugin_id, &panel_id)
 }
 
 #[tauri::command]
@@ -350,520 +120,48 @@ pub fn plugin_trigger(
     plugin_id: String,
     action: String,
     payload: Option<String>,
-) -> Result<(), String> {
-    let bytes = payload.unwrap_or_default().into_bytes();
+) {
     state
         .plugins
-        .trigger(&plugin_id, &action, &bytes)
-        .map_err(|e| e.to_string())
-}
-
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginPreview {
-    pub id: String,
-    pub name: String,
-    pub version: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    pub runtime: String,
-    pub kind: String,
-    pub capabilities: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub license: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub homepage: Option<String>,
+        .trigger(&plugin_id, &action, payload.unwrap_or_default().as_bytes());
 }
 
 #[tauri::command]
-pub fn preview_plugin_zip(zip_path: String) -> Result<PluginPreview, String> {
-    let (manifest, _prefix) = read_manifest_from_zip(&std::path::PathBuf::from(&zip_path))?;
-    let id = manifest.id.clone();
-    Ok(PluginPreview {
-        id,
-        name: manifest.name.clone(),
-        version: manifest.version.clone(),
-        author: manifest.author.clone(),
-        description: manifest.description.clone(),
-        runtime: manifest.runtime.to_string(),
-        kind: format!("{:?}", manifest.kind).to_lowercase(),
-        capabilities: manifest.capabilities.clone(),
-        license: manifest.license.clone(),
-        homepage: manifest.homepage.clone(),
-    })
-}
-
-fn read_manifest_from_zip(
-    zip_path: &std::path::Path,
-) -> Result<(micyou_plugin::PluginManifest, std::path::PathBuf), String> {
-    let file = std::fs::File::open(zip_path).map_err(|e| format!("open zip: {e}"))?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("read zip: {e}"))?;
-
-    let mut manifest_name: Option<String> = None;
-    for i in 0..archive.len() {
-        let name = archive
-            .by_index(i)
-            .map_err(|e| format!("zip entry: {e}"))?
-            .name()
-            .to_string();
-        if name == "plugin.json" || name.ends_with("/plugin.json") {
-            manifest_name = Some(name);
-            break;
-        }
-    }
-    let manifest_name = manifest_name.ok_or("zip contains no plugin.json")?;
-
-    let manifest_text = {
-        let mut entry = archive
-            .by_name(&manifest_name)
-            .map_err(|e| format!("read manifest: {e}"))?;
-        let mut text = String::new();
-        std::io::Read::read_to_string(&mut entry, &mut text)
-            .map_err(|e| format!("read manifest: {e}"))?;
-        text
-    };
-
-    let manifest = micyou_plugin::PluginManifest::from_json(&manifest_text)
-        .map_err(|e| format!("invalid plugin: {e}"))?;
-    let prefix = std::path::Path::new(&manifest_name)
-        .parent()
-        .map(|p| p.to_path_buf())
-        .unwrap_or_default();
-    Ok((manifest, prefix))
-}
-
-#[derive(serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginUpdate {
-    pub id: String,
-    pub current_version: String,
-    pub latest_version: String,
-    pub update_url: String,
+pub fn preview_plugin_zip(zip_path: PathBuf) -> Result<PluginPreview, String> {
+    micyou_core::plugins::install::preview_zip(&zip_path)
 }
 
 #[tauri::command]
-pub fn check_plugin_updates(state: State<'_, ServerState>) -> Result<Vec<PluginUpdate>, String> {
-    let updates: Vec<PluginUpdate> = {
-        let manager = state
-            .plugins
-            .manager
-            .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
-        let entries = manager.entries();
-        entries
-            .into_iter()
-            .filter_map(|entry| {
-                let m = &entry.manifest;
-                let url = m.update_url.as_ref()?;
-                let current = semver::Version::parse(&m.version).ok()?;
-
-                let client = reqwest::blocking::Client::builder()
-                    .timeout(std::time::Duration::from_secs(5))
-                    .build()
-                    .ok()?;
-                let text = client.get(url).send().ok()?.text().ok()?;
-                let remote = micyou_plugin::PluginManifest::from_json(&text).ok()?;
-                let latest = semver::Version::parse(&remote.version).ok()?;
-
-                if latest > current {
-                    Some(PluginUpdate {
-                        id: m.id.clone(),
-                        current_version: m.version.clone(),
-                        latest_version: remote.version.clone(),
-                        update_url: url.clone(),
-                    })
-                } else {
-                    None
-                }
-            })
-            .collect()
-    };
-    Ok(updates)
+pub async fn preview_plugin_from_url(manifest_url: String) -> Result<PluginPreview, String> {
+    blocking(move || micyou_core::plugins::install::preview_url(&manifest_url)).await
 }
 
 #[tauri::command]
-pub fn update_plugin(state: State<'_, ServerState>, id: String) -> Result<String, String> {
-    let (update_url, enabled) = {
-        let manager = state
-            .plugins
-            .manager
-            .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
-        let entry = manager
-            .entry(&id)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| format!("unknown plugin {id}"))?;
-        let url = entry
-            .manifest
-            .update_url
-            .clone()
-            .ok_or_else(|| format!("plugin {id} declares no updateUrl"))?;
-        (url, entry.state.is_enabled())
-    };
+pub fn cancel_plugin_download(id: String) {
+    micyou_core::plugins::install::cancel_download(&id);
+}
 
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| e.to_string())?;
-    let text = client
-        .get(&update_url)
-        .send()
-        .map_err(|e| format!("fetch update manifest: {e}"))?
-        .text()
-        .map_err(|e| e.to_string())?;
-    let remote = micyou_plugin::PluginManifest::from_json(&text)
-        .map_err(|e| format!("remote manifest invalid: {e}"))?;
-    if remote.id != id {
-        return Err(format!(
-            "remote manifest id mismatch: {} != {id}",
-            remote.id
-        ));
-    }
-
-    // Zip URL resolution order:
-    //  1. explicit `downloadUrl` in the remote manifest (versioned assets),
-    //  2. legacy derivation: updateUrl with `.json` replaced by `.zip`.
-    let zip_url = remote.download_url.clone().unwrap_or_else(|| {
-        let p = std::path::Path::new(&update_url);
-        let stem = p
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let parent = p
-            .parent()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
-        format!("{parent}/{stem}.zip")
-    });
-
-    let tmp_dir = std::env::temp_dir();
-    let tmp_zip = tmp_dir.join(format!("micyou-update-{id}.zip"));
-    let bytes = client
-        .get(&zip_url)
-        .send()
-        .map_err(|e| format!("download update: {e}"))?
-        .bytes()
-        .map_err(|e| format!("read update: {e}"))?;
-    std::fs::write(&tmp_zip, &bytes).map_err(|e| format!("write temp zip: {e}"))?;
-
-    state.plugins.disable_plugin(&id).ok();
-    let plugins_dir = state
-        .plugins
-        .manager
-        .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())? // 修复 E0593
-        .plugins_dir()
-        .to_path_buf();
-    let dest = plugins_dir.join(&id);
-    if dest.exists() {
-        std::fs::remove_dir_all(&dest).map_err(|e| format!("remove old install: {e}"))?;
-    }
-    import_plugin_zip(&tmp_zip, &plugins_dir).map_err(|e| format!("install update: {e}"))?;
-    let _ = std::fs::remove_file(&tmp_zip);
-
-    if enabled {
-        state
-            .plugins
-            .enable_plugin(&id)
-            .map_err(|e| e.to_string())?;
-    }
-    // 更新过程先禁用再（按需）重新启用：同步逐插件链节点（#347）
-    state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
-    Ok(remote.version)
+/// Download a plugin zip from the market and install it (the frontend asks
+/// for permission first via `preview_plugin_from_url`).
+#[tauri::command]
+pub async fn install_plugin_from_url(app: AppHandle, id: String, zip_url: String) -> Result<String, String> {
+    let plugins = app.state::<ServerState>().plugins.clone();
+    blocking(move || plugins.install_from_url(&id, &zip_url)).await
 }
 
 #[tauri::command]
-pub fn get_app_locale() -> String {
-    crate::app_config::load_ui_prefs().language
+pub async fn check_plugin_updates(app: AppHandle) -> Result<Vec<PluginUpdate>, String> {
+    let plugins = app.state::<ServerState>().plugins.clone();
+    blocking(move || plugins.check_updates()).await
 }
 
 #[tauri::command]
-pub fn get_plugin_panel_icons(
-    state: State<'_, ServerState>,
-    id: String,
-) -> std::collections::HashMap<String, String> {
-    state
-        .plugins
-        .panel_icons
-        .lock()
-        .map(|m| m.get(&id).cloned().unwrap_or_default())
-        .unwrap_or_default()
+pub async fn update_plugin(app: AppHandle, id: String) -> Result<String, String> {
+    let plugins = app.state::<ServerState>().plugins.clone();
+    blocking(move || plugins.update(&id)).await
 }
 
 #[tauri::command]
-pub fn preview_plugin_from_url(manifest_url: String) -> Result<PluginPreview, String> {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .map_err(|e| format!("http client: {e}"))?;
-    let text = client
-        .get(&manifest_url)
-        .send()
-        .map_err(|e| format!("fetch manifest: {e}"))?
-        .error_for_status()
-        .map_err(|e| format!("fetch manifest: {e}"))?
-        .text()
-        .map_err(|e| format!("read manifest: {e}"))?;
-    let manifest = micyou_plugin::PluginManifest::from_json(&text)
-        .map_err(|e| format!("invalid plugin manifest: {e}"))?;
-    Ok(PluginPreview {
-        id: manifest.id.clone(),
-        name: manifest.name.clone(),
-        version: manifest.version.clone(),
-        author: manifest.author.clone(),
-        description: manifest.description.clone(),
-        runtime: manifest.runtime.to_string(),
-        kind: format!("{:?}", manifest.kind).to_lowercase(),
-        capabilities: manifest.capabilities.clone(),
-        license: manifest.license.clone(),
-        homepage: manifest.homepage.clone(),
-    })
-}
-
-#[tauri::command]
-pub fn cancel_plugin_download(id: String) -> Result<(), String> {
-    let flag = get_cancel_flag(&id);
-    flag.store(true, Ordering::SeqCst);
-    Ok(())
-}
-
-/// Download a plugin zip from the market and install it (permission prompt
-/// happens in the frontend via preview_plugin_from_url first).
-#[tauri::command]
-pub async fn install_plugin_from_url(
-    app: tauri::AppHandle,
-    id: String,
-    zip_url: String,
-) -> Result<String, String> {
-    tokio::task::spawn_blocking(move || {
-        let state = app.state::<ServerState>();
-        let client = reqwest::blocking::Client::new();
-
-        let temp_dir = std::env::temp_dir();
-        let temp_zip_path = temp_dir.join(format!("micyou-market-{}.zip", id));
-
-        let mut downloaded_bytes: u64 = 0;
-        if temp_zip_path.exists() {
-            downloaded_bytes = std::fs::metadata(&temp_zip_path).map(|m| m.len()).unwrap_or(0);
-        }
-
-        let mut request = client.get(&zip_url);
-        if downloaded_bytes > 0 {
-            request = request.header(reqwest::header::RANGE, format!("bytes={}-", downloaded_bytes));
-        }
-
-        let mut response = request
-            .send()
-            .map_err(|e| format!("下载插件失败：{e}"))?
-            .error_for_status()
-            .map_err(|e| format!("下载插件失败（清单可能已过期，请刷新市场后重试）：{e}"))?;
-
-        let is_append = response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
-        let total_size = response.content_length().unwrap_or(0) + if is_append { downloaded_bytes } else { 0 };
-
-        let mut out_file = if is_append {
-            std::fs::OpenOptions::new().append(true).open(&temp_zip_path)
-                .map_err(|e| format!("打开临时文件失败: {e}"))?
-        } else {
-            downloaded_bytes = 0;
-            std::fs::File::create(&temp_zip_path)
-                .map_err(|e| format!("创建临时文件失败: {e}"))?
-        };
-
-        let cancel_flag = get_cancel_flag(&id);
-        cancel_flag.store(false, Ordering::SeqCst);
-
-        let mut buffer = [0u8; 8192];
-        let mut last_emit = std::time::Instant::now();
-
-        loop {
-            if cancel_flag.load(Ordering::SeqCst) {
-                let _ = std::fs::remove_file(&temp_zip_path);
-                clear_cancel_flag(&id);
-                return Err("下载已取消".to_string());
-            }
-
-            let bytes_read = response.read(&mut buffer)
-                .map_err(|e| format!("读取插件包失败(网络中断): {e}"))?;
-            if bytes_read == 0 { break; }
-
-            out_file.write_all(&buffer[..bytes_read])
-                .map_err(|e| format!("写入临时文件失败: {e}"))?;
-            downloaded_bytes += bytes_read as u64;
-
-            if last_emit.elapsed().as_millis() > 200 {
-                let _ = app.emit("plugin-download-progress", serde_json::json!({
-                    "id": id,
-                    "downloaded": downloaded_bytes,
-                    "total": total_size,
-                    "done": false
-                }));
-                last_emit = std::time::Instant::now();
-            }
-        }
-
-        let _ = app.emit("plugin-download-progress", serde_json::json!({
-            "id": id,
-            "downloaded": downloaded_bytes,
-            "total": total_size,
-            "done": true
-        }));
-        clear_cancel_flag(&id);
-
-        // 临时文件下载，随后走标准 zip 导入（含路径穿越防护）
-        let result = (|| {
-            let plugins_dir = state
-                .plugins
-                .manager
-                .lock()
-                .map_err(|_| "plugin manager lock poisoned".to_string())?
-                .plugins_dir()
-                .to_path_buf();
-            std::fs::create_dir_all(&plugins_dir).map_err(|e| e.to_string())?;
-            let extracted_id = match import_plugin_zip(&temp_zip_path, &plugins_dir) {
-                Ok(id) => id,
-                Err(e) if e.contains("already installed") => {
-                    // 幂等：已安装视为成功，前端随后刷新列表
-                    let manifest = read_manifest_from_zip(&temp_zip_path).map_err(|e| e.to_string())?.0;
-                    manifest.id
-                }
-                Err(e) => return Err(e),
-            };
-            let mut manager = state
-                .plugins
-                .manager
-                .lock()
-                .map_err(|_| "plugin manager lock poisoned".to_string())?;
-            let _ = manager.discover_plugin(plugins_dir.join(&extracted_id));
-            Ok::<String, String>(extracted_id)
-        })();
-        let _ = std::fs::remove_file(&temp_zip_path);
-        let extracted_id = result?;
-
-        // 权限已在前端确认，安装成功后自动启用（失败不阻断安装，用户可手动启用）
-        if let Err(e) = state.plugins.enable_plugin(&extracted_id) {
-            log::warn!("[plugins] auto-enable after install failed for {extracted_id}: {e}");
-        }
-        // 同步逐插件链节点（#347）
-        state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
-        Ok(extracted_id)
-    })
-    .await
-    .map_err(|e| format!("download task panicked: {e}"))?
-}
-
-#[tauri::command]
-pub fn import_plugin(state: State<'_, ServerState>, source: String) -> Result<String, String> {
-    let src = std::path::PathBuf::from(source);
-    if !src.exists() {
-        return Err(format!("source not found: {}", src.display()));
-    }
-
-    let plugins_dir = state
-        .plugins
-        .manager
-        .lock()
-        .map_err(|_| "plugin manager lock poisoned".to_string())? // 修复 E0593
-        .plugins_dir()
-        .to_path_buf();
-    std::fs::create_dir_all(&plugins_dir).map_err(|e| e.to_string())?;
-
-    let id = if src.is_dir() {
-        import_plugin_dir(&src, &plugins_dir)
-    } else if src
-        .extension()
-        .map(|e| e.eq_ignore_ascii_case("zip"))
-        .unwrap_or(false)
-    {
-        import_plugin_zip(&src, &plugins_dir)
-    } else {
-        return Err("unsupported source: expected a directory or a .zip file".into());
-    }
-    .map_err(|e| e.to_string())?;
-
-    {
-        let mut manager = state
-            .plugins
-            .manager
-            .lock()
-            .map_err(|_| "plugin manager lock poisoned".to_string())?; // 修复 E0593
-        manager
-            .discover_plugin(plugins_dir.join(&id))
-            .map_err(|e| e.to_string())?;
-    }
-
-    if let Err(e) = state.plugins.enable_plugin(&id) {
-        log::warn!("[plugins] auto-enable after import failed for {id}: {e}");
-    }
-    // 同步逐插件链节点（#347）
-    state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
-    Ok(id)
-}
-
-fn import_plugin_dir(src: &std::path::Path, dest_root: &std::path::Path) -> Result<String, String> {
-    let manifest = micyou_plugin::PluginManifest::load_from_dir(src)
-        .map_err(|e| format!("invalid plugin: {e}"))?;
-    let id = manifest.id.clone();
-    let dest = dest_root.join(&id);
-    if dest.exists() {
-        return Err(format!("plugin {id} already installed"));
-    }
-    copy_dir_recursive(src, &dest).map_err(|e| format!("copy failed: {e}"))?;
-    Ok(id)
-}
-
-fn import_plugin_zip(
-    zip_path: &std::path::Path,
-    dest_root: &std::path::Path,
-) -> Result<String, String> {
-    let (manifest, prefix) = read_manifest_from_zip(zip_path)?;
-    let id = manifest.id.clone();
-    let dest = dest_root.join(&id);
-    if dest.exists() {
-        return Err(format!("plugin {id} already installed"));
-    }
-    std::fs::create_dir_all(&dest).map_err(|e| format!("create dir: {e}"))?;
-
-    let file = std::fs::File::open(zip_path).map_err(|e| format!("open zip: {e}"))?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("read zip: {e}"))?;
-    for i in 0..archive.len() {
-        let mut entry = archive.by_index(i).map_err(|e| format!("zip entry: {e}"))?;
-        let Some(rel) = entry.enclosed_name() else {
-            continue;
-        };
-        let rel = if rel.starts_with(&prefix) {
-            rel.strip_prefix(&prefix).unwrap_or(&rel).to_path_buf()
-        } else {
-            rel
-        };
-        let target = dest.join(&rel);
-        if entry.is_dir() {
-            std::fs::create_dir_all(&target).map_err(|e| format!("mkdir: {e}"))?;
-        } else {
-            if let Some(parent) = target.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
-            }
-            let mut out =
-                std::fs::File::create(&target).map_err(|e| format!("create file: {e}"))?;
-            std::io::copy(&mut entry, &mut out).map_err(|e| format!("extract: {e}"))?;
-        }
-    }
-    Ok(id)
-}
-
-fn copy_dir_recursive(src: &std::path::Path, dest: &std::path::Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(dest)?;
-    for entry in std::fs::read_dir(src)? {
-        let entry = entry?;
-        let from = entry.path();
-        let to = dest.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_dir_recursive(&from, &to)?;
-        } else {
-            std::fs::copy(&from, &to)?;
-        }
-    }
-    Ok(())
+pub fn import_plugin(state: State<'_, ServerState>, source: PathBuf) -> Result<String, String> {
+    state.plugins.import(&source)
 }

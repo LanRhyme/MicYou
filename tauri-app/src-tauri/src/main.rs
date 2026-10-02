@@ -14,6 +14,15 @@
  */
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// objc's msg_send! expands to cfgs rustc does not know about.
+#![allow(unexpected_cfgs)]
+
+mod app;
+mod commands;
+mod events;
+mod host;
+mod tray;
+mod window;
 
 #[cfg(target_os = "linux")]
 fn configure_renderer() {
@@ -37,5 +46,5 @@ fn main() {
     #[cfg(target_os = "linux")]
     configure_renderer();
 
-    tauri_app_lib::run()
+    app::run()
 }

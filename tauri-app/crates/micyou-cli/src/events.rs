@@ -13,9 +13,9 @@
  * GNU General Public License for more details.
  */
 
-use tauri_app_lib::events::{AecStatus, ServerEvents};
-use tauri_app_lib::stats::AudioMetrics;
-use tauri_app_lib::tcp_server::DeviceInfo;
+use micyou_core::events::{AecStatus, DownloadProgress, ServerEvents, SpectrumPayload};
+use micyou_core::stats::AudioMetrics;
+use micyou_core::transport::tcp::DeviceInfo;
 
 /// Log-mode events: print a compact line per event.
 pub struct CliEventSink {
@@ -70,7 +70,7 @@ impl ServerEvents for CliEventSink {
         }
     }
 
-    fn audio_spectrum(&self, _raw: Vec<f32>, _processed: Vec<f32>) {}
+    fn audio_spectrum(&self, _spectrum: SpectrumPayload) {}
 
     fn server_stopped(&self) {
         println!("[server] stopped");
@@ -89,6 +89,16 @@ impl ServerEvents for CliEventSink {
             println!("[aec] enabled");
         } else if let Some(reason) = status.reason {
             println!("[warn] AEC disabled: {reason}");
+        }
+    }
+
+    fn monitoring_state_changed(&self, enabled: bool) {
+        println!("[monitor] {}", if enabled { "on" } else { "off" });
+    }
+
+    fn plugin_download_progress(&self, progress: DownloadProgress) {
+        if progress.done {
+            println!("[plugins] downloaded {} ({} bytes)", progress.id, progress.downloaded);
         }
     }
 }

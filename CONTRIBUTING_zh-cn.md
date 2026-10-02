@@ -11,26 +11,33 @@
   - `src/` — Vue 3 + Vite + Tailwind CSS 前端
   - `src-tauri/` — Tauri 2 + Rust 后端（GUI 服务器）
   - `crates/` — 共享 Rust 工作区 crate：
-    - `micyou-protocol` — 网络协议
-    - `micyou-audio` — 音频传输、缓冲与 DSP
-    - `micyou-cli` — 无界面 CLI 服务器（二进制 `micyou`）
-    - `micyou-tui` — 交互式终端仪表盘（二进制 `micyou-tui`）
-- `docs/` — 项目文档（指向 micyou.top 在线文档）
-- `img/` — README 与项目图片
+    - `micyou-core` — 无界面服务端核心、生命周期管理与系统集成
+    - `micyou-protocol` — 网络通信协议定义（Protobuf）
+    - `micyou-audio` — 音频传输、缓冲与 DSP 处理链
+    - `micyou-plugin` — 插件框架（Native 与 WASM 运行时）
+    - `micyou-cli` — 命令行服务器（二进制 `micyou-cli`）
+    - `micyou-tui` — 终端交互仪表盘（二进制 `micyou-tui`）
+- `plugins/` — 示例插件与插件开发资源
+- `docs/` — 项目文档（含插件规范与开发指南）
+- `img/` — README 与项目截图
 
 ## 环境要求
 
-- Android SDK：compileSdk 36、minSdk 24、targetSdk 36（JDK 21）
-- 桌面前端：Node.js 22（CI 中使用的版本）+ npm
+- Android SDK：compileSdk 36、minSdk 24、targetSdk 36（JDK 17 或 JDK 21）
+- 桌面前端：Node.js 22 + npm
 - 桌面后端：Rust stable + Cargo。在 Linux 上还需安装 Tauri 2 系统依赖：`libwebkit2gtk-4.1-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev`、`patchelf`、`libxdo-dev`、`libssl-dev`、`libasound2-dev`。
 
 ## 从源代码构建
 
 ### Android 应用（APK）
 
+标准构建（Android 7.0+）：
+
 ```bash
 ./gradlew :composeApp:assembleDebug
 ```
+
+如需针对低版本 Android 设备（Android 5.0+ / API 21+）进行兼容构建，请参阅 [Android 低版本兼容构建指南](docs/android-compat.md)。
 
 可选（仅维护者需要）：发布签名通过 `ANDROID_KEYSTORE_PATH`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_ALIAS`、`ANDROID_KEY_PASSWORD` 环境变量配置；`local.properties` 中的 `AIFADIAN_API_TOKEN`、`AIFADIAN_USER_ID` 用于 App 内的赞助者列表（爱发电 API）。普通贡献者可忽略两者——未配置时赞助者弹窗只会显示 "API not configured"。
 

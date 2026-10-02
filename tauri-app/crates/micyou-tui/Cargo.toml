@@ -11,21 +11,14 @@ name = "micyou-tui"
 path = "src/main.rs"
 
 [dependencies]
-micyou-app = { path = "../../src-tauri" }
-micyou-audio = { path = "../micyou-audio", features = [
-  "dsp",
-  "noise-suppression",
-] }
+micyou-core = { workspace = true, features = ["headless-host", "vbcable", "web-server"] }
 
-clap = { version = "4", features = ["derive"] }
-serde_json = "1"
-tokio = { version = "1.52.3", features = ["full"] }
-ratatui = "0.29.0"
+clap.workspace = true
+serde_json.workspace = true
 crossterm = "0.28.1"
+ratatui = "0.29.0"
 sysinfo = "0.39.6"
-
-[target.'cfg(unix)'.dependencies]
-libc = "0.2.169"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [build-dependencies]
-tauri-winres = "0.3.6"
+tauri-winres.workspace = true
