@@ -96,6 +96,12 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: tauri-app/package.json
+      - name: Cache Bun dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('tauri-app/bun.lock') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-bun-
       - name: Setup Rust (stable)
         uses: dtolnay/rust-toolchain@stable
       - name: Cache Rust
@@ -160,6 +166,12 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: tauri-app/package.json
+      - name: Cache Bun dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('tauri-app/bun.lock') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-bun-
       - name: Setup Rust (stable)
         uses: dtolnay/rust-toolchain@stable
       - name: Setup Rust Target
@@ -211,6 +223,12 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: tauri-app/package.json
+      - name: Cache Bun dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('tauri-app/bun.lock') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-bun-
       - name: Setup Rust (stable)
         uses: dtolnay/rust-toolchain@stable
       - name: Cache Rust
