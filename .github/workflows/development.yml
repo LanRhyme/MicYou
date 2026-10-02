@@ -69,12 +69,16 @@ jobs:
         $line = (Select-String -Path gradle.properties -Pattern '^project\.version=').Line
         $version = $line.Split('=')[1].Trim()
         "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-    - name: Setup Node.js
-      uses: actions/setup-node@v7
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
       with:
-        node-version: '22'
-        cache: npm
-        cache-dependency-path: tauri-app/package-lock.json
+        bun-version-file: tauri-app/package.json
+    - name: Cache Bun dependencies
+      uses: actions/cache@v6
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('tauri-app/bun.lock') }}
+        restore-keys: ${{ runner.os }}-${{ runner.arch }}-bun-
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
     - name: Cache Rust
@@ -87,10 +91,10 @@ jobs:
       with:
         tool: cargo-about@0.9.1
     - name: Install Frontend Dependencies
-      run: npm ci --include=dev
+      run: bun install --frozen-lockfile
       working-directory: tauri-app
     - name: Build Tauri App (Windows)
-      run: npm run tauri -- build --no-bundle
+      run: bun run tauri build --no-bundle
       working-directory: tauri-app
     - name: Build Inno Setup Installer
       shell: pwsh
@@ -133,12 +137,16 @@ jobs:
       run: |
         VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-    - name: Setup Node.js
-      uses: actions/setup-node@v7
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
       with:
-        node-version: '22'
-        cache: npm
-        cache-dependency-path: tauri-app/package-lock.json
+        bun-version-file: tauri-app/package.json
+    - name: Cache Bun dependencies
+      uses: actions/cache@v6
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('tauri-app/bun.lock') }}
+        restore-keys: ${{ runner.os }}-${{ runner.arch }}-bun-
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
     - name: Setup Rust Target
@@ -153,11 +161,11 @@ jobs:
       with:
         tool: cargo-about@0.9.1
     - name: Install Frontend Dependencies
-      run: npm ci --include=dev
+      run: bun install --frozen-lockfile
       working-directory: tauri-app
 
     - name: Build Tauri App (macOS)
-      run: npm run tauri -- build --bundles dmg --target ${{ matrix.target }}
+      run: bun run tauri build --bundles dmg --target ${{ matrix.target }}
       working-directory: tauri-app
     - name: Prepare Artifact
       run: |
@@ -186,12 +194,16 @@ jobs:
       run: |
         VERSION=$(grep "^project.version=" gradle.properties | cut -d'=' -f2 | tr -d '\r')
         echo "version=$VERSION" >> $GITHUB_OUTPUT
-    - name: Setup Node.js
-      uses: actions/setup-node@v7
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
       with:
-        node-version: '22'
-        cache: npm
-        cache-dependency-path: tauri-app/package-lock.json
+        bun-version-file: tauri-app/package.json
+    - name: Cache Bun dependencies
+      uses: actions/cache@v6
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('tauri-app/bun.lock') }}
+        restore-keys: ${{ runner.os }}-${{ runner.arch }}-bun-
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
     - name: Cache Rust
@@ -215,10 +227,10 @@ jobs:
           libssl-dev \
           libasound2-dev
     - name: Install Frontend Dependencies
-      run: npm ci --include=dev
+      run: bun install --frozen-lockfile
       working-directory: tauri-app
     - name: Build Tauri App (Linux)
-      run: npm run tauri -- build --bundles deb,rpm,appimage
+      run: bun run tauri build --bundles deb,rpm,appimage
       working-directory: tauri-app
     - name: Prepare Artifacts
       run: |
