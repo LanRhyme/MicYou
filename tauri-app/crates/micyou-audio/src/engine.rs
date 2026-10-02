@@ -19,7 +19,7 @@ use ringbuf::{HeapRb, Producer};
 use rubato::audioadapter::{Adapter, AdapterMut};
 use rubato::audioadapter_buffers::owned::InterleavedOwned;
 use rubato::{Async, FixedAsync, PolynomialDegree, Resampler};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 
 const BUFFER_HEADROOM_MS: usize = 300;
@@ -200,6 +200,10 @@ pub struct AudioOutputManager {
     /// only flip this flag and log once; the owning thread drops the dead
     /// stream via `take_stream_failure`.
     stream_failed: Arc<AtomicBool>,
+    /// Bumped by every output data callback. A backend can stop calling back
+    /// without reporting an error (PipeWire dropping the ALSA stream leaves
+    /// cpal blocked in poll), so the owner watches this for stalls.
+    callback_ticks: Arc<AtomicU64>,
     /// Last observed value of `muted`, used to detect transitions on the
     /// device thread (e.g. to clear queued sound effects when muting).
     was_muted: bool,
@@ -243,6 +247,7 @@ impl AudioOutputManager {
             mixer: crate::mixer::SoundMixer::new(),
             muted,
             stream_failed: Arc::new(AtomicBool::new(false)),
+            callback_ticks: Arc::new(AtomicU64::new(0)),
             was_muted: false,
             #[cfg(target_os = "linux")]
             pw_loopback_child: None,
@@ -580,9 +585,11 @@ impl AudioOutputManager {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
                 let mut last_sample = 0.0f32;
                 let muted_flag = self.muted.clone();
+                let ticks = self.callback_ticks.clone();
                 device.build_output_stream(
                     &stream_config,
                     move |data: &mut [f32], _: &OutputCallbackInfo| {
+                        ticks.fetch_add(1, Ordering::Relaxed);
                         if muted_flag.load(Ordering::Relaxed) {
                             // Hard-muted: drop everything queued and emit pure
                             // silence so muting takes effect within this
@@ -619,9 +626,11 @@ impl AudioOutputManager {
                 let underrun_counter = Arc::new(AtomicU32::new(0));
                 let mut last_sample = 0.0f32;
                 let muted_flag = self.muted.clone();
+                let ticks = self.callback_ticks.clone();
                 device.build_output_stream(
                     &stream_config,
                     move |data: &mut [i16], _: &OutputCallbackInfo| {
+                        ticks.fetch_add(1, Ordering::Relaxed);
                         if muted_flag.load(Ordering::Relaxed) {
                             // Hard-muted: drop everything queued and emit pure
                             // silence so muting takes effect within this
@@ -682,6 +691,12 @@ impl AudioOutputManager {
     /// reopen it later.
     pub fn take_stream_failure(&self) -> bool {
         self.stream_failed.swap(false, Ordering::Relaxed)
+    }
+
+    /// Number of output data callbacks so far; stops advancing when the
+    /// device stalls.
+    pub fn callback_ticks(&self) -> u64 {
+        self.callback_ticks.load(Ordering::Relaxed)
     }
 
     /// Close the output stream while keeping the instance alive so it can be
