@@ -69,6 +69,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(win) = app.get_webview_window("main") {
         window::apply_macos_vibrancy(&win);
+        window::apply_rounded_corners(&win);
         // The window config leaves the control position unset so AppKit
         // cannot override the per-layout placement, which means the
         // initial layout has to be requested here.
@@ -133,17 +134,15 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             window::set_window_effects,
             window::start_window_drag,
+            window::set_window_blur,
+            window::set_window_shadow,
+            window::open_settings_window,
             window::show_main_window,
             window::minimize_main_window,
             window::hide_main_window,
             window::apply_macos_window_layout,
             window::set_dock_badge,
             window::set_app_menu,
-            window::show_floating_window,
-            window::hide_floating_window,
-            window::toggle_floating_window,
-            window::is_floating_window_visible,
-            window::move_floating_window_delta,
             tray::set_tray_strings,
             tray::set_tray_state,
             commands::server::start_server,

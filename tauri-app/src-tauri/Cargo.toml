@@ -38,11 +38,16 @@ serde_json.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser"] }
+winapi = { version = "0.3", features = ["winuser", "dwmapi"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = { version = "0.18", default-features = false }
 glib = "0.18"
+gdkwayland-sys = "0.18"
+libc.workspace = true
+wayland-client = { version = "0.31", features = ["system"] }
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+wayland-protocols-plasma = { version = "0.3", features = ["client"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc = "0.2"

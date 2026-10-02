@@ -455,10 +455,6 @@
     "title": "开机自启喵~",
     "desc": "登录电脑时自动启动 MicYou 喵~"
   },
-  "floatingWindow": {
-    "title": "桌面悬浮球喵~ 🐾",
-    "desc": "在屏幕上显示一只置顶的猫猫声浪悬浮球，戳一下就能静音，可以到处拖动喵~"
-  },
   "notifications": {
     "title": "通知喵~ 🔔",
     "desc": "设备连接或断开时显示系统通知喵~"
@@ -623,6 +619,7 @@
     "desc": "用原生或 WASM 喵插件扩展 MicYou 喵",
     "refresh": "刷新喵",
     "loading": "正在加载喵插件…",
+    "panelLoading": "正在加载喵面板…",
     "noPlugins": "还没有喵插件喵",
     "openDir": "打开喵插件目录",
     "installHint": "把喵插件文件夹或 .zip 放进来，然后刷新喵",

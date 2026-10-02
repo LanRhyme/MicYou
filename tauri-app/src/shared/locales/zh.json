@@ -457,10 +457,6 @@
     "title": "开机自启",
     "desc": "登录电脑时自动启动 MicYou"
   },
-  "floatingWindow": {
-    "title": "桌面悬浮窗",
-    "desc": "在屏幕上显示始终置顶的麦克风状态悬浮球，支持点击静音与拖拽"
-  },
   "notifications": {
     "title": "系统通知",
     "desc": "设备连接或断开时显示系统通知"
@@ -625,6 +621,7 @@
     "desc": "使用原生或 WASM 插件扩展 MicYou",
     "refresh": "刷新",
     "loading": "正在加载插件…",
+    "panelLoading": "正在加载面板…",
     "noPlugins": "尚未安装任何插件",
     "openDir": "打开插件目录",
     "installHint": "将插件文件夹或 .zip 放入插件目录，然后刷新",
@@ -662,7 +659,7 @@
     "marketLoading": "加载市场目录…",
     "marketEmpty": "市场暂无插件",
     "marketFailed": "加载市场失败：{error}",
-    "marketHomepage": "查看主页", 
+    "marketHomepage": "查看主页",
     "marketInstall": "安装",
     "marketInstalling": "安装中…",
     "marketInstalled": "已安装",

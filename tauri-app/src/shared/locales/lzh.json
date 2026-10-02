@@ -455,10 +455,6 @@
     "title": "开机自启",
     "desc": "登电脑时自启 MicYou。"
   },
-  "floatingWindow": {
-    "title": "案頭懸窗",
-    "desc": "於屏面顯常居其上之聲波浮珠，按之可噤聲，引之可隨意移"
-  },
   "notifications": {
     "title": "通知",
     "desc": "装置连断时示通知。"
@@ -623,6 +619,7 @@
     "desc": "以原生或 WASM 插件擴展 MicYou",
     "refresh": "刷新",
     "loading": "載入插件中…",
+    "panelLoading": "載入面板中…",
     "noPlugins": "尚未安裝插件",
     "openDir": "開啟插件目錄",
     "installHint": "置插件目錄或 .zip 於插件目錄，再行刷新",

@@ -455,10 +455,6 @@
     "title": "開機自啟",
     "desc": "登入電腦嗰陣自動啟動 MicYou"
   },
-  "floatingWindow": {
-    "title": "桌面懸浮窗",
-    "desc": "喺螢幕上面顯示永遠置頂嘅咪高峰狀態懸浮波，支援點擊靜音同拖曳"
-  },
   "notifications": {
     "title": "系統通知",
     "desc": "裝置連接或者斷開嗰陣顯示系統通知"
@@ -623,6 +619,7 @@
     "desc": "使用原生或 WASM 插件擴展 MicYou",
     "refresh": "刷新",
     "loading": "正在載入插件…",
+    "panelLoading": "正在載入面板…",
     "noPlugins": "尚未安裝任何插件",
     "openDir": "開啟插件目錄",
     "installHint": "將插件資料夾或 .zip 放入插件目錄，然後刷新",

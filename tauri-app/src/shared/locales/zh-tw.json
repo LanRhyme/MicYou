@@ -455,10 +455,6 @@
     "title": "開機自啟",
     "desc": "登入電腦時自動啟動 MicYou"
   },
-  "floatingWindow": {
-    "title": "桌面懸浮窗",
-    "desc": "在螢幕上顯示始終置頂的麥克風狀態懸浮球，支援點擊靜音與拖曳"
-  },
   "notifications": {
     "title": "系統通知",
     "desc": "裝置連線或斷線時顯示系統通知"
@@ -623,6 +619,7 @@
     "desc": "使用原生或 WASM 外掛程式擴充 MicYou",
     "refresh": "重新整理",
     "loading": "正在載入外掛程式…",
+    "panelLoading": "正在載入面板…",
     "noPlugins": "尚未安裝任何外掛程式",
     "openDir": "開啟外掛程式資料夾",
     "installHint": "將外掛程式資料夾或 .zip 放入外掛程式資料夾，然後重新整理",

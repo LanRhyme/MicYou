@@ -175,7 +175,7 @@ const onPointerMove = (e: PointerEvent) => {
 
 const onPointerUp = () => {
   if (draggedIndex.value !== -1) {
-    // 持久化经 update:chain → SettingsDialog 自动保存 → update_audio_settings；
+    // 持久化经 update:chain → SettingsWindow 自动保存 → update_audio_settings；
     // 后端落库前会按 DSP 注册表再次对齐插件节点
     emit('update:chain', localChain.value);
   }
