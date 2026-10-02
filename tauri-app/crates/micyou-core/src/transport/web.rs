@@ -247,6 +247,14 @@ mod tests {
     }
 
     #[test]
+    fn decrement_client_count_returns_the_remaining_clients() {
+        let count = AtomicUsize::new(2);
+        assert_eq!(decrement_client_count(&count), 1);
+        assert_eq!(decrement_client_count(&count), 0);
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
     fn new_web_sender_closes_replaced_sender() {
         let senders = ActiveWebSender::default();
         let (first_generation, first_cancel, first_replaced) = senders.activate();
@@ -417,13 +425,20 @@ async fn handle_ws_socket(
     }
 }
 
+/// Decrement without wrapping below zero; returns the new count. A plain
+/// CAS loop instead of `fetch_update`, which newer toolchains deprecate in
+/// favour of `try_update` that older ones lack.
 fn decrement_client_count(client_count: &AtomicUsize) -> usize {
-    client_count
-        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |count| {
-            count.checked_sub(1)
-        })
-        .map(|previous| previous - 1)
-        .unwrap_or(0)
+    let mut count = client_count.load(Ordering::SeqCst);
+    loop {
+        let Some(next) = count.checked_sub(1) else {
+            return 0;
+        };
+        match client_count.compare_exchange_weak(count, next, Ordering::SeqCst, Ordering::SeqCst) {
+            Ok(_) => return next,
+            Err(actual) => count = actual,
+        }
+    }
 }
 
 async fn serve_html() -> impl IntoResponse {
