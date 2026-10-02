@@ -1,28 +1,23 @@
 <template>
-  <Transition name="dialog">
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm"
-      @click.self="$emit('close')"
-    >
-    <div class="settings-panel relative isolate">
-      <!-- 背景模糊独立成层：避免 backdrop-filter 使面板成为 fixed 后代的包含块 -->
+    <div class="settings-panel settings-window relative isolate">
+      <!-- Window background; also the compositor blur region in glass style -->
       <div
-        class="absolute inset-0 -z-10 rounded-[inherit] backdrop-blur-2xl pointer-events-none"
+        data-blur-region
+        class="absolute inset-0 -z-10 rounded-2xl bg-surface-container pointer-events-none"
       ></div>
       <!-- Close Button -->
         <button
-          @click="$emit('close')"
+          @click="closeWindow"
           class="absolute top-4 right-4 z-40 w-10 h-10 rounded-full bg-surface-variant/40 hover:bg-surface-variant/80 flex items-center justify-center transition-colors"
         >
           <X class="w-5 h-5 text-on-surface" />
         </button>
 
-        <!-- Left Sidebar -->
-        <div class="settings-nav space-y-2">
-          <div class="px-4 py-4 mb-4 flex items-center gap-3">
-            <SettingsIcon class="w-6 h-6 text-primary" />
-            <h2 class="text-xl font-bold text-primary">{{ $t('settings.title') }}</h2>
+        <!-- Left Sidebar; its empty space and title drag the frameless window -->
+        <div data-tauri-drag-region class="settings-nav space-y-2">
+          <div data-tauri-drag-region class="px-4 py-4 mb-4 flex items-center gap-3">
+            <SettingsIcon class="w-6 h-6 text-primary pointer-events-none" />
+            <h2 data-tauri-drag-region class="text-xl font-bold text-primary">{{ $t('settings.title') }}</h2>
           </div>
 
           <template v-for="section in sections" :key="section.id">
@@ -1544,8 +1539,6 @@
           </div>
         </div>
       </div>
-    </div>
-  </Transition>
 
   <!-- Restore defaults: confirm dialog (mirrors App.vue IP switch confirm style) -->
   <Transition
@@ -1632,9 +1625,10 @@
 import MD3Slider from '@/shared/components/ui/slider/MD3Slider.vue';
 import { ref, computed, watch, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useColorMode, useStorage } from '@vueuse/core';
+import { useStorage } from '@vueuse/core';
 import { invoke } from '@tauri-apps/api/core';
-import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { emitTo, listen, UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import {
   isEnabled as isAutostartEnabled,
@@ -1683,7 +1677,9 @@ import { marketPluginName } from '@/features/plugins/market';
 import { usePluginPanelBridge } from '@/shared/composables/usePluginPanelBridge';
 import ThemeSelector from '@/features/theme/components/ThemeSelector.vue';
 import CustomColorPicker from '@/features/theme/components/CustomColorPicker.vue';
-import { useTheme, DEFAULT_THEME } from '@/features/theme/composables/useTheme';
+import { useTheme, DEFAULT_THEME, saveUiPrefs as saveThemeUiPrefs } from '@/features/theme/composables/useTheme';
+import { useWindowEffects } from '@/shared/composables/useWindowEffects';
+import { applyPlatformClasses } from '@/shared/lib/platform';
 
 onMounted(() => {
   window.addEventListener('message', onPanelMessage);
@@ -1701,24 +1697,20 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 
-const props = defineProps<{
-  isOpen: boolean;
-}>();
+// Settings live in their own window (#/settings); the main window learns
+// about output device changes through an event.
+const closeWindow = () => void getCurrentWindow().close();
 
-const emit = defineEmits(['close', 'updateDevice']);
+applyPlatformClasses();
+const notifyOutputDevice = (device: string) =>
+  void emitTo('main', 'output-device-changed', device).catch((e) =>
+    console.warn('Failed to notify the main window of the output device:', e),
+  );
 
 const { t, locale } = useI18n();
 
-const colorMode = useColorMode({
-  emitAuto: true,
-  modes: {
-    dark: 'dark',
-    light: 'light',
-  },
-  attribute: 'class',
-});
-
 const {
+  colorMode,
   themeMode,
   themeColor,
   uiStyle,
@@ -1732,6 +1724,10 @@ const {
   clearInstalledTheme,
   resetThemeToDefaults,
 } = useTheme();
+useWindowEffects({
+  blur: computed(() => uiStyle.value === 'style-glass'),
+  shadowRadius: ref(16),
+});
 const themePackageActive = computed(() =>
   Boolean(installedThemeId.value && installedThemeControlsColor.value),
 );
@@ -2018,18 +2014,7 @@ if (stored === 'English') stored = 'en';
 if (stored === '简体中文') stored = 'zh';
 
 const currentLanguage = ref(stored);
-function saveUiPrefs() {
-  const effective =
-    currentLanguage.value === 'system'
-      ? navigator.language.toLowerCase().startsWith('zh')
-        ? 'zh'
-        : 'en'
-      : currentLanguage.value;
-  void invoke('save_ui_prefs', {
-    language: effective,
-    themeColor: themeMode.value === 'system' ? 'theme-system' : themeColor.value,
-  }).catch((e) => console.error('save_ui_prefs failed:', e));
-}
+const saveUiPrefs = () => saveThemeUiPrefs(currentLanguage.value);
 watch(currentLanguage, (newLang) => {
   localStorage.setItem('micyou_language', newLang);
   if (newLang === 'system') {
@@ -2200,7 +2185,7 @@ interface SpectrumPayload {
 }
 
 function canDrawSpectrum() {
-  return props.isOpen && currentSection.value === 'audio';
+  return currentSection.value === 'audio';
 }
 
 async function setBackendSpectrumStreaming(enabled: boolean) {
@@ -2481,7 +2466,7 @@ let isMounted = false;
 
 onMounted(async () => {
   isMounted = true;
-  handleOpenState(props.isOpen);
+  handleMonitoringState();
   refreshModeStatus();
   saveUiPrefs();
   // Refresh from the shared settings.json so CLI-side changes show up
@@ -2590,7 +2575,7 @@ const loadSettings = async () => {
   }
 
   if (settings.audioDevice) {
-    emit('updateDevice', settings.audioDevice);
+    notifyOutputDevice(settings.audioDevice);
   }
 };
 
@@ -2626,7 +2611,7 @@ const syncSettingsToBackend = async () => {
 const saveSettings = () => {
   localStorage.setItem('micyou_audio_settings', JSON.stringify(settings));
   localStorage.setItem('micyou_output_device', settings.audioDevice);
-  emit('updateDevice', settings.audioDevice);
+  notifyOutputDevice(settings.audioDevice);
   syncSettingsToBackend();
 };
 
@@ -2727,7 +2712,7 @@ async function doRestoreDefaultSettings() {
 
 async function doRestoreDefaultTheme() {
   try {
-    // colorMode lives in SettingsDialog (useColorMode); theme fields live in
+    // colorMode comes from useTheme (useColorMode); theme fields live in
     // useTheme. resetThemeToDefaults reuses DEFAULT_THEME so no second copy.
     colorMode.value = DEFAULT_THEME.colorMode as typeof colorMode.value;
     // Await backend removal of an installed theme package; resetThemeToDefaults
@@ -2777,7 +2762,7 @@ function stopAudioMonitoring() {
 }
 
 function isMonitoringCurrent(token: number) {
-  return token === monitoringGeneration && isMounted && props.isOpen;
+  return token === monitoringGeneration && isMounted;
 }
 
 async function startAudioMonitoring() {
@@ -2846,15 +2831,4 @@ function handleMonitoringState() {
     stopAudioMonitoring();
   }
 }
-
-function handleOpenState(_isOpen: boolean) {
-  handleMonitoringState();
-}
-
-watch(
-  () => props.isOpen,
-  () => {
-    if (isMounted) handleMonitoringState();
-  },
-);
 </script>

@@ -1,5 +1,5 @@
 import { computed, ref, watchEffect } from 'vue';
-import { useStorage } from '@vueuse/core';
+import { useColorMode, useStorage } from '@vueuse/core';
 import { invoke } from '@tauri-apps/api/core';
 import type { HslColor } from '../types';
 import type { SystemAccentColor, ThemeMode } from '../types';
@@ -24,7 +24,7 @@ const STYLE_CLASSES = ['style-default', 'style-glass'];
 
 // Single source of truth for theme default values. `useStorage` init and
 // resetThemeToDefaults() both reference this — change a default here once.
-// `colorMode` is consumed by SettingsDialog's useColorMode reset.
+// `colorMode` is the light/dark preference applied by useTheme().
 export const DEFAULT_THEME = {
   colorMode: 'auto',
   themeMode: 'system' as ThemeMode,
@@ -172,9 +172,7 @@ function activeBaseColor(): HslColor {
   return BUILTIN_THEMES[themeColor.value] || { h: customH.value, s: customS.value, l: customL.value };
 }
 
-async function initializeSystemAccent() {
-  if (systemAccentInitialized.value || systemAccentLoading.value || typeof window === 'undefined') return;
-  systemAccentInitialized.value = true;
+async function loadSystemAccent() {
   systemAccentLoading.value = true;
   try {
     const result = await invoke<SystemAccentColor>('get_system_accent_color');
@@ -189,6 +187,20 @@ async function initializeSystemAccent() {
   } finally {
     systemAccentLoading.value = false;
   }
+}
+
+// The desktop accent can change while the app runs (KDE derives it from the
+// wallpaper), so it is re-read whenever the window regains focus.
+function refreshSystemAccentOnFocus() {
+  if (themeMode.value !== 'system' || systemAccentLoading.value) return;
+  void loadSystemAccent();
+}
+
+async function initializeSystemAccent() {
+  if (systemAccentInitialized.value || systemAccentLoading.value || typeof window === 'undefined') return;
+  systemAccentInitialized.value = true;
+  window.addEventListener('focus', refreshSystemAccentOnFocus);
+  await loadSystemAccent();
 }
 
 function exportThemeToCli() {
@@ -238,7 +250,7 @@ export function clearInstalledTheme() {
 
 // Reset every theme field to DEFAULT_THEME (single source of truth) and tear
 // down any installed theme package. The applyTheme watchEffect recomputes CSS
-// + writes theme.json; SettingsDialog calls saveUiPrefs() afterwards to sync
+// + writes theme.json; SettingsWindow calls saveUiPrefs() afterwards to sync
 // ui.json. No second copy of defaults lives here.
 // Returns true if an installed theme package existed but its backend removal
 // failed (frontend is already cleared) — caller surfaces a partial-success.
@@ -265,8 +277,40 @@ export async function resetThemeToDefaults(): Promise<boolean> {
   return false;
 }
 
+/**
+ * Shares the effective language and theme color with the CLI/TUI (ui.json).
+ * The main window calls it at startup, the settings window on every change.
+ */
+export function saveUiPrefs(languageSetting = localStorage.getItem('micyou_language') || 'system') {
+  const language = languageSetting === 'system'
+    ? navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en'
+    : languageSetting;
+  void invoke('save_ui_prefs', {
+    language,
+    themeColor: themeMode.value === 'system' ? 'theme-system' : themeColor.value,
+  }).catch((e) => console.error('save_ui_prefs failed:', e));
+}
+
+// Every window applies the light/dark class itself; the preference is shared
+// through localStorage, so a change in the settings window reaches the rest.
+// Created once per window, however many components call useTheme().
+let colorModeRef: ReturnType<typeof useColorMode> | null = null;
+function sharedColorMode() {
+  colorModeRef ??= useColorMode({
+    emitAuto: true,
+    modes: {
+      dark: 'dark',
+      light: 'light',
+    },
+    attribute: 'class',
+  });
+  return colorModeRef;
+}
+
 export function useTheme() {
   void initializeSystemAccent();
+
+  const colorMode = sharedColorMode();
 
   const systemAccent = computed<SystemAccentColor>(() => ({
     hex: systemAccentHex.value,
@@ -288,6 +332,7 @@ export function useTheme() {
   });
 
   return {
+    colorMode,
     themeMode,
     themeColor,
     uiStyle,

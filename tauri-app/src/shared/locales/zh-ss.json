@@ -415,10 +415,6 @@
     "title": "开机自启",
     "desc": "登录电脑时自动启动 MicYou"
   },
-  "floatingWindow": {
-    "title": "桌面悬浮球",
-    "desc": "在屏幕上整一个永远飘着的麦克风状态悬浮球，点一下就静音，想拖哪拖哪"
-  },
   "notifications": {
     "title": "系统通知",
     "desc": "设备连接或断开时显示系统通知"
@@ -584,6 +580,7 @@
     "desc": "使用原生或 WASM 插件扩展硬核 MicYou",
     "refresh": "刷新",
     "loading": "正在加载铁插件…",
+    "panelLoading": "正在加载铁面板…",
     "noPlugins": "尚未安装任何铁插件",
     "openDir": "打开铁插件目录",
     "installHint": "将铁插件文件夹或 .zip 放入目录，然后刷新",

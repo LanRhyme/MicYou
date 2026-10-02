@@ -1,10 +1,8 @@
 import { createApp } from "vue";
 import "./shared/assets/index.css";
 import App from "./App.vue";
-import PopupWindow from "./shared/components/PopupWindow.vue";
-import IpPopup from "./features/connection/components/IpPopup.vue";
 import PluginPanelWindow from "./features/plugins/components/PluginPanelWindow.vue";
-import FloatingWindow from "./features/floating/components/FloatingWindow.vue";
+import SettingsWindow from "./features/settings/components/SettingsWindow.vue";
 import { createI18n } from "vue-i18n";
 
 import en from "./shared/locales/en.json";
@@ -15,30 +13,23 @@ import zhSs from "./shared/locales/zh-ss.json";
 import cat from "./shared/locales/cat.json";
 import lzh from "./shared/locales/lzh.json";
 
-const savedLocale = localStorage.getItem("micyou_language") || "system";
-
 const getSystemLocale = () => {
   return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
 };
 
-let initialLocale = "en";
-if (savedLocale === "en" || savedLocale === "English") {
-  initialLocale = "en";
-} else if (savedLocale === "zh" || savedLocale === "简体中文") {
-  initialLocale = "zh";
-} else if (savedLocale === "cat" || savedLocale === "喵喵语") {
-  initialLocale = "cat";
-} else if (savedLocale === "zh-hk" || savedLocale === "繁體中文（香港）") {
-  initialLocale = "zh-hk";
-} else if (savedLocale === "zh-tw" || savedLocale === "繁體中文（台灣）") {
-  initialLocale = "zh-tw";
-} else if (savedLocale === "zh-ss" || savedLocale === "中国人（坚硬）") {
-  initialLocale = "zh-ss";
-} else if (savedLocale === "lzh" || savedLocale === "文言") {
-  initialLocale = "lzh";
-} else {
-  initialLocale = getSystemLocale();
-}
+const resolveLocale = (saved: string | null) => {
+  const value = saved || "system";
+  if (value === "en" || value === "English") return "en";
+  if (value === "zh" || value === "简体中文") return "zh";
+  if (value === "cat" || value === "喵喵语") return "cat";
+  if (value === "zh-hk" || value === "繁體中文（香港）") return "zh-hk";
+  if (value === "zh-tw" || value === "繁體中文（台灣）") return "zh-tw";
+  if (value === "zh-ss" || value === "中国人（坚硬）") return "zh-ss";
+  if (value === "lzh" || value === "文言") return "lzh";
+  return getSystemLocale();
+};
+
+const initialLocale = resolveLocale(localStorage.getItem("micyou_language"));
 
 const i18n = createI18n({
   legacy: false,
@@ -48,17 +39,18 @@ const i18n = createI18n({
 });
 
 const hash = window.location.hash;
-let RootComponent = App;
+const RootComponent = hash.startsWith('#/plugin/')
+  ? PluginPanelWindow
+  : hash === '#/settings'
+    ? SettingsWindow
+    : App;
 
-if (hash === '#/popup/ip') {
-  RootComponent = IpPopup;
-} else if (hash.startsWith('#/popup')) {
-  RootComponent = PopupWindow;
-} else if (hash.startsWith('#/plugin/')) {
-  RootComponent = PluginPanelWindow;
-} else if (hash === '#/floating-window' || hash === '#/overlay') {
-  RootComponent = FloatingWindow;
-}
+// Windows share localStorage; follow a language change made in another window.
+window.addEventListener("storage", (event) => {
+  if (event.key === "micyou_language") {
+    i18n.global.locale.value = resolveLocale(event.newValue) as typeof i18n.global.locale.value;
+  }
+});
 
 const app = createApp(RootComponent);
 app.use(i18n);

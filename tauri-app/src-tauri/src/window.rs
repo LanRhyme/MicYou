@@ -15,7 +15,8 @@
 
 //! Main window management and the custom (frameless) window chrome.
 
-use tauri::window::Effect;
+use micyou_core::server::ServerState;
+use tauri::window::{Effect, EffectsBuilder};
 use tauri::{AppHandle, Manager};
 
 #[cfg(target_os = "macos")]
@@ -27,7 +28,8 @@ pub fn apply_macos_vibrancy(win: &tauri::WebviewWindow) {
         win,
         NSVisualEffectMaterial::Sidebar,
         Some(NSVisualEffectState::Active),
-        None,
+        // Matches the CSS `rounded-2xl` window chrome.
+        Some(16.0),
     );
 
     use objc::runtime::{Class, Object, NO};
@@ -49,6 +51,30 @@ pub fn apply_macos_vibrancy(win: &tauri::WebviewWindow) {
 #[cfg(not(target_os = "macos"))]
 pub fn apply_macos_vibrancy(_: &tauri::WebviewWindow) {}
 
+/// Windows 11: let DWM round the frameless window so the acrylic backdrop
+/// follows the rounded content. Windows 10 rejects the attribute; that is fine.
+#[cfg(windows)]
+pub fn apply_rounded_corners(win: &tauri::WebviewWindow) {
+    use winapi::um::dwmapi::DwmSetWindowAttribute;
+    const DWMWA_WINDOW_CORNER_PREFERENCE: u32 = 33;
+    const DWMWCP_ROUND: u32 = 2;
+
+    let Ok(hwnd) = win.hwnd() else { return };
+    let preference = DWMWCP_ROUND;
+    // SAFETY: hwnd is a live window handle and the attribute value is a u32.
+    unsafe {
+        DwmSetWindowAttribute(
+            hwnd.0 as _,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &preference as *const u32 as *const _,
+            std::mem::size_of::<u32>() as u32,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+pub fn apply_rounded_corners(_: &tauri::WebviewWindow) {}
+
 fn main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<tauri::WebviewWindow<R>, String> {
     app.get_webview_window("main")
         .ok_or_else(|| "main window not found".to_string())
@@ -56,8 +82,6 @@ fn main_window<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<tauri::WebviewWi
 
 #[tauri::command]
 pub fn set_window_effects(app: AppHandle, enabled: bool) -> Result<(), String> {
-    use tauri::window::EffectsBuilder;
-
     let window = app
         .get_webview_window("main")
         .ok_or_else(|| "Main window not found".to_string())?;
@@ -149,10 +173,98 @@ pub async fn start_window_drag(_app: AppHandle) -> Result<(), String> {
 
 #[cfg(windows)]
 fn restore_acrylic(window: &tauri::WebviewWindow) -> Result<(), String> {
-    use tauri::window::EffectsBuilder;
     window
         .set_effects(EffectsBuilder::new().effect(Effect::Acrylic).build())
         .map_err(|e| e.to_string())
+}
+
+/// A rounded rectangle in window-local logical pixels.
+#[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct BlurRect {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    #[serde(default)]
+    pub radius: f64,
+}
+
+/// Sets the behind-window blur region (logical pixels, rounded rects); an empty
+/// list removes it. Returns whether the compositor blur is in effect, which is
+/// only the case on KDE Plasma under Wayland.
+#[tauri::command]
+pub fn set_window_blur(
+    window: tauri::WebviewWindow,
+    regions: Vec<BlurRect>,
+) -> Result<bool, String> {
+    #[cfg(target_os = "linux")]
+    {
+        let gtk_window = window.gtk_window().map_err(|e| e.to_string())?;
+        crate::kwin_effects::set_window_blur(window.label(), &gtk_window, &regions)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (window, regions);
+        Ok(false)
+    }
+}
+
+/// Adds a native drop shadow with the given corner radius around the window,
+/// or removes it (`None`). Returns whether the shadow is in effect, which is
+/// only the case on KDE Plasma under Wayland.
+#[tauri::command]
+pub fn set_window_shadow(window: tauri::WebviewWindow, radius: Option<u32>) -> Result<bool, String> {
+    #[cfg(target_os = "linux")]
+    {
+        let gtk_window = window.gtk_window().map_err(|e| e.to_string())?;
+        crate::kwin_effects::set_window_shadow(window.label(), &gtk_window, radius)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (window, radius);
+        Ok(false)
+    }
+}
+
+pub const SETTINGS_WINDOW_LABEL: &str = "settings";
+
+/// Opens the settings window, or focuses it when it is already open. It uses
+/// the same frameless, transparent chrome as the main window.
+#[tauri::command]
+pub fn open_settings_window(app: AppHandle, title: String) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
+        let _ = win.unminimize();
+        win.show().map_err(|e| e.to_string())?;
+        return win.set_focus().map_err(|e| e.to_string());
+    }
+
+    let win = tauri::WebviewWindowBuilder::new(
+        &app,
+        SETTINGS_WINDOW_LABEL,
+        tauri::WebviewUrl::App("index.html#/settings".into()),
+    )
+    .title(title)
+    .inner_size(1000.0, 680.0)
+    .min_inner_size(820.0, 560.0)
+    .decorations(false)
+    .transparent(true)
+    .shadow(false)
+    .effects(EffectsBuilder::new().effect(Effect::Acrylic).build())
+    .center()
+    .build()
+    .map_err(|e| e.to_string())?;
+    apply_macos_vibrancy(&win);
+    apply_rounded_corners(&win);
+
+    // The settings page streams the spectrum while it is visible; a closed
+    // window cannot turn that off itself.
+    let handle = app.clone();
+    win.on_window_event(move |event| {
+        if let tauri::WindowEvent::Destroyed = event {
+            handle.state::<ServerState>().set_spectrum_streaming(false);
+        }
+    });
+    Ok(())
 }
 
 #[tauri::command]
@@ -166,66 +278,14 @@ pub fn show_main_window(app: AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 pub fn minimize_main_window(app: AppHandle) -> Result<(), String> {
-    let win = main_window(&app)?;
-
-    // Wayland compositors may ignore xdg_toplevel.set_minimized. Hiding the
-    // window keeps the minimize-to-tray action reliable across Linux WMs.
-    #[cfg(target_os = "linux")]
-    return win.hide().map_err(|e| e.to_string());
-
-    #[cfg(not(target_os = "linux"))]
-    win.minimize().map_err(|e| e.to_string())
+    // A real minimize keeps the window in the taskbar; hiding to the tray is
+    // the close action's job.
+    main_window(&app)?.minimize().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn hide_main_window(app: AppHandle) -> Result<(), String> {
     let win = main_window(&app)?;
     win.hide().map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-pub const FLOATING_WINDOW_LABEL: &str = "floating-window";
-
-#[tauri::command]
-pub fn show_floating_window(_app: AppHandle) -> Result<(), String> {
-    // Temporarily disabled (Issue #307 postponed)
-    log::info!("Floating window is temporarily disabled");
-    Ok(())
-}
-
-#[tauri::command]
-pub fn hide_floating_window(app: AppHandle) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
-        let _ = win.hide();
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn toggle_floating_window(_app: AppHandle) -> Result<bool, String> {
-    // Temporarily disabled (Issue #307 postponed)
-    log::info!("Floating window is temporarily disabled");
-    Ok(false)
-}
-
-#[tauri::command]
-pub fn is_floating_window_visible(app: AppHandle) -> Result<bool, String> {
-    if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
-        Ok(win.is_visible().unwrap_or(false))
-    } else {
-        Ok(false)
-    }
-}
-
-#[tauri::command]
-pub fn move_floating_window_delta(app: AppHandle, delta_x: f64, delta_y: f64) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window(FLOATING_WINDOW_LABEL) {
-        if let Ok(pos) = win.outer_position() {
-            let _ = win.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(
-                pos.x + delta_x as i32,
-                pos.y + delta_y as i32,
-            )));
-        }
-    }
     Ok(())
 }

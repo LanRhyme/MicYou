@@ -45,6 +45,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     if let Some(win) = app.get_webview_window("main") {
         window::apply_macos_vibrancy(&win);
+        window::apply_rounded_corners(&win);
     }
 
     // Opening the device can block on PipeWire setup; keep it off the UI thread.
@@ -75,14 +76,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             window::set_window_effects,
             window::start_window_drag,
+            window::set_window_blur,
+            window::set_window_shadow,
+            window::open_settings_window,
             window::show_main_window,
             window::minimize_main_window,
             window::hide_main_window,
-            window::show_floating_window,
-            window::hide_floating_window,
-            window::toggle_floating_window,
-            window::is_floating_window_visible,
-            window::move_floating_window_delta,
             tray::set_tray_strings,
             tray::set_tray_state,
             commands::server::start_server,
