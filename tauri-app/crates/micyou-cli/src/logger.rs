@@ -13,34 +13,19 @@
  * GNU General Public License for more details.
  */
 
-//! Minimal stderr logger for the `log` facade used by micyou-core.
-//!
-//! MicYou crates log at `default` (overridable with `RUST_LOG=<level>`, which
-//! then applies to every crate); third-party crates stay at `warn` so mdns
-//! and audio backends do not drown the output.
+//! Minimal stderr backend for the `log` facade used by micyou-core.
 
-use log::{Level, LevelFilter, Log, Metadata, Record};
+use log::{LevelFilter, Log, Metadata, Record};
+use micyou_core::logging::LogFilter;
 use std::io::Write;
 
 struct StderrLogger {
-    own: LevelFilter,
-    deps: LevelFilter,
-}
-
-impl StderrLogger {
-    fn enabled_for(&self, target: &str, level: Level) -> bool {
-        let filter = if target.starts_with("micyou") {
-            self.own
-        } else {
-            self.deps
-        };
-        level <= filter
-    }
+    filter: LogFilter,
 }
 
 impl Log for StderrLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        self.enabled_for(metadata.target(), metadata.level())
+        self.filter.enabled(metadata.target(), metadata.level())
     }
 
     fn log(&self, record: &Record) {
@@ -58,32 +43,9 @@ impl Log for StderrLogger {
 
 /// Install the logger. Call once, before any other work.
 pub fn init(default: LevelFilter) {
-    let (own, deps) = match std::env::var("RUST_LOG")
-        .ok()
-        .and_then(|value| value.trim().parse::<LevelFilter>().ok())
-    {
-        Some(level) => (level, level),
-        None => (default, LevelFilter::Warn.min(default)),
-    };
-    let logger: &'static StderrLogger = Box::leak(Box::new(StderrLogger { own, deps }));
+    let filter = LogFilter::from_env(default);
+    let logger: &'static StderrLogger = Box::leak(Box::new(StderrLogger { filter }));
     if log::set_logger(logger).is_ok() {
-        log::set_max_level(own.max(deps));
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn third_party_crates_are_capped_at_warn() {
-        let logger = StderrLogger {
-            own: LevelFilter::Info,
-            deps: LevelFilter::Warn,
-        };
-        assert!(logger.enabled_for("micyou_core::server::output", Level::Info));
-        assert!(!logger.enabled_for("micyou_core::server::output", Level::Debug));
-        assert!(!logger.enabled_for("mdns_sd::service_daemon", Level::Info));
-        assert!(logger.enabled_for("mdns_sd::service_daemon", Level::Warn));
+        log::set_max_level(filter.max_level());
     }
 }
