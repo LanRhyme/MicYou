@@ -202,6 +202,9 @@ function startDrag(e: MouseEvent) {
   if (e.button !== 0) return;
   const target = e.target as HTMLElement;
   if (target.closest(INTERACTIVE)) return;
+  // A press on a scrollbar targets the scrolling element itself but lies
+  // outside its client area; let it scroll instead of moving the window.
+  if (e.offsetX >= target.clientWidth || e.offsetY >= target.clientHeight) return;
   if (target.closest('.settings-nav') || target.hasAttribute('data-drag-surface')) {
     void appWindow.startDragging().catch((err) => console.error('Drag failed:', err));
   }

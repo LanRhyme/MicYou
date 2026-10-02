@@ -53,6 +53,20 @@ function normalizeAec() {
 }
 
 async function loadSettings() {
+  // Loading only mirrors what is already saved, so it must not autosave:
+  // between the two reads the device would briefly be "auto" and the main
+  // window would follow it.
+  suppressAutosave.value = true;
+  try {
+    await readSavedSettings();
+    // Let the deep watcher flush while still suppressed, so it is a no-op.
+    await nextTick();
+  } finally {
+    suppressAutosave.value = false;
+  }
+}
+
+async function readSavedSettings() {
   // DSP settings live in the shared settings.json and the output device in
   // server.json, both also used by the CLI and TUI.
   try {
