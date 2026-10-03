@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useStorage } from '@vueuse/core';
 import {
@@ -20,7 +20,8 @@ import {
 import { command, openUrl } from '@/platform';
 import MD3Switch from '@/shared/components/ui/switch/MD3Switch.vue';
 import ContributorsDialog from '../ContributorsDialog.vue';
-import LicensesDialog from '../LicensesDialog.vue';
+// The bundled license texts are ~400 kB: load them in their own chunk.
+const LicensesDialog = defineAsyncComponent(() => import('../LicensesDialog.vue'));
 import SponsorsDialog from '../SponsorsDialog.vue';
 
 const { t, locale } = useI18n();

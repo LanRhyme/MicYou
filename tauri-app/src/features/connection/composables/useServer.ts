@@ -150,10 +150,104 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
 
   function ensureStreamingState() {
     if (serverState.value === 'streaming') return;
-    const wasPending = serverState.value === 'connecting' || serverState.value === 'starting' || serverState.value === 'idle';
     serverState.value = 'streaming';
-    if (wasPending && notificationsEnabled.value) {
+    if (notificationsEnabled.value) {
       void notify(t('app.notify.connected'));
+    }
+  }
+
+  function resetToIdle() {
+    serverState.value = 'idle';
+    activeConnectionMode.value = null;
+    activePort.value = null;
+    if (options?.audioLevel) options.audioLevel.value = 0;
+  }
+
+  async function stopQuietly() {
+    try {
+      await command('stop_server');
+    } catch (e) {
+      console.warn('Failed to stop server cleanly:', e);
+    }
+  }
+
+  function showStartError(message: string, mode: ConnectionMode, port: number) {
+    const type = analyzeError(message);
+    errorDetails.value = generateErrorDetails(type, message, mode, port, selectedIp.value, t);
+    showErrorDialog.value = true;
+  }
+
+  function errorMessage(e: unknown): string {
+    if (typeof e === 'string') return e;
+    return (e as Error | undefined)?.message ?? String(e);
+  }
+
+  function portFor(mode: ConnectionMode): number {
+    return Number(mode === 'web' ? webPort.value : serverPort.value);
+  }
+
+  // USB mode goes through adb reverse which forwards to 127.0.0.1, so the
+  // server must listen on all interfaces regardless of the selected IP.
+  function bindAddressFor(mode: ConnectionMode): string | null {
+    return mode === 'usb' || isAutoBind.value ? null : selectedIp.value;
+  }
+
+  function hostForUrl(ip: string): string {
+    return ip.includes(':') ? `[${ip}]` : ip;
+  }
+
+  /**
+   * Starts the server in `mode` and finishes the mode-specific setup.
+   * `deviceSerial` picks the adb device when several are attached. Errors
+   * stop the server again and open the connection error dialog.
+   */
+  async function startServer(mode: ConnectionMode, port: number, deviceSerial: string | null = null) {
+    serverState.value = 'starting';
+    activeConnectionMode.value = mode;
+    activePort.value = port;
+    try {
+      await command('start_server', {
+        port,
+        mode,
+        bindAddress: bindAddressFor(mode),
+        outputDevice: outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default'
+          ? outputDevice.value
+          : null,
+      });
+      // Auto-switch to BlackHole input on macOS for seamless virtual audio loopback
+      if (isMacOS) {
+        try { await command('set_blackhole_as_input'); } catch { /* best-effort, ignore */ }
+      }
+      if (mode === 'usb') {
+        const result = await command('enable_usb_mode', { port, deviceSerial });
+        if (result.type === 'MultipleDevices') {
+          await stopQuietly();
+          resetToIdle();
+          adbDevices.value = result.devices;
+          pendingUsbPort.value = port;
+          showDeviceSelector.value = true;
+          return;
+        }
+        if (result.type === 'NoDevices') {
+          throw new Error('No USB devices found. Please connect a device and enable USB debugging.');
+        }
+      }
+      if (mode === 'web') {
+        const ip = isAutoBind.value ? networkInfo.value?.ips[0] : selectedIp.value;
+        webUrl.value = `https://${hostForUrl(ip ?? 'localhost')}:${port}`;
+        void generateQrCode(webUrl.value);
+      }
+      const status = await command('get_streaming_status').catch(() => null);
+      if (status?.isConnected) {
+        ensureStreamingState();
+      } else if (serverState.value === 'starting') {
+        serverState.value = 'connecting';
+      }
+    } catch (e) {
+      console.error(e);
+      await stopQuietly();
+      resetToIdle();
+      showStartError(errorMessage(e), mode, port);
     }
   }
 
@@ -170,111 +264,32 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     }
 
     if (serverState.value !== 'idle') {
-      try {
-        await command('stop_server');
-      } catch (e) {
-        console.warn('Failed to stop server cleanly:', e);
-      } finally {
-        serverState.value = 'idle';
-        activeConnectionMode.value = null;
-        activePort.value = null;
-        if (options?.audioLevel) options.audioLevel.value = 0;
-        // Restore original input device on macOS when using BlackHole virtual audio
-        if (isMacOS) {
-          try { await command('restore_input_device'); } catch { /* best-effort cleanup, ignore */ }
-        }
+      await stopQuietly();
+      resetToIdle();
+      // Restore original input device on macOS when using BlackHole virtual audio
+      if (isMacOS) {
+        try { await command('restore_input_device'); } catch { /* best-effort, ignore */ }
       }
       return;
     }
 
     const mode = connectionMode.value;
-    const port = mode === 'web' ? Number(webPort.value) : Number(serverPort.value);
-    try {
-      serverState.value = 'starting';
-      activeConnectionMode.value = mode;
-      activePort.value = port;
-      // USB mode goes through adb reverse which forwards to 127.0.0.1, so the
-      // server must listen on all interfaces regardless of the selected IP.
-      const bindAddress = mode === 'usb' ? null : isAutoBind.value ? null : selectedIp.value;
-      await command('start_server', {
-        port,
-        mode,
-        bindAddress,
-        outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
-      });
-      // Auto-switch to BlackHole input on macOS for seamless virtual audio loopback
-      if (isMacOS) {
-        try { await command('set_blackhole_as_input'); } catch { /* best-effort cleanup, ignore */ }
-      }
-      if (mode === 'usb') {
-        const result = await command('enable_usb_mode', { port, deviceSerial: null });
-        if (result.type === 'MultipleDevices') {
-          try { await command('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-          adbDevices.value = result.devices;
-          pendingUsbPort.value = port;
-          showDeviceSelector.value = true;
-          serverState.value = 'idle';
-          activeConnectionMode.value = null;
-          activePort.value = null;
-          return;
-        }
-        if (result.type === 'NoDevices') {
-          try { await command('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-          serverState.value = 'idle';
-          activeConnectionMode.value = null;
-          activePort.value = null;
-          const msg = 'No USB devices found. Please connect a device and enable USB debugging.';
-          const type = analyzeError(msg);
-          errorDetails.value = generateErrorDetails(type, msg, mode, port, selectedIp.value, t);
-          showErrorDialog.value = true;
-          return;
-        }
-      }
-      if (mode === 'web') {
-        const ip = networkInfo.value?.ips[0] ?? 'localhost';
-        const url = `https://${ip}:${webPort.value}`;
-        webUrl.value = url;
-        generateQrCode(url);
-      }
-      const status = await command('get_streaming_status').catch(() => null);
-      if (status?.isConnected) {
-        ensureStreamingState();
-      } else if (serverState.value === 'starting') {
-        serverState.value = 'connecting';
-      }
-    } catch (e: any) {
-      console.error(e);
-      try { await command('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-      const msg = typeof e === 'string' ? e : e?.message ?? String(e);
-      const type = analyzeError(msg);
-      errorDetails.value = generateErrorDetails(type, msg, mode, port, selectedIp.value, t);
-      showErrorDialog.value = true;
-      serverState.value = 'idle';
-      activeConnectionMode.value = null;
-      activePort.value = null;
-    }
+    await startServer(mode, portFor(mode));
   };
 
   /**
    * Sets bind IP target or prompts user if they try to switch while server is active
    */
   const selectIp = (ip: string, autoSelect: boolean) => {
-    if (autoSelect && isAutoBind.value) {
-      showIpMenu.value = false;
-      return;
-    }
-    if (!autoSelect && !isAutoBind.value && selectedIp.value === ip) {
-      showIpMenu.value = false;
-      return;
-    }
+    showIpMenu.value = false;
+    if (autoSelect && isAutoBind.value) return;
+    if (!autoSelect && !isAutoBind.value && selectedIp.value === ip) return;
     if (serverState.value === 'streaming' || serverState.value === 'connecting') {
       pendingIp.value = ip;
       pendingAutoSelect.value = autoSelect;
       showIpSwitchConfirm.value = true;
-      showIpMenu.value = false;
     } else {
       applyIpSelection(ip, autoSelect);
-      showIpMenu.value = false;
     }
   };
 
@@ -282,13 +297,8 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
    * Sets active bind variables directly
    */
   const applyIpSelection = (ip: string, autoSelect: boolean) => {
-    if (autoSelect) {
-      isAutoBind.value = true;
-      selectedIp.value = '0.0.0.0';
-    } else {
-      isAutoBind.value = false;
-      selectedIp.value = ip;
-    }
+    isAutoBind.value = autoSelect;
+    selectedIp.value = autoSelect ? '0.0.0.0' : ip;
   };
 
   /**
@@ -297,68 +307,11 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
   const confirmIpSwitch = async () => {
     applyIpSelection(pendingIp.value, pendingAutoSelect.value);
     showIpSwitchConfirm.value = false;
-    if (serverState.value === 'streaming' || serverState.value === 'connecting') {
-      try {
-        try { await command('stop_server'); } catch (e) { console.warn('stop_server during IP switch:', e); }
-        serverState.value = 'idle';
-        activeConnectionMode.value = null;
-        activePort.value = null;
-        if (options?.audioLevel) options.audioLevel.value = 0;
-        const bindAddress = activeConnectionMode.value === 'usb'
-          ? null
-          : isAutoBind.value
-            ? null
-            : selectedIp.value;
-        activeConnectionMode.value = connectionMode.value;
-        activePort.value = connectionMode.value === 'web' ? Number(webPort.value) : Number(serverPort.value);
-        serverState.value = 'starting';
-        await command('start_server', {
-          port: activePort.value,
-          mode: activeConnectionMode.value,
-          bindAddress: bindAddress,
-          outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
-        });
-        const status = await command('get_streaming_status').catch(() => null);
-        if (status?.isConnected) {
-          ensureStreamingState();
-        } else if (serverState.value === 'starting') {
-          serverState.value = 'connecting';
-        }
-        if (activeConnectionMode.value === 'usb') {
-          const result = await command('enable_usb_mode', { port: activePort.value, deviceSerial: null });
-          if (result.type === 'MultipleDevices') {
-            try { await command('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-            adbDevices.value = result.devices;
-            pendingUsbPort.value = activePort.value || Number(serverPort.value);
-            showDeviceSelector.value = true;
-            serverState.value = 'idle';
-            activeConnectionMode.value = null;
-            activePort.value = null;
-            return;
-          } else if (result.type === 'NoDevices') {
-            try { await command('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-            serverState.value = 'idle';
-            activeConnectionMode.value = null;
-            activePort.value = null;
-            const msg = 'No USB devices found. Please connect a device and enable USB debugging.';
-            const type = analyzeError(msg);
-            errorDetails.value = generateErrorDetails(type, msg, activeConnectionMode.value || connectionMode.value, activePort.value || Number(serverPort.value), selectedIp.value, t);
-            showErrorDialog.value = true;
-            return;
-          }
-        }
-      } catch (e: any) {
-        console.error(e);
-        try { await command('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-        const msg = typeof e === 'string' ? e : e?.message ?? String(e);
-        const type = analyzeError(msg);
-        errorDetails.value = generateErrorDetails(type, msg, activeConnectionMode.value || connectionMode.value, activePort.value || Number(serverPort.value), selectedIp.value, t);
-        showErrorDialog.value = true;
-        serverState.value = 'idle';
-        activeConnectionMode.value = null;
-        activePort.value = null;
-      }
-    }
+    if (serverState.value !== 'streaming' && serverState.value !== 'connecting') return;
+    await stopQuietly();
+    resetToIdle();
+    const mode = connectionMode.value;
+    await startServer(mode, portFor(mode));
   };
 
   /**
@@ -366,36 +319,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
    */
   const selectAdbDevice = async (serial: string) => {
     showDeviceSelector.value = false;
-    try {
-      serverState.value = 'starting';
-      activeConnectionMode.value = 'usb';
-      activePort.value = pendingUsbPort.value;
-      // USB mode requires 0.0.0.0 so the adb-reverse 127.0.0.1 target works.
-      const bindAddress = null;
-      await command('start_server', {
-        port: activePort.value,
-        mode: activeConnectionMode.value,
-        bindAddress: bindAddress,
-        outputDevice: (outputDevice.value && outputDevice.value !== 'auto' && outputDevice.value !== 'default') ? outputDevice.value : null
-      });
-      await command('enable_usb_mode', { port: pendingUsbPort.value, deviceSerial: serial });
-      const status = await command('get_streaming_status').catch(() => null);
-      if (status?.isConnected) {
-        ensureStreamingState();
-      } else if (serverState.value === 'starting') {
-        serverState.value = 'connecting';
-      }
-    } catch (e: any) {
-      console.error(e);
-      try { await command('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-      const msg = typeof e === 'string' ? e : e?.message ?? String(e);
-      const type = analyzeError(msg);
-      errorDetails.value = generateErrorDetails(type, msg, 'usb', pendingUsbPort.value, selectedIp.value, t);
-      showErrorDialog.value = true;
-      serverState.value = 'idle';
-      activeConnectionMode.value = null;
-      activePort.value = null;
-    }
+    await startServer('usb', pendingUsbPort.value, serial);
   };
 
   /**
@@ -458,6 +382,14 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     persistServerPrefs,
   );
 
+  if (options?.audioLevel) {
+    watch(options.audioLevel, (level) => {
+      if (level > 0 && (serverState.value === 'connecting' || serverState.value === 'starting')) {
+        ensureStreamingState();
+      }
+    });
+  }
+
   onMounted(async () => {
     try {
       await loadServerPrefs();
@@ -467,8 +399,11 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
 
     try {
       networkInfo.value = await command('get_network_info');
-      if (networkInfo.value && networkInfo.value.ips.length > 0) {
-        selectedIp.value = networkInfo.value.ips[0];
+      // Keep a bind address saved in server.json; only fill in a manual
+      // selection that has no concrete address yet.
+      const firstIp = networkInfo.value?.ips[0];
+      if (firstIp && !isAutoBind.value && selectedIp.value === '0.0.0.0') {
+        selectedIp.value = firstIp;
       }
     } catch (e) {
       console.error("Failed to get network info:", e);
@@ -486,7 +421,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
       if (status.isServerRunning) {
         serverState.value = status.isConnected ? 'streaming' : 'connecting';
         activeConnectionMode.value = connectionMode.value;
-        activePort.value = connectionMode.value === 'web' ? Number(webPort.value) : Number(serverPort.value);
+        activePort.value = portFor(connectionMode.value);
         if (options?.isMuted) {
           options.isMuted.value = status.isMuted;
         }
@@ -506,11 +441,8 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
         const wasStreaming = serverState.value === 'streaming';
         const mode = activeConnectionMode.value || connectionMode.value;
         if (mode === 'usb') {
-          try { await command('stop_server'); } catch { /* best-effort cleanup, ignore */ }
-          serverState.value = 'idle';
-          activeConnectionMode.value = null;
-          activePort.value = null;
-          if (options?.audioLevel) options.audioLevel.value = 0;
+          await stopQuietly();
+          resetToIdle();
           if (options?.isMuted) options.isMuted.value = false;
           if (wasStreaming && notificationsEnabled.value) {
             void notify(t('app.notify.usbDisconnected'));
@@ -527,10 +459,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
 
     // Listen for general server stops triggered elsewhere
     unlistenServerStopped = await onEvent('server-stopped', () => {
-      serverState.value = 'idle';
-      activeConnectionMode.value = null;
-      activePort.value = null;
-      if (options?.audioLevel) options.audioLevel.value = 0;
+      resetToIdle();
       if (options?.isMuted) options.isMuted.value = false;
     });
 
@@ -564,17 +493,9 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
       }
     });
 
-    if (options?.audioLevel) {
-      watch(options.audioLevel, (level) => {
-        if (level > 0 && (serverState.value === 'connecting' || serverState.value === 'starting')) {
-          ensureStreamingState();
-        }
-      });
-    }
-
     // Start streaming automatically if user configuration allows it
-    if (localStorage.getItem('micyou_auto_stream') === 'true') {
-      toggleStreaming();
+    if (localStorage.getItem('micyou_auto_stream') === 'true' && serverState.value === 'idle') {
+      void toggleStreaming();
     }
   });
 

@@ -2,7 +2,7 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { command } from '@/platform';
-import { usePluginPanelBridge } from '@/features/plugins/composables/usePluginPanelBridge';
+import { buildPanelDocument, usePluginPanelBridge } from '@/features/plugins/composables/usePluginPanelBridge';
 import { sharedColorMode } from '@/features/theme/composables/useTheme';
 
 // The settings window keys this component by panel, so props never change
@@ -14,63 +14,12 @@ const props = defineProps<{
 
 const { locale } = useI18n();
 const colorMode = sharedColorMode();
-const { handleMessage } = usePluginPanelBridge(props.pluginId);
+const frame = ref<HTMLIFrameElement | null>(null);
+const { handleMessage } = usePluginPanelBridge(props.pluginId, frame);
 
 const panelHtml = ref('');
 const loading = ref(false);
 const error = ref<string | null>(null);
-
-// Forwards the panel's console output and uncaught errors to the plugin log,
-// so plugin developers can debug their panels.
-const CONSOLE_HOOK = `<script>
-  (function () {
-    var orig = { log: console.log.bind(console), warn: console.warn.bind(console), error: console.error.bind(console) };
-    function send(level) {
-      return function () {
-        var parts = [];
-        for (var i = 0; i < arguments.length; i++) {
-          var a = arguments[i];
-          parts.push(typeof a === 'string' ? a : (function () { try { return JSON.stringify(a); } catch (e) { return String(a); } })());
-        }
-        try {
-          window.parent.postMessage({
-            __micyou: 1,
-            id: 'console-' + Math.random().toString(36).slice(2),
-            api: 'log',
-            args: { level: level, message: parts.join(' ') }
-          }, '*');
-        } catch (e) {}
-        orig[level === 'warn' ? 'warn' : level === 'error' ? 'error' : 'log'].apply(console, arguments);
-      };
-    }
-    console.log = send('info');
-    console.warn = send('warn');
-    console.error = send('error');
-    window.addEventListener('error', function (e) {
-      try {
-        window.parent.postMessage({
-          __micyou: 1,
-          id: 'console-' + Math.random().toString(36).slice(2),
-          api: 'log',
-          args: { level: 'error', message: 'uncaught: ' + (e.message || e.error) }
-        }, '*');
-      } catch (err) {}
-    });
-  })();
-<\/script>`;
-
-/** The host theme as CSS variables, so panels match and follow the app theme. */
-function collectThemeVars(): string {
-  const style = getComputedStyle(document.documentElement);
-  const vars: string[] = [];
-  for (let i = 0; i < style.length; i++) {
-    const name = style[i];
-    if (name.startsWith('--')) {
-      vars.push(`${name}: ${style.getPropertyValue(name)};`);
-    }
-  }
-  return vars.join('\n');
-}
 
 async function load() {
   loading.value = true;
@@ -80,7 +29,7 @@ async function load() {
       pluginId: props.pluginId,
       panelId: props.panelId,
     });
-    panelHtml.value = `<style>:root{${collectThemeVars()}}</style>${CONSOLE_HOOK}${html}`;
+    panelHtml.value = buildPanelDocument(html);
   } catch (e) {
     error.value = String(e);
     panelHtml.value = '';
@@ -115,6 +64,7 @@ onUnmounted(() => window.removeEventListener('message', handleMessage));
     </div>
     <iframe
       v-else
+      ref="frame"
       :srcdoc="panelHtml"
       sandbox="allow-scripts allow-popups"
       class="w-full h-[600px] rounded-2xl border border-border"

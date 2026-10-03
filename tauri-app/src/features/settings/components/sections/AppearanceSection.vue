@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, ref } from 'vue';
 import { Palette } from '@lucide/vue';
 import { command } from '@/platform';
 import {
@@ -11,7 +11,8 @@ import {
   SelectValue,
 } from '@/shared/components/ui/select';
 import CustomColorPicker from '@/features/theme/components/CustomColorPicker.vue';
-import CustomCssDialog from '@/features/theme/components/CustomCssDialog.vue';
+// CodeMirror is large: load the editor in its own chunk.
+const CustomCssDialog = defineAsyncComponent(() => import('@/features/theme/components/CustomCssDialog.vue'));
 import ThemeCatalogDialog from '@/features/theme/components/ThemeCatalogDialog.vue';
 import ThemeSelector from '@/features/theme/components/ThemeSelector.vue';
 import { useTheme } from '@/features/theme/composables/useTheme';

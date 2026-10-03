@@ -4,8 +4,8 @@
  * 由 open_plugin_window 命令创建，hash 路由 #/plugin/:pluginId/:panelId
  * 复用设置对话框的面板渲染逻辑（沙箱 iframe + postMessage 桥 + 主题注入）
  */
-import { ref, onMounted } from 'vue';
-import { usePluginPanelBridge } from '../composables/usePluginPanelBridge';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { buildPanelDocument, usePluginPanelBridge } from '../composables/usePluginPanelBridge';
 import { appWindow, command } from '@/platform';
 
 const hash = window.location.hash; // #/plugin/<pluginId>/<panelId>
@@ -16,26 +16,15 @@ const panelId = decodeURIComponent(parts[1] ?? '');
 const panelHtml = ref('');
 const loading = ref(true);
 const error = ref<string | null>(null);
-const { handleMessage } = usePluginPanelBridge(pluginId);
-
-function collectThemeVars(): string {
-  const style = getComputedStyle(document.documentElement);
-  const vars: string[] = [];
-  for (let i = 0; i < style.length; i++) {
-    const name = style[i];
-    if (name.startsWith('--')) {
-      vars.push(`${name}: ${style.getPropertyValue(name)};`);
-    }
-  }
-  return vars.join('\n');
-}
+const frame = ref<HTMLIFrameElement | null>(null);
+const { handleMessage } = usePluginPanelBridge(pluginId, frame);
 
 async function load() {
   loading.value = true;
   error.value = null;
   try {
     const html = await command('get_plugin_panel', { pluginId, panelId });
-    panelHtml.value = `<style>:root{${collectThemeVars()}}</style>${html}`;
+    panelHtml.value = buildPanelDocument(html);
   } catch (e) {
     error.value = String(e);
   } finally {
@@ -49,8 +38,9 @@ function closeWindow() {
 
 onMounted(() => {
   window.addEventListener('message', handleMessage);
-  load();
+  void load();
 });
+onUnmounted(() => window.removeEventListener('message', handleMessage));
 </script>
 
 <template>
@@ -98,6 +88,7 @@ onMounted(() => {
       </div>
       <iframe
         v-else
+        ref="frame"
         :srcdoc="panelHtml"
         sandbox="allow-scripts allow-popups"
         class="w-full h-full rounded-xl border"
