@@ -260,7 +260,7 @@ fn wasapi_loopback_thread(
     let result = (|| -> Result<(), Box<dyn std::error::Error>> {
         initialize_mta().ok()?;
 
-        let device = get_default_device(&Direction::Render)?;
+        let device = DeviceEnumerator::new()?.get_default_device(&Direction::Render)?;
         let device_name = device.get_friendlyname().unwrap_or_default();
         log::info!("[Loopback] WASAPI: capturing from '{}'", device_name);
 
@@ -275,15 +275,16 @@ fn wasapi_loopback_thread(
             channels
         );
 
-        let (_def_time, min_time) = audio_client.get_periods()?;
+        let (_def_time, min_time) = audio_client.get_device_period()?;
 
         // Direction::Capture on a Render device = loopback (auto loopback flag)
         audio_client.initialize_client(
             &mix_format,
-            min_time,
             &Direction::Capture,
-            &ShareMode::Shared,
-            true,
+            &StreamMode::EventsShared {
+                autoconvert: true,
+                buffer_duration_hns: min_time,
+            },
         )?;
 
         let h_event = audio_client.set_get_eventhandle()?;
@@ -323,8 +324,10 @@ fn wasapi_loopback_thread(
             if !deque.is_empty() {
                 let slice = deque.make_contiguous();
                 let f32_samples: Vec<f32> = slice
-                    .chunks_exact(4)
-                    .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|b| f32::from_le_bytes(*b))
                     .collect();
 
                 if !f32_samples.is_empty() {
