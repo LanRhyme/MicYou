@@ -184,7 +184,7 @@ const portValue = (e: Event) => Number((e.target as HTMLInputElement).value);
     </div>
 
     <!-- w-0 min-w-full: panels follow the bar width instead of widening the window -->
-    <div v-if="activePanel === 'ip'" data-blur-region class="popup-panel w-0 min-w-full max-h-60 overflow-y-auto py-1">
+    <div v-if="activePanel === 'ip'" data-blur-region class="popup-panel w-0 min-w-full max-h-60 overflow-y-auto overflow-x-hidden no-scrollbar">
       <button
         class="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface-variant/50 transition-colors text-left"
         @click="selectIp('', true)"
@@ -201,7 +201,7 @@ const portValue = (e: Event) => Number((e.target as HTMLInputElement).value);
       >
         <Globe class="w-3.5 h-3.5 text-on-surface-variant shrink-0" />
         <div class="flex-1 min-w-0">
-          <div class="text-xs font-medium text-foreground truncate">{{ iface.ip }}</div>
+          <div class="text-xs font-medium text-foreground truncate" :title="iface.ip">{{ iface.ip }}</div>
           <div class="text-[10px] text-on-surface-variant truncate">{{ iface.interface_name }}</div>
         </div>
         <CheckCircle2 v-if="!isAutoBind && selectedIp === iface.ip" class="w-3.5 h-3.5 text-primary shrink-0" />

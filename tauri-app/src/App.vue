@@ -401,7 +401,7 @@ onUnmounted(() => {
                 v-if="server.showIpMenu.value"
                 class="absolute right-0 top-full mt-1 w-64 bg-surface border border-outline/20 rounded-xl shadow-xl z-50 overflow-hidden"
               >
-                <div class="max-h-64 overflow-y-auto py-1">
+                <div class="max-h-64 overflow-y-auto overflow-x-hidden no-scrollbar">
                   <button
                     class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-surface-variant/50 transition-colors text-left"
                     @click="server.selectIp('', true)"
@@ -420,7 +420,7 @@ onUnmounted(() => {
                     @click="server.selectIp(iface.ip, false)"
                   >
                     <div class="flex-1 min-w-0">
-                      <div class="text-xs font-medium text-foreground">{{ iface.ip }}</div>
+                      <div class="text-xs font-medium text-foreground truncate" :title="iface.ip">{{ iface.ip }}</div>
                       <div class="text-[10px] text-on-surface-variant mt-0.5 truncate">{{ iface.interface_name }}</div>
                     </div>
                     <CheckCircle2 v-if="!server.isAutoBind.value && server.selectedIp.value === iface.ip" class="w-4 h-4 text-primary shrink-0" />

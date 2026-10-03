@@ -185,6 +185,16 @@
     @apply scale-[1.02] bg-secondary-container/80 text-on-secondary-container shadow-xs;
   }
 
+  /* Scrolls without a scrollbar, so rows can fill the full width (WebKitGTK
+     has no overlay scrollbars and a classic one leaves a strip on the right). */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .popup-panel {
     @apply overflow-hidden rounded-2xl border border-border/10 bg-surface-container shadow-xl;
   }
