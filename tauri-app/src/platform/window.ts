@@ -8,6 +8,15 @@ export function closeCurrentWindow(): Promise<void> {
   return getCurrentWindow().close();
 }
 
+/** Closes without emitting a close request, for windows that intercept it. */
+export function destroyCurrentWindow(): Promise<void> {
+  return getCurrentWindow().destroy();
+}
+
+export function hideCurrentWindow(): Promise<void> {
+  return getCurrentWindow().hide();
+}
+
 export function startDragging(): Promise<void> {
   return getCurrentWindow().startDragging();
 }

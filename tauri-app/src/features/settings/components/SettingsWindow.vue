@@ -1,7 +1,8 @@
 <template>
   <div
+    ref="windowRoot"
     data-drag-surface
-    class="settings-panel settings-window relative isolate"
+    class="settings-panel settings-window relative isolate origin-center"
     @mousedown="startDrag"
   >
     <!-- Window background; also the compositor blur region in glass style -->
@@ -162,11 +163,12 @@ import {
   SlidersHorizontal,
   X,
 } from '@lucide/vue';
-import { appWindow, type UnlistenFn } from '@/platform';
+import { appWindow, onEvent, type UnlistenFn } from '@/platform';
 import { applyPlatformClasses } from '@/shared/lib/os';
 import EqualizerPanel from '@/features/audio/components/EqualizerPanel.vue';
 import PluginsPanel from '@/features/plugins/components/PluginsPanel.vue';
 import { useTheme } from '@/features/theme/composables/useTheme';
+import { useWindowTransition } from '@/features/window/composables/useWindowTransition';
 import { useWindowEffects } from '@/features/window/composables/useWindowEffects';
 import { useAudioSettings } from '../composables/useAudioSettings';
 import { useLanguageSetting } from '../composables/useLanguageSetting';
@@ -183,17 +185,50 @@ import PluginPanelSection from './sections/PluginPanelSection.vue';
 applyPlatformClasses();
 const { t, locale } = useI18n();
 const { uiStyle } = useTheme();
-useWindowEffects({
+const windowEffects = useWindowEffects({
   blur: computed(() => uiStyle.value === 'style-glass'),
   shadowRadius: ref(16),
 });
+const windowRoot = ref<HTMLElement | null>(null);
+const transition = useWindowTransition(windowRoot, { suspendEffects: windowEffects.suspend });
 
 const { settings, loadSettings, trackAecStatus } = useAudioSettings();
 const { saveUiPrefs } = useLanguageSetting();
 const restore = useRestoreDefaults();
 const { panels: pluginPanels, refresh: refreshPlugins } = usePluginPanels(locale);
 
-const closeWindow = () => void appWindow.closeCurrentWindow();
+// Closing only hides the window: building a new webview on every open is
+// what made the settings slow to appear. open_settings_window shows this
+// same window again and tells this page to bring its content back.
+let closing = false;
+let hidden = false;
+async function closeWindow() {
+  if (closing || hidden) return;
+  closing = true;
+  await transition.exit();
+  try {
+    await appWindow.hideCurrentWindow();
+    hidden = true;
+    // Unmounts the audio section, which stops the spectrum stream.
+    currentSection.value = 'general';
+    // Stored by the backend while hidden and applied the moment the window
+    // shows again, together with it.
+    void windowEffects.apply();
+  } catch (e) {
+    console.error('Hiding settings failed:', e);
+    await appWindow.destroyCurrentWindow().catch(() => {});
+  } finally {
+    closing = false;
+  }
+}
+
+async function reopen() {
+  hidden = false;
+  void transition.enter();
+  void refreshPlugins();
+  // Refresh from the shared settings.json so CLI-side changes show up.
+  await loadSettings();
+}
 
 // The frameless window drags from the sidebar and from the bare background
 // of the content pane (marked data-drag-surface), never from controls.
@@ -235,7 +270,15 @@ const navItemClass = (id: string) =>
 watch(currentSection, () => contentRef.value?.scrollTo({ top: 0 }));
 
 let unlistenAec: UnlistenFn | null = null;
+let unlistenClose: UnlistenFn | null = null;
+let unlistenShown: UnlistenFn | null = null;
 onMounted(async () => {
+  await windowEffects.apply();
+  void transition.enter();
+  unlistenClose = await appWindow.onCloseRequested(() => void closeWindow());
+  unlistenShown = await onEvent('settings-window-shown', () => {
+    if (hidden) void reopen();
+  });
   saveUiPrefs();
   // Plugin pages show in the sidebar before the plugins section is opened.
   void refreshPlugins();
@@ -243,5 +286,9 @@ onMounted(async () => {
   await loadSettings();
   unlistenAec = await trackAecStatus();
 });
-onUnmounted(() => unlistenAec?.());
+onUnmounted(() => {
+  unlistenAec?.();
+  unlistenClose?.();
+  unlistenShown?.();
+});
 </script>

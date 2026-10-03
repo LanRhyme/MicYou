@@ -9,7 +9,6 @@ interface WindowEffectsOptions {
 }
 
 const REGION_SELECTOR = '[data-blur-region]';
-
 /**
  * Compositor effects for the frameless, transparent windows. Blur follows the
  * elements marked `data-blur-region` so it matches rounded panels instead of
@@ -23,6 +22,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
   let shadowUnsupported = false;
   let lastBlur = '[]';
   let shadowPending = false;
+  let suspended = false;
   let frame = 0;
   const resizeObserver = new ResizeObserver(() => scheduleBlur());
   const mutationObserver = new MutationObserver(() => scheduleBlur());
@@ -45,7 +45,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
 
   async function syncBlur() {
     frame = 0;
-    if (blurUnsupported) return;
+    if (blurUnsupported || suspended) return;
     const regions = blur.value ? collectRegions() : [];
     const payload = JSON.stringify(regions);
     if (payload === lastBlur) return;
@@ -75,7 +75,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
   }
 
   async function syncShadow() {
-    if (shadowUnsupported) return;
+    if (shadowUnsupported || suspended) return;
     const radius = shadowRadius.value;
     shadowPending = false;
     try {
@@ -91,6 +91,38 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
       shadowUnsupported = true;
       console.warn('Window shadow is unavailable:', e);
     }
+  }
+
+  /**
+   * Removes blur and shadow while the window content animates out, so the
+   * compositor does not keep drawing empty glass until the window is gone.
+   */
+  async function suspend() {
+    suspended = true;
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+    const requests: Promise<unknown>[] = [];
+    if (!blurUnsupported && lastBlur !== '[]') {
+      lastBlur = '[]';
+      requests.push(command('set_window_blur', { regions: [] }));
+    }
+    if (!shadowUnsupported && shadowRadius.value !== null) {
+      requests.push(command('set_window_shadow', { radius: null }));
+    }
+    await Promise.allSettled(requests);
+  }
+
+  /**
+   * Sends blur and shadow right away instead of on the next frame. Called
+   * before a hidden window is shown: the backend applies stored effects the
+   * moment the window maps, so they appear together with it. Also undoes
+   * `suspend`.
+   */
+  async function apply() {
+    suspended = false;
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+    await Promise.all([syncBlur(), syncShadow()]);
   }
 
   // A hidden window has no surface, so the backend reports false without
@@ -130,4 +162,6 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     unlistenFocus?.();
     if (frame) cancelAnimationFrame(frame);
   });
+
+  return { suspend, apply };
 }

@@ -18,6 +18,7 @@ import { useTheme, saveUiPrefs } from './features/theme/composables/useTheme';
 import { useWindow } from './features/window/composables/useWindow';
 import { useTray } from './features/tray/useTray';
 import { useWindowEffects } from './features/window/composables/useWindowEffects';
+import { useWindowTransition } from './features/window/composables/useWindowTransition';
 import { applyPlatformClasses, isMacOS } from './shared/lib/os';
 
 // UI components for connection flows, onboarding, and layouts
@@ -45,7 +46,6 @@ const server = useServer({ audioLevel: audio.audioLevel, isMuted: audio.isMuted 
 const theme = useTheme();
 // The CLI/TUI read language and theme color from ui.json.
 onMounted(() => saveUiPrefs());
-const win = useWindow();
 
 /**
  * Handles custom window dragging. Uses custom Win32 loop on Windows, falls back to Tauri API on other OSs.
@@ -94,11 +94,14 @@ onMounted(async () => {
 });
 onUnmounted(() => unlistenOutputDevice?.());
 const pocketMode = useStorage('micyou_pocket_mode', false);
-useWindowEffects({
+const windowEffects = useWindowEffects({
   blur: computed(() => theme.uiStyle.value === 'style-glass'),
   // Pocket mode is just the floating bar; the shadow frames the full window.
   shadowRadius: computed(() => (pocketMode.value ? null : 16)),
 });
+const rootRef = ref<HTMLElement | null>(null);
+const transition = useWindowTransition(rootRef, { suspendEffects: windowEffects.suspend });
+const win = useWindow({ exit: transition.exit, enter: transition.enter, prepare: windowEffects.apply });
 
 // IP configuration selector panel behavior
 const ipMenuRef = ref<HTMLDivElement | null>(null);
@@ -170,12 +173,8 @@ useTray(
   streamingRef,
 );
 
-// Auto-hide window on startup if start minimized is configured in preferences
-onMounted(async () => {
-  if (win.isHidden.value) {
-    void win.hideMainWindow();
-  }
-});
+// Starting minimized to the tray hides the window right away.
+onMounted(() => void win.launch());
 
 // Window sizing. Full mode is a fixed 800x600 window; pocket mode follows its
 // content, including the expanded menus, so no transparent area is left over.
@@ -322,7 +321,7 @@ onUnmounted(() => {
 
 <template>
   <OnboardingWizard :visible="showOnboarding" @complete="showOnboarding = false" />
-  <div class="relative w-full h-screen overflow-hidden overscroll-none text-foreground bg-transparent">
+  <div ref="rootRef" class="relative w-full h-screen overflow-hidden overscroll-none text-foreground bg-transparent origin-center">
     <!-- Rounded window background; pocket mode draws only its own bar and menus -->
     <div v-if="!pocketMode" data-blur-region class="absolute inset-0 -z-10 rounded-2xl bg-surface-container" />
 

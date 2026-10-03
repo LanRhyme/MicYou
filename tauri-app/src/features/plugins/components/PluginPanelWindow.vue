@@ -7,6 +7,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { buildPanelDocument, usePluginPanelBridge } from '../composables/usePluginPanelBridge';
 import { appWindow, command } from '@/platform';
+import { useWindowTransition } from '@/features/window/composables/useWindowTransition';
 
 const hash = window.location.hash; // #/plugin/<pluginId>/<panelId>
 const parts = hash.replace('#/plugin/', '').split('/');
@@ -32,11 +33,19 @@ async function load() {
   }
 }
 
-function closeWindow() {
-  void appWindow.closeCurrentWindow();
+const windowRoot = ref<HTMLElement | null>(null);
+const transition = useWindowTransition(windowRoot);
+
+let closing = false;
+async function closeWindow() {
+  if (closing) return;
+  closing = true;
+  await transition.exit();
+  await appWindow.destroyCurrentWindow().catch((e) => console.error('Closing panel failed:', e));
 }
 
 onMounted(() => {
+  void transition.enter();
   window.addEventListener('message', handleMessage);
   void load();
 });
@@ -45,7 +54,8 @@ onUnmounted(() => window.removeEventListener('message', handleMessage));
 
 <template>
   <div
-    class="h-screen w-screen overflow-hidden flex flex-col"
+    ref="windowRoot"
+    class="h-screen w-screen overflow-hidden flex flex-col origin-center"
     style="background: hsl(var(--surface))"
   >
     <header

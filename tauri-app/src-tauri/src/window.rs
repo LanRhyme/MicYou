@@ -17,7 +17,7 @@
 
 use micyou_core::server::ServerState;
 use tauri::window::{Effect, EffectsBuilder};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(target_os = "macos")]
 #[allow(unexpected_cfgs)]
@@ -238,6 +238,8 @@ pub async fn open_settings_window(app: AppHandle, title: String) -> Result<(), S
     if let Some(win) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
         let _ = win.unminimize();
         win.show().map_err(|e| e.to_string())?;
+        // Closing only hid the window; its page animates back in on this.
+        let _ = win.emit_to(SETTINGS_WINDOW_LABEL, "settings-window-shown", ());
         return win.set_focus().map_err(|e| e.to_string());
     }
 
