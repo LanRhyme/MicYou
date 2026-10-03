@@ -30,10 +30,8 @@ import android.net.wifi.WifiManager
 import android.app.PendingIntent
 import android.app.AlarmManager
 import androidx.core.app.NotificationCompat
-import kotlinx.coroutines.runBlocking
 import com.lanrhyme.micyou.audio.AudioEngine
 import com.lanrhyme.micyou.MainActivity
-import com.lanrhyme.micyou.service.AudioService
 import com.lanrhyme.micyou.util.AppLanguage
 import com.lanrhyme.micyou.util.getString
 class AudioService : Service() {
@@ -283,7 +281,7 @@ class AudioService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channelName = runBlocking { getString(R.string.audioStreamingService) }
+            val channelName = getString(R.string.audioStreamingService)
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
                 channelName,

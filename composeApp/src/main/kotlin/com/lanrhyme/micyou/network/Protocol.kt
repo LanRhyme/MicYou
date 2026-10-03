@@ -118,6 +118,9 @@ data class PongMessage(
     val timestamp: Long
 )
 
+// TCP handshake strings, matching HANDSHAKE_CLIENT_STR / HANDSHAKE_SERVER_STR in micyou-protocol
+const val HANDSHAKE_CLIENT = "MicYouCheck1"
+const val HANDSHAKE_SERVER = "MicYouCheck2"
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
 const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII
 const val UDP_CUSTOM_HEADER_SIZE = 8

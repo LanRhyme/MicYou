@@ -30,11 +30,8 @@ import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
-import io.ktor.utils.io.jvm.javaio.toByteReadChannel
-import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.readFully
 import io.ktor.utils.io.readInt
-import io.ktor.utils.io.reader
 import io.ktor.utils.io.writeFully
 import io.ktor.utils.io.writeInt
 import kotlinx.coroutines.CompletableDeferred
@@ -45,6 +42,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -61,7 +59,6 @@ import kotlinx.serialization.protobuf.ProtoBuf
 import io.github.jaredmdobson.concentus.OpusApplication
 import io.github.jaredmdobson.concentus.OpusEncoder
 import java.io.EOFException
-import java.io.OutputStream
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
@@ -70,7 +67,6 @@ import java.nio.ByteOrder
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
 import com.lanrhyme.micyou.audio.AndroidAudioSource
 import com.lanrhyme.micyou.audio.AudioLevelData
@@ -78,6 +74,8 @@ import com.lanrhyme.micyou.network.AudioPacketMessage
 import com.lanrhyme.micyou.network.AudioPacketMessageOrdered
 import com.lanrhyme.micyou.network.CODEC_OPUS
 import com.lanrhyme.micyou.network.ConnectMessage
+import com.lanrhyme.micyou.network.HANDSHAKE_CLIENT
+import com.lanrhyme.micyou.network.HANDSHAKE_SERVER
 import com.lanrhyme.micyou.network.calculateUdpPort
 import com.lanrhyme.micyou.network.MessageWrapper
 import com.lanrhyme.micyou.network.PACKET_MAGIC
@@ -95,9 +93,6 @@ import com.lanrhyme.micyou.viewmodel.TransportProtocol
 import com.lanrhyme.micyou.network.hasControlMessage
 import com.lanrhyme.micyou.network.MuteMessage
 import com.lanrhyme.micyou.network.PongMessage
-/**
- * Converts OutputStream to ByteWriteChannel using the current coroutine context.
- */
 internal suspend fun awaitJobWithin(job: Job, timeoutMs: Long): Boolean =
     withTimeoutOrNull(timeoutMs) {
         job.join()
@@ -253,31 +248,6 @@ internal class ActiveEngineOwner<E : Any, R : Any> {
             false
         }
     }
-}
-
-suspend fun OutputStream.toByteWriteChannelSuspend(): ByteWriteChannel {
-    val scope = CoroutineScope(coroutineContext)
-    val outputStream = this
-    return scope.reader(Dispatchers.IO, autoFlush = true) {
-        val buffer = ByteArray(4096)
-        try {
-            while (!channel.isClosedForRead) {
-                val count = channel.readAvailable(buffer)
-                if (count == -1) break
-                try {
-                    outputStream.write(buffer, 0, count)
-                    outputStream.flush()
-                } catch (e: java.io.IOException) {
-                    Logger.e("ByteWriteChannel", "I/O error writing to stream: ${e.message}", e)
-                    break
-                }
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Logger.e("ByteWriteChannel", "Unexpected error in write channel: ${e.message}", e)
-        }
-    }.channel
 }
 
 class AudioEngine constructor() {
@@ -444,8 +414,6 @@ class AudioEngine constructor() {
     private var lifecycleGeneration: Long = 0
     private var startRequestGeneration: Long = 0
 
-    private val CHECK_1 = "MicYouCheck1"
-    private val CHECK_2 = "MicYouCheck2"
 
     suspend fun start(
         ip: String,
@@ -484,7 +452,7 @@ class AudioEngine constructor() {
             startStopMutex.withLock {
                 if (firstAttempt) {
                     if (closed.get()) throw IllegalStateException("AudioEngine is closed")
-                    configRestartJob?.takeIf { it !== coroutineContext[Job] }?.cancel()
+                    configRestartJob?.takeIf { it !== currentCoroutineContext()[Job] }?.cancel()
                     val wasDesiredRunning = desiredRunning
                     val timedOutJob = stopTimedOutJob
                     if (timedOutJob != null && !timedOutJob.isCompleted) {
@@ -535,7 +503,7 @@ class AudioEngine constructor() {
                     var output: ByteWriteChannel? = null
                     var selectorManager: SelectorManager? = null
                     var closeConnection: () -> Unit = {}
-                    val sessionJobIdentity = requireNotNull(coroutineContext[Job])
+                    val sessionJobIdentity = requireNotNull(currentCoroutineContext()[Job])
 
                     try {
                         if (lifecycleGeneration != sessionGeneration || !desiredRunning) {
@@ -697,12 +665,12 @@ class AudioEngine constructor() {
                             val out = output ?: throw IllegalStateException("TCP output channel unavailable")
                             val inChannel = input ?: throw IllegalStateException("TCP input channel unavailable")
                             Logger.d("AudioEngine", "Starting handshake")
-                            out.writeFully(CHECK_1.encodeToByteArray())
+                            out.writeFully(HANDSHAKE_CLIENT.encodeToByteArray())
                             out.flush()
-                            val responseBuffer = ByteArray(CHECK_2.length)
+                            val responseBuffer = ByteArray(HANDSHAKE_SERVER.length)
                             inChannel.readFully(responseBuffer, 0, responseBuffer.size)
 
-                            if (!responseBuffer.decodeToString().equals(CHECK_2)) {
+                            if (!responseBuffer.decodeToString().equals(HANDSHAKE_SERVER)) {
                                 val msg = getString(R.string.errorHandshakeFailedDetailed)
                                 Logger.e("AudioEngine", "Handshake failed: received ${responseBuffer.decodeToString()}")
                                 throw IllegalStateException(msg)
@@ -1551,7 +1519,6 @@ class AudioEngine constructor() {
     private fun isNormalDisconnect(e: Throwable): Boolean {
         if (e is kotlinx.coroutines.CancellationException) return true
         if (e is EOFException) return true
-        if (e is io.ktor.utils.io.errors.EOFException) return true
         if (e is java.io.IOException) {
             val msg = e.message ?: ""
             if (msg.contains("Socket closed", ignoreCase = true)) return true
@@ -1581,7 +1548,7 @@ class AudioEngine constructor() {
                                ((buffer[byteIndex + 1].toInt() and 0xFF) shl 8) or
                                ((buffer[byteIndex + 2].toInt() and 0xFF) shl 16) or
                                ((buffer[byteIndex + 3].toInt() and 0xFF) shl 24)
-    val sample = Float.fromBits(bits)
+                    val sample = Float.fromBits(bits)
                     sum += sample * sample
                     maxSample = maxOf(maxSample, kotlin.math.abs(sample.toDouble()))
                 }
@@ -1601,15 +1568,15 @@ class AudioEngine constructor() {
                     val byteIndex = i * 2
                     val sample = (buffer[byteIndex].toInt() and 0xFF) or
                                  ((buffer[byteIndex + 1].toInt()) shl 8)
-    val normalized = sample / 32768.0
+                    val normalized = sample / 32768.0
                     sum += normalized * normalized
                     maxSample = maxOf(maxSample, kotlin.math.abs(normalized))
                 }
             }
         }
         if (sampleCount == 0) return AudioLevelData.SILENT
-        val rms = Math.sqrt(sum / sampleCount).toFloat().coerceIn(0f, 1f)
-    val peak = maxSample.toFloat().coerceIn(0f, 1f)
+        val rms = kotlin.math.sqrt(sum / sampleCount).toFloat().coerceIn(0f, 1f)
+        val peak = maxSample.toFloat().coerceIn(0f, 1f)
         return AudioLevelData.fromRmsAndPeak(rms, peak)
     }
 }
