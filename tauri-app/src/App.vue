@@ -453,7 +453,7 @@ onUnmounted(() => {
               <button
                 @click="server.connectionMode.value = 'wifi'"
                 class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 hover:-translate-y-0.5 active:scale-95"
-                :class="server.connectionMode.value === 'wifi' ? 'bg-primary text-on-primary shadow-lg shadow-primary/30' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/70 hover:shadow-md'"
+                :class="server.connectionMode.value === 'wifi' ? 'bg-primary text-on-primary shadow-[0_0_16px_0] shadow-primary/30' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/70 hover:shadow-md'"
               >
                 <Wifi class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">Wi-Fi</span>
@@ -461,7 +461,7 @@ onUnmounted(() => {
               <button
                 @click="server.connectionMode.value = 'usb'"
                 class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 hover:-translate-y-0.5 active:scale-95"
-                :class="server.connectionMode.value === 'usb' ? 'bg-primary text-on-primary shadow-lg shadow-primary/30' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/70 hover:shadow-md'"
+                :class="server.connectionMode.value === 'usb' ? 'bg-primary text-on-primary shadow-[0_0_16px_0] shadow-primary/30' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/70 hover:shadow-md'"
               >
                 <Mic class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">USB</span>
@@ -469,7 +469,7 @@ onUnmounted(() => {
               <button
                 @click="server.connectionMode.value = 'web'"
                 class="flex-1 flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-300 hover:-translate-y-0.5 active:scale-95"
-                :class="server.connectionMode.value === 'web' ? 'bg-primary text-on-primary shadow-lg shadow-primary/30' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/70 hover:shadow-md'"
+                :class="server.connectionMode.value === 'web' ? 'bg-primary text-on-primary shadow-[0_0_16px_0] shadow-primary/30' : 'bg-surface-variant/40 text-on-surface-variant hover:bg-surface-variant/70 hover:shadow-md'"
               >
                 <Globe class="w-4 h-4 mb-1" />
                 <span class="text-[10px] font-medium">Web</span>
