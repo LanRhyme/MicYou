@@ -25,7 +25,7 @@
     "@tauri-apps/plugin-dialog": "^2.8.1",
     "@tauri-apps/plugin-notification": "^2.5.1",
     "@tauri-apps/plugin-opener": "^2.7.0",
-    "@vueuse/core": "^14.4.0",
+    "@vueuse/core": "^15",
     "animejs": "^4.5.0",
     "clsx": "^2.1.1",
     "codemirror": "^6.0.2",
