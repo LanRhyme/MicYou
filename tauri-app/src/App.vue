@@ -33,7 +33,7 @@ import MonitoringWarningDialog from './features/audio/components/MonitoringWarni
 
 // Raw asset content and animation utilities
 import appIconSvg from './shared/assets/app_icon.svg?raw';
-import anime from 'animejs';
+import { animate, spring, utils, type JSAnimation } from 'animejs';
 
 applyPlatformClasses();
 
@@ -72,8 +72,8 @@ const centralBtnRef = ref<HTMLButtonElement | null>(null);
 const glowRef = ref<HTMLDivElement | null>(null);
 const statusDotRef = ref<HTMLDivElement | null>(null);
 
-let breatheAnim: ReturnType<typeof anime> | null = null;
-let dotPulseAnim: ReturnType<typeof anime> | null = null;
+let breatheAnim: JSAnimation | null = null;
+let dotPulseAnim: JSAnimation | null = null;
 
 // App wizard and pocket mode settings
 const showOnboarding = ref(localStorage.getItem('micyou_onboarding_completed') !== 'true');
@@ -119,11 +119,9 @@ onUnmounted(() => window.removeEventListener('blur', closeIpMenu));
 const toggleStreaming = async () => {
   await server.toggleStreaming();
   if (centralBtnRef.value) {
-    anime({
-      targets: centralBtnRef.value,
+    animate(centralBtnRef.value, {
       scale: [1, 0.9, 1.05, 1],
-      duration: 600,
-      easing: 'spring(1, 80, 10, 0)',
+      ease: spring({ mass: 1, stiffness: 80, damping: 10, velocity: 0 }),
     });
   }
 };
@@ -251,22 +249,20 @@ watch(pocketMode, async (isPocket, wasPocket) => {
 // Central action button hover animations
 const onCentralBtnHover = () => {
   if (centralBtnRef.value) {
-    anime({
-      targets: centralBtnRef.value,
+    animate(centralBtnRef.value, {
       scale: 1.08,
       duration: 400,
-      easing: 'easeOutExpo',
+      ease: 'outExpo',
     });
   }
 };
 
 const onCentralBtnLeave = () => {
   if (centralBtnRef.value) {
-    anime({
-      targets: centralBtnRef.value,
+    animate(centralBtnRef.value, {
       scale: 1,
       duration: 500,
-      easing: 'easeOutExpo',
+      ease: 'outExpo',
     });
   }
 };
@@ -275,14 +271,13 @@ const onCentralBtnLeave = () => {
 watchEffect(() => {
   if (server.serverState.value === 'streaming' && glowRef.value) {
     if (!breatheAnim) {
-      breatheAnim = anime({
-        targets: glowRef.value,
+      breatheAnim = animate(glowRef.value, {
         opacity: [0.3, 0.7],
         scale: [1.2, 1.35],
         duration: 2000,
-        direction: 'alternate',
+        alternate: true,
         loop: true,
-        easing: 'easeInOutSine',
+        ease: 'inOutSine',
       });
     }
   } else {
@@ -291,7 +286,7 @@ watchEffect(() => {
       breatheAnim = null;
     }
     if (glowRef.value) {
-      anime.set(glowRef.value, { opacity: 0.3, scale: 1.25 });
+      utils.set(glowRef.value, { opacity: 0.3, scale: 1.25 });
     }
   }
 });
@@ -300,12 +295,11 @@ watchEffect(() => {
 watchEffect(() => {
   if (server.serverState.value === 'streaming' && statusDotRef.value) {
     if (!dotPulseAnim) {
-      dotPulseAnim = anime({
-        targets: statusDotRef.value,
+      dotPulseAnim = animate(statusDotRef.value, {
         scale: [1, 1.4, 1],
         duration: 1500,
         loop: true,
-        easing: 'easeInOutQuad',
+        ease: 'inOutQuad',
       });
     }
   } else {
@@ -314,7 +308,7 @@ watchEffect(() => {
       dotPulseAnim = null;
     }
     if (statusDotRef.value) {
-      anime.set(statusDotRef.value, { scale: 1 });
+      utils.set(statusDotRef.value, { scale: 1 });
     }
   }
 });
