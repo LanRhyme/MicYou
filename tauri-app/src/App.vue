@@ -530,14 +530,14 @@ onUnmounted(() => {
               <!-- Central Button When Streaming -->
               <div class="relative flex items-center justify-center">
                 <div ref="glowRef" class="absolute inset-0 bg-error/30 rounded-full blur-md"></div>
-                <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-[72px] h-[72px] rounded-full bg-error flex items-center justify-center shadow-lg transition-all duration-300 group-hover:bg-error/90 border border-white/10 hover:shadow-lg hover:shadow-error/30">
+                <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-[72px] h-[72px] rounded-full bg-error flex items-center justify-center shadow-[0_0_16px_0] shadow-error/20 transition-all duration-300 group-hover:bg-error/90 border border-white/10 hover:shadow-[0_0_24px_4px] hover:shadow-error/30">
                   <Unlink class="w-7 h-7 text-on-error" stroke-width="2.5" />
                 </button>
               </div>
             </AudioRing>
 
             <div v-else class="relative w-full h-full flex items-center justify-center">
-              <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-xl transition-all duration-300 hover:-translate-y-1 active:scale-95 border border-white/10 hover:shadow-2xl hover:shadow-primary/40"
+              <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-[0_0_24px_2px] transition-all duration-300 hover:-translate-y-1 active:scale-95 border border-white/10 hover:shadow-[0_0_32px_6px] hover:shadow-primary/40"
                       :class="server.serverState.value === 'starting' ? 'bg-secondary shadow-secondary/30 text-on-secondary' : (server.serverState.value === 'connecting' ? 'bg-tertiary shadow-tertiary/30 text-on-tertiary' : 'bg-primary shadow-primary/30 text-on-primary')">
                 <RefreshCw v-if="server.serverState.value === 'connecting'" class="w-7 h-7 animate-spin-slow" stroke-width="2.5" />
                 <Loader2 v-else-if="server.serverState.value === 'starting'" class="w-7 h-7 animate-spin" stroke-width="2.5" />
