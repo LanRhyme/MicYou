@@ -215,6 +215,16 @@ fn rms(samples: &[f32]) -> f32 {
 const ACTIVE_POLL: Duration = Duration::from_millis(100);
 const IDLE_POLL: Duration = Duration::from_millis(500);
 
+/// Block the audio thread until the next event or `wait` elapses. The timer
+/// is created inside `block_on`, the only place the runtime is current.
+fn recv_within<T>(
+    runtime: &tokio::runtime::Runtime,
+    rx: &mut mpsc::Receiver<T>,
+    wait: Duration,
+) -> Result<Option<T>, tokio::time::error::Elapsed> {
+    runtime.block_on(async { tokio::time::timeout(wait, rx.recv()).await })
+}
+
 fn run(pipeline: Pipeline) {
     let Pipeline {
         mut audio_rx,
@@ -334,7 +344,7 @@ fn run(pipeline: Pipeline) {
     let mut session_active = false;
     loop {
         let wait = if session_active { ACTIVE_POLL } else { IDLE_POLL };
-        let event = match runtime.block_on(tokio::time::timeout(wait, audio_rx.recv())) {
+        let event = match recv_within(&runtime, &mut audio_rx, wait) {
             Ok(Some(event)) => event,
             Ok(None) => break,
             Err(_) => {
@@ -441,7 +451,27 @@ fn run(pipeline: Pipeline) {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_pcm, should_capture_loopback};
+    use super::{decode_pcm, recv_within, should_capture_loopback};
+    use std::time::Duration;
+
+    #[test]
+    fn recv_within_works_on_a_plain_thread() {
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .build()
+                .unwrap();
+            let wait = Duration::from_millis(10);
+            assert!(recv_within(&runtime, &mut rx, wait).is_err());
+            tx.try_send(7).unwrap();
+            assert_eq!(recv_within(&runtime, &mut rx, wait).unwrap(), Some(7));
+            drop(tx);
+            assert_eq!(recv_within(&runtime, &mut rx, wait).unwrap(), None);
+        })
+        .join()
+        .unwrap();
+    }
 
     #[test]
     fn loopback_waits_for_first_audio_packet() {
