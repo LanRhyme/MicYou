@@ -2,10 +2,10 @@
   <Transition name="dialog">
     <div v-if="show" class="fixed inset-0 z-100 flex items-center justify-center p-4">
       <!-- Backdrop -->
-      <div class="absolute inset-0 bg-background/60 backdrop-blur-md" @click="close"></div>
+      <div class="absolute inset-0 bg-background/70" @click="close"></div>
       
       <!-- Dialog Panel -->
-      <div class="relative w-full max-w-md bg-surface-bright/95 backdrop-blur-2xl rounded-3xl overflow-hidden shadow-2xl border border-white/10 flex flex-col transform transition-all">
+      <div class="relative w-full max-w-md bg-surface-bright rounded-3xl overflow-hidden shadow-2xl border border-white/10 flex flex-col transform transition-all">
         
         <!-- Decorative Glow -->
         <div class="absolute -top-32 -right-32 w-64 h-64 bg-error/20 rounded-full blur-[80px] pointer-events-none"></div>
@@ -80,21 +80,3 @@ const close = () => {
   emit('close')
 }
 </script>
-
-<style scoped>
-.dialog-enter-active,
-.dialog-leave-active {
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.dialog-enter-from,
-.dialog-leave-to {
-  opacity: 0;
-}
-
-.dialog-enter-from .relative,
-.dialog-leave-to .relative {
-  transform: scale(0.95) translateY(10px);
-  opacity: 0;
-}
-</style>

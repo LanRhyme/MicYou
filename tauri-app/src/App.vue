@@ -443,7 +443,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Main Content -->
-      <div class="flex flex-1 gap-3 min-h-0">
+      <div class="relative flex flex-1 gap-3 min-h-0">
         <!-- Left Panel -->
         <div class="flex flex-col gap-3 transition-all duration-300" :class="audio.showMonitoringPanel.value ? 'w-[28%]' : 'w-[38%]'">
           <!-- Mode Card -->
@@ -548,9 +548,11 @@ onUnmounted(() => {
         </div>
 
         <!-- Right Panel (Monitoring) -->
-        <div v-if="audio.showMonitoringPanel.value" class="w-[28%] transition-all duration-300 min-w-0">
-          <MonitoringPanel :serverState="server.serverState.value" :audioLevel="audio.audioLevel.value" :metrics="audio.audioMetrics.value" />
-        </div>
+        <Transition name="panel">
+          <div v-if="audio.showMonitoringPanel.value" class="w-[28%] min-w-0">
+            <MonitoringPanel :serverState="server.serverState.value" :audioLevel="audio.audioLevel.value" :metrics="audio.audioMetrics.value" />
+          </div>
+        </Transition>
       </div>
 
       <!-- Bottom Bar -->

@@ -372,29 +372,93 @@
   }
 }
 
-/* Vue transitions */
-.dialog-enter-active,
+/* Motion: Material 3 easing and durations shared by CSS transitions and the
+   window enter/exit animation (features/window/composables/useWindowTransition). */
+:root {
+  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-enter: 260ms;
+  --duration-exit: 160ms;
+}
+
+/* Dialogs: the root (scrim) fades, its last child (the panel) also scales up
+   on enter and settles slightly down on exit. Exits are shorter than enters. */
+.dialog-enter-active {
+  transition: opacity 200ms var(--ease-standard);
+}
+
 .dialog-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  transition: opacity var(--duration-exit) var(--ease-emphasized-accelerate);
+}
+
+.dialog-enter-active > :last-child {
+  transition: transform var(--duration-enter) var(--ease-emphasized-decelerate);
+}
+
+.dialog-leave-active > :last-child {
+  transition: transform var(--duration-exit) var(--ease-emphasized-accelerate);
 }
 
 .dialog-enter-from,
 .dialog-leave-to {
   opacity: 0;
-  transform: scale(0.95) translateY(10px);
 }
 
-.fade-slide-enter-active,
+.dialog-enter-from > :last-child {
+  transform: scale(0.94) translateY(12px);
+}
+
+.dialog-leave-to > :last-child {
+  transform: scale(0.97) translateY(4px);
+}
+
+/* Side panels that appear next to resizing columns. */
+.panel-enter-active {
+  transition: opacity 220ms var(--ease-standard), transform var(--duration-enter) var(--ease-emphasized-decelerate);
+}
+
+/* Out of the flow while leaving, so the neighbours can already take its space;
+   the parent must be positioned. */
+.panel-leave-active {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  transition: opacity 120ms var(--ease-emphasized-accelerate), transform var(--duration-exit) var(--ease-emphasized-accelerate);
+}
+
+.panel-enter-from,
+.panel-leave-to {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+.fade-slide-enter-active {
+  transition: opacity 220ms var(--ease-standard), transform var(--duration-enter) var(--ease-emphasized-decelerate);
+}
+
 .fade-slide-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 120ms var(--ease-emphasized-accelerate), transform 120ms var(--ease-emphasized-accelerate);
 }
 
 .fade-slide-enter-from {
   opacity: 0;
-  transform: translateX(20px);
+  transform: translateY(8px);
 }
 
 .fade-slide-leave-to {
   opacity: 0;
-  transform: translateX(-20px);
+  transform: translateY(-4px);
+}
+
+/* Respect the system "reduce motion" setting everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

@@ -101,18 +101,6 @@
   user-select: text !important;
   -webkit-user-select: text !important;
 }
-.dialog-enter-active {
-  transition: opacity 0.18s ease;
-}
-.dialog-enter-from {
-  opacity: 0;
-}
-.dialog-leave-active {
-  transition: opacity 0.12s ease;
-}
-.dialog-leave-to {
-  opacity: 0;
-}
 .tab-enter-active {
   transition:
     opacity 0.15s ease,

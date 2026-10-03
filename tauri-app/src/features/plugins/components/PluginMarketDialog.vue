@@ -318,19 +318,6 @@
 </template>
 
 <style scoped>
-.dialog-enter-active {
-  transition: opacity 0.18s ease;
-}
-.dialog-enter-from {
-  opacity: 0;
-}
-.dialog-leave-active {
-  transition: opacity 0.12s ease;
-}
-.dialog-leave-to {
-  opacity: 0;
-}
-
 .readme-enter-active {
   transition: opacity 0.2s ease, transform 0.2s ease;
 }

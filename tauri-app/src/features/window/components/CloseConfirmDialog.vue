@@ -1,9 +1,9 @@
 <template>
   <Transition name="dialog">
     <div v-if="show" class="fixed inset-0 z-100 flex items-center justify-center p-4">
-      <div class="absolute inset-0 bg-background/60 backdrop-blur-md" @click="close"></div>
+      <div class="absolute inset-0 bg-background/70" @click="close"></div>
 
-      <div class="relative w-full max-w-sm bg-surface-bright/95 backdrop-blur-2xl rounded-3xl overflow-hidden shadow-2xl border border-white/10 flex flex-col">
+      <div class="relative w-full max-w-sm bg-surface-bright rounded-3xl overflow-hidden shadow-2xl border border-white/10 flex flex-col">
         <div class="absolute -top-32 -right-32 w-64 h-64 bg-primary/20 rounded-full blur-[80px] pointer-events-none"></div>
         <div class="absolute -bottom-32 -left-32 w-64 h-64 bg-tertiary/10 rounded-full blur-[80px] pointer-events-none"></div>
 
@@ -83,18 +83,3 @@ function select(action: 'hide' | 'exit') {
   emit('update:show', false);
 }
 </script>
-
-<style scoped>
-.dialog-enter-active,
-.dialog-leave-active {
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.dialog-enter-from,
-.dialog-leave-to {
-  opacity: 0;
-}
-.dialog-enter-from .relative,
-.dialog-leave-to .relative {
-  transform: scale(0.95) translateY(8px);
-}
-</style>
