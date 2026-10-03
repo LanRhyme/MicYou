@@ -17,7 +17,7 @@ kotlinx-serialization = "1.11.0"
 materialKolor = "5.0.1"
 filekit = "0.16.0"
 concentus = "1.0.2"
-haze = "1.7.3"
+haze = "2.0.1"
 
 # === 兼容模式版本（启用: -Pmicyou.androidCompat=true）===
 # 兼容 Android 5.0+ (API 21+) 的降级版本
@@ -65,6 +65,7 @@ filekit-core = { module = "io.github.vinceglb:filekit-core", version.ref = "file
 filekit-dialogs-compose = { module = "io.github.vinceglb:filekit-dialogs-compose", version.ref = "filekit" }
 concentus = { module = "io.github.jaredmdobson:concentus", version.ref = "concentus" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
+haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

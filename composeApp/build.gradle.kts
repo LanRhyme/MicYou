@@ -228,6 +228,10 @@ dependencies {
             exclude(group = "org.jetbrains.compose.animation")
         }
     }
+    // haze-blur only exists from Haze 2; the compat bridge draws no blur.
+    if (!androidCompat) {
+        implementation(libs.haze.blur)
+    }
     implementation(libs.materialKolor) {
         if (androidCompat) {
             exclude(group = "org.jetbrains.compose.ui")
