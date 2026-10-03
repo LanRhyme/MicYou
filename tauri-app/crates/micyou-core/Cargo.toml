@@ -51,4 +51,4 @@ libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["handleapi", "processthreadsapi", "winnt", "winsock2"] }
-winreg = "0.52.0"
+winreg = "0.55"
