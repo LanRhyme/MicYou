@@ -169,7 +169,6 @@ fn onnx_warning_logger() -> ort::logging::LoggerFunction {
 /// Initialize the ONNX Runtime by dynamically loading the shared library from
 /// the given path.  With `load-dynamic` this must be called once before any
 /// [`Session`](ort::session::Session) is built.
-
 #[cfg(feature = "noise-suppression")]
 pub fn init_ort_runtime(lib_path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     ort::init_from(lib_path)?
@@ -1407,7 +1406,7 @@ impl DspProcessor {
             .expect("AEC model must be loaded before processing");
         let mut output = Vec::with_capacity(input.len());
 
-        for chunk in input.chunks_exact(AEC_HOP_LEN) {
+        for chunk in input.as_chunks::<AEC_HOP_LEN>().0 {
             match self.far_end.take_hop() {
                 Some(far_chunk) => output.extend(processor.process(chunk, &far_chunk)?),
                 None => output.extend_from_slice(chunk),

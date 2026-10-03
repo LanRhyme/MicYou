@@ -33,6 +33,9 @@ use crate::error::{PluginError, PluginResult};
 use crate::plugin::{AudioFrameCtx, PluginInstance, PluginRuntime, ProcessStatus};
 use std::sync::{Arc, Mutex, RwLock};
 
+/// Per-node DSP callback: node name, interleaved samples, channels, queued ms.
+pub type DspHook = Box<dyn FnMut(&str, &mut Vec<f32>, usize, f64) + Send>;
+
 /// Legacy synthetic chain node name that runs **all** registered plugins.
 /// Must stay in sync with `micyou_audio::dsp::PLUGIN_CHAIN_NODE` (this crate
 /// intentionally does not depend on `micyou-audio`).
@@ -215,7 +218,7 @@ impl PluginDspBridge {
     /// processing-chain node name: the legacy `"Plugins"` node runs every
     /// registered plugin; a `Plugin:<id>` node runs just that plugin.
     /// Cheap when no nodes exist.
-    pub fn hook(&self) -> Box<dyn FnMut(&str, &mut Vec<f32>, usize, f64) + Send> {
+    pub fn hook(&self) -> DspHook {
         let registry = self.registry.clone();
         Box::new(
             move |node: &str, data: &mut Vec<f32>, channels: usize, queued_ms: f64| {

@@ -387,8 +387,8 @@ impl PluginRuntime for WasmPlugin {
             this.memory
                 .read(&mut this.store, ptr as usize, &mut processed)
                 .map_err(|e| PluginError::Runtime(format!("frame read: {e}")))?;
-            for (sample, chunk) in ctx.data.iter_mut().zip(processed.chunks_exact(4)) {
-                *sample = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            for (sample, chunk) in ctx.data.iter_mut().zip(processed.as_chunks::<4>().0) {
+                *sample = f32::from_le_bytes(*chunk);
             }
             Ok(ProcessStatus::Ok)
         })

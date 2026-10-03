@@ -466,10 +466,8 @@ fn pipewire_loopback_thread(
                         }
 
                         if let Ok(mut ring) = reader_buffer.lock() {
-                            for bytes in pending[..complete_bytes].chunks_exact(4) {
-                                ring.push_overwrite(f32::from_ne_bytes([
-                                    bytes[0], bytes[1], bytes[2], bytes[3],
-                                ]));
+                            for bytes in pending[..complete_bytes].as_chunks::<4>().0 {
+                                ring.push_overwrite(f32::from_ne_bytes(*bytes));
                             }
                         }
                         pending.drain(..complete_bytes);
