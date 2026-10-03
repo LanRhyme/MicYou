@@ -804,11 +804,18 @@ impl AudioOutputManager {
         self.mixer.add(samples, gain);
     }
 
-    pub fn queued_samples(&self) -> usize {
-        if let Some(producer) = &self.producer {
-            producer.occupied_len()
+    /// Milliseconds of audio queued in the output ring buffer, measured at
+    /// the device's own rate and channel count.
+    pub fn queued_ms(&self) -> f64 {
+        let Some(producer) = &self.producer else {
+            return 0.0;
+        };
+        let samples_per_ms =
+            self.device_sample_rate as f64 * self.device_channels.max(1) as f64 / 1000.0;
+        if samples_per_ms > 0.0 {
+            producer.occupied_len() as f64 / samples_per_ms
         } else {
-            0
+            0.0
         }
     }
 }

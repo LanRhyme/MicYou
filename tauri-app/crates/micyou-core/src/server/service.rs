@@ -222,17 +222,12 @@ pub async fn start_server(state: &ServerState, request: StartRequest) -> Result<
     let udp_port = validate_server_port(port, mode)?;
 
     let _lifecycle_guard = state.lifecycle_gate.enter().await;
+    // The lifecycle phase is the single source of truth for "running": a
+    // token only exists between a successful begin_start and the next stop.
     state.lifecycle.lock().await.begin_start().await?;
     let bind_addr = bind_address.unwrap_or_else(|| "0.0.0.0".to_string());
-    let cancel_token = {
-        let mut token_lock = state.cancel_token.lock().await;
-        if token_lock.is_some() {
-            return Err("Server is already running".to_string());
-        }
-        let token = CancellationToken::new();
-        *token_lock = Some(token.clone());
-        token
-    };
+    let cancel_token = CancellationToken::new();
+    *state.cancel_token.lock().await = Some(cancel_token.clone());
 
     // Settings may have been edited by another frontend since launch.
     let file_settings = crate::config::load_dsp_settings();
@@ -241,10 +236,15 @@ pub async fn start_server(state: &ServerState, request: StartRequest) -> Result<
         .write()
         .unwrap_or_else(|poisoned| poisoned.into_inner()) = file_settings;
 
-    let mdns = crate::discovery::NetworkManager::start_mdns(port, &bind_addr).map_err(|e| e.to_string());
-    match mdns {
-        Ok(manager) => *state.mdns_manager.lock().await = Some(manager),
-        Err(e) => log::warn!("[Server] mDNS unavailable, phones must enter the IP manually: {e}"),
+    // Web mode advertises its own HTTPS service type; announcing the TCP
+    // control service there would point phones at a port that speaks TLS.
+    if mode != ConnectionMode::Web {
+        match crate::discovery::NetworkManager::start_mdns(port, &bind_addr) {
+            Ok(manager) => *state.mdns_manager.lock().await = Some(manager),
+            Err(e) => {
+                log::warn!("[Server] mDNS unavailable, phones must enter the IP manually: {e}")
+            }
+        }
     }
 
     // Pick up plugins installed by another frontend since the last start.
@@ -358,16 +358,14 @@ async fn start_web(
     let (web_audio_tx, mut web_audio_rx) =
         tokio::sync::mpsc::channel::<(u64, AudioPacketMessage)>(AUDIO_CHANNEL_CAPACITY);
     if let Err(e) = web_server
-        .start(port, state.events.clone(), web_audio_tx)
+        .start(port, bind_addr, state.events.clone(), web_audio_tx)
         .await
     {
         let error = format!("Failed to start web server: {e}");
         return fail_start(state, cancel_token, Vec::new(), error).await;
     }
 
-    let web_mdns =
-        crate::discovery::NetworkManager::start_web_mdns(port, bind_addr).map_err(|e| e.to_string());
-    match web_mdns {
+    match crate::discovery::NetworkManager::start_web_mdns(port, bind_addr) {
         Ok(manager) => *state.web_mdns.lock().await = Some(manager),
         Err(e) => log::warn!("[Server] web mDNS unavailable: {e}"),
     }

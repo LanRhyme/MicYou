@@ -42,7 +42,7 @@ enum AudioOutputCommand {
     Push(Vec<f32>, usize),
     PushSound(Vec<f32>, f32),
     SetMonitoring(bool),
-    Queued(Sender<usize>),
+    Queued(Sender<f64>),
     Shutdown,
 }
 
@@ -186,7 +186,7 @@ impl AudioOutputHandle {
                         manager.set_monitoring(enabled);
                     }
                     Ok(AudioOutputCommand::Queued(reply)) => {
-                        let _ = reply.send(manager.queued_samples());
+                        let _ = reply.send(manager.queued_ms());
                     }
                     Err(RecvTimeoutError::Timeout) => {}
                     Ok(AudioOutputCommand::Shutdown) | Err(RecvTimeoutError::Disconnected) => {
@@ -236,13 +236,13 @@ impl AudioOutputHandle {
         let _ = self.tx.send(AudioOutputCommand::SetMonitoring(enabled));
     }
 
-    /// Samples currently queued in the output ring buffer.
-    pub fn queued_samples(&self) -> usize {
+    /// Milliseconds of audio currently queued in the output ring buffer.
+    pub fn queued_ms(&self) -> f64 {
         let (reply_tx, reply_rx) = mpsc::channel();
         if self.tx.send(AudioOutputCommand::Queued(reply_tx)).is_err() {
-            return 0;
+            return 0.0;
         }
-        reply_rx.recv().unwrap_or(0)
+        reply_rx.recv().unwrap_or(0.0)
     }
 
     /// Close the output stream and stop the device thread. Only called when

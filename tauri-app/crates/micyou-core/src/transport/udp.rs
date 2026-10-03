@@ -122,19 +122,13 @@ pub async fn start_udp_server(
     active_audio_session: SharedActiveAudioSession,
     ready: tokio::sync::oneshot::Sender<Result<(), String>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let result = (|| -> Result<tokio::net::UdpSocket, Box<dyn Error + Send + Sync>> {
-        // IPv6-aware bind helper. For IPv4 this reproduces the legacy logic
-        // exactly (same "host:port" parse, AF_INET, 2MB recv buffer,
-        // non-blocking); IPv6 literals select AF_INET6 instead.
-        let std_socket: std::net::UdpSocket =
-            crate::transport::net_bind::bind_udp_socket(&bind_address, port)?;
-        Ok(UdpSocket::from_std(std_socket)?)
-    })();
-    let socket = match result {
+    let bound = crate::transport::net_bind::bind_udp_socket(&bind_address, port)
+        .and_then(UdpSocket::from_std);
+    let socket = match bound {
         Ok(socket) => socket,
         Err(error) => {
             let _ = ready.send(Err(error.to_string()));
-            return Err(error);
+            return Err(error.into());
         }
     };
     // Additive IPv6 companion socket for the legacy IPv4 auto-bind
@@ -177,11 +171,7 @@ pub async fn start_udp_server(
         Vec::new()
     };
 
-    let mut last_seq: Option<i32> = None;
-    let mut total_packets: u64 = 0;
-    let mut lost_packets: u64 = 0;
-    let mut jitter: f64 = 0.0;
-    let mut last_transit: i64 = 0;
+    let mut meter = crate::stats::StreamMeter::default();
 
     loop {
         tokio::select! {
@@ -218,35 +208,8 @@ pub async fn start_udp_server(
                             ) else {
                                 continue;
                             };
-                            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
-                            stats.mark_udp_received(now);
-
-                            let seq = audio_packet_ordered.sequence_number;
-                            if let Some(l_seq) = last_seq {
-                                if seq > l_seq + 1 {
-                                    lost_packets += (seq - l_seq - 1) as u64;
-                                }
-                            }
-                            last_seq = Some(seq);
-                            total_packets += 1;
-
-                            if total_packets > 0 {
-                                stats.set_loss_rate((lost_packets as f64 / total_packets as f64) * 100.0);
-                            }
-
-                            let transit = now as i64 - audio_packet_ordered.timestamp;
-                            if last_transit != 0 {
-                                let d = (transit - last_transit).abs() as f64;
-                                jitter += (d - jitter) / 16.0;
-                                stats.set_jitter(jitter);
-                            }
-                            last_transit = transit;
-
-                            if let Some(ref audio_info) = audio_packet_ordered.audio_packet {
-                                // Bitrate estimation based on payload len (simplified)
-                                let bps = (payload.len() as u32) * 8 * (audio_info.sample_rate as u32) / 480; // approximate assuming ~10ms packets
-                                stats.set_audio_info(audio_info.sample_rate as u32, bps, audio_info.channel_count as u32);
-                            }
+                            stats.mark_udp_received(crate::stats::unix_millis());
+                            meter.observe(&stats, epoch, &audio_packet_ordered, payload.len());
 
                             match tx.try_send(AudioStreamEvent::Packet {
                                 packet: audio_packet_ordered,

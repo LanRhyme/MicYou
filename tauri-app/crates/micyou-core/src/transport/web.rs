@@ -32,67 +32,65 @@ pub struct WebServer {
     task_v6: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
-pub struct GeneratedCert {
-    pub cert_pem: String,
-    pub key_pem: String,
+struct GeneratedCert {
+    cert_pem: String,
+    key_pem: String,
 }
 
-pub fn cert_cache_dir() -> PathBuf {
-    let dir = std::env::temp_dir().join("micyou_web_cert");
-    std::fs::create_dir_all(&dir).ok();
-    dir
+/// Where the self-signed certificate lives. It sits next to the shared config
+/// rather than in the world-readable temp directory because it holds the
+/// TLS private key.
+fn cert_cache_dir() -> PathBuf {
+    crate::config::config_dir().join("web_cert")
 }
 
-pub fn get_lan_ips() -> Vec<String> {
-    let mut ips = Vec::new();
-    if let Ok(interfaces) = local_ip_address::list_afinet_netifas() {
-        for (_, ip) in interfaces {
-            if ip.is_loopback() || !ip.is_ipv4() {
-                continue;
-            }
-            let ip_str = ip.to_string();
-            if ip_str.starts_with("198.18.") || ip_str.starts_with("169.254.") {
-                continue;
-            }
-            ips.push(ip_str);
-        }
-    }
-    ips
+/// LAN IPv4 addresses a browser may use to reach the web mode.
+pub fn get_lan_ips() -> Vec<IpAddr> {
+    let Ok(interfaces) = local_ip_address::list_afinet_netifas() else {
+        return Vec::new();
+    };
+    interfaces
+        .into_iter()
+        .map(|(_, ip)| ip)
+        .filter(|ip| match ip {
+            IpAddr::V4(v4) => !v4.is_loopback() && !v4.is_link_local() && !is_benchmark_v4(v4),
+            IpAddr::V6(_) => false,
+        })
+        .collect()
+}
+
+/// 198.18.0.0/15 is used by proxy tools (Clash TUN) for fake IPs.
+fn is_benchmark_v4(ip: &std::net::Ipv4Addr) -> bool {
+    let [a, b, ..] = ip.octets();
+    a == 198 && (b & 0xfe) == 18
 }
 
 /// Bindable LAN IPv6 addresses (ULA/GUA, best first). Additive companion to
 /// `get_lan_ips`, used for the WebSocket origin check and certificate SANs.
-pub fn get_lan_ipv6s() -> Vec<String> {
+pub fn get_lan_ipv6s() -> Vec<IpAddr> {
     crate::transport::net_bind::collect_ipv6_interfaces(&[])
         .into_iter()
-        .map(|(ip, _)| ip.to_string())
+        .map(|(ip, _)| IpAddr::V6(ip))
         .collect()
 }
 
-pub fn generate_self_signed_cert_pem() -> Result<GeneratedCert, String> {
-    let lan_ips = get_lan_ips();
+/// Every address the certificate must cover, loopback first.
+fn certificate_ips() -> Vec<IpAddr> {
+    let mut ips = vec![
+        IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
+        IpAddr::V6(std::net::Ipv6Addr::LOCALHOST),
+    ];
+    ips.extend(get_lan_ips());
+    ips.extend(get_lan_ipv6s());
+    ips
+}
 
+fn generate_self_signed_cert_pem(ips: &[IpAddr]) -> Result<GeneratedCert, String> {
     let mut params = CertificateParams::new(vec!["localhost".to_string()])
         .map_err(|e| format!("Failed to create cert params: {}", e))?;
-
-    params.subject_alt_names.push(SanType::IpAddress(IpAddr::V4(
-        std::net::Ipv4Addr::LOCALHOST,
-    )));
-    for ip_str in &lan_ips {
-        if let Ok(ip) = ip_str.parse::<IpAddr>() {
-            params.subject_alt_names.push(SanType::IpAddress(ip));
-        }
-    }
-    // IPv6 SANs so browsers reaching the web mode over IPv6 match the cert
-    // (still self-signed; users accept it once, same as for IPv4).
-    params.subject_alt_names.push(SanType::IpAddress(IpAddr::V6(
-        std::net::Ipv6Addr::LOCALHOST,
-    )));
-    for ip_str in &get_lan_ipv6s() {
-        if let Ok(ip) = ip_str.parse::<IpAddr>() {
-            params.subject_alt_names.push(SanType::IpAddress(ip));
-        }
-    }
+    params
+        .subject_alt_names
+        .extend(ips.iter().copied().map(SanType::IpAddress));
 
     let key_pair =
         KeyPair::generate().map_err(|e| format!("Failed to generate key pair: {}", e))?;
@@ -106,44 +104,57 @@ pub fn generate_self_signed_cert_pem() -> Result<GeneratedCert, String> {
     })
 }
 
-pub fn load_or_generate_cert_pem() -> Result<GeneratedCert, String> {
+/// Write a file readable by the current user only.
+fn write_private(path: &std::path::Path, contents: &str) -> std::io::Result<()> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    std::io::Write::write_all(&mut options.open(path)?, contents.as_bytes())
+}
+
+/// Reuse the cached certificate while it still covers the current LAN
+/// addresses, so browsers only re-accept it when the network changed.
+fn load_or_generate_cert_pem() -> Result<GeneratedCert, String> {
     let cache_dir = cert_cache_dir();
     let cert_path = cache_dir.join("cert.pem");
     let key_path = cache_dir.join("key.pem");
+    let sans_path = cache_dir.join("sans.txt");
+    let ips = certificate_ips();
+    let sans = ips.iter().map(IpAddr::to_string).collect::<Vec<_>>().join("\n");
 
-    if cert_path.exists() && key_path.exists() {
-        if let (Ok(cert_pem), Ok(key_pem)) = (
-            std::fs::read_to_string(&cert_path),
-            std::fs::read_to_string(&key_path),
-        ) {
-            if !cert_pem.is_empty() && !key_pem.is_empty() {
-                return Ok(GeneratedCert { cert_pem, key_pem });
-            }
+    let cached = (
+        std::fs::read_to_string(&cert_path),
+        std::fs::read_to_string(&key_path),
+        std::fs::read_to_string(&sans_path),
+    );
+    if let (Ok(cert_pem), Ok(key_pem), Ok(cached_sans)) = cached {
+        if !cert_pem.is_empty() && !key_pem.is_empty() && cached_sans == sans {
+            return Ok(GeneratedCert { cert_pem, key_pem });
         }
     }
 
-    let cert = generate_self_signed_cert_pem()?;
-    std::fs::write(&cert_path, &cert.cert_pem).ok();
-    std::fs::write(&key_path, &cert.key_pem).ok();
+    let cert = generate_self_signed_cert_pem(&ips)?;
+    let persisted = std::fs::create_dir_all(&cache_dir)
+        .and_then(|()| write_private(&key_path, &cert.key_pem))
+        .and_then(|()| std::fs::write(&cert_path, &cert.cert_pem))
+        .and_then(|()| std::fs::write(&sans_path, &sans));
+    if let Err(e) = persisted {
+        log::warn!("[Web] could not cache the TLS certificate: {e}");
+    }
     Ok(cert)
 }
 
-pub fn float32_to_pcm16(float32_bytes: &[u8]) -> Vec<u8> {
-    let num_floats = float32_bytes.len() / 4;
-    let mut pcm = Vec::with_capacity(num_floats * 2);
-    for i in 0..num_floats {
-        let offset = i * 4;
-        let sample = f32::from_le_bytes([
-            float32_bytes[offset],
-            float32_bytes[offset + 1],
-            float32_bytes[offset + 2],
-            float32_bytes[offset + 3],
-        ]);
-        let clamped = sample.clamp(-1.0, 1.0);
-        let pcm_sample = (clamped * 32767.0) as i16;
-        pcm.extend_from_slice(&pcm_sample.to_le_bytes());
-    }
-    pcm
+fn float32_to_pcm16(float32_bytes: &[u8]) -> Vec<u8> {
+    float32_bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .flat_map(|chunk| {
+            let sample = f32::from_le_bytes(*chunk).clamp(-1.0, 1.0);
+            ((sample * 32767.0) as i16).to_le_bytes()
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -152,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_generate_self_signed_cert_pem() {
-        let cert = generate_self_signed_cert_pem();
+        let cert = generate_self_signed_cert_pem(&certificate_ips());
         assert!(
             cert.is_ok(),
             "Cert generation should succeed: {:?}",
@@ -165,17 +176,15 @@ mod tests {
 
     #[test]
     fn test_get_lan_ips() {
-        let ips = get_lan_ips();
-        for ip in &ips {
-            assert!(ip.parse::<IpAddr>().is_ok(), "Invalid IP: {}", ip);
+        for ip in get_lan_ips() {
+            assert!(ip.is_ipv4() && !ip.is_loopback(), "Invalid IP: {}", ip);
         }
     }
 
     #[test]
     fn test_get_lan_ipv6s_are_bindable() {
         for ip in get_lan_ipv6s() {
-            let parsed = ip.parse::<IpAddr>().expect("Invalid IPv6 string");
-            match parsed {
+            match ip {
                 IpAddr::V6(v6) => {
                     assert!(crate::transport::net_bind::is_bindable_v6(&v6), "Not bindable: {}", ip)
                 }
@@ -190,6 +199,9 @@ mod tests {
         assert!(is_valid_origin(Some("http://localhost:8443")));
         assert!(is_valid_origin(Some("http://127.0.0.1:8443")));
         assert!(!is_valid_origin(Some("https://evil.example.com")));
+        assert!(!is_valid_origin(Some("https://localhost.evil.example.com")));
+        assert!(!is_valid_origin(Some("https://127.0.0.1.evil.example.com")));
+        assert!(!is_valid_origin(Some("null")));
         for ip in get_lan_ips() {
             assert!(is_valid_origin(Some(&format!("https://{}:8443", ip))));
         }
@@ -209,9 +221,11 @@ mod tests {
     }
 
     #[test]
-    fn test_cert_cache_dir_exists() {
-        let dir = cert_cache_dir();
-        assert!(dir.exists());
+    fn origin_host_strips_scheme_port_and_brackets() {
+        assert_eq!(origin_host("https://192.168.1.2:8443"), Some("192.168.1.2"));
+        assert_eq!(origin_host("https://[fd00::1]:8443"), Some("fd00::1"));
+        assert_eq!(origin_host("https://[fd00::1]x"), None);
+        assert_eq!(origin_host("localhost"), None);
     }
 
     #[test]
@@ -288,9 +302,9 @@ use axum::response::{Html, IntoResponse};
 use axum::routing::get;
 use axum::serve::Listener;
 use axum::Router;
-use rustls::pki_types::CertificateDer;
+use rustls::pki_types::pem::PemObject;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::ServerConfig;
-use std::io::BufReader;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
@@ -303,21 +317,35 @@ const TLS_HANDSHAKE_TIMEOUT: std::time::Duration = std::time::Duration::from_sec
 const WEB_CLIENT_HTML: &str = include_str!("../../assets/web_client.html");
 const ALPINE_JS: &str = include_str!("../../assets/alpine.min.js");
 
-fn is_valid_origin(origin: Option<&str>) -> bool {
-    match origin {
-        None => true,
-        Some(o) => {
-            let o = o.to_lowercase();
-            o.contains("localhost")
-                || o.contains("127.0.0.1")
-                // IPv6 loopback origins arrive bracketed: https://[::1]:8443
-                || o.contains("[::1]")
-                || get_lan_ips().iter().any(|ip| o.contains(ip))
-                // IPv6 LAN origins are bracketed too, but the bare address is
-                // a substring of the bracketed form, so `contains` matches.
-                || get_lan_ipv6s().iter().any(|ip| o.contains(ip))
-        }
+/// Host part of an `Origin` header (`scheme://host[:port]`), with IPv6
+/// brackets removed.
+fn origin_host(origin: &str) -> Option<&str> {
+    let (_, authority) = origin.split_once("://")?;
+    if let Some(rest) = authority.strip_prefix('[') {
+        let (host, tail) = rest.split_once(']')?;
+        return (tail.is_empty() || tail.starts_with(':')).then_some(host);
     }
+    let host = authority.split(':').next()?;
+    (!host.is_empty()).then_some(host)
+}
+
+/// Only pages served by this machine may open the audio socket; any other
+/// site could otherwise inject audio into the virtual microphone from the
+/// user's browser.
+fn is_valid_origin(origin: Option<&str>) -> bool {
+    let Some(origin) = origin else {
+        return true;
+    };
+    let Some(host) = origin_host(origin) else {
+        return false;
+    };
+    if host.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    let Ok(ip) = host.parse::<IpAddr>() else {
+        return false;
+    };
+    ip.is_loopback() || get_lan_ips().contains(&ip) || get_lan_ipv6s().contains(&ip)
 }
 
 async fn handle_websocket(
@@ -425,20 +453,11 @@ async fn handle_ws_socket(
     }
 }
 
-/// Decrement without wrapping below zero; returns the new count. A plain
-/// CAS loop instead of `fetch_update`, which newer toolchains deprecate in
-/// favour of `try_update` that older ones lack.
+/// Decrement without wrapping below zero; returns the new count.
 fn decrement_client_count(client_count: &AtomicUsize) -> usize {
-    let mut count = client_count.load(Ordering::SeqCst);
-    loop {
-        let Some(next) = count.checked_sub(1) else {
-            return 0;
-        };
-        match client_count.compare_exchange_weak(count, next, Ordering::SeqCst, Ordering::SeqCst) {
-            Ok(_) => return next,
-            Err(actual) => count = actual,
-        }
-    }
+    client_count
+        .try_update(Ordering::SeqCst, Ordering::SeqCst, |count| count.checked_sub(1))
+        .map_or(0, |previous| previous - 1)
 }
 
 async fn serve_html() -> impl IntoResponse {
@@ -578,6 +597,7 @@ impl WebServer {
     pub async fn start(
         &self,
         port: u16,
+        bind_address: &str,
         events: SharedEvents,
         audio_tx: tokio::sync::mpsc::Sender<(u64, micyou_protocol::micyou::AudioPacketMessage)>,
     ) -> Result<(), String> {
@@ -604,14 +624,11 @@ impl WebServer {
 
         // Load TLS certificate
         let cert = load_or_generate_cert_pem()?;
-        let cert_chain: Vec<CertificateDer<'static>> =
-            rustls_pemfile::certs(&mut BufReader::new(cert.cert_pem.as_bytes()))
-                .filter_map(|r| r.ok())
-                .collect();
-
-        let private_key = rustls_pemfile::private_key(&mut BufReader::new(cert.key_pem.as_bytes()))
-            .map_err(|e| format!("Failed to read private key: {}", e))?
-            .ok_or("No private key found in PEM")?;
+        let cert_chain = CertificateDer::pem_slice_iter(cert.cert_pem.as_bytes())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("Failed to read certificate: {}", e))?;
+        let private_key = PrivateKeyDer::from_pem_slice(cert.key_pem.as_bytes())
+            .map_err(|e| format!("Failed to read private key: {}", e))?;
 
         let mut tls_config = ServerConfig::builder()
             .with_no_client_auth()
@@ -623,11 +640,7 @@ impl WebServer {
         let acceptor = TlsAcceptor::from(Arc::new(tls_config));
         let acceptor_v6 = acceptor.clone();
 
-        let addr: SocketAddr = format!("0.0.0.0:{}", port)
-            .parse()
-            .map_err(|e| format!("Invalid address: {}", e))?;
-
-        let tcp = TcpListener::bind(addr)
+        let tcp = crate::transport::net_bind::bind_tcp_listener(bind_address, port)
             .await
             .map_err(|e| format!("Web server bind error: {}", e))?;
 
@@ -640,7 +653,10 @@ impl WebServer {
             completed_rx,
         };
 
-        log::info!("Web server listening on https://0.0.0.0:{}", port);
+        log::info!(
+            "Web server listening on https://{}",
+            crate::transport::net_bind::normalize_socket_addr(bind_address, port)
+        );
 
         let new_token = CancellationToken::new();
         {
@@ -673,6 +689,9 @@ impl WebServer {
         // keeps the two sockets from conflicting, and a failure here (no
         // IPv6 stack, port unavailable) only logs and leaves web mode
         // working exactly as before over IPv4.
+        if !crate::transport::net_bind::wants_v6_companion(bind_address) {
+            return Ok(());
+        }
         match crate::transport::net_bind::bind_tcp_listener_v6only(port) {
             Ok(tcp_v6) => {
                 let (completed_v6, completed_rx_v6) =

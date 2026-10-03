@@ -32,7 +32,9 @@ use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 
-use crate::transport::session::{validate_audio_packet, AudioStreamEvent, ExpectedAudioSession};
+use crate::transport::session::{
+    audio_payload_len, validate_audio_packet, AudioStreamEvent, ExpectedAudioSession,
+};
 use crate::transport::udp::{
     try_accept_audio_packet, ActiveAudioSession, AudioPacketAcceptance, SharedActiveAudioSession,
 };
@@ -402,6 +404,17 @@ where
     true
 }
 
+/// Whether `connection_id` is still the published connection. Callers that
+/// notify plugins use this instead of [`run_if_active`] so plugin callbacks
+/// never run while the connection lock is held.
+async fn is_active(
+    active: &SharedActiveConnection,
+    takeover_token: &CancellationToken,
+    connection_id: u64,
+) -> bool {
+    run_if_active(active, takeover_token, connection_id, || {}).await
+}
+
 async fn clear_if_active(active: &SharedActiveConnection, connection_id: u64) -> bool {
     let mut lock = active.lock().await;
     if lock
@@ -479,9 +492,6 @@ async fn handle_client(
     let connection_id = NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
     let (tx, mut rx) = tokio::sync::mpsc::channel::<MessageWrapper>(100);
     let takeover_token = CancellationToken::new();
-    // Point the plugin sync adapter at this client's control channel so plugin
-    // messages can flow to the phone (cleared when the client exits).
-    plugins.sync.set_sender(Some(tx.clone()));
 
     // Serialize reservation and publication so acknowledged candidates cannot reorder
     // SessionStarting relative to the active connection they publish.
@@ -533,6 +543,9 @@ async fn handle_client(
             expected: expected_session,
             epoch,
         });
+        // Point the plugin sync adapter at this client's control channel so
+        // plugin messages can flow to the phone (cleared when it exits).
+        plugins.sync.set_sender(Some(tx.clone()));
         old
     };
     drop(old);
@@ -544,22 +557,20 @@ async fn handle_client(
         ip: addr.ip().to_string(),
         latency: 12,
     };
-    let current_time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as u64;
-    run_if_active(&active_connection, &takeover_token, connection_id, || {
+    let current_time = crate::stats::unix_millis();
+    if is_active(&active_connection, &takeover_token, connection_id).await {
+        stats.mark_tcp_connected(current_time);
+        events.device_connected(device_info.clone());
         plugins.broadcast_event(&micyou_plugin::PluginEvent::DeviceConnected {
             mode: mode.as_str().to_string(),
-            label: device_info.name.clone(),
+            label: device_info.name,
         });
-        events.device_connected(device_info);
-        stats.mark_tcp_connected(current_time);
-    })
-    .await;
+    }
 
+    let mut meter = crate::stats::StreamMeter::default();
     handle_message(
         first_message,
+        &mut meter,
         &tx,
         &audio_tx,
         &stats,
@@ -616,10 +627,7 @@ async fn handle_client(
                 connect: None,
                 mute: None,
                 ping: Some(micyou_protocol::micyou::PingMessage {
-                    timestamp: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis() as i64,
+                    timestamp: crate::stats::unix_millis() as i64,
                 }),
                 pong: None,
                 plugin_message: None,
@@ -639,23 +647,21 @@ async fn handle_client(
             interval.tick().await;
             let buffer_duration = if mode == ConnectionMode::Usb { 5 } else { 30 };
             events_emit.audio_metrics(stats_emit.to_metrics(buffer_duration));
-            if cfg!(target_os = "windows") && mode == ConnectionMode::Wifi
-                && !stats_emit.is_muted() {
-                    let now = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_millis() as u64;
-                    let tcp_time = stats_emit.get_tcp_connected_time();
-                    let last_udp = stats_emit.get_last_udp_time();
-                    // If last_udp > 0, UDP audio has been successfully received in this session,
-                    // meaning Windows Firewall is NOT blocking the UDP port.
-                    // Only warn if TCP has been active for > 10s and zero UDP packets have ever arrived.
-                    if tcp_time > 0 && last_udp == 0 && now.saturating_sub(tcp_time) > 10000
-                        && !warning_fired {
-                            events_emit.udp_audio_warning();
-                            warning_fired = true;
-                        }
+            if cfg!(target_os = "windows")
+                && mode == ConnectionMode::Wifi
+                && !warning_fired
+                && !stats_emit.is_muted()
+            {
+                let tcp_time = stats_emit.get_tcp_connected_time();
+                let last_udp = stats_emit.get_last_udp_time();
+                // Any UDP packet this session proves the firewall lets the
+                // audio port through; only warn after 10 s of TCP without one.
+                let now = crate::stats::unix_millis();
+                if tcp_time > 0 && last_udp == 0 && now.saturating_sub(tcp_time) > 10_000 {
+                    events_emit.udp_audio_warning();
+                    warning_fired = true;
                 }
+            }
         }
     });
     let task_guard = TaskGuard::new(vec![writer_task, ping_task, monitor_task]);
@@ -681,6 +687,7 @@ async fn handle_client(
             }
             handle_message(
                 message,
+                &mut meter,
                 &tx,
                 &audio_tx,
                 &stats,
@@ -720,6 +727,7 @@ async fn handle_client(
 #[allow(clippy::too_many_arguments)]
 async fn handle_message(
     msg: MessageWrapper,
+    meter: &mut crate::stats::StreamMeter,
     tx: &tokio::sync::mpsc::Sender<MessageWrapper>,
     audio_tx: &tokio::sync::mpsc::Sender<AudioStreamEvent>,
     stats: &Arc<crate::stats::NetworkStats>,
@@ -740,6 +748,7 @@ async fn handle_message(
         else {
             return Ok(());
         };
+        meter.observe(stats, epoch, &audio, audio_payload_len(&audio));
         let permit = tokio::select! {
             biased;
             _ = takeover_token.cancelled() => return Ok(()),
@@ -781,11 +790,7 @@ async fn handle_message(
         .await;
     }
     if let Some(pong) = msg.pong {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as i64;
-        let rtt = now - pong.timestamp;
+        let rtt = crate::stats::unix_millis() as i64 - pong.timestamp;
         if rtt >= 0 {
             run_if_active(active_connection, takeover_token, connection_id, || {
                 stats.set_rtt(rtt)
@@ -796,22 +801,26 @@ async fn handle_message(
     if let Some(mute) = msg.mute {
         // Mute sync disabled (server.json): ignore mute state coming from the
         // mobile client so it can neither change local state nor the UI.
-        if crate::config::load_server_prefs().mute_sync {
+        // A superseded connection must not flip the mute state either. The
+        // plugin callbacks run outside the connection lock: plugins query
+        // that lock (try_lock) and would misread a held one as disconnected.
+        if crate::config::load_server_prefs().mute_sync
+            && is_active(active_connection, takeover_token, connection_id).await
+        {
             let is_muted = mute.is_muted.unwrap_or(false);
+            log::info!("Received mute state: {}", is_muted);
             stats.set_muted(is_muted);
+            events.mute_state_changed(is_muted);
             plugins.broadcast_event(&micyou_plugin::PluginEvent::MuteChanged { muted: is_muted });
-            run_if_active(active_connection, takeover_token, connection_id, || {
-                log::info!("Received mute state: {}", is_muted);
-                events.mute_state_changed(is_muted);
-            })
-            .await;
         }
     }
     if let Some(plugin_message) = msg.plugin_message {
         // Cross-device plugin message: route to the bus (local plugins via the
         // dispatcher, pending RPCs via correlation id).
-        let logical = micyou_plugin::sync::from_wire(&plugin_message);
-        plugins.bus.handle_incoming(&logical);
+        if is_active(active_connection, takeover_token, connection_id).await {
+            let logical = micyou_plugin::sync::from_wire(&plugin_message);
+            plugins.bus.handle_incoming(&logical);
+        }
     }
     Ok(())
 }

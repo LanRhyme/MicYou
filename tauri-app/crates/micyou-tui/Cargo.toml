@@ -15,7 +15,6 @@ micyou-core = { workspace = true, features = ["headless-host", "vbcable", "web-s
 
 clap.workspace = true
 log.workspace = true
-serde_json.workspace = true
 crossterm = "0.29"
 ratatui = "0.30"
 sysinfo = "0.39.6"
