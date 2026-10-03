@@ -24,7 +24,7 @@ use crate::server::ServerState;
 use crate::stats::NetworkStats;
 use crate::transport::tcp::SharedActiveConnection;
 use crate::transport::udp::ActiveAudioSession;
-use cpal::traits::{DeviceTrait, HostTrait};
+use cpal::traits::HostTrait;
 use micyou_audio::dsp::AudioDspSettings;
 use micyou_plugin::PluginEvent;
 use micyou_protocol::micyou::{MessageWrapper, MuteMessage};
@@ -41,7 +41,7 @@ pub const fn aec_supported() -> bool {
 /// Names of the output devices cpal can open, sorted and deduplicated.
 pub fn audio_devices() -> Vec<String> {
     let mut names: Vec<String> = match cpal::default_host().output_devices() {
-        Ok(devices) => devices.filter_map(|dev| dev.name().ok()).collect(),
+        Ok(devices) => devices.filter_map(|dev| micyou_audio::device_name(&dev)).collect(),
         Err(e) => {
             log::warn!("[Audio] listing output devices failed: {e}");
             Vec::new()

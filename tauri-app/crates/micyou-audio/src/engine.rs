@@ -111,6 +111,24 @@ impl RubatoResampler {
     }
 }
 
+/// Name used to list, persist and match an output or input device.
+///
+/// cpal 0.18 dropped `Device::name()`. On ALSA its replacement, the
+/// description, is a long label shared by every PCM of a card, so the PCM name
+/// from the device id (`pipewire`, `hw:CARD=0,DEV=0`) is kept instead; it is
+/// what cpal 0.15 returned and what `server.json` stores. WASAPI and CoreAudio
+/// read the same property for the description as `name()` did.
+pub fn device_name(device: &cpal::Device) -> Option<String> {
+    use cpal::traits::DeviceTrait;
+    #[cfg(target_os = "linux")]
+    if let Ok(id) = device.id() {
+        if id.host() == cpal::HostId::Alsa {
+            return Some(id.id().to_string());
+        }
+    }
+    device.description().ok().map(|d| d.name().to_string())
+}
+
 /// Fast PRNG for TPDF dithering (xorshift32), returns [0, 1) range.
 fn rand_f32() -> f32 {
     use std::cell::Cell;
@@ -155,7 +173,7 @@ fn map_channels(input: &[f32], in_channels: usize, out_channels: usize, output: 
 fn stream_error_callback(
     failed: Arc<AtomicBool>,
     label: &'static str,
-) -> impl FnMut(cpal::StreamError) + Send + 'static {
+) -> impl FnMut(cpal::Error) + Send + 'static {
     move |err| {
         if !failed.swap(true, Ordering::Relaxed) {
             log::error!("[Audio] {label} stream error: {err}");
@@ -337,7 +355,7 @@ impl AudioOutputManager {
                 }
             };
 
-            self.monitor_device_sample_rate = config.sample_rate().0;
+            self.monitor_device_sample_rate = config.sample_rate();
             self.monitor_device_channels = config.channels() as usize;
 
             if self.monitor_device_sample_rate != 48000 {
@@ -360,7 +378,7 @@ impl AudioOutputManager {
 
             self.monitor_producer = Some(producer);
 
-            let stream_config: StreamConfig = config.clone().into();
+            let stream_config: StreamConfig = config.into();
             let err_fn = stream_error_callback(self.stream_failed.clone(), "monitor");
 
             let stream = match config.sample_format() {
@@ -369,7 +387,7 @@ impl AudioOutputManager {
                     let mut last_sample = 0.0f32;
                     let muted_flag = self.muted.clone();
                     device.build_output_stream(
-                        &stream_config,
+                        stream_config,
                         move |data: &mut [f32], _: &OutputCallbackInfo| {
                             if muted_flag.load(Ordering::Relaxed) {
                                 // Hard-muted: drop everything queued and emit pure
@@ -408,7 +426,7 @@ impl AudioOutputManager {
                     let mut last_sample = 0.0f32;
                     let muted_flag = self.muted.clone();
                     device.build_output_stream(
-                        &stream_config,
+                        stream_config,
                         move |data: &mut [i16], _: &OutputCallbackInfo| {
                             if muted_flag.load(Ordering::Relaxed) {
                                 // Hard-muted: drop everything queued and emit pure
@@ -487,7 +505,7 @@ impl AudioOutputManager {
             let mut matched_device = None;
             if let Ok(devices) = host.output_devices() {
                 for dev in devices {
-                    if let Ok(name) = dev.name() {
+                    if let Some(name) = device_name(&dev) {
                         if name == target {
                             matched_device = Some(dev);
                             break;
@@ -509,7 +527,7 @@ impl AudioOutputManager {
                 let mut cable_device = None;
                 if let Ok(devices) = host.output_devices() {
                     for dev in devices {
-                        if let Ok(name) = dev.name() {
+                        if let Some(name) = device_name(&dev) {
                             let lower = name.to_lowercase();
                             if lower.contains("cable input")
                                 || lower.contains("vb-audio")
@@ -531,7 +549,7 @@ impl AudioOutputManager {
                 let mut blackhole_device = None;
                 if let Ok(devices) = host.output_devices() {
                     for dev in devices {
-                        if let Ok(name) = dev.name() {
+                        if let Some(name) = device_name(&dev) {
                             if name.to_lowercase().contains("blackhole") {
                                 blackhole_device = Some(dev);
                                 break;
@@ -553,7 +571,7 @@ impl AudioOutputManager {
         let device = device.ok_or("No output device available")?;
 
         let config = device.default_output_config()?;
-        self.device_sample_rate = config.sample_rate().0;
+        self.device_sample_rate = config.sample_rate();
         self.device_channels = config.channels() as usize;
 
         if self.device_sample_rate != 48000 {
@@ -577,7 +595,7 @@ impl AudioOutputManager {
 
         self.producer = Some(producer);
 
-        let stream_config: StreamConfig = config.clone().into();
+        let stream_config: StreamConfig = config.into();
         self.stream_failed.store(false, Ordering::Relaxed);
         let err_fn = stream_error_callback(self.stream_failed.clone(), "output");
 
@@ -588,7 +606,7 @@ impl AudioOutputManager {
                 let muted_flag = self.muted.clone();
                 let ticks = self.callback_ticks.clone();
                 device.build_output_stream(
-                    &stream_config,
+                    stream_config,
                     move |data: &mut [f32], _: &OutputCallbackInfo| {
                         ticks.fetch_add(1, Ordering::Relaxed);
                         if muted_flag.load(Ordering::Relaxed) {
@@ -629,7 +647,7 @@ impl AudioOutputManager {
                 let muted_flag = self.muted.clone();
                 let ticks = self.callback_ticks.clone();
                 device.build_output_stream(
-                    &stream_config,
+                    stream_config,
                     move |data: &mut [i16], _: &OutputCallbackInfo| {
                         ticks.fetch_add(1, Ordering::Relaxed);
                         if muted_flag.load(Ordering::Relaxed) {

@@ -27,7 +27,7 @@ micyou-plugin = { path = "crates/micyou-plugin" }
 micyou-protocol = { path = "crates/micyou-protocol" }
 
 clap = { version = "4", features = ["derive"] }
-cpal = "0.15.3"
+cpal = "0.18.2"
 libc = "0.2.186"
 log = "0.4.32"
 prost = "0.14.4"

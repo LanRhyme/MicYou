@@ -539,7 +539,7 @@ fn cpal_capture_thread(
         let mut found = None;
         if let Ok(devices) = host.input_devices() {
             'outer: for dev in devices {
-                if let Ok(name) = dev.name() {
+                if let Some(name) = crate::device_name(&dev) {
                     let lower = name.to_lowercase();
                     let matches = lower.contains("blackhole");
                     if matches {
@@ -575,7 +575,7 @@ fn cpal_capture_thread(
     };
 
     let channels = config.channels() as usize;
-    let device_rate = config.sample_rate().0;
+    let device_rate = config.sample_rate();
     let sample_format = config.sample_format();
 
     log::info!(
@@ -599,7 +599,7 @@ fn cpal_capture_thread(
 
     let stream_active = active.clone();
     let stream_failure = failure.clone();
-    let err_fn = move |err: cpal::StreamError| {
+    let err_fn = move |err: cpal::Error| {
         // cpal repeats the callback while the device stays broken; only the
         // first error after the stream was active is worth reporting
         if stream_active.swap(false, Ordering::Relaxed) {
@@ -614,7 +614,7 @@ fn cpal_capture_thread(
 
     let stream_result = match sample_format {
         cpal::SampleFormat::F32 => device.build_input_stream(
-            &config.into(),
+            config.into(),
             move |data: &[f32], _: &cpal::InputCallbackInfo| {
                 push_to_buffer(data, channels, device_rate, &resampler_clone, &buf_clone);
             },
@@ -622,9 +622,26 @@ fn cpal_capture_thread(
             None,
         ),
         cpal::SampleFormat::I16 => device.build_input_stream(
-            &config.into(),
+            config.into(),
             move |data: &[i16], _: &cpal::InputCallbackInfo| {
                 let f32_data: Vec<f32> = data.iter().map(|&s| s as f32 / 32768.0).collect();
+                push_to_buffer(
+                    &f32_data,
+                    channels,
+                    device_rate,
+                    &resampler_clone,
+                    &buf_clone,
+                );
+            },
+            err_fn,
+            None,
+        ),
+        // cpal 0.18 ranks I32 above I16 when picking the default format.
+        cpal::SampleFormat::I32 => device.build_input_stream(
+            config.into(),
+            move |data: &[i32], _: &cpal::InputCallbackInfo| {
+                let f32_data: Vec<f32> =
+                    data.iter().map(|&s| s as f32 / 2_147_483_648.0).collect();
                 push_to_buffer(
                     &f32_data,
                     channels,
