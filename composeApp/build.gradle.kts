@@ -11,7 +11,7 @@ plugins {
 // 不传参数 → 正常模式（与上游完全一致）
 // api21 → Android 5.0+ 兼容模式
 // 预留：api19 → Android 4.4+ 兼容模式（未来扩展）
-val compatLevel = project.properties["micyou.androidCompat"]?.toString()?.takeIf { it.isNotBlank() }
+val compatLevel = providers.gradleProperty("micyou.androidCompat").orNull?.takeIf { it.isNotBlank() }
 val androidCompat = compatLevel != null
 val isApi21Compat = compatLevel == "api21"
 // 预留更低级别，当前未实现
@@ -144,7 +144,8 @@ android {
 }
 
 // Kotlin 2.3+ 使用 compilerOptions DSL 替代已废弃的 kotlinOptions
-kotlin {
+// 兼容模式经 apply() 引入 kotlin-android，没有生成 kotlin {} 访问器，按类型配置扩展
+extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
     compilerOptions {
         jvmTarget.set(
             if (androidCompat) org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
