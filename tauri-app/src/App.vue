@@ -358,7 +358,7 @@ onUnmounted(() => {
     <!-- Full Mode -->
     <div v-else class="absolute inset-0 flex flex-col p-3 gap-3">
       <!-- Header Section -->
-      <div class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 flex-shrink-0 cursor-grab active:cursor-grabbing relative z-30" @mousedown="startDrag">
+      <div class="haze-surface rounded-2xl flex justify-between items-center px-4 py-2 shrink-0 cursor-grab active:cursor-grabbing relative z-30" @mousedown="startDrag">
         <div class="flex items-center gap-3">
           <!-- Window Controls (macOS: left) -->
           <div v-if="isMacOS" class="flex items-center gap-1 mr-1">
@@ -380,7 +380,7 @@ onUnmounted(() => {
           <!-- Network Selector -->
           <div class="relative" ref="ipMenuRef">
             <div
-              class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 hover:shadow-sm px-3 py-1.5 rounded-lg cursor-pointer border border-white/5"
+              class="flex items-center bg-surface-variant/30 hover:bg-surface-variant/50 transition-all duration-300 hover:-translate-y-0.5 active:scale-95 hover:shadow-xs px-3 py-1.5 rounded-lg cursor-pointer border border-white/5"
               role="button"
               @click="server.showIpMenu.value = !server.showIpMenu.value"
             >
@@ -410,7 +410,7 @@ onUnmounted(() => {
                       <div class="text-xs font-medium text-foreground">{{ t('app.ipSelector.allInterfaces') }}</div>
                       <div class="text-[10px] text-on-surface-variant mt-0.5">{{ t('app.ipSelector.allInterfacesDesc') }}</div>
                     </div>
-                    <CheckCircle2 v-if="server.isAutoBind.value" class="w-4 h-4 text-primary flex-shrink-0" />
+                    <CheckCircle2 v-if="server.isAutoBind.value" class="w-4 h-4 text-primary shrink-0" />
                   </button>
 
                   <button
@@ -423,7 +423,7 @@ onUnmounted(() => {
                       <div class="text-xs font-medium text-foreground">{{ iface.ip }}</div>
                       <div class="text-[10px] text-on-surface-variant mt-0.5 truncate">{{ iface.interface_name }}</div>
                     </div>
-                    <CheckCircle2 v-if="!server.isAutoBind.value && server.selectedIp.value === iface.ip" class="w-4 h-4 text-primary flex-shrink-0" />
+                    <CheckCircle2 v-if="!server.isAutoBind.value && server.selectedIp.value === iface.ip" class="w-4 h-4 text-primary shrink-0" />
                   </button>
                 </div>
               </div>
@@ -484,7 +484,7 @@ onUnmounted(() => {
               v-model="server.serverPort.value"
               type="number"
               max="65534"
-              class="w-full bg-surface-variant/40 hover:bg-surface-variant/60 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:bg-surface-variant/60 transition-all duration-300"
+              class="w-full bg-surface-variant/40 hover:bg-surface-variant/60 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/50 focus:bg-surface-variant/60 transition-all duration-300"
             />
           </div>
 
@@ -493,7 +493,7 @@ onUnmounted(() => {
             <span class="text-xs text-on-surface-variant font-medium self-start">{{ $t('app.port') }}</span>
             <div v-if="server.serverState.value === 'idle'" class="w-full">
                 <input v-model="server.webPort.value" type="number"
-                    class="w-full bg-surface-variant/40 hover:bg-surface-variant/60 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:bg-surface-variant/60 transition-all duration-300" />
+                    class="w-full bg-surface-variant/40 hover:bg-surface-variant/60 border border-white/5 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-2 focus:ring-primary/50 focus:bg-surface-variant/60 transition-all duration-300" />
             </div>
             <button v-if="server.serverState.value !== 'idle'" @click="server.showQrDialog.value = true"
                 class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 active:scale-[0.98] transition-all">
@@ -529,8 +529,8 @@ onUnmounted(() => {
             <AudioRing v-if="server.serverState.value === 'streaming'" :level="audio.audioLevel.value">
               <!-- Central Button When Streaming -->
               <div class="relative flex items-center justify-center">
-                <div ref="glowRef" class="absolute inset-0 bg-error/30 rounded-full blur-md scale-125"></div>
-                <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-[72px] h-[72px] rounded-full bg-error flex items-center justify-center shadow-lg hover:scale-95 transition-all duration-300 group-hover:bg-error/90 border border-white/10 hover:shadow-lg hover:shadow-error/30">
+                <div ref="glowRef" class="absolute inset-0 bg-error/30 rounded-full blur-md"></div>
+                <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-[72px] h-[72px] rounded-full bg-error flex items-center justify-center shadow-lg transition-all duration-300 group-hover:bg-error/90 border border-white/10 hover:shadow-lg hover:shadow-error/30">
                   <Unlink class="w-7 h-7 text-on-error" stroke-width="2.5" />
                 </button>
               </div>
@@ -554,7 +554,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Bottom Bar -->
-      <div class="haze-surface rounded-2xl p-2 flex justify-between items-center flex-shrink-0">
+      <div class="haze-surface rounded-2xl p-2 flex justify-between items-center shrink-0">
         <div class="flex items-center px-3">
           <div ref="statusDotRef" class="w-2 h-2 rounded-full mr-2" :class="server.serverState.value === 'streaming' ? 'bg-primary shadow-[0_0_8px_hsl(var(--primary))]' : (server.serverState.value === 'starting' ? 'bg-secondary animate-pulse shadow-[0_0_8px_hsl(var(--secondary))]' : (server.serverState.value === 'connecting' ? 'bg-tertiary animate-pulse shadow-[0_0_8px_hsl(var(--tertiary))]' : 'bg-on-surface-variant'))"></div>
           <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant transition-colors duration-300">{{ server.serverState.value === 'streaming' ? $t('app.status.stateStreaming') : (server.serverState.value === 'connecting' ? $t('app.status.stateConnecting') : (server.serverState.value === 'starting' ? $t('app.status.stateStarting') : $t('app.status.stateIdle'))) }}</span>
@@ -632,7 +632,7 @@ onUnmounted(() => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="server.showIpSwitchConfirm.value" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div v-if="server.showIpSwitchConfirm.value" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
         <div class="bg-surface rounded-2xl shadow-2xl border border-outline/10 p-6 w-80">
           <h3 class="text-sm font-bold text-foreground mb-2">{{ t('app.ipSelector.switchConfirmTitle') }}</h3>
           <p class="text-xs text-on-surface-variant mb-5">{{ t('app.ipSelector.switchConfirmMessage') }}</p>
@@ -663,7 +663,7 @@ onUnmounted(() => {
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="server.showDeviceSelector.value" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div v-if="server.showDeviceSelector.value" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs">
         <div class="bg-surface rounded-2xl shadow-2xl border border-outline/10 p-6 w-96 max-h-[80vh] flex flex-col">
           <h3 class="text-sm font-bold text-foreground mb-2">{{ t('app.deviceSelector.title') }}</h3>
           <p class="text-xs text-on-surface-variant mb-4">{{ t('app.deviceSelector.desc') }}</p>
@@ -684,7 +684,7 @@ onUnmounted(() => {
                     {{ device.serial }}
                   </div>
                 </div>
-                <div class="ml-3 flex-shrink-0">
+                <div class="ml-3 shrink-0">
                   <div class="w-2 h-2 rounded-full bg-success animate-pulse"></div>
                 </div>
               </div>

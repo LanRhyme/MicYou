@@ -12,7 +12,7 @@ defineProps<{
     role="switch"
     :aria-checked="model"
     :disabled="disabled"
-    class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+    class="group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-300 ease-out focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
     :class="
       model
         ? 'border-primary bg-primary'
@@ -25,7 +25,7 @@ defineProps<{
       :class="model ? 'translate-x-[26px]' : 'translate-x-[4px]'"
     >
       <span
-        class="pointer-events-none block rounded-full shadow-sm ring-0 transition-all duration-300 ease-out"
+        class="pointer-events-none block rounded-full shadow-xs ring-0 transition-all duration-300 ease-out"
         :class="
           model
             ? 'h-6 w-6 bg-on-primary'

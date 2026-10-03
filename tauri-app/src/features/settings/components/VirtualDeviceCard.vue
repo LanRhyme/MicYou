@@ -36,7 +36,7 @@ async function copyPipewireCommand() {
 </script>
 
 <template>
-  <div v-if="isMacOS" class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+  <div v-if="isMacOS" class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-xs">
     <div class="flex items-center justify-between">
       <h4 class="font-bold text-on-surface text-lg">BlackHole</h4>
       <span
@@ -68,7 +68,7 @@ async function copyPipewireCommand() {
     </div>
   </div>
 
-  <div v-else-if="isLinux" class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+  <div v-else-if="isLinux" class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-xs">
     <div class="flex items-center justify-between">
       <h4 class="font-bold text-on-surface text-lg">PipeWire</h4>
       <span
@@ -101,7 +101,7 @@ async function copyPipewireCommand() {
           class="px-2.5 py-1 text-xs rounded-lg transition-colors font-medium cursor-pointer"
           :class="
             selectedDistro === distro.id
-              ? 'bg-primary text-on-primary shadow-sm'
+              ? 'bg-primary text-on-primary shadow-xs'
               : 'bg-surface-container text-on-surface-variant hover:bg-surface-variant'
           "
         >
@@ -125,7 +125,7 @@ async function copyPipewireCommand() {
     </div>
   </div>
 
-  <div v-else class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+  <div v-else class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-xs">
     <div class="flex items-center justify-between">
       <h4 class="font-bold text-on-surface text-lg">{{ $t('settings.vbcable.title') }}</h4>
       <span

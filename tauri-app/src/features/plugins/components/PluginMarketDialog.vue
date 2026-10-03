@@ -45,7 +45,7 @@
                 v-model="marketQuery"
                 type="text"
                 :placeholder="$t('plugins.marketSearch')"
-                class="w-full h-10 pl-9 pr-3 rounded-full bg-surface-variant/20 text-sm text-on-surface outline-none placeholder:text-on-surface-variant/60 focus:ring-1 focus:ring-primary/40"
+                class="w-full h-10 pl-9 pr-3 rounded-full bg-surface-variant/20 text-sm text-on-surface outline-hidden placeholder:text-on-surface-variant/60 focus:ring-1 focus:ring-primary/40"
               />
             </div>
             <div class="flex flex-wrap gap-1.5">
@@ -273,7 +273,7 @@
 
   <Teleport to="body">
     <Transition name="readme" appear>
-      <div v-if="isOpen && readmePlugin" class="fixed inset-0 z-[100] flex flex-col bg-surface">
+      <div v-if="isOpen && readmePlugin" class="fixed inset-0 z-100 flex flex-col bg-surface">
         <div class="shrink-0 flex items-center justify-between px-5 py-4 border-b border-surface-variant/30">
           <div class="flex items-center gap-2.5 min-w-0">
             <button

@@ -1,6 +1,6 @@
 <template>
   <Transition name="dialog">
-    <div v-if="show" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div v-if="show" class="fixed inset-0 z-100 flex items-center justify-center p-4">
       <!-- Backdrop -->
       <div class="absolute inset-0 bg-background/60 backdrop-blur-md" @click="close"></div>
       
@@ -15,12 +15,12 @@
         <div class="pt-8 pb-4 flex justify-center items-center relative z-10">
           <div class="relative">
             <div class="absolute inset-0 bg-error/20 rounded-full blur-xl animate-pulse"></div>
-            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-error/20 to-error/5 border border-error/20 flex items-center justify-center shadow-inner relative z-10">
+            <div class="w-20 h-20 rounded-2xl bg-linear-to-br from-error/20 to-error/5 border border-error/20 flex items-center justify-center shadow-inner relative z-10">
               <ShieldAlertIcon class="w-10 h-10 text-error" stroke-width="1.5" />
             </div>
             <!-- Floating particles -->
-            <div class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-error/50 blur-sm"></div>
-            <div class="absolute bottom-2 -left-2 w-2 h-2 rounded-full bg-error/40 blur-sm"></div>
+            <div class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-error/50 blur-xs"></div>
+            <div class="absolute bottom-2 -left-2 w-2 h-2 rounded-full bg-error/40 blur-xs"></div>
           </div>
         </div>
 

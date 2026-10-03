@@ -103,7 +103,7 @@ async function openTextGuide() {
 </script>
 
 <template>
-  <div v-if="visible" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+  <div v-if="visible" class="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-xs">
     <div class="bg-surface rounded-3xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
       <!-- Header -->
       <div class="flex items-center justify-between p-5 border-b border-outline-variant/20">

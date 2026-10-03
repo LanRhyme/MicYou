@@ -2,7 +2,7 @@
   <Transition name="dialog">
     <div
       v-if="isOpen"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"
       @click.self="close"
     >
       <div class="surface-dialog flex max-h-[85vh] w-full max-w-4xl flex-col">
@@ -62,7 +62,7 @@
               :key="theme.id"
               class="theme-card overflow-hidden rounded-2xl border border-border/20 bg-surface-container/70 transition-colors hover:border-primary/40"
             >
-              <div class="relative aspect-[16/9] overflow-hidden bg-surface-variant/40">
+              <div class="relative aspect-video overflow-hidden bg-surface-variant/40">
                 <img
                   v-if="theme.preview && !failedPreviews.includes(theme.id)"
                   :src="resolveThemeAssetUrl(theme, theme.preview)"
@@ -74,7 +74,7 @@
                 <div v-else class="flex h-full items-center justify-center bg-primary/10">
                   <Palette class="h-12 w-12 text-primary/70" />
                 </div>
-                <span class="absolute right-3 top-3 rounded-full bg-surface-bright/85 px-2.5 py-1 text-xs font-medium text-on-surface backdrop-blur-sm">
+                <span class="absolute right-3 top-3 rounded-full bg-surface-bright/85 px-2.5 py-1 text-xs font-medium text-on-surface backdrop-blur-xs">
                   v{{ theme.version }}
                 </span>
               </div>
@@ -96,7 +96,7 @@
                     {{ $t('dialogs.themeCatalog.repository') }}
                   </a>
                 </div>
-                <p class="line-clamp-3 min-h-[3.75rem] text-sm leading-relaxed text-on-surface-variant">
+                <p class="line-clamp-3 min-h-15 text-sm leading-relaxed text-on-surface-variant">
                   {{ theme.description }}
                 </p>
                 <p v-if="installError" class="text-xs text-error">

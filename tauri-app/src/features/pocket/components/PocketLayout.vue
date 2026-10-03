@@ -102,21 +102,21 @@ const portValue = (e: Event) => Number((e.target as HTMLInputElement).value);
     <div data-blur-region class="h-10 flex items-center haze-surface rounded-2xl px-3 gap-2">
       <!-- Window Controls (macOS: left) -->
       <template v-if="isMacOS">
-        <button @click="emit('minimize')" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors flex-shrink-0">
+        <button @click="emit('minimize')" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors shrink-0">
           <Minus class="w-3.5 h-3.5 text-on-surface" />
         </button>
-        <button @click="emit('close')" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-error/20 hover:text-error transition-colors flex-shrink-0">
+        <button @click="emit('close')" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-error/20 hover:text-error transition-colors shrink-0">
           <X class="w-3.5 h-3.5 text-on-surface" />
         </button>
       </template>
 
       <!-- Status Dot -->
-      <div class="w-2 h-2 rounded-full flex-shrink-0 pointer-events-none" :class="statusColor" />
+      <div class="w-2 h-2 rounded-full shrink-0 pointer-events-none" :class="statusColor" />
 
       <!-- Connect Button -->
       <button
         @click="emit('toggleStream')"
-        class="h-8 px-3 rounded-lg text-xs font-bold text-on-primary flex items-center gap-1.5 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-md flex-shrink-0"
+        class="h-8 px-3 rounded-lg text-xs font-bold text-on-primary flex items-center gap-1.5 transition-all duration-300 hover:scale-105 active:scale-95 hover:shadow-md shrink-0"
         :class="buttonColor"
       >
         <RefreshCw v-if="serverState === 'connecting'" class="w-3.5 h-3.5 animate-spin" />
@@ -129,44 +129,44 @@ const portValue = (e: Event) => Number((e.target as HTMLInputElement).value);
       <!-- IP Display -->
       <button
         @click="togglePanel('ip')"
-        class="flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-300 hover:shadow-sm active:scale-95 flex-shrink-0 max-w-[120px]"
+        class="flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-300 hover:shadow-xs active:scale-95 shrink-0 max-w-[120px]"
         :class="activePanel === 'ip' ? 'bg-surface-variant/60' : 'hover:bg-surface-variant/50'"
       >
-        <Globe class="w-3 h-3 text-primary flex-shrink-0" />
+        <Globe class="w-3 h-3 text-primary shrink-0" />
         <span class="text-xs font-medium text-on-surface truncate">{{ displayIp }}</span>
-        <ChevronDown class="w-3 h-3 text-on-surface-variant/50 flex-shrink-0 transition-transform" :class="{ 'rotate-180': activePanel === 'ip' }" />
+        <ChevronDown class="w-3 h-3 text-on-surface-variant/50 shrink-0 transition-transform" :class="{ 'rotate-180': activePanel === 'ip' }" />
       </button>
 
-      <div class="w-px h-4 bg-outline/20 flex-shrink-0 pointer-events-none" />
+      <div class="w-px h-4 bg-outline/20 shrink-0 pointer-events-none" />
 
       <!-- Mute -->
       <button
         @click="emit('toggleMute')"
-        class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-variant/60 transition-all duration-300 hover:scale-110 active:scale-90 flex-shrink-0"
+        class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-variant/60 transition-all duration-300 hover:scale-110 active:scale-90 shrink-0"
         :title="isMuted ? $t('app.status.unmute') : $t('app.status.mute')"
       >
         <VolumeX v-if="isMuted" class="w-4 h-4 text-error" />
         <Volume2 v-else class="w-4 h-4 text-on-surface-variant" />
       </button>
 
-      <div class="w-px h-4 bg-outline/20 flex-shrink-0 pointer-events-none" />
+      <div class="w-px h-4 bg-outline/20 shrink-0 pointer-events-none" />
 
       <!-- Earback / Monitoring -->
       <button
         @click="emit('toggleMonitoringEnabled')"
-        class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90 flex-shrink-0"
+        class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90 shrink-0"
         :class="isMonitoringEnabled ? 'bg-primary/20 text-primary' : 'hover:bg-surface-variant/60 text-on-surface-variant'"
         :title="isMonitoringEnabled ? $t('app.status.disableEarback') : $t('app.status.enableEarback')"
       >
         <Headphones class="w-4 h-4" />
       </button>
 
-      <div class="w-px h-4 bg-outline/20 flex-shrink-0 pointer-events-none" />
+      <div class="w-px h-4 bg-outline/20 shrink-0 pointer-events-none" />
 
       <!-- More Menu -->
       <button
         @click="togglePanel('more')"
-        class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90 flex-shrink-0"
+        class="w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-90 shrink-0"
         :class="activePanel === 'more' ? 'bg-surface-variant/60' : 'hover:bg-surface-variant/50'"
       >
         <MoreHorizontal class="w-4 h-4 text-on-surface-variant" />
@@ -174,10 +174,10 @@ const portValue = (e: Event) => Number((e.target as HTMLInputElement).value);
 
       <!-- Window Controls (non-macOS: right) -->
       <template v-if="!isMacOS">
-        <button @click="emit('minimize')" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors flex-shrink-0">
+        <button @click="emit('minimize')" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors shrink-0">
           <Minus class="w-3.5 h-3.5 text-on-surface" />
         </button>
-        <button @click="emit('close')" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-error/20 hover:text-error transition-colors flex-shrink-0">
+        <button @click="emit('close')" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-error/20 hover:text-error transition-colors shrink-0">
           <X class="w-3.5 h-3.5 text-on-surface" />
         </button>
       </template>
@@ -189,9 +189,9 @@ const portValue = (e: Event) => Number((e.target as HTMLInputElement).value);
         class="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface-variant/50 transition-colors text-left"
         @click="selectIp('', true)"
       >
-        <Globe class="w-3.5 h-3.5 text-primary flex-shrink-0" />
+        <Globe class="w-3.5 h-3.5 text-primary shrink-0" />
         <div class="flex-1 min-w-0 text-xs font-medium text-foreground truncate">{{ $t('app.ipSelector.allInterfaces') }}</div>
-        <CheckCircle2 v-if="isAutoBind" class="w-3.5 h-3.5 text-primary flex-shrink-0" />
+        <CheckCircle2 v-if="isAutoBind" class="w-3.5 h-3.5 text-primary shrink-0" />
       </button>
       <button
         v-for="iface in networkInterfaces"
@@ -199,12 +199,12 @@ const portValue = (e: Event) => Number((e.target as HTMLInputElement).value);
         class="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface-variant/50 transition-colors text-left"
         @click="selectIp(iface.ip, false)"
       >
-        <Globe class="w-3.5 h-3.5 text-on-surface-variant flex-shrink-0" />
+        <Globe class="w-3.5 h-3.5 text-on-surface-variant shrink-0" />
         <div class="flex-1 min-w-0">
           <div class="text-xs font-medium text-foreground truncate">{{ iface.ip }}</div>
           <div class="text-[10px] text-on-surface-variant truncate">{{ iface.interface_name }}</div>
         </div>
-        <CheckCircle2 v-if="!isAutoBind && selectedIp === iface.ip" class="w-3.5 h-3.5 text-primary flex-shrink-0" />
+        <CheckCircle2 v-if="!isAutoBind && selectedIp === iface.ip" class="w-3.5 h-3.5 text-primary shrink-0" />
       </button>
     </div>
 
@@ -233,14 +233,14 @@ const portValue = (e: Event) => Number((e.target as HTMLInputElement).value);
           @input="emit('updatePort', portValue($event))"
           type="number"
           max="65534"
-          class="w-full bg-surface-variant/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          class="w-full bg-surface-variant/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
         />
         <input
           v-else
           :value="webPort"
           @input="emit('updateWebPort', portValue($event))"
           type="number"
-          class="w-full bg-surface-variant/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          class="w-full bg-surface-variant/40 border border-white/5 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
         />
       </div>
 

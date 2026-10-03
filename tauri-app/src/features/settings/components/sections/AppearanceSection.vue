@@ -122,7 +122,7 @@ async function deactivateInstalledTheme() {
 
       <!-- Theme Color Settings -->
       <div class="surface-card relative flex items-center justify-between overflow-hidden">
-        <div class="flex-shrink-0 mr-4">
+        <div class="shrink-0 mr-4">
           <h4 class="font-bold text-on-surface">{{ $t('settings.themeColor.title') }}</h4>
           <p class="text-xs text-on-surface-variant">{{ $t('settings.themeColor.desc') }}</p>
         </div>
@@ -140,10 +140,10 @@ async function deactivateInstalledTheme() {
 
         <div
           v-if="!themePackageActive && themeMode === 'system'"
-          class="absolute inset-0 z-10 flex items-center justify-center gap-3 bg-surface-bright/80 px-4 backdrop-blur-sm"
+          class="absolute inset-0 z-10 flex items-center justify-center gap-3 bg-surface-bright/80 px-4 backdrop-blur-xs"
         >
           <span
-            class="h-8 w-8 shrink-0 rounded-full border border-outline/30 shadow-sm"
+            class="h-8 w-8 shrink-0 rounded-full border border-outline/30 shadow-xs"
             :style="{ backgroundColor: systemAccent.hex }"
           ></span>
           <div class="min-w-0">
@@ -179,7 +179,7 @@ async function deactivateInstalledTheme() {
 
       <div
         v-if="themePackageActive"
-        class="absolute inset-0 z-20 !mt-0 flex min-h-full items-center justify-center rounded-2xl bg-surface-bright/90 p-6 text-center shadow-lg backdrop-blur-md"
+        class="absolute inset-0 z-20 mt-0! flex min-h-full items-center justify-center rounded-2xl bg-surface-bright/90 p-6 text-center shadow-lg backdrop-blur-md"
       >
         <div class="flex max-w-sm flex-col items-center gap-3">
           <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -226,7 +226,7 @@ async function deactivateInstalledTheme() {
       </div>
       <button
         @click="showCustomCssDialog = true"
-        class="flex-shrink-0 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+        class="shrink-0 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
       >
         {{ $t('settings.customCss.editBtn') }}
       </button>

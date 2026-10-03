@@ -138,7 +138,7 @@ onUnmounted(() => {
   <div class="space-y-6">
     <!-- Spectrum Analyzer / Real-time Monitoring -->
     <div class="haze-surface p-4 space-y-3">
-      <div class="flex justify-between items-center mb-2">
+      <div class="flex justify-between items-center">
         <h4 class="font-bold text-on-surface text-sm">{{ $t('settings.spectrum.title') }}</h4>
         <div class="flex gap-4">
           <div class="flex items-center gap-2">
@@ -157,7 +157,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Amplifier (Gain) -->
-    <div class="bg-surface-bright rounded-2xl p-4 shadow-sm flex items-center gap-4">
+    <div class="bg-surface-bright rounded-2xl p-4 shadow-xs flex items-center gap-4">
       <span class="text-sm font-medium text-on-surface whitespace-nowrap">{{ $t('settings.audioParams.gain') }}</span>
       <MD3Slider :min="-50" :max="50" v-model="settings.gain" />
       <span class="text-xs w-12 text-right">{{ settings.gain > 0 ? '+' : '' }}{{ settings.gain }} dB</span>
@@ -246,7 +246,7 @@ onUnmounted(() => {
     <!-- Audio Processing Chain -->
     <div
       @click="showAudioChain = true"
-      class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-3 cursor-pointer hover:bg-surface-variant transition-colors group"
+      class="bg-surface-bright rounded-2xl p-4 shadow-xs space-y-3 cursor-pointer hover:bg-surface-variant transition-colors group"
     >
       <div class="flex items-center justify-between">
         <div>
@@ -268,7 +268,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Output Buffer Size -->
-    <div class="bg-surface-bright rounded-2xl p-4 shadow-sm">
+    <div class="bg-surface-bright rounded-2xl p-4 shadow-xs">
       <div class="flex items-center justify-between">
         <div>
           <span class="font-medium text-on-surface">{{ $t('settings.audioParams.bufferSize') }}</span>

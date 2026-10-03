@@ -26,7 +26,7 @@ async function copyUrl() {
 
 <template>
   <Transition name="dialog">
-    <div v-if="show" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div v-if="show" class="fixed inset-0 z-100 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-background/60 backdrop-blur-md" @click="emit('dismiss')"></div>
 
       <div class="relative w-full max-w-xs bg-surface-bright/95 backdrop-blur-2xl rounded-3xl overflow-hidden shadow-2xl border border-white/10 flex flex-col">

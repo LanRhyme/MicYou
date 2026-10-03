@@ -120,9 +120,9 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-4 pb-12">
-    <div class="bg-surface-bright rounded-2xl overflow-hidden shadow-sm flex flex-col border border-border">
+    <div class="bg-surface-bright rounded-2xl overflow-hidden shadow-xs flex flex-col border border-border">
       <div class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-default">
-        <User class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+        <User class="w-6 h-6 text-on-surface-variant shrink-0" />
         <div class="flex-1">
           <h4 class="text-sm font-medium text-on-surface">Developer</h4>
           <p class="text-xs text-on-surface-variant">LanRhyme、ChinsaaWei、ChouChiu</p>
@@ -135,7 +135,7 @@ onMounted(async () => {
         target="_blank"
         class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer group"
       >
-        <Globe class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+        <Globe class="w-6 h-6 text-on-surface-variant shrink-0" />
         <div class="flex-1">
           <h4 class="text-sm font-medium text-on-surface">GitHub Repository</h4>
           <p class="text-xs text-primary group-hover:underline">https://github.com/MicYou-Dev/MicYou</p>
@@ -147,7 +147,7 @@ onMounted(async () => {
         @click="showContributors = true"
         class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer"
       >
-        <Users class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+        <Users class="w-6 h-6 text-on-surface-variant shrink-0" />
         <div class="flex-1">
           <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.contributorsBtn') }}</h4>
           <p class="text-xs text-on-surface-variant">{{ $t('settings.about.contributorsDesc') }}</p>
@@ -159,7 +159,7 @@ onMounted(async () => {
         @click="showSponsors = true"
         class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer"
       >
-        <Heart class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+        <Heart class="w-6 h-6 text-on-surface-variant shrink-0" />
         <div class="flex-1">
           <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.sponsorsBtn') }}</h4>
           <p class="text-xs text-on-surface-variant">{{ $t('settings.about.sponsorsDesc') }}</p>
@@ -169,7 +169,7 @@ onMounted(async () => {
 
       <div class="flex items-center justify-between p-4 hover:bg-surface-variant transition-colors cursor-default">
         <div class="flex items-center gap-4">
-          <Info class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+          <Info class="w-6 h-6 text-on-surface-variant shrink-0" />
           <div>
             <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.version') }}</h4>
             <p class="text-xs text-on-surface-variant">{{ appVersion }}</p>
@@ -191,7 +191,7 @@ onMounted(async () => {
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <Zap
-              class="w-6 h-6 flex-shrink-0 transition-colors"
+              class="w-6 h-6 shrink-0 transition-colors"
               :class="useMirrorDownload ? 'text-primary' : 'text-on-surface-variant'"
             />
             <div>
@@ -218,7 +218,7 @@ onMounted(async () => {
             v-model="mirrorCdk"
             type="text"
             :placeholder="$t('settings.mirrorDownload.cdkPlaceholder')"
-            class="w-full bg-surface-container border border-border/40 rounded-xl px-3 py-2 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+            class="w-full bg-surface-container border border-border/40 rounded-xl px-3 py-2 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden focus:ring-2 focus:ring-primary/40 font-mono"
           />
         </div>
       </div>
@@ -228,7 +228,7 @@ onMounted(async () => {
         @click="showLicenses = true"
         class="flex items-center gap-4 p-4 hover:bg-surface-variant transition-colors cursor-pointer"
       >
-        <FileText class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+        <FileText class="w-6 h-6 text-on-surface-variant shrink-0" />
         <div class="flex-1">
           <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.licensesBtn') }}</h4>
           <p class="text-xs text-on-surface-variant">{{ $t('settings.about.licensesDesc') }}</p>
@@ -238,7 +238,7 @@ onMounted(async () => {
 
       <div class="p-4 flex flex-col gap-3">
         <div class="flex items-center gap-4">
-          <FileText class="w-6 h-6 text-on-surface-variant flex-shrink-0" />
+          <FileText class="w-6 h-6 text-on-surface-variant shrink-0" />
           <div class="flex-1 min-w-0">
             <h4 class="text-sm font-medium text-on-surface">{{ $t('settings.about.logsBtn') }}</h4>
             <p class="text-xs text-on-surface-variant truncate font-mono select-all" :title="logPath">
@@ -269,7 +269,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="bg-secondary-container/50 rounded-2xl p-6 mt-4">
+    <div class="bg-secondary-container/50 rounded-2xl p-6">
       <h3 class="text-base font-bold text-on-secondary-container mb-2">{{ $t('settings.about.introTitle') }}</h3>
       <p class="text-sm text-on-secondary-container/80 leading-relaxed">{{ $t('settings.about.introText') }}</p>
     </div>
@@ -283,6 +283,8 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+@reference "@/shared/assets/index.css";
+
 .log-action {
   @apply px-3 py-1.5 text-xs font-medium bg-surface-variant hover:bg-surface-variant/80 text-on-surface rounded-lg transition-colors flex items-center gap-1.5;
 }

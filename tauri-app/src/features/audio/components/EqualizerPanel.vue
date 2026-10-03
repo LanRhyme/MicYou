@@ -15,7 +15,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4" :class="{ 'opacity-50 pointer-events-none': !config.enabled }">
       
       <!-- Presets -->
-      <div class="bg-surface-bright rounded-2xl p-4 shadow-sm">
+      <div class="bg-surface-bright rounded-2xl p-4 shadow-xs">
         <h4 class="text-sm font-bold text-on-surface mb-3">{{ $t('settings.equalizer.presets') }}</h4>
         <div class="relative">
           <Select :model-value="selectedPreset" @update:model-value="val => { selectedPreset = val as string; applyPreset(); }">
@@ -37,7 +37,7 @@
       </div>
 
       <!-- Pre-amp -->
-      <div class="bg-surface-bright rounded-2xl p-4 shadow-sm flex flex-col justify-center">
+      <div class="bg-surface-bright rounded-2xl p-4 shadow-xs flex flex-col justify-center">
         <div class="flex justify-between items-center mb-2">
           <h4 class="text-sm font-bold text-on-surface">{{ $t('settings.equalizer.preAmp') }}</h4>
           <span class="text-xs font-mono font-medium text-primary">{{ config.preAmp > 0 ? '+' : '' }}{{ config.preAmp.toFixed(1) }} dB</span>
@@ -53,7 +53,7 @@
     </div>
 
     <!-- 10-Band EQ Panel -->
-    <div class="bg-surface-bright rounded-3xl p-6 shadow-sm flex-1 flex flex-col min-h-[320px] relative overflow-hidden" :class="{ 'opacity-50 pointer-events-none': !config.enabled }">
+    <div class="bg-surface-bright rounded-3xl p-6 shadow-xs flex-1 flex flex-col min-h-[320px] relative overflow-hidden" :class="{ 'opacity-50 pointer-events-none': !config.enabled }">
       
       <!-- Y-Axis Labels -->
       <div class="absolute left-3 top-12 bottom-12 flex flex-col justify-between text-[10px] text-on-surface-variant/60 font-mono pointer-events-none z-10">

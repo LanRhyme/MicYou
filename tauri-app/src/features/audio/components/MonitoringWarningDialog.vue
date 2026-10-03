@@ -1,6 +1,6 @@
 <template>
   <Transition name="dialog">
-    <div v-if="show" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div v-if="show" class="fixed inset-0 z-100 flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-background/60 backdrop-blur-md" @click="cancel"></div>
 
       <div class="relative w-full max-w-sm bg-surface-bright/95 backdrop-blur-2xl rounded-3xl overflow-hidden shadow-2xl border border-white/10 flex flex-col">
@@ -11,7 +11,7 @@
         <div class="pt-6 pb-2 flex justify-center items-center relative z-10">
           <div class="relative">
             <div class="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse"></div>
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/20 flex items-center justify-center shadow-inner relative z-10">
+            <div class="w-16 h-16 rounded-2xl bg-linear-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/20 flex items-center justify-center shadow-inner relative z-10">
               <Headphones class="w-8 h-8 text-amber-400" stroke-width="1.75" />
             </div>
           </div>

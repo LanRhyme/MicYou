@@ -17,7 +17,7 @@
     </button>
 
     <!-- Left Sidebar -->
-    <div class="settings-nav space-y-2">
+    <div class="settings-nav gap-2">
       <div class="px-4 py-4 mb-4 flex items-center gap-3">
         <SettingsIcon class="w-6 h-6 text-primary" />
         <h2 class="text-xl font-bold text-primary">{{ $t('settings.title') }}</h2>
@@ -63,7 +63,7 @@
       class="settings-scrollbar flex-1 bg-surface-container-lowest/50 p-8 overflow-y-auto overscroll-contain"
     >
       <div data-drag-surface class="max-w-2xl mx-auto space-y-8">
-        <h3 data-drag-surface class="text-3xl font-bold text-primary mb-6">{{ currentSectionName }}</h3>
+        <h3 data-drag-surface class="text-3xl font-bold text-primary">{{ currentSectionName }}</h3>
 
         <Transition name="fade-slide" mode="out-in">
           <GeneralSection v-if="currentSection === 'general'" key="general" data-drag-surface />
@@ -97,7 +97,7 @@
     leave-from-class="opacity-100"
     leave-to-class="opacity-0"
   >
-    <div v-if="restore.confirmTarget.value" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div v-if="restore.confirmTarget.value" class="fixed inset-0 z-60 flex items-center justify-center bg-black/40 backdrop-blur-xs">
       <div class="bg-surface rounded-2xl shadow-2xl border border-outline/10 p-6 w-80">
         <h3 class="text-sm font-bold text-foreground mb-2">
           {{ $t(restore.confirmTarget.value === 'settings' ? 'settings.restoreDefaults.title' : 'settings.restoreTheme.title') }}
@@ -132,7 +132,7 @@
     leave-from-class="opacity-100"
     leave-to-class="opacity-0"
   >
-    <div v-if="restore.result.value" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div v-if="restore.result.value" class="fixed inset-0 z-60 flex items-center justify-center bg-black/40 backdrop-blur-xs">
       <div class="bg-surface rounded-2xl shadow-2xl border border-outline/10 p-6 w-80">
         <h3 class="text-sm font-bold text-foreground mb-2">{{ restore.result.value.title }}</h3>
         <p class="text-xs text-on-surface-variant mb-5">{{ restore.result.value.message }}</p>
@@ -229,7 +229,7 @@ const currentSectionName = computed(() => {
 
 const navItemClass = (id: string) =>
   currentSection.value === id
-    ? 'bg-secondary-container/80 text-on-secondary-container shadow-sm scale-[1.02]'
+    ? 'bg-secondary-container/80 text-on-secondary-container shadow-xs scale-[1.02]'
     : 'hover:bg-surface-variant/30 text-on-surface-variant';
 
 watch(currentSection, () => contentRef.value?.scrollTo({ top: 0 }));

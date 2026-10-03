@@ -16,7 +16,7 @@ const toggle = () => {
 
 <template>
   <!-- A DSP stage: the header toggles it, the slot holds its parameters. -->
-  <div class="bg-surface-bright rounded-2xl p-4 shadow-sm space-y-4">
+  <div class="bg-surface-bright rounded-2xl p-4 shadow-xs space-y-4">
     <div
       class="flex justify-between items-center"
       :class="disabled ? '' : 'cursor-pointer'"

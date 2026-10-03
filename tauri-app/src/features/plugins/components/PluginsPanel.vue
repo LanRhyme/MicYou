@@ -165,7 +165,7 @@ async function applyUpdate(id: string) {
     <!-- 拖拽悬停提示：把插件文件夹或 .zip 放进来 -->
     <div
       v-if="dragOver"
-      class="absolute inset-0 z-20 rounded-xl bg-primary/10 backdrop-blur-sm border-2 border-dashed border-primary flex items-center justify-center pointer-events-none"
+      class="absolute inset-0 z-20 rounded-xl bg-primary/10 backdrop-blur-xs border-2 border-dashed border-primary flex items-center justify-center pointer-events-none"
     >
       <span class="text-sm font-bold text-primary">{{ $t('plugins.installHint') }}</span>
     </div>
@@ -283,7 +283,7 @@ async function applyUpdate(id: string) {
           v-model="searchQuery"
           type="text"
           :placeholder="$t('plugins.search')"
-          class="w-full h-10 pl-9 pr-3 rounded-full bg-surface-variant/20 text-sm text-on-surface outline-none placeholder:text-on-surface-variant/60 focus:ring-1 focus:ring-primary/40"
+          class="w-full h-10 pl-9 pr-3 rounded-full bg-surface-variant/20 text-sm text-on-surface outline-hidden placeholder:text-on-surface-variant/60 focus:ring-1 focus:ring-primary/40"
         />
       </div>
       <p

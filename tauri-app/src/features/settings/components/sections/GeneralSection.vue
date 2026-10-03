@@ -94,7 +94,7 @@ onMounted(() => {
 <template>
   <div class="space-y-6">
     <!-- Run Mode -->
-    <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 shadow-sm border border-white/5">
+    <div class="bg-surface-bright/60 backdrop-blur-lg rounded-2xl p-4 shadow-xs border border-white/5">
       <div class="flex items-center justify-between">
         <div>
           <h4 class="font-bold text-on-surface">{{ $t('settings.runMode.title') }}</h4>
@@ -187,7 +187,7 @@ onMounted(() => {
     </SettingRow>
 
     <!-- Output Device -->
-    <div class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-sm">
+    <div class="bg-surface-bright rounded-2xl p-4 space-y-4 shadow-xs">
       <div>
         <h4 class="font-bold text-on-surface">{{ $t('settings.audioOutput.title') }}</h4>
         <p class="text-xs text-on-surface-variant">{{ $t('settings.audioOutput.desc') }}</p>
