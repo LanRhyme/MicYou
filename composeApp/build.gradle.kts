@@ -243,26 +243,6 @@ dependencies {
         }
     }
     implementation(libs.concentus)
-    implementation(libs.filekit.core) {
-        if (androidCompat) {
-            exclude(group = "androidx.compose")
-            exclude(group = "org.jetbrains.compose.ui")
-            exclude(group = "org.jetbrains.compose.runtime")
-            exclude(group = "org.jetbrains.compose.foundation")
-            exclude(group = "org.jetbrains.compose.material")
-            exclude(group = "org.jetbrains.compose.animation")
-        }
-    }
-    implementation(libs.filekit.dialogs.compose) {
-        if (androidCompat) {
-            exclude(group = "androidx.compose")
-            exclude(group = "org.jetbrains.compose.ui")
-            exclude(group = "org.jetbrains.compose.runtime")
-            exclude(group = "org.jetbrains.compose.foundation")
-            exclude(group = "org.jetbrains.compose.material")
-            exclude(group = "org.jetbrains.compose.animation")
-        }
-    }
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

@@ -56,7 +56,6 @@ dependencyResolutionManagement {
                 version("kotlinx-serialization", "1.7.3")
                 version("materialKolor", "1.7.1")
                 version("haze", "1.0.0")
-                version("filekit", "0.13.0")
             }
             // 预留：未来可添加 isApi19Compat 的更低版本配置
         }

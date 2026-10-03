@@ -37,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.lanrhyme.micyou.ui.background.BackgroundImagePicker
 import com.lanrhyme.micyou.audio.AudioEngine
 import com.lanrhyme.micyou.service.AudioService
 import com.lanrhyme.micyou.theme.isDarkThemeActive
@@ -49,8 +50,6 @@ import com.lanrhyme.micyou.util.PermissionState
 import com.lanrhyme.micyou.util.setAppLocale
 import com.lanrhyme.micyou.viewmodel.MainViewModel
 import com.lanrhyme.micyou.viewmodel.StreamState
-import io.github.vinceglb.filekit.FileKit
-import io.github.vinceglb.filekit.dialogs.init
 import java.util.Locale
 
 class MainActivity : ComponentActivity() {
@@ -145,7 +144,7 @@ class MainActivity : ComponentActivity() {
         Logger.init(this)
         Logger.i("MainActivity", "App started")
 
-        FileKit.init(this)
+        BackgroundImagePicker.register(this)
         val shouldQuickStart = intent?.action == ACTION_QUICK_START
 
         // Initialize permission state
