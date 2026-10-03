@@ -113,6 +113,17 @@ fn write_private(path: &std::path::Path, contents: &str) -> std::io::Result<()> 
     std::io::Write::write_all(&mut options.open(path)?, contents.as_bytes())
 }
 
+/// Older versions kept the certificate and its private key in the temp
+/// directory; nothing reads them any more.
+fn remove_legacy_cert_dir() {
+    let legacy = std::env::temp_dir().join("micyou_web_cert");
+    if let Err(e) = std::fs::remove_dir_all(&legacy) {
+        if e.kind() != std::io::ErrorKind::NotFound {
+            log::warn!("[Web] could not remove {}: {e}", legacy.display());
+        }
+    }
+}
+
 /// Reuse the cached certificate while it still covers the current LAN
 /// addresses, so browsers only re-accept it when the network changed.
 fn load_or_generate_cert_pem() -> Result<GeneratedCert, String> {
@@ -120,8 +131,14 @@ fn load_or_generate_cert_pem() -> Result<GeneratedCert, String> {
     let cert_path = cache_dir.join("cert.pem");
     let key_path = cache_dir.join("key.pem");
     let sans_path = cache_dir.join("sans.txt");
+    remove_legacy_cert_dir();
     let ips = certificate_ips();
-    let sans = ips.iter().map(IpAddr::to_string).collect::<Vec<_>>().join("\n");
+    // Sorted, so a different interface enumeration order alone does not make
+    // browsers accept a new certificate.
+    let mut sans = ips.iter().map(IpAddr::to_string).collect::<Vec<_>>();
+    sans.sort_unstable();
+    sans.dedup();
+    let sans = sans.join("\n");
 
     let cached = (
         std::fs::read_to_string(&cert_path),
