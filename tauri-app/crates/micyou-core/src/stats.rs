@@ -172,6 +172,9 @@ pub fn unix_millis() -> u64 {
 pub struct StreamMeter {
     epoch: u64,
     highest_seq: Option<i64>,
+    /// Bit `n` is set when `highest_seq - n` has arrived, so a duplicate can
+    /// be told apart from a late packet that fills a gap.
+    seen: u64,
     received: u64,
     lost: u64,
     jitter: f64,
@@ -218,14 +221,31 @@ impl StreamMeter {
         let seq = i64::from(packet.sequence_number);
         match self.highest_seq {
             Some(highest) if seq <= highest => {
+                let bit = u32::try_from(highest - seq)
+                    .ok()
+                    .and_then(|offset| 1u64.checked_shl(offset));
+                // Duplicates and packets older than the window change nothing.
+                let Some(bit) = bit.filter(|bit| self.seen & bit == 0) else {
+                    return;
+                };
                 // A late packet fills a gap counted as lost earlier.
+                self.seen |= bit;
                 self.lost = self.lost.saturating_sub(1);
             }
             Some(highest) => {
-                self.lost += (seq - highest - 1) as u64;
+                let gap = seq - highest;
+                self.lost += (gap - 1) as u64;
+                self.seen = u32::try_from(gap)
+                    .ok()
+                    .and_then(|gap| self.seen.checked_shl(gap))
+                    .unwrap_or(0)
+                    | 1;
                 self.highest_seq = Some(seq);
             }
-            None => self.highest_seq = Some(seq),
+            None => {
+                self.seen = 1;
+                self.highest_seq = Some(seq);
+            }
         }
         self.received += 1;
         let expected = self.received + self.lost;
@@ -270,6 +290,20 @@ mod tests {
         assert_eq!(stats.get_loss_rate(), 40.0);
         meter.observe(&stats, 1, &packet(2), 10);
         assert_eq!(stats.get_loss_rate(), 20.0);
+    }
+
+    #[test]
+    fn stream_meter_ignores_duplicates() {
+        let stats = NetworkStats::default();
+        let mut meter = StreamMeter::default();
+        for seq in [0, 2, 2, 0] {
+            meter.observe(&stats, 1, &packet(seq), 10);
+        }
+        // Only 1 is missing; the repeats neither fill it nor count twice.
+        assert!((stats.get_loss_rate() - 100.0 / 3.0).abs() < 1e-9);
+        meter.observe(&stats, 1, &packet(1), 10);
+        meter.observe(&stats, 1, &packet(1), 10);
+        assert_eq!(stats.get_loss_rate(), 0.0);
     }
 
     #[test]
