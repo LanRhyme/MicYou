@@ -14,8 +14,8 @@ noise-suppression = ["dsp"]
 serde = { version = "1", features = ["derive"] }
 log = "0.4.32"
 cpal.workspace = true
-rubato = "3.0.0"
-ringbuf = "0.3.3"
+rubato = "5.0.1"
+ringbuf = "0.5.2"
 
 # DSP dependencies (optional)
 nnnoiseless = { version = "0.5.2", optional = true }

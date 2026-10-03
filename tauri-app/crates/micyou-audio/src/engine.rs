@@ -15,7 +15,8 @@
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{OutputCallbackInfo, SampleFormat, StreamConfig};
-use ringbuf::{HeapRb, Producer};
+use ringbuf::traits::{Consumer, Observer, Producer, Split};
+use ringbuf::{HeapProd, HeapRb};
 use rubato::audioadapter::{Adapter, AdapterMut};
 use rubato::audioadapter_buffers::owned::InterleavedOwned;
 use rubato::{Async, FixedAsync, PolynomialDegree, Resampler};
@@ -87,7 +88,7 @@ impl RubatoResampler {
                 }
             }
 
-            match self.resampler.process(&self.input_buffer, 0, None) {
+            match self.resampler.process(&self.input_buffer, None) {
                 Ok(output_buffer) => {
                     let out_frames = output_buffer.frames();
                     let expected_out_frames = (in_frames as f64
@@ -164,7 +165,7 @@ fn stream_error_callback(
 
 pub struct AudioOutputManager {
     stream: Option<cpal::Stream>,
-    producer: Option<Producer<f32, Arc<HeapRb<f32>>>>,
+    producer: Option<HeapProd<f32>>,
     resampler: Option<RubatoResampler>,
     device_sample_rate: u32,
     device_channels: usize,
@@ -177,7 +178,7 @@ pub struct AudioOutputManager {
     #[allow(dead_code)]
     monitor_stream: Option<cpal::Stream>,
     #[allow(dead_code)]
-    monitor_producer: Option<Producer<f32, Arc<HeapRb<f32>>>>,
+    monitor_producer: Option<HeapProd<f32>>,
     #[allow(dead_code)]
     monitor_resampler: Option<RubatoResampler>,
     #[allow(dead_code)]
@@ -374,7 +375,7 @@ impl AudioOutputManager {
                                 // Hard-muted: drop everything queued and emit pure
                                 // silence so muting takes effect within this
                                 // callback period.
-                                while consumer.pop().is_some() {}
+                                consumer.clear();
                                 for sample in data.iter_mut() {
                                     *sample = 0.0;
                                 }
@@ -383,7 +384,7 @@ impl AudioOutputManager {
                                 return;
                             }
                             for sample in data.iter_mut() {
-                                match consumer.pop() {
+                                match consumer.try_pop() {
                                     Some(s) => {
                                         *sample = s;
                                         last_sample = s;
@@ -413,7 +414,7 @@ impl AudioOutputManager {
                                 // Hard-muted: drop everything queued and emit pure
                                 // silence so muting takes effect within this
                                 // callback period.
-                                while consumer.pop().is_some() {}
+                                consumer.clear();
                                 for sample in data.iter_mut() {
                                     *sample = 0;
                                 }
@@ -422,7 +423,7 @@ impl AudioOutputManager {
                                 return;
                             }
                             for sample in data.iter_mut() {
-                                let f_sample = match consumer.pop() {
+                                let f_sample = match consumer.try_pop() {
                                     Some(s) => {
                                         underrun_counter.store(0, Ordering::Relaxed);
                                         last_sample = s;
@@ -594,7 +595,7 @@ impl AudioOutputManager {
                             // Hard-muted: drop everything queued and emit pure
                             // silence so muting takes effect within this
                             // callback period.
-                            while consumer.pop().is_some() {}
+                            consumer.clear();
                             for sample in data.iter_mut() {
                                 *sample = 0.0;
                             }
@@ -603,7 +604,7 @@ impl AudioOutputManager {
                             return;
                         }
                         for sample in data.iter_mut() {
-                            match consumer.pop() {
+                            match consumer.try_pop() {
                                 Some(s) => {
                                     *sample = s;
                                     last_sample = s;
@@ -635,7 +636,7 @@ impl AudioOutputManager {
                             // Hard-muted: drop everything queued and emit pure
                             // silence so muting takes effect within this
                             // callback period.
-                            while consumer.pop().is_some() {}
+                            consumer.clear();
                             for sample in data.iter_mut() {
                                 *sample = 0;
                             }
@@ -644,7 +645,7 @@ impl AudioOutputManager {
                             return;
                         }
                         for sample in data.iter_mut() {
-                            let f_sample = match consumer.pop() {
+                            let f_sample = match consumer.try_pop() {
                                 Some(s) => {
                                     underrun_counter.store(0, Ordering::Relaxed);
                                     last_sample = s;
@@ -787,7 +788,7 @@ impl AudioOutputManager {
 
     pub fn queued_samples(&self) -> usize {
         if let Some(producer) = &self.producer {
-            producer.len()
+            producer.occupied_len()
         } else {
             0
         }

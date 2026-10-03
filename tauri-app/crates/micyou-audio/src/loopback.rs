@@ -17,7 +17,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-use ringbuf::{HeapRb, Rb};
+use ringbuf::traits::{Consumer, Observer, RingBuffer};
+use ringbuf::HeapRb;
 
 use crate::AecFailure;
 
@@ -162,16 +163,14 @@ impl LoopbackCapture {
         // If the near-end stream paused while playback continued, discard old
         // reference audio instead of preserving a permanent multi-second lag.
         let stale_samples = buf
-            .len()
+            .occupied_len()
             .saturating_sub(MAX_REFERENCE_LAG_SAMPLES + n_samples);
-        for _ in 0..stale_samples {
-            buf.pop();
-        }
+        buf.skip(stale_samples);
 
-        let available = buf.len().min(n_samples);
+        let available = buf.occupied_len().min(n_samples);
         let mut out = Vec::with_capacity(n_samples);
         for _ in 0..available {
-            out.push(buf.pop().expect("available reference sample must exist"));
+            out.push(buf.try_pop().expect("available reference sample must exist"));
         }
         out.resize(n_samples, 0.0);
         out
@@ -672,6 +671,7 @@ fn cpal_capture_thread(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ringbuf::traits::Producer;
 
     #[test]
     fn capture_failure_is_consumed_once() {
@@ -691,7 +691,7 @@ mod tests {
         {
             let mut buffer = capture.buffer.lock().unwrap();
             for sample in 0..700 {
-                buffer.push(sample as f32).unwrap();
+                buffer.try_push(sample as f32).unwrap();
             }
         }
 
@@ -705,7 +705,7 @@ mod tests {
             &(660..700).map(|sample| sample as f32).collect::<Vec<_>>()
         );
         assert!(underrun[40..].iter().all(|sample| *sample == 0.0));
-        assert_eq!(capture.buffer.lock().unwrap().len(), 0);
+        assert_eq!(capture.buffer.lock().unwrap().occupied_len(), 0);
     }
 
     #[test]
@@ -715,7 +715,7 @@ mod tests {
         {
             let mut buffer = capture.buffer.lock().unwrap();
             for sample in 0..sample_count {
-                buffer.push(sample as f32).unwrap();
+                buffer.try_push(sample as f32).unwrap();
             }
         }
 
@@ -724,7 +724,7 @@ mod tests {
         assert_eq!(reference.first(), Some(&480.0));
         assert_eq!(reference.last(), Some(&959.0));
         assert_eq!(
-            capture.buffer.lock().unwrap().len(),
+            capture.buffer.lock().unwrap().occupied_len(),
             MAX_REFERENCE_LAG_SAMPLES
         );
     }
@@ -732,12 +732,12 @@ mod tests {
     #[test]
     fn reset_session_clears_buffer_and_stale_failure() {
         let capture = LoopbackCapture::new();
-        capture.buffer.lock().unwrap().push(1.0).unwrap();
+        capture.buffer.lock().unwrap().try_push(1.0).unwrap();
         set_failure(&capture.failure, AecFailure::ReferenceLost);
 
         capture.reset_session();
 
-        assert_eq!(capture.buffer.lock().unwrap().len(), 0);
+        assert_eq!(capture.buffer.lock().unwrap().occupied_len(), 0);
         assert_eq!(capture.take_failure_reason(), None);
         assert!(!capture.is_active());
     }
@@ -747,14 +747,14 @@ mod tests {
         let capture = LoopbackCapture::new();
         {
             let mut buffer = capture.buffer.lock().unwrap();
-            buffer.push(1.0).unwrap();
-            buffer.push(2.0).unwrap();
+            buffer.try_push(1.0).unwrap();
+            buffer.try_push(2.0).unwrap();
         }
 
         let reference = capture.read(4);
 
         assert_eq!(reference, vec![1.0, 2.0, 0.0, 0.0]);
-        assert_eq!(capture.buffer.lock().unwrap().len(), 0);
+        assert_eq!(capture.buffer.lock().unwrap().occupied_len(), 0);
     }
 
     #[test]
