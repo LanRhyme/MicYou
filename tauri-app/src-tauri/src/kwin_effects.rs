@@ -384,7 +384,13 @@ impl WindowEffects {
         surface.flush()?;
         // Effect state is applied with the next surface commit; ask GTK for a frame.
         window.queue_draw();
-        Ok(Applied { blur: blur.unwrap_or(false), shadow: shadow.unwrap_or(false) })
+        // One effect failing must not undo the other; report it and go on.
+        let applied = |effect: &str, result: Result<bool, String>| {
+            result
+                .inspect_err(|e| log::warn!(target: "window", "{effect} for {label} failed: {e}"))
+                .unwrap_or(false)
+        };
+        Ok(Applied { blur: applied("blur", blur), shadow: applied("shadow", shadow) })
     }
 }
 
