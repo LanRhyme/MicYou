@@ -53,9 +53,6 @@
             android:foregroundServiceType="microphone|mediaPlayback"
             tools:targetApi="q" />
 
-        <receiver
-            android:name=".service.RestartReceiver"
-            android:exported="false" />
 
         <!-- TileService 需要 API 24+，在低版本设备上不会被使用 -->
         <service

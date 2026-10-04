@@ -29,8 +29,8 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.net.wifi.WifiManager
 import android.app.PendingIntent
-import android.app.AlarmManager
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import com.lanrhyme.micyou.audio.AudioEngine
 import com.lanrhyme.micyou.MainActivity
 import com.lanrhyme.micyou.util.AppLanguage
@@ -49,10 +49,6 @@ class AudioService : Service() {
         const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_DISCONNECT = "ACTION_DISCONNECT"
         const val EXTRA_USE_WIFI_LOCK = "EXTRA_USE_WIFI_LOCK"
-        const val PREFS_NAME = "android_mic_prefs"
-        const val KEY_WIFI_LOCK = "audio_wifi_lock"
-        const val KEY_STREAMING = "audio_streaming"
-        private const val RESTART_DELAY_MS = 5000L
     }
 
     override fun onCreate() {
@@ -63,7 +59,7 @@ class AudioService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> startForegroundService(
-                intent.getBooleanExtra(EXTRA_USE_WIFI_LOCK, readWifiLockFlag()),
+                intent.getBooleanExtra(EXTRA_USE_WIFI_LOCK, false),
                 streaming = true
             )
             ACTION_START_IDLE -> startForegroundService(useWifiLock = false, streaming = false)
@@ -72,15 +68,14 @@ class AudioService : Service() {
                 AudioEngine.requestDisconnectFromNotification()
                 enterIdle()
             }
-            null -> startForegroundService(readWifiLockFlag(), streaming = readStreamingFlag())
         }
-        return START_STICKY
+        // The stream lives in AudioEngine, which dies with the process: a service the
+        // system recreates would only show a stale notification, and Android 14+ refuses
+        // to start a microphone foreground service from the background anyway.
+        return START_NOT_STICKY
     }
 
     private fun startForegroundService(useWifiLock: Boolean, streaming: Boolean) {
-        writeWifiLockFlag(useWifiLock)
-        writeStreamingFlag(streaming)
-        cancelRestartAlarm()
         if (streaming) {
             acquireSessionLocks(useWifiLock)
         } else {
@@ -101,7 +96,6 @@ class AudioService : Service() {
     }
 
     private fun enterIdle() {
-        writeStreamingFlag(false)
         releaseSessionLocks()
         val notification = createNotification(streaming = false)
 
@@ -150,24 +144,12 @@ class AudioService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        scheduleRestart()
-    }
-
-    // [API 21+ 兼容] setExactAndAllowWhileIdle() 是 API 23+ 才有的，
-    // 低版本用 setExact() 替代（虽不支持空闲时精确唤醒，但兼容模式 targetSdk 29 不需要 Doze 模式适配）。
-    private fun scheduleRestart() {
-        val alarm = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val triggerAt = System.currentTimeMillis() + RESTART_DELAY_MS
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            alarm.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, restartPendingIntent())
-        } else {
-            alarm.setExact(AlarmManager.RTC_WAKEUP, triggerAt, restartPendingIntent())
+        // Swiping the app away while idle is a normal exit: drop the idle notification.
+        // While streaming, the foreground service keeps the process and the stream alive.
+        if (!AudioEngine.isStreaming()) {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            stopSelf()
         }
-    }
-
-    private fun cancelRestartAlarm() {
-        val alarm = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarm.cancel(restartPendingIntent())
     }
 
     // [API 21+ 兼容] PendingIntent.FLAG_IMMUTABLE 是 API 23+ 才有的常量，
@@ -177,34 +159,6 @@ class AudioService : Service() {
     } else {
         PendingIntent.FLAG_UPDATE_CURRENT
     }
-
-    private fun restartPendingIntent(): PendingIntent =
-        PendingIntent.getBroadcast(
-            this,
-            0,
-            Intent(this, RestartReceiver::class.java).apply { action = ACTION_START },
-            pendingIntentFlags()
-        )
-
-    private fun writeWifiLockFlag(useWifiLock: Boolean) {
-        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_WIFI_LOCK, useWifiLock)
-            .apply()
-    }
-
-    private fun readWifiLockFlag(): Boolean =
-        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_WIFI_LOCK, false)
-
-    private fun writeStreamingFlag(streaming: Boolean) {
-        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_STREAMING, streaming)
-            .apply()
-    }
-
-    private fun readStreamingFlag(): Boolean =
-        getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_STREAMING, false)
 
     override fun onDestroy() {
         releaseSessionLocks()
