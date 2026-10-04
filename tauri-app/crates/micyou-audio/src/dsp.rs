@@ -282,14 +282,24 @@ impl PureVoxProcessor {
             spec_flat[i * 2 + 1] = complex_buf[i].im;
         }
 
-        // Create ORT values for all 5 inputs
-        let val_spec =
-            ort::value::Value::from_array((vec![1, spec_size, 1, 2], spec_flat)).unwrap();
-        let val_enc_c = ort::value::Value::from_array((vec![1, 7368], self.enc_c.clone())).unwrap();
-        let val_dec_c = ort::value::Value::from_array((vec![1, 1440], self.dec_c.clone())).unwrap();
-        let val_tfa_c = ort::value::Value::from_array((vec![1, 800], self.tfa_c.clone())).unwrap();
-        let val_inter_c =
-            ort::value::Value::from_array((vec![1, 4608], self.inter_c.clone())).unwrap();
+        // Create ORT values for all 5 inputs. This runs on the audio thread:
+        // a failure passes the frame through instead of panicking it.
+        let values = (|| {
+            Ok::<_, ort::Error>((
+                ort::value::Value::from_array((vec![1, spec_size, 1, 2], spec_flat))?,
+                ort::value::Value::from_array((vec![1, 7368], self.enc_c.clone()))?,
+                ort::value::Value::from_array((vec![1, 1440], self.dec_c.clone()))?,
+                ort::value::Value::from_array((vec![1, 800], self.tfa_c.clone()))?,
+                ort::value::Value::from_array((vec![1, 4608], self.inter_c.clone()))?,
+            ))
+        })();
+        let (val_spec, val_enc_c, val_dec_c, val_tfa_c, val_inter_c) = match values {
+            Ok(values) => values,
+            Err(e) => {
+                log::warn!("PureVox ONNX input allocation failed: {}", e);
+                return input.to_vec();
+            }
+        };
 
         // Run inference
         let outputs = match self.session.run(ort::inputs![
@@ -1206,7 +1216,11 @@ impl DspProcessor {
 
         let mut to_process = std::mem::take(&mut self.to_process_buf);
 
-        let settings = self.settings.read().unwrap().clone();
+        let settings = self
+            .settings
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
         self.equalizer.update_filters(&settings.equalizer);
 
         for effect in &settings.processing_chain {

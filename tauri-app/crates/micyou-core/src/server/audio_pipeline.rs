@@ -27,8 +27,8 @@ use crate::transport::udp::{ActiveAudioSession, SharedActiveAudioSession};
 use micyou_audio::dsp::{AudioDspSettings, DspProcessor};
 use micyou_audio::AecFailure;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use micyou_protocol::micyou::AudioPacketMessage;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
@@ -106,17 +106,24 @@ fn decode_pcm(audio_format: i32, buffer: &[u8], out: &mut Vec<f32>) -> bool {
         // ENCODING_PCM_16BIT
         2 => out.extend(
             buffer
-                .as_chunks::<2>().0.iter()
-                .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 / 32768.0),
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|c| i16::from_le_bytes(*c) as f32 / 32768.0),
         ),
         // ENCODING_PCM_8BIT (unsigned)
         3 => out.extend(buffer.iter().map(|&b| (b as f32 - 128.0) / 128.0)),
-        // ENCODING_PCM_FLOAT
-        4 => out.extend(
-            buffer
-                .as_chunks::<4>().0.iter()
-                .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])),
-        ),
+        // ENCODING_PCM_FLOAT. A NaN or infinity would stick in every
+        // recursive filter of the DSP chain and silence the stream for good,
+        // so non-finite samples from the peer become silence.
+        4 => out.extend(buffer.as_chunks::<4>().0.iter().map(|c| {
+            let sample = f32::from_le_bytes(*c);
+            if sample.is_finite() {
+                sample
+            } else {
+                0.0
+            }
+        })),
         // ENCODING_PCM_24BIT_PACKED
         6 => out.extend(buffer.as_chunks::<3>().0.iter().map(|c| {
             let sample = (c[0] as i32) | ((c[1] as i32) << 8) | ((c[2] as i8 as i32) << 16);
@@ -139,6 +146,9 @@ struct StreamDecoder {
     /// resampler failed for that format, which is not retried per packet.
     resampler: Option<((u32, usize), Option<micyou_audio::RubatoResampler>)>,
     resample_buf: Vec<f32>,
+    /// Decode failures repeat for every packet of a broken stream; log the
+    /// first one per session only.
+    reported_failure: bool,
 }
 
 impl StreamDecoder {
@@ -148,6 +158,13 @@ impl StreamDecoder {
     fn reset(&mut self) {
         self.opus = None;
         self.resampler = None;
+        self.reported_failure = false;
+    }
+
+    fn report_failure(&mut self, message: std::fmt::Arguments) {
+        if !std::mem::replace(&mut self.reported_failure, true) {
+            log::warn!("[Audio] {message} (further errors this session are not logged)");
+        }
     }
 
     /// Decode `audio` into `out`; leaves `out` empty when nothing decodable.
@@ -159,7 +176,7 @@ impl StreamDecoder {
         if audio.codec == micyou_protocol::CODEC_OPUS {
             self.decode_opus(&audio.buffer, sample_rate, channels, out);
         } else if !decode_pcm(audio.audio_format, &audio.buffer, out) {
-            log::warn!("[Audio] Unsupported audio format: {}", audio.audio_format);
+            self.report_failure(format_args!("Unsupported audio format: {}", audio.audio_format));
         }
         if !out.is_empty() && sample_rate != OUTPUT_RATE {
             self.resample(sample_rate, channels, out);
@@ -173,7 +190,9 @@ impl StreamDecoder {
                 .and_then(|ch| opus::Decoder::new(sample_rate, ch).ok())
                 .map(|decoder| (key, decoder));
             if self.opus.is_none() {
-                log::error!("[Audio] Failed to create Opus decoder for {sample_rate}Hz/{channels}ch");
+                self.report_failure(format_args!(
+                    "Failed to create Opus decoder for {sample_rate}Hz/{channels}ch"
+                ));
             }
         }
         let Some((_, decoder)) = self.opus.as_mut() else {
@@ -183,7 +202,7 @@ impl StreamDecoder {
         self.opus_buf.resize(capacity, 0.0);
         match decoder.decode_float(buffer, &mut self.opus_buf) {
             Ok(frames) => out.extend_from_slice(&self.opus_buf[..frames * channels]),
-            Err(e) => log::warn!("[Audio] Opus decode error: {e}"),
+            Err(e) => self.report_failure(format_args!("Opus decode error: {e}")),
         }
     }
 
@@ -493,6 +512,8 @@ mod tests {
         assert_eq!(out, vec![1.0]);
         assert!(decode_pcm(6, &[0x00, 0x00, 0xc0], &mut out));
         assert_eq!(out, vec![-0.5]);
+        assert!(decode_pcm(4, &f32::NAN.to_le_bytes(), &mut out));
+        assert_eq!(out, vec![0.0]);
         assert!(!decode_pcm(9, &[1, 2], &mut out));
         assert!(out.is_empty());
     }

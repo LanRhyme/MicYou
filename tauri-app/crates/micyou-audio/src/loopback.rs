@@ -167,12 +167,9 @@ impl LoopbackCapture {
             .saturating_sub(MAX_REFERENCE_LAG_SAMPLES + n_samples);
         buf.skip(stale_samples);
 
-        let available = buf.occupied_len().min(n_samples);
-        let mut out = Vec::with_capacity(n_samples);
-        for _ in 0..available {
-            out.push(buf.try_pop().expect("available reference sample must exist"));
-        }
-        out.resize(n_samples, 0.0);
+        // Missing reference audio reads as silence.
+        let mut out = vec![0.0; n_samples];
+        buf.pop_slice(&mut out);
         out
     }
 

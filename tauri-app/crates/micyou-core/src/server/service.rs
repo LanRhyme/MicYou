@@ -400,7 +400,7 @@ async fn start_web(
                 session_id: 0,
                 fec_packet_lengths: Vec::new(),
             };
-            seq += 1;
+            seq = seq.wrapping_add(1);
             if !validate_audio_packet(&ordered) {
                 continue;
             }
