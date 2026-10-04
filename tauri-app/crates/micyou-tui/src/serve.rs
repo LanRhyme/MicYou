@@ -58,7 +58,10 @@ async fn run_locked(
     let port = request.port;
     let mode = request.mode.as_str().to_string();
     server::start_server(&state, request).await?;
-    let tui_result = crate::tui::run_tui(rx, state.clone(), port, mode);
+    // The UI loop blocks; hand this worker's queued tasks to the others so
+    // the network tasks keep running.
+    let tui_result =
+        tokio::task::block_in_place(|| crate::tui::run_tui(rx, state.clone(), port, mode));
     if let Err(e) = server::stop_server(&state).await {
         eprintln!("error while stopping: {e}");
     }
