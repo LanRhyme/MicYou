@@ -1,5 +1,6 @@
 import { onMounted, onUnmounted, watch, type Ref } from 'vue';
-import { appWindow, command, type BlurRect, type UnlistenFn } from '@/platform';
+import { appWindow, command, type BlurRect } from '@/platform';
+import { useListeners } from '@/shared/lib/listeners';
 
 interface WindowEffectsOptions {
   /** Blur the desktop behind the `data-blur-region` elements. */
@@ -133,7 +134,7 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
 
   // Window focus, not document focus: plugin panels are iframes and taking
   // focus into one must not count as the window going inactive.
-  let unlistenFocus: UnlistenFn | null = null;
+  const track = useListeners();
   const setInactive = (inactive: boolean) => root.classList.toggle('window-inactive', inactive);
 
   watch(blur, scheduleBlur);
@@ -146,20 +147,19 @@ export function useWindowEffects({ blur, shadowRadius }: WindowEffectsOptions) {
     scheduleBlur();
     void syncShadow();
     setInactive(!(await appWindow.isFocused()));
-    unlistenFocus = await appWindow.onFocusChanged((focused) => {
+    await track(appWindow.onFocusChanged((focused) => {
       setInactive(!focused);
       if (!focused) return;
       // Shown again (e.g. from the tray): retry what was deferred while hidden.
       scheduleBlur();
       if (shadowPending) void syncShadow();
-    });
+    }));
   });
 
   onUnmounted(() => {
     mutationObserver.disconnect();
     resizeObserver.disconnect();
     window.removeEventListener('resize', scheduleBlur);
-    unlistenFocus?.();
     if (frame) cancelAnimationFrame(frame);
   });
 

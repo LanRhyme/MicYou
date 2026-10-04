@@ -12,6 +12,7 @@ import {
 
 // Composables managing server connection, audio, theme, window, and system tray
 import { appWindow, command, onEvent } from '@/platform';
+import { useListeners } from '@/shared/lib/listeners';
 import { useServer } from './features/connection/composables/useServer';
 import { useAudio } from './features/audio/composables/useAudio';
 import { useTheme, saveUiPrefs } from './features/theme/composables/useTheme';
@@ -86,13 +87,12 @@ const openSettings = async () => {
     console.error('open_settings_window failed:', e);
   }
 };
-let unlistenOutputDevice: (() => void) | null = null;
-onMounted(async () => {
-  unlistenOutputDevice = await onEvent('output-device-changed', (payload) => {
+const track = useListeners();
+onMounted(() => {
+  void track(onEvent('output-device-changed', (payload) => {
     server.outputDevice.value = payload;
-  });
+  }));
 });
-onUnmounted(() => unlistenOutputDevice?.());
 const pocketMode = useStorage('micyou_pocket_mode', false);
 const windowEffects = useWindowEffects({
   blur: computed(() => theme.uiStyle.value === 'style-glass'),

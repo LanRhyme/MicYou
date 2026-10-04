@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { X, CheckCircle2, Download, Loader2, ArrowRight } from '@lucide/vue';
-import { command, onEvent, openUrl, type UnlistenFn } from '@/platform';
+import { command, onEvent, openUrl } from '@/platform';
+import { useListeners } from '@/shared/lib/listeners';
 import { isWindows } from '@/shared/lib/os';
 
 const { t } = useI18n();
@@ -20,7 +21,7 @@ const installProgress = ref('');
 const installError = ref('');
 const installSuccess = ref(false);
 
-let unlistenProgress: UnlistenFn | null = null;
+const track = useListeners();
 
 const TOTAL_STEPS_WINDOWS = 4;
 const TOTAL_STEPS_OTHER = 2;
@@ -39,13 +40,9 @@ onMounted(async () => {
     }
   }
 
-  unlistenProgress = await onEvent('vbcable-install-progress', (payload) => {
+  await track(onEvent('vbcable-install-progress', (payload) => {
     installProgress.value = payload;
-  });
-});
-
-onUnmounted(() => {
-  if (unlistenProgress) unlistenProgress();
+  }));
 });
 
 function nextStep() {

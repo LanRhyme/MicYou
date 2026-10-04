@@ -1,5 +1,6 @@
-import { onMounted, onUnmounted, ref } from 'vue';
-import { appWindow, command, type UnlistenFn } from '@/platform';
+import { onMounted, ref } from 'vue';
+import { appWindow, command } from '@/platform';
+import { useListeners } from '@/shared/lib/listeners';
 
 interface WindowAnimations {
   /** Plays the content exit animation before the window disappears. */
@@ -126,11 +127,8 @@ export function useWindow(animations?: WindowAnimations) {
 
   // Compositor close requests (Alt+F4, taskbar) take the same path as the
   // close button: the remembered choice or the confirm dialog decides.
-  let unlistenClose: UnlistenFn | null = null;
-  onMounted(async () => {
-    unlistenClose = await appWindow.onCloseRequested(requestClose);
-  });
-  onUnmounted(() => unlistenClose?.());
+  const track = useListeners();
+  onMounted(() => void track(appWindow.onCloseRequested(requestClose)));
 
   return {
     isHidden, showCloseConfirm,

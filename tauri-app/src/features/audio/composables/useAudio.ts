@@ -1,6 +1,7 @@
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useStorage } from '@vueuse/core';
-import { command, onEvent, type AudioMetrics, type UnlistenFn } from '@/platform';
+import { command, onEvent, type AudioMetrics } from '@/platform';
+import { useListeners } from '@/shared/lib/listeners';
 
 /**
  * Composable for managing audio status, mute state, audio level, metrics and warning dialogs
@@ -28,13 +29,7 @@ export function useAudio() {
   const showMonitoringWarning = ref(false);
   const dontShowMonitoringWarning = useStorage('micyou_dont_show_monitoring_warning', false);
 
-  let unlistenAudioLevel: UnlistenFn | null = null;
-  let unlistenAudioMetrics: UnlistenFn | null = null;
-  let unlistenMuteState: UnlistenFn | null = null;
-  let unlistenMonitoringState: UnlistenFn | null = null;
-  let unlistenUdpWarning: UnlistenFn | null = null;
-  let unlistenDeviceDisconnected: UnlistenFn | null = null;
-  let unlistenServerStopped: UnlistenFn | null = null;
+  const track = useListeners();
 
   /**
    * Toggles the mute state of the server-side audio engine
@@ -97,55 +92,32 @@ export function useAudio() {
     showMonitoringPanel.value = !showMonitoringPanel.value;
   }
 
-  onMounted(async () => {
-    // Listen for real-time audio amplitude updates from backend
-    unlistenAudioLevel = await onEvent('audio-level', (payload) => {
-      audioLevel.value = payload;
-      if (payload > 0 && showUdpWarning.value) {
-        showUdpWarning.value = false;
-      }
-    });
-    
-    // Listen for performance metrics updates from backend
-    unlistenAudioMetrics = await onEvent('audio-metrics', (payload) => {
-      audioMetrics.value = payload;
-    });
-    
-    // Listen for mute state synchronizations from other surfaces
-    unlistenMuteState = await onEvent('mute-state-changed', (payload) => {
-      isMuted.value = payload;
-    });
-    
-    // Listen for audio monitoring state synchronizations
-    unlistenMonitoringState = await onEvent('monitoring-enabled-changed', (payload) => {
-      isMonitoringEnabled.value = payload;
-    });
-
-    // Listen for warnings if UDP traffic is blocked and falls back to TCP
-    unlistenUdpWarning = await onEvent('udp_audio_warning', () => {
-      if (!isMuted.value) {
-        showUdpWarning.value = true;
-      }
-    });
-
-    // Automatically dismiss warning if client disconnects or server stops
-    unlistenDeviceDisconnected = await onEvent('device-disconnected', () => {
+  onMounted(() => {
+    const hideUdpWarning = () => {
       showUdpWarning.value = false;
-    });
-
-    unlistenServerStopped = await onEvent('server-stopped', () => {
-      showUdpWarning.value = false;
-    });
-  });
-
-  onUnmounted(() => {
-    if (unlistenAudioLevel) unlistenAudioLevel();
-    if (unlistenAudioMetrics) unlistenAudioMetrics();
-    if (unlistenMuteState) unlistenMuteState();
-    if (unlistenMonitoringState) unlistenMonitoringState();
-    if (unlistenUdpWarning) unlistenUdpWarning();
-    if (unlistenDeviceDisconnected) unlistenDeviceDisconnected();
-    if (unlistenServerStopped) unlistenServerStopped();
+    };
+    void Promise.all([
+      track(onEvent('audio-level', (payload) => {
+        audioLevel.value = payload;
+        if (payload > 0) hideUdpWarning();
+      })),
+      track(onEvent('audio-metrics', (payload) => {
+        audioMetrics.value = payload;
+      })),
+      // Mute and monitoring changes made from other surfaces (tray, CLI, phone)
+      track(onEvent('mute-state-changed', (payload) => {
+        isMuted.value = payload;
+      })),
+      track(onEvent('monitoring-enabled-changed', (payload) => {
+        isMonitoringEnabled.value = payload;
+      })),
+      // The firewall likely blocks the UDP audio port
+      track(onEvent('udp_audio_warning', () => {
+        if (!isMuted.value) showUdpWarning.value = true;
+      })),
+      track(onEvent('device-disconnected', hideUdpWarning)),
+      track(onEvent('server-stopped', hideUdpWarning)),
+    ]).catch((e) => console.error('Failed to listen for audio events:', e));
   });
 
   return {

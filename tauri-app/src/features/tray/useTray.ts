@@ -1,6 +1,7 @@
-import { onMounted, onBeforeUnmount, watch, type Ref } from "vue";
+import { onMounted, watch, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { command, onEvent, type TrayMenuStrings, type UnlistenFn } from "@/platform";
+import { command, onEvent, type TrayMenuStrings } from "@/platform";
+import { useListeners } from "@/shared/lib/listeners";
 
 export interface TrayCallbacks {
   onShow: () => void | Promise<void>;
@@ -31,7 +32,7 @@ export function useTray(
   streaming: Ref<boolean>,
 ) {
   const { t, locale } = useI18n();
-  let unlisten: UnlistenFn | null = null;
+  const track = useListeners();
   let lastPushedStrings: string | null = null;
 
   async function pushStrings() {
@@ -60,7 +61,7 @@ export function useTray(
   }
 
   onMounted(async () => {
-    unlisten = await onEvent("tray-action", (payload) => {
+    await track(onEvent("tray-action", (payload) => {
       const id = payload;
       switch (id) {
         case "show":
@@ -81,7 +82,7 @@ export function useTray(
         default:
           console.warn("Unknown tray-action id:", id);
       }
-    });
+    }));
 
     await pushStrings();
     await pushState();
@@ -93,10 +94,6 @@ export function useTray(
 
   watch([visibility, streaming], () => {
     void pushState();
-  });
-
-  onBeforeUnmount(() => {
-    if (unlisten) unlisten();
   });
 
   return {

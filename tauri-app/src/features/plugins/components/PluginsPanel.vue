@@ -2,8 +2,9 @@
 import { useI18n } from 'vue-i18n';
 import PluginDetailsDialog from './PluginDetailsDialog.vue';
 import PluginMarketDialog from './PluginMarketDialog.vue';
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { appWindow, type PluginView, type UnlistenFn } from '@/platform';
+import { ref, computed, onMounted, watch } from 'vue';
+import { appWindow, type PluginView } from '@/platform';
+import { useListeners } from '@/shared/lib/listeners';
 import {
   RefreshCw,
   Puzzle,
@@ -48,13 +49,13 @@ function displayDescription(plugin: {
 }
 
 const dragOver = ref(false);
-let unlistenDragDrop: UnlistenFn | null = null;
+const track = useListeners();
 
 onMounted(async () => {
   p.refresh();
   // 拖拽插件文件夹 / .zip 上传（对应文案「把插件文件夹或 .zip 放进来」）
   try {
-    unlistenDragDrop = await appWindow.onFileDrop((event) => {
+    await track(appWindow.onFileDrop((event) => {
       if (event.type === 'enter' || event.type === 'over') {
         dragOver.value = true;
       } else if (event.type === 'leave') {
@@ -65,14 +66,10 @@ onMounted(async () => {
           void p.importFromPath(path);
         }
       }
-    });
+    }));
   } catch (e) {
     console.error('Failed to listen drag-drop:', e);
   }
-});
-
-onUnmounted(() => {
-  unlistenDragDrop?.();
 });
 
 const uiConfigs = ref<Record<string, Record<string, unknown>>>({});

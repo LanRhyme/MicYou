@@ -151,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   Info,
@@ -163,7 +163,8 @@ import {
   SlidersHorizontal,
   X,
 } from '@lucide/vue';
-import { appWindow, onEvent, type UnlistenFn } from '@/platform';
+import { appWindow, onEvent } from '@/platform';
+import { useListeners } from '@/shared/lib/listeners';
 import { applyPlatformClasses } from '@/shared/lib/os';
 import EqualizerPanel from '@/features/audio/components/EqualizerPanel.vue';
 import PluginsPanel from '@/features/plugins/components/PluginsPanel.vue';
@@ -269,26 +270,19 @@ const navItemClass = (id: string) =>
 
 watch(currentSection, () => contentRef.value?.scrollTo({ top: 0 }));
 
-let unlistenAec: UnlistenFn | null = null;
-let unlistenClose: UnlistenFn | null = null;
-let unlistenShown: UnlistenFn | null = null;
+const track = useListeners();
 onMounted(async () => {
   await windowEffects.apply();
   void transition.enter();
-  unlistenClose = await appWindow.onCloseRequested(() => void closeWindow());
-  unlistenShown = await onEvent('settings-window-shown', () => {
+  await track(appWindow.onCloseRequested(() => void closeWindow()));
+  await track(onEvent('settings-window-shown', () => {
     if (hidden) void reopen();
-  });
+  }));
   saveUiPrefs();
   // Plugin pages show in the sidebar before the plugins section is opened.
   void refreshPlugins();
   // Refresh from the shared settings.json so CLI-side changes show up
   await loadSettings();
-  unlistenAec = await trackAecStatus();
-});
-onUnmounted(() => {
-  unlistenAec?.();
-  unlistenClose?.();
-  unlistenShown?.();
+  await track(trackAecStatus());
 });
 </script>

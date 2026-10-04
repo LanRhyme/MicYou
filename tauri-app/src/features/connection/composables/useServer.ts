@@ -1,10 +1,11 @@
-import { ref, computed, onMounted, onUnmounted, watch, type Ref } from 'vue';
+import { ref, computed, onMounted, watch, type Ref } from 'vue';
 import { useStorage } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import QRCode from 'qrcode';
 import { analyzeError, generateErrorDetails, type ConnectionErrorDetails } from '../utils/connectionError';
 import { muteSyncEnabled } from './useMuteSync';
 import { isMacOS } from '@/shared/lib/os';
+import { useListeners } from '@/shared/lib/listeners';
 import {
   command,
   notify,
@@ -12,7 +13,6 @@ import {
   type AdbDevice,
   type NetworkInfo,
   type NetworkInterfaceInfo,
-  type UnlistenFn,
 } from '@/platform';
 
 // Connection modes supported by the application
@@ -331,13 +331,7 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     pendingUsbPort.value = 0;
   };
 
-  let unlistenDeviceConnected: UnlistenFn | null = null;
-  let unlistenDeviceDisconnected: UnlistenFn | null = null;
-  let unlistenServerStopped: UnlistenFn | null = null;
-  let unlistenWebClients: UnlistenFn | null = null;
-  let unlistenAecStatus: UnlistenFn | null = null;
-  let unlistenAudioMetrics: UnlistenFn | null = null;
-  let unlistenAudioLevel: UnlistenFn | null = null;
+  const track = useListeners();
 
   // ---- Shared server prefs (server.json, also read/written by the CLI) ----
   async function loadServerPrefs() {
@@ -382,20 +376,77 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
     persistServerPrefs,
   );
 
-  if (options?.audioLevel) {
-    watch(options.audioLevel, (level) => {
-      if (level > 0 && (serverState.value === 'connecting' || serverState.value === 'starting')) {
-        ensureStreamingState();
+  /** A sign of life from the phone confirms a start that is still waiting. */
+  function healPendingStart() {
+    if (serverState.value === 'connecting' || serverState.value === 'starting') {
+      ensureStreamingState();
+    }
+  }
+
+  function onDeviceDisconnected() {
+    if (serverState.value !== 'streaming' && serverState.value !== 'connecting') return;
+    const wasStreaming = serverState.value === 'streaming';
+    const mode = activeConnectionMode.value || connectionMode.value;
+    if (mode === 'usb') {
+      // The adb reverse tunnel is gone with the cable: stop instead of waiting.
+      resetToIdle();
+      if (options?.isMuted) options.isMuted.value = false;
+      void stopQuietly();
+      if (wasStreaming && notificationsEnabled.value) {
+        void notify(t('app.notify.usbDisconnected'));
       }
-    });
+      return;
+    }
+    serverState.value = 'connecting';
+    if (options?.audioLevel) options.audioLevel.value = 0;
+    if (wasStreaming && notificationsEnabled.value) {
+      void notify(t('app.notify.disconnected'));
+    }
+  }
+
+  // Registered before the initial status query so no transition that
+  // happens while the window loads is missed.
+  function listenToServer() {
+    return Promise.all([
+      track(onEvent('device-connected', ensureStreamingState)),
+      track(onEvent('device-disconnected', onDeviceDisconnected)),
+      // Stops triggered elsewhere (tray, plugins, another window)
+      track(onEvent('server-stopped', () => {
+        resetToIdle();
+        if (options?.isMuted) options.isMuted.value = false;
+      })),
+      // Metrics only flow while a TCP session is up
+      track(onEvent('audio-metrics', healPendingStart)),
+      track(onEvent('audio-level', (payload) => {
+        if (payload > 0) healPendingStart();
+      })),
+      track(onEvent('web-client-count', (payload) => {
+        webClientCount.value = payload;
+        if (payload > 0) {
+          healPendingStart();
+        } else if (
+          (activeConnectionMode.value ?? connectionMode.value) === 'web' &&
+          serverState.value === 'streaming'
+        ) {
+          serverState.value = 'connecting';
+        }
+      })),
+      track(onEvent('aec-status-changed', (payload) => {
+        if (!payload.available && notificationsEnabled.value) {
+          void notify(t(aecFailureNotificationKey(payload.reason)));
+        }
+      })),
+    ]);
   }
 
   onMounted(async () => {
     try {
-      await loadServerPrefs();
+      await listenToServer();
     } catch (e) {
-      console.error('Failed to sync server prefs:', e);
+      console.error('Failed to listen for server events:', e);
     }
+
+    await loadServerPrefs();
 
     try {
       networkInfo.value = await command('get_network_info');
@@ -406,16 +457,16 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
         selectedIp.value = firstIp;
       }
     } catch (e) {
-      console.error("Failed to get network info:", e);
+      console.error('Failed to get network info:', e);
     }
 
     try {
       networkInterfaces.value = await command('get_network_interfaces');
     } catch (e) {
-      console.error("Failed to get network interfaces:", e);
+      console.error('Failed to get network interfaces:', e);
     }
 
-    // Query current server status to sync on mount or reload
+    // Sync with a server that is already running (window reload, GUI reopened)
     try {
       const status = await command('get_streaming_status');
       if (status.isServerRunning) {
@@ -427,86 +478,12 @@ export function useServer(options?: { audioLevel?: Ref<number>; isMuted?: Ref<bo
         }
       }
     } catch (e) {
-      console.error("Failed to get initial server status:", e);
+      console.error('Failed to get initial server status:', e);
     }
 
-    // Listen for client connection successful event
-    unlistenDeviceConnected = await onEvent('device-connected', () => {
-      ensureStreamingState();
-    });
-
-    // Listen for client disconnect events
-    unlistenDeviceDisconnected = await onEvent('device-disconnected', async () => {
-      if (serverState.value === 'streaming' || serverState.value === 'connecting') {
-        const wasStreaming = serverState.value === 'streaming';
-        const mode = activeConnectionMode.value || connectionMode.value;
-        if (mode === 'usb') {
-          await stopQuietly();
-          resetToIdle();
-          if (options?.isMuted) options.isMuted.value = false;
-          if (wasStreaming && notificationsEnabled.value) {
-            void notify(t('app.notify.usbDisconnected'));
-          }
-        } else {
-          serverState.value = 'connecting';
-          if (options?.audioLevel) options.audioLevel.value = 0;
-          if (wasStreaming && notificationsEnabled.value) {
-            void notify(t('app.notify.disconnected'));
-          }
-        }
-      }
-    });
-
-    // Listen for general server stops triggered elsewhere
-    unlistenServerStopped = await onEvent('server-stopped', () => {
-      resetToIdle();
-      if (options?.isMuted) options.isMuted.value = false;
-    });
-
-    // Auto-heal state when receiving audio metrics (TCP heartbeat)
-    unlistenAudioMetrics = await onEvent('audio-metrics', () => {
-      if (serverState.value === 'connecting' || serverState.value === 'starting') {
-        ensureStreamingState();
-      }
-    });
-
-    // Auto-heal state when receiving live audio levels (UDP stream active)
-    unlistenAudioLevel = await onEvent('audio-level', (payload) => {
-      if (payload > 0 && (serverState.value === 'connecting' || serverState.value === 'starting')) {
-        ensureStreamingState();
-      }
-    });
-
-    // Listen for clients joining/leaving the local web server
-    unlistenWebClients = await onEvent('web-client-count', (payload) => {
-      webClientCount.value = payload;
-      if (payload > 0 && (serverState.value === 'connecting' || serverState.value === 'starting')) {
-        ensureStreamingState();
-      } else if (payload === 0 && (activeConnectionMode.value === 'web' || connectionMode.value === 'web') && serverState.value === 'streaming') {
-        serverState.value = 'connecting';
-      }
-    });
-
-    unlistenAecStatus = await onEvent('aec-status-changed', (payload) => {
-      if (!payload.available && notificationsEnabled.value) {
-        void notify(t(aecFailureNotificationKey(payload.reason)));
-      }
-    });
-
-    // Start streaming automatically if user configuration allows it
     if (localStorage.getItem('micyou_auto_stream') === 'true' && serverState.value === 'idle') {
       void toggleStreaming();
     }
-  });
-
-  onUnmounted(() => {
-    if (unlistenDeviceConnected) unlistenDeviceConnected();
-    if (unlistenDeviceDisconnected) unlistenDeviceDisconnected();
-    if (unlistenServerStopped) unlistenServerStopped();
-    if (unlistenWebClients) unlistenWebClients();
-    if (unlistenAecStatus) unlistenAecStatus();
-    if (unlistenAudioMetrics) unlistenAudioMetrics();
-    if (unlistenAudioLevel) unlistenAudioLevel();
   });
 
   return {
