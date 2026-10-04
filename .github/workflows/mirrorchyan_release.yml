@@ -12,7 +12,7 @@ on:
 jobs:
   mirrorchyan:
     runs-on: macos-latest
-    if: ${{ github.repository_owner == 'LanRhyme' }}
+    if: ${{ github.repository_owner == 'MicYou-Dev' }}
     strategy:
       fail-fast: false
       matrix:
@@ -20,9 +20,6 @@ jobs:
           - os: win
             arch: x64
             filename: 'MicYou-Win-*-installer.exe'
-          - os: macos
-            arch: x64
-            filename: 'MicYou-macOS-*-x64.dmg'
           - os: macos
             arch: arm64
             filename: 'MicYou-macOS-*-arm64.dmg'
