@@ -52,7 +52,6 @@ enum FecLayout {
 pub struct JitterBuffer {
     buffer: BTreeMap<i32, AudioPacketMessageOrdered>,
     fec_packets: BTreeMap<i32, AudioPacketMessageOrdered>,
-    played_packets: HashSet<i32>,
     played_audio_packets: BTreeMap<i32, AudioPacketMessageOrdered>,
     played_fec_groups: BTreeMap<i32, PlayedFecGroup>,
     payload_bytes: usize,
@@ -73,7 +72,6 @@ impl JitterBuffer {
         Self {
             buffer: BTreeMap::new(),
             fec_packets: BTreeMap::new(),
-            played_packets: HashSet::new(),
             played_audio_packets: BTreeMap::new(),
             played_fec_groups: BTreeMap::new(),
             payload_bytes: 0,
@@ -92,7 +90,6 @@ impl JitterBuffer {
     fn reset(&mut self) {
         self.buffer.clear();
         self.fec_packets.clear();
-        self.played_packets.clear();
         self.played_audio_packets.clear();
         self.played_fec_groups.clear();
         self.payload_bytes = 0;
@@ -269,40 +266,37 @@ impl JitterBuffer {
             self.prebuffered = true;
         }
 
-        let seq_num = self.expected_sequence_number;
-
-        if let Some(packet) = self.buffer.remove(&seq_num) {
-            self.payload_bytes = self
-                .payload_bytes
-                .saturating_sub(audio_payload_len(&packet));
-            self.remember_played_packet(&packet);
-            self.played_packets.insert(seq_num);
-            self.cleanup_played_packets(seq_num);
-            if seq_num == i32::MAX {
-                // No valid successor exists. Drop this session's remaining state and wait
-                // for a new session instead of repeatedly playing the saturated MAX packet.
-                self.reset();
-            } else {
-                self.expected_sequence_number = seq_num + 1;
-            }
-            return Some(packet);
-        }
-
-        let highest_seq = self.buffer.keys().next_back().copied();
-        if let Some(highest) = highest_seq {
-            if highest >= seq_num.saturating_add(5) {
-                // Gap confirmed. Try FEC recovery.
-                if let Some(recovered) = self.try_fec_recovery(seq_num) {
-                    self.expected_sequence_number = self.expected_sequence_number.saturating_add(1);
-                    return Some(recovered);
+        // A burst loss is skipped in one call: stepping one sequence per push
+        // would hold every later packet back and then release them at once.
+        loop {
+            let seq_num = self.expected_sequence_number;
+            if let Some(packet) = self.buffer.remove(&seq_num) {
+                self.payload_bytes = self
+                    .payload_bytes
+                    .saturating_sub(audio_payload_len(&packet));
+                self.remember_played_packet(&packet);
+                self.cleanup_played_packets(seq_num);
+                if seq_num == i32::MAX {
+                    // No valid successor exists. Drop this session's remaining state and wait
+                    // for a new session instead of repeatedly playing the saturated MAX packet.
+                    self.reset();
                 } else {
-                    // Cannot recover, skip this seq
-                    self.expected_sequence_number = self.expected_sequence_number.saturating_add(1);
+                    self.expected_sequence_number = seq_num + 1;
                 }
+                return Some(packet);
+            }
+
+            // Wait until later packets confirm the gap is a loss, not reordering.
+            let highest = self.buffer.keys().next_back().copied()?;
+            if highest < seq_num.saturating_add(5) {
+                return None;
+            }
+            let recovered = self.try_fec_recovery(seq_num);
+            self.expected_sequence_number = seq_num.saturating_add(1);
+            if recovered.is_some() {
+                return recovered;
             }
         }
-
-        None
     }
 
     fn remember_played_packet(&mut self, packet: &AudioPacketMessageOrdered) {
@@ -387,7 +381,6 @@ impl JitterBuffer {
                 break;
             };
             self.played_audio_packets.remove(&oldest);
-            self.played_packets.remove(&oldest);
         }
     }
 
@@ -482,7 +475,6 @@ impl JitterBuffer {
 
     fn cleanup_played_packets(&mut self, current_seq: i32) {
         let threshold = current_seq.saturating_sub(self.fec_group_size.saturating_mul(2));
-        self.played_packets.retain(|seq| *seq >= threshold);
         self.played_audio_packets.retain(|seq, _| *seq >= threshold);
         self.played_fec_groups
             .retain(|group, _| group.saturating_add(self.fec_group_size) >= threshold);
@@ -560,7 +552,7 @@ mod tests {
         assert_eq!(jitter.buffer.len(), 1);
         assert!(jitter.buffer.contains_key(&0));
         assert!(jitter.fec_packets.is_empty());
-        assert!(jitter.played_packets.is_empty());
+        assert!(jitter.played_audio_packets.is_empty());
         assert!(!jitter.prebuffered);
         assert!(jitter.pop().is_none());
     }
@@ -1136,6 +1128,23 @@ mod tests {
     }
 
     #[test]
+    fn burst_loss_is_skipped_in_one_pop() {
+        let mut jitter = JitterBuffer::new(1000);
+        jitter.prepare_transport_session(ExpectedAudioSession::Bound(101));
+        jitter.push(packet(0, 101));
+        jitter.prebuffered = true;
+        assert_eq!(jitter.pop().unwrap().sequence_number, 0);
+        // 1..20 lost; 20..30 arrive.
+        for sequence in 20..30 {
+            jitter.push(packet(sequence, 101));
+        }
+        let drained: Vec<_> = std::iter::from_fn(|| jitter.pop())
+            .map(|p| p.sequence_number)
+            .collect();
+        assert_eq!(drained, (20..30).collect::<Vec<_>>());
+    }
+
+    #[test]
     fn played_packet_history_has_hard_entry_limit() {
         let mut jitter = JitterBuffer::new(1000);
         jitter.prepare_transport_session(ExpectedAudioSession::Bound(101));
@@ -1147,9 +1156,9 @@ mod tests {
             assert_eq!(jitter.pop().unwrap().sequence_number, sequence);
         }
 
-        assert_eq!(jitter.played_packets.len(), MAX_PLAYED_PACKETS);
-        assert!(!jitter.played_packets.contains(&0));
-        assert!(jitter.played_packets.contains(&99));
+        assert_eq!(jitter.played_audio_packets.len(), MAX_PLAYED_PACKETS);
+        assert!(!jitter.played_audio_packets.contains_key(&0));
+        assert!(jitter.played_audio_packets.contains_key(&99));
     }
 
     #[test]
