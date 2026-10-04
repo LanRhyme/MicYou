@@ -516,7 +516,10 @@ async fn handle_client(
             old.takeover_token.cancel();
             force_close_socket(old.raw_socket);
         }
-        let epoch = if let Ok(mut active_audio) = active_audio_session.write() {
+        let epoch = {
+            let mut active_audio = active_audio_session
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             let previous_epoch = match *active_audio {
                 ActiveAudioSession::Inactive => 0,
                 ActiveAudioSession::UnboundLegacy { epoch, .. }
@@ -536,8 +539,6 @@ async fn handle_client(
                 },
             };
             epoch
-        } else {
-            return Err(IoError::other("audio session lock poisoned").into());
         };
         session_start_permit.send(AudioStreamEvent::SessionStarting {
             expected: expected_session,
@@ -582,7 +583,7 @@ async fn handle_client(
         plugins.clone(),
         addr.ip(),
     )
-    .await?;
+    .await;
 
     let (mut read_half, mut write_half) = socket.into_split();
     let writer_task = tokio::spawn(async move {
@@ -699,7 +700,7 @@ async fn handle_client(
                 plugins_reader.clone(),
                 addr.ip(),
             )
-            .await?;
+            .await;
         }
         #[allow(unreachable_code)]
         Ok::<(), Box<dyn Error + Send + Sync>>(())
@@ -712,9 +713,9 @@ async fn handle_client(
     task_guard.abort_and_wait().await;
 
     if clear_if_active(&active_connection, connection_id).await {
-        if let Ok(mut active_audio) = active_audio_session.write() {
-            *active_audio = ActiveAudioSession::default();
-        }
+        *active_audio_session
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = ActiveAudioSession::default();
         stats.mark_tcp_disconnected();
         events.device_disconnected();
         plugins.broadcast_event(&micyou_plugin::PluginEvent::DeviceDisconnected);
@@ -738,23 +739,23 @@ async fn handle_message(
     active_audio_session: &SharedActiveAudioSession,
     plugins: Arc<crate::plugins::PluginHost>,
     peer_ip: std::net::IpAddr,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
+) {
     if let Some(audio) = msg.audio_packet {
         if !validate_audio_packet(&audio) {
-            return Ok(());
+            return;
         }
         let AudioPacketAcceptance::Accepted { epoch } =
             try_accept_audio_packet(active_audio_session, peer_ip, &audio)
         else {
-            return Ok(());
+            return;
         };
         meter.observe(stats, epoch, &audio, audio_payload_len(&audio));
         let permit = tokio::select! {
             biased;
-            _ = takeover_token.cancelled() => return Ok(()),
+            _ = takeover_token.cancelled() => return,
             result = audio_tx.clone().reserve_owned() => match result {
                 Ok(permit) => permit,
-                Err(_) => return Ok(()),
+                Err(_) => return,
             },
         };
         run_if_active(active_connection, takeover_token, connection_id, || {
@@ -778,10 +779,10 @@ async fn handle_message(
         };
         let permit = tokio::select! {
             biased;
-            _ = takeover_token.cancelled() => return Ok(()),
+            _ = takeover_token.cancelled() => return,
             result = tx.clone().reserve_owned() => match result {
                 Ok(permit) => permit,
-                Err(_) => return Ok(()),
+                Err(_) => return,
             },
         };
         run_if_active(active_connection, takeover_token, connection_id, || {
@@ -822,7 +823,6 @@ async fn handle_message(
             plugins.bus.handle_incoming(&logical);
         }
     }
-    Ok(())
 }
 
 #[cfg(test)]

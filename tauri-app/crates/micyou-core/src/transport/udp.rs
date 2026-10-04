@@ -83,10 +83,13 @@ pub fn try_accept_audio_packet(
     source_ip: IpAddr,
     packet: &AudioPacketMessageOrdered,
 ) -> AudioPacketAcceptance {
-    let Ok(mut active) = active_audio_session.write() else {
-        return AudioPacketAcceptance::Rejected;
-    };
-    match *active {
+    // Every audio packet passes through here, so the common bound case only
+    // takes the read lock; the write lock is reserved for binding a legacy
+    // stream to its first packet's session ID.
+    let current = *active_audio_session
+        .read()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    match current {
         ActiveAudioSession::Inactive => AudioPacketAcceptance::Rejected,
         ActiveAudioSession::Bound {
             peer_ip,
@@ -99,16 +102,33 @@ pub fn try_accept_audio_packet(
                 AudioPacketAcceptance::Rejected
             }
         }
-        ActiveAudioSession::UnboundLegacy { peer_ip, epoch } => {
+        ActiveAudioSession::UnboundLegacy { peer_ip, .. } => {
             if peer_ip != source_ip || !can_bind_legacy_packet(packet) {
                 return AudioPacketAcceptance::Rejected;
             }
-            *active = ActiveAudioSession::Bound {
-                peer_ip,
-                session_id: packet.session_id,
-                epoch,
-            };
-            AudioPacketAcceptance::Accepted { epoch }
+            let mut active = active_audio_session
+                .write()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            // Another packet may have bound the stream (or a new connection
+            // replaced it) between the two locks: re-check under the write lock.
+            match *active {
+                ActiveAudioSession::UnboundLegacy { peer_ip, epoch } if peer_ip == source_ip => {
+                    *active = ActiveAudioSession::Bound {
+                        peer_ip,
+                        session_id: packet.session_id,
+                        epoch,
+                    };
+                    AudioPacketAcceptance::Accepted { epoch }
+                }
+                ActiveAudioSession::Bound {
+                    peer_ip,
+                    session_id,
+                    epoch,
+                } if peer_ip == source_ip && session_id == packet.session_id => {
+                    AudioPacketAcceptance::Accepted { epoch }
+                }
+                _ => AudioPacketAcceptance::Rejected,
+            }
         }
     }
 }
