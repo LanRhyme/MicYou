@@ -110,7 +110,11 @@ fn write_private(path: &std::path::Path, contents: &str) -> std::io::Result<()> 
     options.write(true).create(true).truncate(true);
     #[cfg(unix)]
     std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-    std::io::Write::write_all(&mut options.open(path)?, contents.as_bytes())
+    let mut file = options.open(path)?;
+    // `mode` only applies on creation; tighten a key file left by an older build.
+    #[cfg(unix)]
+    file.set_permissions(std::os::unix::fs::PermissionsExt::from_mode(0o600))?;
+    std::io::Write::write_all(&mut file, contents.as_bytes())
 }
 
 /// Older versions kept the certificate and its private key in the temp
@@ -288,8 +292,9 @@ mod tests {
     #[test]
     fn new_web_sender_closes_replaced_sender() {
         let senders = ActiveWebSender::default();
-        let (first_generation, first_cancel, first_replaced) = senders.activate();
-        let (second_generation, second_cancel, second_replaced) = senders.activate();
+        let shutdown = CancellationToken::new();
+        let (first_generation, first_cancel, first_replaced) = senders.activate(&shutdown);
+        let (second_generation, second_cancel, second_replaced) = senders.activate(&shutdown);
 
         assert!(!first_replaced);
         assert!(second_replaced);
@@ -302,13 +307,23 @@ mod tests {
     #[test]
     fn replacement_disconnect_does_not_restore_old_sender() {
         let senders = ActiveWebSender::default();
-        let (first_generation, first_cancel, _) = senders.activate();
-        let (second_generation, _, _) = senders.activate();
+        let shutdown = CancellationToken::new();
+        let (first_generation, first_cancel, _) = senders.activate(&shutdown);
+        let (second_generation, _, _) = senders.activate(&shutdown);
 
         assert!(senders.deactivate(second_generation));
         assert!(!senders.is_current(first_generation));
         assert!(first_cancel.is_cancelled());
         assert!(!senders.deactivate(first_generation));
+    }
+
+    #[test]
+    fn server_shutdown_closes_the_active_sender() {
+        let senders = ActiveWebSender::default();
+        let shutdown = CancellationToken::new();
+        let (_, cancel, _) = senders.activate(&shutdown);
+        shutdown.cancel();
+        assert!(cancel.is_cancelled());
     }
 }
 
@@ -392,7 +407,7 @@ async fn handle_ws_socket(
     state: WebServerState,
     _permit: OwnedSemaphorePermit,
 ) {
-    let (generation, cancel, replaced) = state.active_sender.activate();
+    let (generation, cancel, replaced) = state.active_sender.activate(&state.shutdown);
     let count = if replaced {
         state.client_count.load(Ordering::SeqCst)
     } else {
@@ -422,16 +437,11 @@ async fn handle_ws_socket(
                 if !state.active_sender.is_current(generation) {
                     break;
                 }
-                if data.len() > 64 * 1024 {
-                    log::warn!(
-                        "Web audio packet too large ({} bytes), dropping",
-                        data.len()
-                    );
-                    continue;
-                }
-                if data.len() % 4 != 0 {
-                    log::warn!("Web audio packet not aligned to 4 bytes, dropping");
-                    continue;
+                // The bundled client never sends these; drop the peer
+                // instead of logging every malformed frame.
+                if data.len() > 64 * 1024 || !data.len().is_multiple_of(4) {
+                    log::warn!("Web audio frame of {} bytes is malformed, closing", data.len());
+                    break;
                 }
 
                 let pcm = float32_to_pcm16(&data);
@@ -492,9 +502,11 @@ struct ActiveWebSender {
 }
 
 impl ActiveWebSender {
-    fn activate(&self) -> (u64, CancellationToken, bool) {
-        let cancel = CancellationToken::new();
-        let mut active = self.cancel.lock().unwrap();
+    /// `shutdown` is the server's token: stopping the server must also end
+    /// upgraded sockets, which axum's graceful shutdown no longer tracks.
+    fn activate(&self, shutdown: &CancellationToken) -> (u64, CancellationToken, bool) {
+        let cancel = shutdown.child_token();
+        let mut active = self.cancel.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
         let replaced = if let Some((_, previous)) = active.replace((generation, cancel.clone())) {
             previous.cancel();
@@ -510,21 +522,13 @@ impl ActiveWebSender {
     }
 
     fn deactivate(&self, generation: u64) -> bool {
-        self.cancel
-            .lock()
-            .map(|mut active| {
-                if active
-                    .as_ref()
-                    .map(|(active_generation, _)| *active_generation)
-                    == Some(generation)
-                {
-                    active.take();
-                    true
-                } else {
-                    false
-                }
-            })
-            .unwrap_or(false)
+        let mut active = self.cancel.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if active.as_ref().is_some_and(|(current, _)| *current == generation) {
+            active.take();
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -535,6 +539,7 @@ pub struct WebServerState {
     pub client_count: Arc<AtomicUsize>,
     active_sender: Arc<ActiveWebSender>,
     pub websocket_slots: Arc<Semaphore>,
+    shutdown: CancellationToken,
 }
 
 struct TlsListener {
@@ -622,12 +627,14 @@ impl WebServer {
             return Err("Web server is already running".to_string());
         }
 
+        let new_token = CancellationToken::new();
         let state = WebServerState {
             events,
             audio_tx,
             client_count: self.client_count.clone(),
             active_sender: Arc::new(ActiveWebSender::default()),
             websocket_slots: Arc::new(Semaphore::new(MAX_WEBSOCKET_CONNECTIONS)),
+            shutdown: new_token.clone(),
         };
 
         let app = Router::new()
@@ -675,11 +682,10 @@ impl WebServer {
             crate::transport::net_bind::normalize_socket_addr(bind_address, port)
         );
 
-        let new_token = CancellationToken::new();
-        {
-            let mut token_guard = self.cancel_token.lock().unwrap();
-            *token_guard = new_token.clone();
-        }
+        *self
+            .cancel_token
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = new_token.clone();
         let cancel_v6 = new_token.clone();
         let cancel = new_token;
         let running = self.running.clone();
@@ -698,7 +704,7 @@ impl WebServer {
             running.store(false, Ordering::SeqCst);
             client_count.store(0, Ordering::SeqCst);
         });
-        *self.task.lock().unwrap() = Some(task);
+        *self.task.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(task);
 
         // Best-effort IPv6 companion listener so phones on IPv6-only or
         // IPv6-preferring networks can reach web mode. It is strictly
@@ -729,7 +735,10 @@ impl WebServer {
                         .await
                         .ok();
                 });
-                *self.task_v6.lock().unwrap() = Some(task_v6);
+                *self
+                    .task_v6
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(task_v6);
             }
             Err(e) => {
                 log::warn!(
@@ -744,29 +753,21 @@ impl WebServer {
     }
 
     pub async fn stop(&self) {
-        if let Ok(token_guard) = self.cancel_token.lock() {
-            token_guard.cancel();
-        }
-        let task = self.task.lock().ok().and_then(|mut task| task.take());
-        if let Some(mut task) = task {
-            if tokio::time::timeout(std::time::Duration::from_secs(3), &mut task)
-                .await
-                .is_err()
-            {
-                task.abort();
-                let _ = task.await;
-            }
-        }
-        // Same graceful shutdown for the IPv6 companion listener (it shares
-        // the cancel token cancelled above).
-        let task_v6 = self.task_v6.lock().ok().and_then(|mut task| task.take());
-        if let Some(mut task) = task_v6 {
-            if tokio::time::timeout(std::time::Duration::from_secs(3), &mut task)
-                .await
-                .is_err()
-            {
-                task.abort();
-                let _ = task.await;
+        self.cancel_token
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .cancel();
+        // The IPv6 companion listener shares the cancel token.
+        for slot in [&self.task, &self.task_v6] {
+            let task = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).take();
+            if let Some(mut task) = task {
+                if tokio::time::timeout(std::time::Duration::from_secs(3), &mut task)
+                    .await
+                    .is_err()
+                {
+                    task.abort();
+                    let _ = task.await;
+                }
             }
         }
         self.running.store(false, Ordering::SeqCst);
