@@ -40,6 +40,8 @@ class AudioService : Service() {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
+    /** Whether this instance has called startForeground. */
+    private var inForeground = false
 
     companion object {
         private const val CHANNEL_ID = "AudioServiceChannel"
@@ -63,7 +65,10 @@ class AudioService : Service() {
                 streaming = true
             )
             ACTION_START_IDLE -> startForegroundService(useWifiLock = false, streaming = false)
-            ACTION_STOP -> enterIdle()
+            // Streaming ended. A fresh instance means the service was already stopped
+            // (the app was swiped away): there is no notification to downgrade, and
+            // startForeground from the background would throw on Android 12+.
+            ACTION_STOP -> if (inForeground) enterIdle() else stopSelf()
             ACTION_DISCONNECT -> {
                 AudioEngine.requestDisconnectFromNotification()
                 enterIdle()
@@ -93,6 +98,7 @@ class AudioService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
+        inForeground = true
     }
 
     private fun enterIdle() {
@@ -144,12 +150,13 @@ class AudioService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        // Swiping the app away while idle is a normal exit: drop the idle notification.
-        // While streaming, the foreground service keeps the process and the stream alive.
-        if (!AudioEngine.isStreaming()) {
-            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-            stopSelf()
-        }
+        // Swiping the app away exits it, streaming or not. The engine belongs to the
+        // activity's view model and stops with it anyway; stop it here explicitly.
+        AudioEngine.requestDisconnectFromNotification()
+        releaseSessionLocks()
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        inForeground = false
+        stopSelf()
     }
 
     // [API 21+ 兼容] PendingIntent.FLAG_IMMUTABLE 是 API 23+ 才有的常量，
