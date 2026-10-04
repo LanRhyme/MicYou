@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -42,7 +42,6 @@ enum AudioOutputCommand {
     Push(Vec<f32>, usize),
     PushSound(Vec<f32>, f32),
     SetMonitoring(bool),
-    Queued(Sender<f64>),
     Shutdown,
 }
 
@@ -143,7 +142,16 @@ impl Recovery {
 
 pub struct AudioOutputHandle {
     tx: Sender<AudioOutputCommand>,
+    /// `f64` bits of the milliseconds queued in the output ring, published by
+    /// the device thread on every command and health tick. The audio thread reads it per
+    /// packet, so it must never wait on a device thread busy reopening.
+    queued_ms: Arc<AtomicU64>,
+    thread: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
 }
+
+/// How long process exit waits for the device thread to close the stream
+/// before the PipeWire virtual devices behind it are torn down.
+const SHUTDOWN_WAIT: Duration = Duration::from_secs(1);
 
 impl AudioOutputHandle {
     /// Spawn the device thread with an externally owned hard-mute flag (the
@@ -151,52 +159,64 @@ impl AudioOutputHandle {
     /// one device callback period without any extra command round-trip).
     fn with_mute_flag(muted: Arc<AtomicBool>) -> Self {
         let (tx, rx) = mpsc::channel::<AudioOutputCommand>();
-        std::thread::spawn(move || {
-            let mut manager = micyou_audio::AudioOutputManager::with_mute_flag(muted);
-            let mut recovery = Recovery::default();
-            loop {
-                let cmd = rx.recv_timeout(HEALTH_CHECK_INTERVAL);
-                recovery.poll(&mut manager);
-                match cmd {
-                    Ok(AudioOutputCommand::Open(device, buffer_ms, reply)) => {
-                        let ok = if manager.is_open() {
-                            true
-                        } else {
-                            match manager.start(device.clone(), buffer_ms) {
-                                Ok(()) => {
-                                    log::info!("[Audio] Output device opened");
-                                    recovery.opened(&manager, device, buffer_ms);
-                                    true
+        let queued_ms = Arc::new(AtomicU64::new(0));
+        let published = queued_ms.clone();
+        let thread = std::thread::Builder::new()
+            .name("micyou-output".into())
+            .spawn(move || {
+                let mut manager = micyou_audio::AudioOutputManager::with_mute_flag(muted);
+                let mut recovery = Recovery::default();
+                loop {
+                    let cmd = rx.recv_timeout(HEALTH_CHECK_INTERVAL);
+                    recovery.poll(&mut manager);
+                    // Sampled before a Push lands, like the request/reply query
+                    // this replaces: the DSP's underrun check compares the
+                    // level the device has drained down to, not a full ring.
+                    published.store(manager.queued_ms().to_bits(), Ordering::Relaxed);
+                    match cmd {
+                        Ok(AudioOutputCommand::Open(device, buffer_ms, reply)) => {
+                            let ok = if manager.is_open() {
+                                true
+                            } else {
+                                match manager.start(device.clone(), buffer_ms) {
+                                    Ok(()) => {
+                                        log::info!("[Audio] Output device opened");
+                                        recovery.opened(&manager, device, buffer_ms);
+                                        true
+                                    }
+                                    Err(e) => {
+                                        log::error!("[Audio] Failed to open output device: {e}");
+                                        false
+                                    }
                                 }
-                                Err(e) => {
-                                    log::error!("[Audio] Failed to open output device: {e}");
-                                    false
-                                }
-                            }
-                        };
-                        let _ = reply.send(ok);
-                    }
-                    Ok(AudioOutputCommand::Push(data, channels)) => {
-                        manager.push_audio_data(&data, channels);
-                    }
-                    Ok(AudioOutputCommand::PushSound(samples, gain)) => {
-                        manager.push_sound_effect(samples, gain);
-                    }
-                    Ok(AudioOutputCommand::SetMonitoring(enabled)) => {
-                        manager.set_monitoring(enabled);
-                    }
-                    Ok(AudioOutputCommand::Queued(reply)) => {
-                        let _ = reply.send(manager.queued_ms());
-                    }
-                    Err(RecvTimeoutError::Timeout) => {}
-                    Ok(AudioOutputCommand::Shutdown) | Err(RecvTimeoutError::Disconnected) => {
-                        manager.close();
-                        break;
+                            };
+                            let _ = reply.send(ok);
+                        }
+                        Ok(AudioOutputCommand::Push(data, channels)) => {
+                            manager.push_audio_data(&data, channels);
+                        }
+                        Ok(AudioOutputCommand::PushSound(samples, gain)) => {
+                            manager.push_sound_effect(samples, gain);
+                        }
+                        Ok(AudioOutputCommand::SetMonitoring(enabled)) => {
+                            manager.set_monitoring(enabled);
+                        }
+                        Err(RecvTimeoutError::Timeout) => {}
+                        Ok(AudioOutputCommand::Shutdown) | Err(RecvTimeoutError::Disconnected) => {
+                            manager.close();
+                            published.store(0, Ordering::Relaxed);
+                            break;
+                        }
                     }
                 }
-            }
-        });
-        Self { tx }
+            })
+            .inspect_err(|e| log::error!("[Audio] Failed to spawn the output thread: {e}"))
+            .ok();
+        Self {
+            tx,
+            queued_ms,
+            thread: std::sync::Mutex::new(thread),
+        }
     }
 
     /// Spawn the persistent device thread whose hard-mute gate is driven by
@@ -238,17 +258,30 @@ impl AudioOutputHandle {
 
     /// Milliseconds of audio currently queued in the output ring buffer.
     pub fn queued_ms(&self) -> f64 {
-        let (reply_tx, reply_rx) = mpsc::channel();
-        if self.tx.send(AudioOutputCommand::Queued(reply_tx)).is_err() {
-            return 0.0;
-        }
-        reply_rx.recv().unwrap_or(0.0)
+        f64::from_bits(self.queued_ms.load(Ordering::Relaxed))
     }
 
     /// Close the output stream and stop the device thread. Only called when
     /// the process is exiting.
     pub fn shutdown(&self) {
         let _ = self.tx.send(AudioOutputCommand::Shutdown);
+        let thread = self
+            .thread
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take();
+        let Some(thread) = thread else {
+            return;
+        };
+        let deadline = Instant::now() + SHUTDOWN_WAIT;
+        while !thread.is_finished() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        if thread.is_finished() {
+            let _ = thread.join();
+        } else {
+            log::warn!("[Audio] Output thread did not stop within {SHUTDOWN_WAIT:?}");
+        }
     }
 }
 
