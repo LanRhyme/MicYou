@@ -13,14 +13,22 @@
  * GNU General Public License for more details.
  */
 
-use crate::transport::session::{audio_payload_len, can_bind_legacy_packet, ExpectedAudioSession};
+use crate::transport::session::{
+    audio_payload_len, can_bind_legacy_packet, pcm_frame_size, ExpectedAudioSession,
+};
 use micyou_protocol::micyou::{AudioPacketMessage, AudioPacketMessageOrdered};
 use std::collections::{BTreeMap, HashSet, VecDeque};
 
 const MAX_RETIRED_SESSION_IDS: usize = 32;
-// Android emits about 7 ms packets and prebuffers 15; 128 packets is under one second
-// of latency while still leaving ample reordering/FEC headroom.
+// Leaves ample reordering/FEC headroom (2.5 s of 20 ms Opus frames) without
+// retaining unbounded audio.
 const MAX_BUFFERED_PACKETS: usize = 128;
+/// Audio buffered before playback starts. Counted in time, not packets:
+/// Opus frames are 20 ms while legacy PCM packets were about 7 ms.
+const PREBUFFER_US: u64 = 100_000;
+/// Duration assumed for a packet whose length cannot be determined, matching
+/// legacy PCM clients (15 of them make the old 15-packet prebuffer).
+const FALLBACK_PACKET_US: u64 = 7_000;
 const MAX_FORWARD_SEQUENCE_DISTANCE: i32 = (MAX_BUFFERED_PACKETS as i32) - 1;
 const MAX_PLAYED_PACKETS: usize = 64;
 const MAX_PLAYED_FEC_GROUPS: usize = 2;
@@ -260,7 +268,18 @@ impl JitterBuffer {
         }
 
         if !self.prebuffered {
-            if self.buffer.len() < 15 {
+            let buffered_us: u64 = self
+                .buffer
+                .values()
+                .map(|packet| {
+                    packet
+                        .audio_packet
+                        .as_ref()
+                        .and_then(packet_duration_us)
+                        .unwrap_or(FALLBACK_PACKET_US)
+                })
+                .sum();
+            if buffered_us < PREBUFFER_US {
                 return None;
             }
             self.prebuffered = true;
@@ -480,6 +499,37 @@ impl JitterBuffer {
             .retain(|group, _| group.saturating_add(self.fec_group_size) >= threshold);
         self.trim_played_history();
     }
+}
+
+/// Playback length of one audio packet, if its payload says.
+fn packet_duration_us(audio: &AudioPacketMessage) -> Option<u64> {
+    let sample_rate = u64::try_from(audio.sample_rate).ok().filter(|&r| r > 0)?;
+    let frames = if audio.codec == micyou_protocol::CODEC_OPUS {
+        opus_packet_samples_48k(&audio.buffer)? * sample_rate / 48_000
+    } else {
+        (audio.buffer.len() / pcm_frame_size(audio)?) as u64
+    };
+    (frames > 0).then(|| frames * 1_000_000 / sample_rate)
+}
+
+/// Samples per channel at 48 kHz in an Opus packet, from its TOC byte
+/// (RFC 6716 section 3.1).
+fn opus_packet_samples_48k(packet: &[u8]) -> Option<u64> {
+    let toc = *packet.first()?;
+    let config = toc >> 3;
+    // Frame sizes in 48 kHz samples: SILK 10/20/40/60 ms, hybrid 10/20 ms,
+    // CELT 2.5/5/10/20 ms.
+    let frame = match config {
+        0..=11 => [480, 960, 1920, 2880][usize::from(config % 4)],
+        12..=15 => [480, 960][usize::from(config % 2)],
+        _ => [120, 240, 480, 960][usize::from(config % 4)],
+    };
+    let frames = match toc & 0x3 {
+        0 => 1,
+        1 | 2 => 2,
+        _ => u64::from(*packet.get(1)? & 0x3f),
+    };
+    Some(frame * frames)
 }
 
 #[cfg(test)]
@@ -1125,6 +1175,43 @@ mod tests {
         assert_eq!(jitter.pop().unwrap().sequence_number, i32::MAX);
         assert!(jitter.pop().is_none());
         assert!(!jitter.initialized);
+    }
+
+    #[test]
+    fn packet_durations_come_from_pcm_length_and_opus_toc() {
+        let mut pcm = packet(0, 1).audio_packet.unwrap();
+        pcm.buffer = vec![0; 960 * 2];
+        assert_eq!(packet_duration_us(&pcm), Some(20_000));
+
+        let mut opus = pcm.clone();
+        opus.codec = micyou_protocol::CODEC_OPUS;
+        // config 11: SILK 60 ms, one frame
+        opus.buffer = vec![11 << 3, 0];
+        assert_eq!(packet_duration_us(&opus), Some(60_000));
+        // config 31 (CELT 20 ms), code 3 with two frames
+        opus.buffer = vec![(31 << 3) | 3, 2];
+        assert_eq!(packet_duration_us(&opus), Some(40_000));
+        opus.buffer.clear();
+        assert_eq!(packet_duration_us(&opus), None);
+    }
+
+    #[test]
+    fn opus_prebuffer_waits_for_100_ms() {
+        let mut jitter = JitterBuffer::new(12);
+        jitter.prepare_transport_session(ExpectedAudioSession::Bound(101));
+        let opus_20ms = |sequence| {
+            let mut p = packet(sequence, 101);
+            let audio = p.audio_packet.as_mut().unwrap();
+            audio.codec = micyou_protocol::CODEC_OPUS;
+            audio.buffer = vec![31 << 3, 0];
+            p
+        };
+        for sequence in 0..4 {
+            jitter.push(opus_20ms(sequence));
+            assert!(jitter.pop().is_none());
+        }
+        jitter.push(opus_20ms(4));
+        assert_eq!(jitter.pop().unwrap().sequence_number, 0);
     }
 
     #[test]
