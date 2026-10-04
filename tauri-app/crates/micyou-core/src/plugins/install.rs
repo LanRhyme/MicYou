@@ -32,6 +32,10 @@ use std::time::Duration;
 const MANIFEST_FETCH_TIMEOUT: Duration = Duration::from_secs(5);
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(10);
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(200);
+/// Bounds what a plugin archive may unpack to, so a zip bomb from the market
+/// or a dropped file cannot fill the disk.
+const MAX_UNPACKED_BYTES: u64 = 512 * 1024 * 1024;
+const MAX_ZIP_ENTRIES: usize = 10_000;
 
 /// Frontend view of one installed plugin.
 #[derive(Serialize, Clone)]
@@ -187,7 +191,7 @@ fn read_manifest_from_zip(zip_path: &Path) -> Result<(PluginManifest, PathBuf), 
 }
 
 /// Extract a plugin zip into `dest_root/<id>`. Entries escaping the archive
-/// root are skipped (`enclosed_name`).
+/// root are skipped (`enclosed_name`); the unpacked size is capped.
 fn import_zip(zip_path: &Path, dest_root: &Path) -> Result<String, String> {
     let (manifest, prefix) = read_manifest_from_zip(zip_path)?;
     let dest = dest_root.join(&manifest.id);
@@ -198,7 +202,12 @@ fn import_zip(zip_path: &Path, dest_root: &Path) -> Result<String, String> {
 
     let file = std::fs::File::open(zip_path).map_err(|e| format!("open zip: {e}"))?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("read zip: {e}"))?;
+    if archive.len() > MAX_ZIP_ENTRIES {
+        return Err(format!("zip has more than {MAX_ZIP_ENTRIES} entries"));
+    }
     let extracted = (|| {
+        // Counted from the bytes actually written: header sizes can lie.
+        let mut budget = MAX_UNPACKED_BYTES;
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).map_err(|e| format!("zip entry: {e}"))?;
             let Some(rel) = entry.enclosed_name() else {
@@ -215,7 +224,11 @@ fn import_zip(zip_path: &Path, dest_root: &Path) -> Result<String, String> {
                 std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
             }
             let mut out = std::fs::File::create(&target).map_err(|e| format!("create file: {e}"))?;
-            std::io::copy(&mut entry, &mut out).map_err(|e| format!("extract: {e}"))?;
+            let written = std::io::copy(&mut (&mut entry).take(budget + 1), &mut out)
+                .map_err(|e| format!("extract: {e}"))?;
+            budget = budget
+                .checked_sub(written)
+                .ok_or_else(|| format!("plugin unpacks to more than {MAX_UNPACKED_BYTES} bytes"))?;
         }
         Ok::<(), String>(())
     })();
@@ -483,6 +496,10 @@ impl PluginHost {
     /// Download a plugin zip from the market and install it. Blocking; run
     /// it off the async runtime.
     pub fn install_from_url(self: &Arc<Self>, id: &str, zip_url: &str) -> Result<String, String> {
+        // The id names the temp file below; it comes from the market listing.
+        if !micyou_plugin::manifest::validate_plugin_id(id) {
+            return Err(format!("invalid plugin id {id:?}"));
+        }
         let cancel = Arc::new(AtomicBool::new(false));
         download_cancellations().insert(id.to_string(), cancel.clone());
         let temp_zip = std::env::temp_dir().join(format!("micyou-market-{id}.zip"));
