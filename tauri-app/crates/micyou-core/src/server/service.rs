@@ -58,7 +58,9 @@ impl std::str::FromStr for ConnectionMode {
             "wifi" => Ok(Self::Wifi),
             "usb" => Ok(Self::Usb),
             "web" => Ok(Self::Web),
-            other => Err(format!("invalid mode '{other}' (expected wifi, usb or web)")),
+            other => Err(format!(
+                "invalid mode '{other}' (expected wifi, usb or web)"
+            )),
         }
     }
 }
@@ -84,10 +86,7 @@ impl StartRequest {
     ) -> Result<Self, String> {
         let prefs = crate::config::load_server_prefs();
         let mode = mode.unwrap_or(&prefs.mode).parse()?;
-        let bind_address = bind_address.or_else(|| {
-            let saved = prefs.bind_address.trim();
-            (!prefs.auto_bind && !saved.is_empty() && saved != "0.0.0.0").then(|| saved.to_string())
-        });
+        let bind_address = bind_address.or_else(|| saved_bind_address(&prefs, mode));
         Ok(Self {
             port: port.unwrap_or(prefs.port),
             mode,
@@ -96,6 +95,15 @@ impl StartRequest {
                 .or_else(|| output::normalize_output_device(&prefs.output_device)),
         })
     }
+}
+
+/// The interface picked in the GUI, if any. USB mode ignores it like the GUI
+/// does: `adb reverse` delivers connections on loopback, which a server bound
+/// to a LAN address would refuse.
+fn saved_bind_address(prefs: &crate::config::ServerPrefs, mode: ConnectionMode) -> Option<String> {
+    let saved = prefs.bind_address.trim();
+    (mode != ConnectionMode::Usb && !prefs.auto_bind && !saved.is_empty() && saved != "0.0.0.0")
+        .then(|| saved.to_string())
 }
 
 /// Returns the UDP audio port (TCP port + 1) for non-web modes.
@@ -175,7 +183,9 @@ fn output_buffer_ms(state: &ServerState) -> usize {
         .dsp_settings
         .read()
         .map(|s| (s.output_buffer_ms as usize).clamp(100, 1200))
-        .unwrap_or_else(|poisoned| (poisoned.into_inner().output_buffer_ms as usize).clamp(100, 1200))
+        .unwrap_or_else(|poisoned| {
+            (poisoned.into_inner().output_buffer_ms as usize).clamp(100, 1200)
+        })
 }
 
 /// Open the persistent output device with the saved preferences. The GUI
@@ -208,7 +218,10 @@ fn load_onnx_runtime(resource_dir: Option<&std::path::Path>) {
                 log::error!("Failed to load ONNX Runtime from {}: {e}", path.display());
             }
         }
-        None => log::warn!("ONNX Runtime library ({}) not found", ort_runtime_filename()),
+        None => log::warn!(
+            "ONNX Runtime library ({}) not found",
+            ort_runtime_filename()
+        ),
     }
 }
 
@@ -485,7 +498,22 @@ pub async fn stop_server(state: &ServerState) -> Result<String, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{validate_server_port, ConnectionMode};
+    use super::{saved_bind_address, validate_server_port, ConnectionMode};
+    use crate::config::ServerPrefs;
+
+    #[test]
+    fn usb_mode_ignores_the_saved_interface() {
+        let prefs = ServerPrefs {
+            auto_bind: false,
+            bind_address: "192.168.8.92".to_string(),
+            ..ServerPrefs::default()
+        };
+        assert_eq!(saved_bind_address(&prefs, ConnectionMode::Usb), None);
+        assert_eq!(
+            saved_bind_address(&prefs, ConnectionMode::Wifi).as_deref(),
+            Some("192.168.8.92")
+        );
+    }
 
     #[test]
     fn non_web_port_zero_is_rejected() {
@@ -494,7 +522,10 @@ mod tests {
 
     #[test]
     fn non_web_port_65534_produces_last_udp_port() {
-        assert_eq!(validate_server_port(65534, ConnectionMode::Wifi), Ok(Some(65535)));
+        assert_eq!(
+            validate_server_port(65534, ConnectionMode::Wifi),
+            Ok(Some(65535))
+        );
     }
 
     #[test]
