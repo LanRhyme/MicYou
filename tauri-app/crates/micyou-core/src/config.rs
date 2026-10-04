@@ -103,7 +103,8 @@ pub fn save_dsp_settings(settings: &AudioDspSettings) -> Result<(), String> {
 
 /// Raw settings.json as a JSON value (for the CLI `settings get`).
 pub fn settings_json() -> serde_json::Value {
-    load_json(&settings_path()).unwrap_or_else(|| serde_json::to_value(AudioDspSettings::default()).unwrap_or_default())
+    load_json(&settings_path())
+        .unwrap_or_else(|| serde_json::to_value(AudioDspSettings::default()).unwrap_or_default())
 }
 
 /// GUI UI preferences persisted to ui.json.
@@ -163,12 +164,7 @@ pub struct ServerPrefs {
     /// directions. When false, the desktop neither sends its mute state to
     /// the phone nor applies mute state received from it. Defaults to true,
     /// including for server.json files written before this field existed.
-    #[serde(default = "default_mute_sync")]
     pub mute_sync: bool,
-}
-
-fn default_mute_sync() -> bool {
-    true
 }
 
 impl Default for ServerPrefs {
