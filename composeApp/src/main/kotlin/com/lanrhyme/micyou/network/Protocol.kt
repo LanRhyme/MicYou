@@ -123,6 +123,8 @@ const val HANDSHAKE_CLIENT = "MicYouCheck1"
 const val HANDSHAKE_SERVER = "MicYouCheck2"
 const val PACKET_MAGIC = 0x4D696359 // "MicY" in ASCII
 const val UDP_PACKET_MAGIC = 0x4D696355 // "MicU" in ASCII
+/** TCP 控制帧负载上限，与 micyou-core 的 MAX_CONTROL_PAYLOAD_LEN 一致 */
+const val MAX_CONTROL_PAYLOAD_SIZE = 1024 * 1024
 const val UDP_CUSTOM_HEADER_SIZE = 8
 const val UDP_MAX_DATAGRAM_SIZE = 1472
 // 为自定义头、嵌套 protobuf、64 位字段及 FEC 长度元数据预留最坏情况预算。

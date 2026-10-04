@@ -78,6 +78,7 @@ import com.lanrhyme.micyou.network.HANDSHAKE_CLIENT
 import com.lanrhyme.micyou.network.HANDSHAKE_SERVER
 import com.lanrhyme.micyou.network.calculateUdpPort
 import com.lanrhyme.micyou.network.MessageWrapper
+import com.lanrhyme.micyou.network.MAX_CONTROL_PAYLOAD_SIZE
 import com.lanrhyme.micyou.network.PACKET_MAGIC
 import com.lanrhyme.micyou.network.UDP_CUSTOM_HEADER_SIZE
 import com.lanrhyme.micyou.network.UDP_MAX_DATAGRAM_SIZE
@@ -490,7 +491,9 @@ class AudioEngine constructor() {
                     var sessionNoiseSuppressor: NoiseSuppressor? = null
                     var sessionAutomaticGainControl: AutomaticGainControl? = null
                     var sessionUdpConsecutiveFailures = 0
-                    var sessionLastPingReceivedTime = System.currentTimeMillis()
+                    // Monotonic clock: a wall-clock jump must not fake a heartbeat timeout.
+                    // Written by the reader coroutine, read by the capture loop.
+                    val sessionLastPingReceivedTime = java.util.concurrent.atomic.AtomicLong(SystemClock.elapsedRealtime())
                     val channel = Channel<MessageWrapper>(capacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
                     startStopMutex.withLock {
                         if (lifecycleGeneration == sessionGeneration && desiredRunning) {
@@ -773,6 +776,11 @@ class AudioEngine constructor() {
                                             throw java.io.IOException("Invalid Packet Magic")
                                         }
                                         val length = inChannel.readInt()
+                                        // Same bound as the server's MAX_CONTROL_PAYLOAD_LEN: a corrupt
+                                        // length would otherwise allocate gigabytes or desync the stream.
+                                        if (length < 0 || length > MAX_CONTROL_PAYLOAD_SIZE) {
+                                            throw java.io.IOException("Invalid control frame length: $length")
+                                        }
 
                                         if (length > 0) {
                                             val packetBytes = ByteArray(length)
@@ -785,7 +793,7 @@ class AudioEngine constructor() {
                                                 }
 
                                                 if (wrapper.ping != null) {
-                                                    sessionLastPingReceivedTime = System.currentTimeMillis()
+                                                    sessionLastPingReceivedTime.set(SystemClock.elapsedRealtime())
                                                     channel.send(MessageWrapper(pong = PongMessage(wrapper.ping.timestamp)))
                                                 }
                                             } catch (e: Exception) {
@@ -815,6 +823,12 @@ class AudioEngine constructor() {
                         val readBufSize = minOf(minBufSize, alignedPayloadSize).coerceAtLeast(frameAlignBytes)
                         val buffer = ByteArray(readBufSize)
                         val floatBuffer = if (androidAudioFormat == android.media.AudioFormat.ENCODING_PCM_FLOAT) FloatArray(readBufSize / 4) else null
+                        // API < 23 reads float PCM through a direct buffer; reuse one per session.
+                        val legacyFloatByteBuf = if (floatBuffer != null && Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                            ByteBuffer.allocateDirect(floatBuffer.size * 4).order(ByteOrder.nativeOrder())
+                        } else {
+                            null
+                        }
 
                         // Opus 编码：固定 20ms 帧。AudioRecord 返回的块大小任意，
                         // 先把 PCM 转成 Short 累积到 opusPcmAccumulator，凑满一帧再编码发送。
@@ -829,13 +843,13 @@ class AudioEngine constructor() {
                         var sequenceNumber = 0
                         var fecGroupBuffer = mutableListOf<ByteArray>()
                         var fecGroupStartSeq = 0
-                        sessionLastPingReceivedTime = System.currentTimeMillis()
+                        sessionLastPingReceivedTime.set(SystemClock.elapsedRealtime())
                         var lastSuccessfulAudioRead = SystemClock.elapsedRealtime()
 
                         while (isActive) {
                             if (writerJob.isCancelled || writerJob.isCompleted) throw Exception("Writer job failed")
                             if (readerJob != null && (readerJob.isCancelled || readerJob.isCompleted)) throw Exception("Reader job failed - connection lost")
-                            if (readerJob != null && System.currentTimeMillis() - sessionLastPingReceivedTime > HEARTBEAT_TIMEOUT_MS) {
+                            if (readerJob != null && SystemClock.elapsedRealtime() - sessionLastPingReceivedTime.get() > HEARTBEAT_TIMEOUT_MS) {
                                 throw Exception("Heartbeat timeout - server unreachable ($HEARTBEAT_TIMEOUT_MS ms)")
                             }
 
@@ -849,7 +863,8 @@ class AudioEngine constructor() {
                                     recorder.read(floatBuffer, 0, floatBuffer.size, AudioRecord.READ_NON_BLOCKING)
                                 } else {
                                     // API < 23: 用 ByteBuffer 间接读取 float PCM
-                                    val byteBuf = ByteBuffer.allocateDirect(floatBuffer.size * 4)
+                                    val byteBuf = legacyFloatByteBuf!!
+                                    byteBuf.clear()
                                     val readBytes = recorder.read(byteBuf, floatBuffer.size * 4)
                                     if (readBytes > 0) {
                                         byteBuf.rewind()
@@ -1132,7 +1147,9 @@ class AudioEngine constructor() {
                 val fb = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
                 var n = 0
                 while (n < fb.limit() && n < out.size) {
-                    out[n] = (fb.get(n) * 32767.0f).roundToInt().coerceIn(-32768, 32767).toShort()
+                    // roundToInt() throws on NaN, which a faulty HAL can deliver
+                    val sample = fb.get(n).takeUnless { it.isNaN() } ?: 0f
+                    out[n] = (sample * 32767.0f).roundToInt().coerceIn(-32768, 32767).toShort()
                     n++
                 }
                 n
