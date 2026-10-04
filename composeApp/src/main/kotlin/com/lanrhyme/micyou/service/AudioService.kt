@@ -21,6 +21,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
+import android.content.res.Configuration
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -33,6 +34,7 @@ import androidx.core.app.NotificationCompat
 import com.lanrhyme.micyou.audio.AudioEngine
 import com.lanrhyme.micyou.MainActivity
 import com.lanrhyme.micyou.util.AppLanguage
+import com.lanrhyme.micyou.util.appLocale
 import com.lanrhyme.micyou.util.getString
 class AudioService : Service() {
 
@@ -248,35 +250,29 @@ class AudioService : Service() {
     }
 
     private fun resolveNotificationText(): Pair<String, String> {
-        val selectedLanguage = readSelectedLanguage()
-        return when (selectedLanguage) {
-            AppLanguage.English -> "MicYou Streaming" to "Tap to disconnect"
-            AppLanguage.Chinese -> "MicYou 正在传输" to "点击断开连接"
-            AppLanguage.ChineseTraditional -> "MicYou 正在傳輸" to "點擊中斷連線"
-            AppLanguage.Cantonese -> "MicYou 傳輸緊" to "撳掣斷開連線"
-            else -> getString(R.string.streaming_notification_title) to getString(R.string.streaming_notification_text)
-        }
+        val context = localizedContext()
+        return context.getString(R.string.streaming_notification_title) to
+            context.getString(R.string.streaming_notification_text)
     }
 
     private fun resolveIdleNotificationText(): Pair<String, String> {
-        val selectedLanguage = readSelectedLanguage()
-        return when (selectedLanguage) {
-            AppLanguage.English -> "MicYou is on" to "Tap to manage"
-            AppLanguage.Chinese -> "MicYou 已开启" to "点击管理"
-            AppLanguage.ChineseTraditional -> "MicYou 已開啟" to "點擊管理"
-            AppLanguage.Cantonese -> "MicYou 開咗" to "撳掣管理"
-            else -> getString(R.string.notification_idle_title) to getString(R.string.notification_idle_text)
-        }
+        val context = localizedContext()
+        return context.getString(R.string.notification_idle_title) to
+            context.getString(R.string.notification_idle_text)
     }
 
-    private fun readSelectedLanguage(): AppLanguage {
-        val prefs = getSharedPreferences("android_mic_prefs", Context.MODE_PRIVATE)
-    val saved = prefs.getString("language", AppLanguage.System.name)
-        return try {
-            AppLanguage.valueOf(saved ?: AppLanguage.System.name)
-        } catch (_: Exception) {
-            AppLanguage.System
-        }
+    /**
+     * Resources in the language picked in the app. The service can run without the
+     * activity (Quick Settings tile), so it reads the preference itself instead of
+     * relying on the locale the activity installs.
+     */
+    private fun localizedContext(): Context {
+        val saved = getSharedPreferences("android_mic_prefs", Context.MODE_PRIVATE)
+            .getString("language", AppLanguage.System.name)
+        val language = AppLanguage.entries.firstOrNull { it.name == saved } ?: AppLanguage.System
+        if (language == AppLanguage.System) return this
+        val config = Configuration(resources.configuration).apply { setLocale(appLocale(language.code)) }
+        return createConfigurationContext(config)
     }
 
     private fun createNotificationChannel() {

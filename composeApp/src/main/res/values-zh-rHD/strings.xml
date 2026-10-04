@@ -242,6 +242,7 @@
     <string name="targetIpLabel">目标 互联网协议</string>
     
     <string name="themeColorLabel">主题颜色数字值</string>
+    <string name="colorPickerTitle">选择颜色</string>
     <string name="themeDark">暗式</string>
     <string name="themeLabel">主题标签项</string>
     <string name="themeLight">光亮式</string>

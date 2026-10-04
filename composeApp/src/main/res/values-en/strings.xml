@@ -284,6 +284,7 @@
     <string name="targetIpLabel">Target IP</string>
     
     <string name="themeColorLabel">Theme Color</string>
+    <string name="colorPickerTitle">Pick a Color</string>
     <string name="themeDark">Dark</string>
     <string name="themeLabel">Theme Mode</string>
     <string name="themeLight">Light</string>

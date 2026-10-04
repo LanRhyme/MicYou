@@ -242,6 +242,7 @@
     <string name="targetIpLabel">目標 IP</string>
     
     <string name="themeColorLabel">主題顏色</string>
+    <string name="colorPickerTitle">揀顏色</string>
     <string name="themeDark">深色</string>
     <string name="themeLabel">主題模式</string>
     <string name="themeLight">淺色</string>
