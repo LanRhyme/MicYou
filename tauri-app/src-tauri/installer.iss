@@ -34,23 +34,32 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 Name: "chinesesimplified"; MessagesFile: "compiler:Default.isl,SimpChinese.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[Messages]
+; The firewall task is only offered in admin ("all users") install mode, so the
+; install-mode selection dialog nudges users toward that option by mentioning
+; the automatic Windows Firewall configuration.
+chinesesimplified.PrivilegesRequiredOverrideText1=%1 可以为所有用户安装（需要管理员权限，将自动配置 Windows 防火墙），或仅为当前用户安装。
+chinesesimplified.PrivilegesRequiredOverrideAllUsers=为所有用户安装（自动配置防火墙）(&A)
+chinesesimplified.PrivilegesRequiredOverrideAllUsersRecommended=为所有用户安装（推荐，自动配置防火墙）(&A)
+english.PrivilegesRequiredOverrideText1=%1 can be installed for all users (requires administrative privileges; Windows Firewall rules will be configured automatically), or for you only.
+english.PrivilegesRequiredOverrideAllUsers=Install for &all users (configures the Windows Firewall)
+english.PrivilegesRequiredOverrideAllUsersRecommended=Install for &all users (recommended; configures the Windows Firewall)
+
 [CustomMessages]
 chinesesimplified.NetworkGroupDescription=网络设置
-chinesesimplified.FirewallTaskDescription=放行 Windows 防火墙（推荐，允许 MicYou 通过防火墙接收来自 Android 设备的音频连接；"仅当前用户"安装时将在安装收尾请求一次管理员授权）
+chinesesimplified.FirewallTaskDescription=放行 Windows 防火墙（推荐，允许 MicYou 通过防火墙接收来自 Android 设备的音频连接）
 english.NetworkGroupDescription=Network settings
-english.FirewallTaskDescription=Add Windows Firewall rules (recommended; allow MicYou to receive audio connections from Android devices through the firewall. For "current user only" installs, administrator approval is requested once at the end of Setup)
-chinesesimplified.FirewallAddFailed=未能添加 Windows 防火墙规则（管理员授权被取消或执行失败）。MicYou 首次监听连接时 Windows 可能弹出防火墙授权提示，届时选择允许即可；也可重新运行安装程序，或在"高级安全 Windows Defender 防火墙"中手动放行 micyou.exe、micyou-cli.exe、micyou-tui.exe。
-english.FirewallAddFailed=Failed to add the Windows Firewall rules (the elevation request was cancelled or netsh failed). Windows may prompt again the first time MicYou listens for connections; allow it there, re-run Setup, or add inbound rules for micyou.exe, micyou-cli.exe and micyou-tui.exe manually in Windows Defender Firewall with Advanced Security.
-chinesesimplified.FirewallRemoveFailed=未能移除 Windows 防火墙规则（管理员授权被取消或执行失败）。可在"高级安全 Windows Defender 防火墙"中手动删除名为 MicYou、MicYou CLI、MicYou TUI 的入站规则。
-english.FirewallRemoveFailed=Failed to remove the Windows Firewall rules (the elevation request was cancelled or netsh failed). You can manually delete the inbound rules named MicYou, MicYou CLI and MicYou TUI in Windows Defender Firewall with Advanced Security.
+english.FirewallTaskDescription=Add Windows Firewall rules (recommended; allow MicYou to receive audio connections from Android devices through the firewall)
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 ; Checked by default, like the firewall component in the qBittorrent installer.
-; Offered in both install modes: in "current user only" (non-admin) installs the
-; rules are applied through a one-time UAC elevation at the end of Setup (see
-; [Code]), so the option must never be hidden there.
-Name: "firewall"; Description: "{cm:FirewallTaskDescription}"; GroupDescription: "{cm:NetworkGroupDescription}"
+; Only offered in admin install mode: managing firewall rules requires
+; elevation, and elevating separately at the end of a per-user install proved
+; unreliable in practice. Users choosing "current user only" are informed via
+; the [Messages] overrides above that the all-users mode configures the
+; firewall automatically.
+Name: "firewall"; Description: "{cm:FirewallTaskDescription}"; GroupDescription: "{cm:NetworkGroupDescription}"; Check: IsAdminInstallMode
 
 [Files]
 Source: "..\target\release\micyou.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -76,35 +85,18 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 // Windows Firewall handling, modeled after the qBittorrent installer
 // (nsisFirewallW::AddAuthorizedApplication on install /
 //  RemoveAuthorizedApplication on uninstall):
-//   - the "firewall" task (checked by default) adds inbound allow rules for
-//     the GUI, CLI and TUI executables; all three frontends can host the same
-//     server that Android devices connect to.
-//   - admin ("all users") installs: Setup is already elevated, netsh runs
-//     directly.
-//   - non-admin ("current user only") installs: the task is still offered;
-//     when selected, one single UAC elevation applies all netsh commands via
-//     a generated helper script. Silent installs skip the elevation attempt
-//     so an unattended run can never stall on an invisible consent prompt.
-//   - uninstall removes the rules (elevating through the helper script when
-//     needed). A marker file in {app} records that a non-admin install really
-//     created rules, so uninstall never prompts UAC without reason.
-//   - re-installs/upgrades delete the rules by name before adding them again,
-//     so duplicates never accumulate.
-// netsh exit codes are ignored where failure is expected/harmless (deleting a
-// non-existent rule returns 1).
+//   - install (task "firewall", checked by default, admin install mode only):
+//     add inbound allow rules for the GUI, CLI and TUI executables; all three
+//     frontends can host the same server that Android devices connect to.
+//   - uninstall: remove those rules unconditionally (a delete for a
+//     non-existent rule is a harmless no-op).
+// Per-user (non-admin) installs do not touch the firewall; the install-mode
+// dialog text ([Messages] overrides) points users to the all-users option
+// which configures it automatically.
+// Inno Setup has no built-in firewall support, so netsh advfirewall is used.
+// Non-zero exit codes are ignored on purpose.
 
-const
-  FirewallMarkerName = '.firewall-rules';
-
-var
-  HadFirewallRules: Boolean;
-
-function FirewallMarkerPath: String;
-begin
-  Result := ExpandConstant('{app}\' + FirewallMarkerName);
-end;
-
-procedure RunNetshDirect(const Arguments: String);
+procedure ExecNetsh(const Arguments: String);
 var
   ResultCode: Integer;
 begin
@@ -112,128 +104,34 @@ begin
     ewWaitUntilTerminated, ResultCode);
 end;
 
-procedure RemoveFirewallRulesDirect;
+procedure RemoveFirewallRules;
 begin
-  RunNetshDirect('advfirewall firewall delete rule name="{#MyAppName}"');
-  RunNetshDirect('advfirewall firewall delete rule name="{#MyAppName} CLI"');
-  RunNetshDirect('advfirewall firewall delete rule name="{#MyAppName} TUI"');
+  ExecNetsh('advfirewall firewall delete rule name="{#MyAppName}"');
+  ExecNetsh('advfirewall firewall delete rule name="{#MyAppName} CLI"');
+  ExecNetsh('advfirewall firewall delete rule name="{#MyAppName} TUI"');
 end;
 
-procedure AddFirewallRulesDirect;
+procedure AddFirewallRules;
 var
   AppDir: String;
 begin
   AppDir := ExpandConstant('{app}');
   // Delete first so re-installs/upgrades never leave duplicate rules behind.
-  RemoveFirewallRulesDirect;
-  RunNetshDirect('advfirewall firewall add rule name="{#MyAppName}" dir=in action=allow enable=yes profile=any program="' + AppDir + '\{#MyAppExeName}"');
-  RunNetshDirect('advfirewall firewall add rule name="{#MyAppName} CLI" dir=in action=allow enable=yes profile=any program="' + AppDir + '\{#MyCliExeName}"');
-  RunNetshDirect('advfirewall firewall add rule name="{#MyAppName} TUI" dir=in action=allow enable=yes profile=any program="' + AppDir + '\{#MyTuiExeName}"');
-end;
-
-// Writes an ASCII-only helper batch script into {tmp} and returns its path
-// ('' on failure). The install directory is passed to the script as quoted
-// argument %1 instead of being embedded in the file, so paths containing
-// non-ASCII characters can never be mangled by codepage conversions.
-function WriteFirewallHelperScript(const Mode: String): String;
-var
-  Lines: TArrayOfString;
-  Path: String;
-begin
-  Result := '';
-  if Mode = 'add' then
-  begin
-    SetArrayLength(Lines, 9);
-    Lines[0] := '@echo off';
-    Lines[1] := 'set RC=0';
-    Lines[2] := 'netsh advfirewall firewall delete rule name="{#MyAppName}" >nul 2>&1';
-    Lines[3] := 'netsh advfirewall firewall delete rule name="{#MyAppName} CLI" >nul 2>&1';
-    Lines[4] := 'netsh advfirewall firewall delete rule name="{#MyAppName} TUI" >nul 2>&1';
-    Lines[5] := 'netsh advfirewall firewall add rule name="{#MyAppName}" dir=in action=allow enable=yes profile=any program="%~1\{#MyAppExeName}" >nul 2>&1 || set RC=1';
-    Lines[6] := 'netsh advfirewall firewall add rule name="{#MyAppName} CLI" dir=in action=allow enable=yes profile=any program="%~1\{#MyCliExeName}" >nul 2>&1 || set RC=1';
-    Lines[7] := 'netsh advfirewall firewall add rule name="{#MyAppName} TUI" dir=in action=allow enable=yes profile=any program="%~1\{#MyTuiExeName}" >nul 2>&1 || set RC=1';
-    Lines[8] := 'exit /b %RC%';
-  end
-  else
-  begin
-    SetArrayLength(Lines, 5);
-    Lines[0] := '@echo off';
-    Lines[1] := 'netsh advfirewall firewall delete rule name="{#MyAppName}" >nul 2>&1';
-    Lines[2] := 'netsh advfirewall firewall delete rule name="{#MyAppName} CLI" >nul 2>&1';
-    Lines[3] := 'netsh advfirewall firewall delete rule name="{#MyAppName} TUI" >nul 2>&1';
-    Lines[4] := 'exit /b 0';
-  end;
-  Path := ExpandConstant('{tmp}\micyou-firewall.cmd');
-  if SaveStringsToFile(Path, Lines, False) then
-    Result := Path;
-end;
-
-// Runs the helper script through a single UAC elevation (ShellExecute 'runas').
-// Returns True only when the user approved and every netsh add succeeded
-// (for Mode = 'add'; 'del' always reports success once it ran).
-function RunFirewallHelperElevated(const Mode: String): Boolean;
-var
-  ScriptPath: String;
-  ResultCode: Integer;
-begin
-  Result := False;
-  ScriptPath := WriteFirewallHelperScript(Mode);
-  if ScriptPath = '' then
-    Exit;
-  if Mode = 'add' then
-  begin
-    if ShellExec('runas', ScriptPath, '"' + ExpandConstant('{app}') + '"', '',
-       SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-      Result := (ResultCode = 0);
-  end
-  else
-  begin
-    if ShellExec('runas', ScriptPath, '', '', SW_HIDE,
-       ewWaitUntilTerminated, ResultCode) then
-      Result := True;
-  end;
+  RemoveFirewallRules;
+  ExecNetsh('advfirewall firewall add rule name="{#MyAppName}" dir=in action=allow enable=yes profile=any program="' + AppDir + '\{#MyAppExeName}"');
+  ExecNetsh('advfirewall firewall add rule name="{#MyAppName} CLI" dir=in action=allow enable=yes profile=any program="' + AppDir + '\{#MyCliExeName}"');
+  ExecNetsh('advfirewall firewall add rule name="{#MyAppName} TUI" dir=in action=allow enable=yes profile=any program="' + AppDir + '\{#MyTuiExeName}"');
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if (CurStep = ssPostInstall) and WizardIsTaskSelected('firewall') then
-  begin
-    if IsAdminInstallMode then
-    begin
-      AddFirewallRulesDirect;
-      SaveStringToFile(FirewallMarkerPath, '1', False);
-    end
-    else if not WizardSilent then
-    begin
-      if RunFirewallHelperElevated('add') then
-        SaveStringToFile(FirewallMarkerPath, '1', False)
-      else
-        MsgBox(ExpandConstant('{cm:FirewallAddFailed}'), mbInformation, MB_OK);
-    end;
-  end;
+  if (CurStep = ssPostInstall) and IsAdminInstallMode and
+     WizardIsTaskSelected('firewall') then
+    AddFirewallRules;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
-  if CurUninstallStep = usUninstall then
-  begin
-    // Read and remove the marker BEFORE the file-removal pass: it is not a
-    // recorded file, and any leftover inside {app} would keep the directory
-    // from being deleted at the end of the uninstall.
-    HadFirewallRules := FileExists(FirewallMarkerPath);
-    DeleteFile(FirewallMarkerPath);
-  end
-  else if CurUninstallStep = usPostUninstall then
-  begin
-    if IsAdminInstallMode then
-    begin
-      // Unconditional: also cleans up rules left behind by older builds.
-      RemoveFirewallRulesDirect;
-    end
-    else if HadFirewallRules then
-    begin
-      if not RunFirewallHelperElevated('del') then
-        MsgBox(ExpandConstant('{cm:FirewallRemoveFailed}'), mbInformation, MB_OK);
-    end;
-  end;
+  if (CurUninstallStep = usPostUninstall) and IsAdminInstallMode then
+    RemoveFirewallRules;
 end;
