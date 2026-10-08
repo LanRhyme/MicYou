@@ -46,11 +46,11 @@ type MessageFn = unsafe extern "C" fn(*const c_char, *const c_char, *const u8, u
 pub struct NativePlugin {
     manifest: PluginManifest,
     _lib: Library,
-    /// Owns one reference to the host context through its raw `ctx` pointer,
-    /// released in `Drop`.
+    /// Kept alive so the raw `ctx` pointer inside `host_table` stays valid for
+    /// the plugin's lifetime (the field itself is only a drop-guard).
+    #[allow(dead_code)]
+    host_ctx: Arc<NativeHostCtx>,
     host_table: mpl_host_api_t,
-    /// `micyou_plugin_deinit` is only owed after a successful init.
-    initialized: bool,
     f_init: Symbol<'static, InitFn>,
     f_deinit: Symbol<'static, DeinitFn>,
     f_process: Option<Symbol<'static, ProcessFn>>,
@@ -145,16 +145,17 @@ impl NativePlugin {
             let f_deinit: Symbol<'static, DeinitFn> = transmute_symbol(f_deinit);
 
             // ── Host table ──
-            let host_table = abi::host_table_for(Arc::new(NativeHostCtx {
+            let host_ctx = Arc::new(NativeHostCtx {
                 host,
                 capabilities: manifest.capabilities.clone(),
-            }));
+            });
+            let host_table = abi::host_table_for(host_ctx.clone());
 
-            let mut plugin = NativePlugin {
+            let plugin = NativePlugin {
                 manifest,
                 _lib: lib,
+                host_ctx,
                 host_table,
-                initialized: false,
                 f_init,
                 f_deinit,
                 f_process,
@@ -164,8 +165,9 @@ impl NativePlugin {
 
             // ── init ──
             let code = (plugin.f_init)(&plugin.host_table);
-            abi::result_from_code(code, "micyou_plugin_init")?;
-            plugin.initialized = true;
+            if code != mpl_result_t::MPL_OK {
+                return Err(abi::result_from_code(code, "micyou_plugin_init").unwrap_err());
+            }
             Ok(plugin)
         }
     }
@@ -184,9 +186,7 @@ impl Drop for NativePlugin {
         // Symbols (which live inside the Library) are dropped with the struct
         // before the Library field is dropped (declaration order).
         unsafe {
-            if self.initialized {
-                (self.f_deinit)();
-            }
+            (self.f_deinit)();
             abi::release_host_ctx(self.host_table.ctx);
         }
     }
@@ -233,7 +233,7 @@ impl PluginRuntime for NativePlugin {
         let Some(f_event) = &self.f_event else {
             return Ok(());
         };
-        let payload =
+        let event_type =
             serde_json::to_string(event).map_err(|e| PluginError::Runtime(e.to_string()))?;
         let type_name = CString::new(match event {
             PluginEvent::DeviceConnected { .. } => "device_connected",
@@ -244,7 +244,7 @@ impl PluginRuntime for NativePlugin {
             PluginEvent::StateChanged { .. } => "state_changed",
         })
         .unwrap_or_default();
-        let payload = CString::new(payload).unwrap_or_default();
+        let payload = CString::new(event_type).unwrap_or_default();
         let code = unsafe { f_event(type_name.as_ptr(), payload.as_ptr()) };
         abi::result_from_code(code, "micyou_plugin_handle_event")
     }
@@ -278,3 +278,8 @@ pub fn load_native_instance(
     )?)))
 }
 
+/// Utility used by tests: read a C string.
+#[allow(dead_code)]
+unsafe fn cstr_ptr<'a>(ptr: *const c_char) -> &'a str {
+    unsafe { CStr::from_ptr(ptr).to_str().unwrap_or_default() }
+}
