@@ -47,7 +47,6 @@
       "aecDisabled": "AEC 不可用项，已自动停用项",
       "aecDisabledInferenceFailed": "AEC 音频处理失败项，已自动停用项",
       "aecDisabledModelLoadFailed": "AEC AI 模型加载失败项，已自动停用项",
-      "aecDisabledModelMissing": "未找到 AEC AI 模型项，已自动停用项",
       "aecDisabledPipeWireUnavailable": "PipeWire 不可用项，AEC 已自动停用项",
       "aecDisabledReferenceLost": "AEC 音频参考流已中断项，已自动停用项",
       "aecDisabledVirtualSourceMissing": "未找到虚拟音频源项，AEC 已自动停用项"

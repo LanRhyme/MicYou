@@ -18,7 +18,7 @@ const { plugins } = usePlugins();
 
 const showAudioChain = ref(false);
 const nsTypes = [
-  { id: 'PureVox', label: 'PureVox (ONNX)' },
+  { id: 'PureVox', label: 'PureVox (AI)' },
   { id: 'RNNoise', label: 'RNNoise' },
   { id: 'Speexdsp', label: 'Speexdsp' },
 ];

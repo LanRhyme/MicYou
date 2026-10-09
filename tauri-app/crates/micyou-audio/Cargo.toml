@@ -7,8 +7,8 @@ license.workspace = true
 
 [features]
 default = ["dsp"]
-dsp = ["dep:nnnoiseless", "dep:ort", "dep:rustfft", "dep:ndarray"]
-noise-suppression = ["dsp"]
+dsp = ["dep:nnnoiseless", "dep:rustfft"]
+noise-suppression = ["dsp", "dep:micyou-infer"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -19,9 +19,8 @@ ringbuf = "0.5.2"
 
 # DSP dependencies (optional)
 nnnoiseless = { version = "0.5.2", optional = true }
-ort = { version = "=2.0.0-rc.13", features = ["load-dynamic", "tls-rustls", "std", "ndarray", "api-17"], optional = true }
+micyou-infer = { workspace = true, optional = true }
 rustfft = { version = "6.4.1", optional = true }
-ndarray = { version = "0.17", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 wasapi = "0.25"

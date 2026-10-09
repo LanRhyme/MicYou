@@ -66,8 +66,6 @@ Source: "..\target\release\micyou.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "binaries\micyou-cli-x86_64-pc-windows-msvc.exe"; DestDir: "{app}"; DestName: "{#MyCliExeName}"; Flags: ignoreversion
 Source: "binaries\micyou-tui-x86_64-pc-windows-msvc.exe"; DestDir: "{app}"; DestName: "{#MyTuiExeName}"; Flags: ignoreversion
 Source: "resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "libs\onnxruntime.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "libs\onnxruntime.dll"; DestDir: "{app}\resources"; Flags: ignoreversion
 
 [Icons]
 ; Each shortcut gets its own AppUserModelID. Sharing one AUMID across GUI/CLI/TUI

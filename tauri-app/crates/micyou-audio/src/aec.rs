@@ -19,7 +19,6 @@
 pub enum AecFailure {
     InferenceFailed,
     ModelLoadFailed,
-    ModelMissing,
     PipeWireUnavailable,
     ReferenceLost,
     VirtualSourceMissing,
@@ -36,7 +35,6 @@ impl AecFailure {
         match self {
             Self::InferenceFailed => "inference_failed",
             Self::ModelLoadFailed => "model_load_failed",
-            Self::ModelMissing => "model_missing",
             Self::PipeWireUnavailable => "pipewire_unavailable",
             Self::ReferenceLost => "reference_lost",
             Self::VirtualSourceMissing => "virtual_source_missing",
@@ -52,7 +50,6 @@ mod tests {
     fn failure_codes_remain_stable_for_frontends() {
         assert_eq!(AecFailure::InferenceFailed.as_str(), "inference_failed");
         assert_eq!(AecFailure::ModelLoadFailed.as_str(), "model_load_failed");
-        assert_eq!(AecFailure::ModelMissing.as_str(), "model_missing");
         assert_eq!(
             AecFailure::PipeWireUnavailable.as_str(),
             "pipewire_unavailable"

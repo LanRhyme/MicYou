@@ -19,7 +19,6 @@ use super::audio_pipeline::{self, Pipeline};
 use super::lifecycle::{await_startup_ready, AUDIO_JOIN_TIMEOUT, STARTUP_TIMEOUT};
 use super::output;
 use super::ServerState;
-use crate::platform::resources::{find_ort_runtime, ort_runtime_filename};
 use crate::transport::session::AudioStreamEvent;
 use serde::Deserialize;
 use std::sync::atomic::Ordering;
@@ -209,22 +208,6 @@ pub fn close_output_device(state: &ServerState) {
     crate::platform::pipewire::cleanup();
 }
 
-fn load_onnx_runtime(resource_dir: Option<&std::path::Path>) {
-    // The official Microsoft build dispatches AVX2/SSE kernels at runtime, so
-    // it also works on CPUs without AVX2.
-    match find_ort_runtime(resource_dir) {
-        Some(path) => {
-            if let Err(e) = micyou_audio::init_ort_runtime(&path) {
-                log::error!("Failed to load ONNX Runtime from {}: {e}", path.display());
-            }
-        }
-        None => log::warn!(
-            "ONNX Runtime library ({}) not found",
-            ort_runtime_filename()
-        ),
-    }
-}
-
 pub async fn start_server(state: &ServerState, request: StartRequest) -> Result<String, String> {
     let StartRequest {
         port,
@@ -266,7 +249,6 @@ pub async fn start_server(state: &ServerState, request: StartRequest) -> Result<
     state.plugins.ensure_plugin_chain_node(&state.dsp_settings);
 
     let resource_dir = state.resource_dir();
-    load_onnx_runtime(resource_dir.as_deref());
 
     let (audio_tx, audio_rx) = tokio::sync::mpsc::channel(AUDIO_CHANNEL_CAPACITY);
     let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
