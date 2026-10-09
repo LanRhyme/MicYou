@@ -61,6 +61,14 @@ libmicyou 仓库(模型生产与验证,不进本仓库):
 逻辑全部移除;运行时资源目录只剩 PipeWire/ALSA 配置与模型许可证。模型不可再
 "缺失":编译进二进制,降噪/AEC 永远可用。
 
+**Intel Mac 解锁**:旧方案捆绑的 `libonnxruntime.dylib` 是 arm64-only thin
+binary(非 universal),这是桌面端此前只发布 macOS arm64 安装包、Intel Mac
+用不上 AI 降噪/AEC 的直接原因。纯 Rust VM 没有这个约束:x86_64 路径带
+AVX2+FMA 运行时派发(`is_x86_feature_detected`,不满足时回落 baseline 标量
+路径),零 C 依赖可在 arm64 runner 上直接交叉编译——CI(development /
+release / pre-release)随之产出 `x86_64-apple-darwin` dmg,MirrorChyan 上传
+清单同步增加 macos/x64 条目。
+
 ## 3. MCYI blob 格式(v1,小端)
 
 ```

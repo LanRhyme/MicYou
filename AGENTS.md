@@ -130,7 +130,7 @@ cargo run -p micyou-tui
 - Android has no tests (kotlin-test in the version catalog is unused)
 - Gates to keep green: `cargo test`, `cargo clippy`, `bun run build` (the only frontend type check) and `./gradlew :composeApp:assembleDebug`; there is no lint or format wiring, `.prettierrc` exists but nothing runs it
 - End-to-end verification is manual: phone → server → virtual mic; `micyou-cli serve` with `adb reverse` is the quickest desktop side for device tests
-- CI (`.github/workflows/`): `development.yml` builds the debug APK and Tauri bundles on Windows, macOS and Linux; `release.yml` and `pre-release.yml` publish GitHub and MirrorChyan releases; Android jobs run with `continue-on-error: true` and never block releases; `opencode.yml` runs an AI review on PR comments
+- CI (`.github/workflows/`): `development.yml` builds the debug APK and Tauri bundles on Windows, macOS (arm64 and x86_64) and Linux; `release.yml` and `pre-release.yml` publish GitHub and MirrorChyan releases; Android jobs run with `continue-on-error: true` and never block releases; `opencode.yml` runs an AI review on PR comments
 
 ## Toolchain
 
