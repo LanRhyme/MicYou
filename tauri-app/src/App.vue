@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watchEffect, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useStorage, onClickOutside } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 
@@ -35,7 +35,7 @@ import MonitoringWarningDialog from './features/audio/components/MonitoringWarni
 
 // Raw asset content and animation utilities
 import appIconSvg from './shared/assets/app_icon.svg?raw';
-import { animate, spring, utils, type JSAnimation } from 'animejs';
+import { animate, spring } from 'animejs';
 
 applyPlatformClasses();
 
@@ -70,11 +70,6 @@ const startDrag = async (e: MouseEvent) => {
 
 // References to HTML elements for animations
 const centralBtnRef = ref<HTMLButtonElement | null>(null);
-const glowRef = ref<HTMLDivElement | null>(null);
-const statusDotRef = ref<HTMLDivElement | null>(null);
-
-let breatheAnim: JSAnimation | null = null;
-let dotPulseAnim: JSAnimation | null = null;
 
 // App wizard and pocket mode settings
 const showOnboarding = ref(localStorage.getItem('micyou_onboarding_completed') !== 'true');
@@ -266,56 +261,8 @@ const onCentralBtnLeave = () => {
   }
 };
 
-// Sets up dynamic breathing glow animation during active streams
-watchEffect(() => {
-  if (server.serverState.value === 'streaming' && glowRef.value) {
-    if (!breatheAnim) {
-      breatheAnim = animate(glowRef.value, {
-        opacity: [0.3, 0.7],
-        scale: [1.2, 1.35],
-        duration: 2000,
-        alternate: true,
-        loop: true,
-        ease: 'inOutSine',
-      });
-    }
-  } else {
-    if (breatheAnim) {
-      breatheAnim.pause();
-      breatheAnim = null;
-    }
-    if (glowRef.value) {
-      utils.set(glowRef.value, { opacity: 0.3, scale: 1.25 });
-    }
-  }
-});
-
-// Sets up pulse animation on bottom bar indicator during active streams
-watchEffect(() => {
-  if (server.serverState.value === 'streaming' && statusDotRef.value) {
-    if (!dotPulseAnim) {
-      dotPulseAnim = animate(statusDotRef.value, {
-        scale: [1, 1.4, 1],
-        duration: 1500,
-        loop: true,
-        ease: 'inOutQuad',
-      });
-    }
-  } else {
-    if (dotPulseAnim) {
-      dotPulseAnim.pause();
-      dotPulseAnim = null;
-    }
-    if (statusDotRef.value) {
-      utils.set(statusDotRef.value, { scale: 1 });
-    }
-  }
-});
-
 onUnmounted(() => {
   stopPocketObserver();
-  if (breatheAnim) breatheAnim.pause();
-  if (dotPulseAnim) dotPulseAnim.pause();
 });
 </script>
 
@@ -528,7 +475,7 @@ onUnmounted(() => {
             <AudioRing v-if="server.serverState.value === 'streaming'" :level="audio.audioLevel.value">
               <!-- Central Button When Streaming -->
               <div class="relative flex items-center justify-center">
-                <div ref="glowRef" class="absolute inset-0 bg-error/30 rounded-full blur-md"></div>
+                <div class="absolute inset-0 bg-error/30 rounded-full blur-md glow-breathe"></div>
                 <button ref="centralBtnRef" @click="toggleStreaming" @mouseenter="onCentralBtnHover" @mouseleave="onCentralBtnLeave" class="relative z-10 w-[72px] h-[72px] rounded-full bg-error flex items-center justify-center shadow-[0_0_16px_0] shadow-error/20 transition-all duration-300 group-hover:bg-error/90 border border-white/10 hover:shadow-[0_0_24px_4px] hover:shadow-error/30">
                   <Unlink class="w-7 h-7 text-on-error" stroke-width="2.5" />
                 </button>
@@ -557,7 +504,7 @@ onUnmounted(() => {
       <!-- Bottom Bar -->
       <div class="haze-surface rounded-2xl p-2 flex justify-between items-center shrink-0">
         <div class="flex items-center px-3">
-          <div ref="statusDotRef" class="w-2 h-2 rounded-full mr-2" :class="server.serverState.value === 'streaming' ? 'bg-primary shadow-[0_0_8px_hsl(var(--primary))]' : (server.serverState.value === 'starting' ? 'bg-secondary animate-pulse shadow-[0_0_8px_hsl(var(--secondary))]' : (server.serverState.value === 'connecting' ? 'bg-tertiary animate-pulse shadow-[0_0_8px_hsl(var(--tertiary))]' : 'bg-on-surface-variant'))"></div>
+          <div class="w-2 h-2 rounded-full mr-2" :class="server.serverState.value === 'streaming' ? 'bg-primary dot-pulse shadow-[0_0_8px_hsl(var(--primary))]' : (server.serverState.value === 'starting' ? 'bg-secondary animate-pulse shadow-[0_0_8px_hsl(var(--secondary))]' : (server.serverState.value === 'connecting' ? 'bg-tertiary animate-pulse shadow-[0_0_8px_hsl(var(--tertiary))]' : 'bg-on-surface-variant'))"></div>
           <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant transition-colors duration-300">{{ server.serverState.value === 'streaming' ? $t('app.status.stateStreaming') : (server.serverState.value === 'connecting' ? $t('app.status.stateConnecting') : (server.serverState.value === 'starting' ? $t('app.status.stateStarting') : $t('app.status.stateIdle'))) }}</span>
         </div>
 

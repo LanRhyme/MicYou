@@ -55,7 +55,7 @@ onUnmounted(() => window.removeEventListener('message', handleMessage));
 <template>
   <div
     ref="windowRoot"
-    class="h-screen w-screen overflow-hidden flex flex-col origin-center"
+    class="h-screen w-screen overflow-hidden rounded-2xl flex flex-col origin-center"
     style="background: hsl(var(--surface))"
   >
     <header
