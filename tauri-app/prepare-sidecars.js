@@ -61,13 +61,3 @@ for (const binary of sidecars) {
   copyFileSync(source, destination);
   console.log('[sidecars] Prepared ' + path.relative(appDir, destination));
 }
-
-// Copy the platform-specific ONNX Runtime shared library into resources/
-// so Tauri bundles it without needing per-target config in tauri.conf.json.
-const ortFilename =
-  target.includes('windows') ? 'onnxruntime.dll' :
-  target.includes('linux') ? 'libonnxruntime.so' : 'libonnxruntime.dylib';
-const ortSrc = path.join(appDir, 'src-tauri', 'libs', ortFilename);
-const ortDst = path.join(appDir, 'src-tauri', 'resources', ortFilename);
-copyFileSync(ortSrc, ortDst);
-console.log('[sidecars] Copied ONNX Runtime library: ' + ortFilename);

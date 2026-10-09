@@ -23,6 +23,9 @@ jobs:
           - os: macos
             arch: arm64
             filename: 'MicYou-macOS-*-arm64.dmg'
+          - os: macos
+            arch: x64
+            filename: 'MicYou-macOS-*-x86_64.dmg'
           - os: linux
             arch: x64
             filename: 'MicYou-Linux-*.deb'

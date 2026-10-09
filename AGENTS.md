@@ -53,8 +53,9 @@ Workspace crates under `tauri-app/crates/`:
 | Crate | Role |
 |---|---|
 | `micyou-protocol` | prost wire format and magic constants |
+| `micyou-infer` | zero-dependency pure-Rust VM for the statically compiled MCYI model blobs (PureVox6 / AEC7); replaces ort/ONNX Runtime, see `docs/pure-rust-inference.md` |
 | `micyou-core` | everything server-side, no Tauri dependency: `server/` (state, lifecycle, service, audio pipeline, output), `transport/` (tcp, udp, web, jitter buffer, opus, session, net_bind), `plugins/`, `platform/` (adb, pipewire, vbcable, blackhole, accent, firewall, terminal), `config`, `settings`, `events`, `host`, `modes`, `mode_lock` |
-| `micyou-audio` | cpal output engine, DSP chain (ONNX and RNNoise noise suppression), loopback capture |
+| `micyou-audio` | cpal output engine, DSP chain (native PureVox6/AEC7 models embedded via `micyou-infer`, RNNoise noise suppression), loopback capture |
 | `micyou-plugin` | plugin runtime: manifest, WASM sandbox (wasmi with fuel limits), native C ABI (libloading), bus, DSP hook |
 | `micyou-cli`, `micyou-tui` | headless frontends on `micyou-core`, no Tauri in their dependency tree; bundled into the GUI as Tauri sidecars (`externalBin`) by `prepare-sidecars.js` |
 
@@ -129,7 +130,7 @@ cargo run -p micyou-tui
 - Android has no tests (kotlin-test in the version catalog is unused)
 - Gates to keep green: `cargo test`, `cargo clippy`, `bun run build` (the only frontend type check) and `./gradlew :composeApp:assembleDebug`; there is no lint or format wiring, `.prettierrc` exists but nothing runs it
 - End-to-end verification is manual: phone → server → virtual mic; `micyou-cli serve` with `adb reverse` is the quickest desktop side for device tests
-- CI (`.github/workflows/`): `development.yml` builds the debug APK and Tauri bundles on Windows, macOS and Linux; `release.yml` and `pre-release.yml` publish GitHub and MirrorChyan releases; Android jobs run with `continue-on-error: true` and never block releases; `opencode.yml` runs an AI review on PR comments
+- CI (`.github/workflows/`): `development.yml` builds the debug APK and Tauri bundles on Windows, macOS (arm64 and x86_64) and Linux; `release.yml` and `pre-release.yml` publish GitHub and MirrorChyan releases; Android jobs run with `continue-on-error: true` and never block releases; `opencode.yml` runs an AI review on PR comments
 
 ## Toolchain
 

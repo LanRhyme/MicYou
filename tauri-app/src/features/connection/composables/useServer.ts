@@ -24,7 +24,6 @@ export type ServerState = 'idle' | 'starting' | 'connecting' | 'streaming';
 const aecFailureNotificationKeys: Record<string, string> = {
   inference_failed: 'app.notify.aecDisabledInferenceFailed',
   model_load_failed: 'app.notify.aecDisabledModelLoadFailed',
-  model_missing: 'app.notify.aecDisabledModelMissing',
   pipewire_unavailable: 'app.notify.aecDisabledPipeWireUnavailable',
   reference_lost: 'app.notify.aecDisabledReferenceLost',
   virtual_source_missing: 'app.notify.aecDisabledVirtualSourceMissing',
