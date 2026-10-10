@@ -44,6 +44,10 @@ chinesesimplified.PrivilegesRequiredOverrideAllUsersRecommended=为所有用户�
 english.PrivilegesRequiredOverrideText1=%1 can be installed for all users (requires administrative privileges; Windows Firewall rules will be configured automatically), or for you only.
 english.PrivilegesRequiredOverrideAllUsers=Install for &all users (configures the Windows Firewall)
 english.PrivilegesRequiredOverrideAllUsersRecommended=Install for &all users (recommended; configures the Windows Firewall)
+chinesesimplified.PrivilegesRequiredOverrideCurrentUser=仅为当前用户安装（需手动配置防火墙）(&U)
+chinesesimplified.PrivilegesRequiredOverrideCurrentUserRecommended=仅为当前用户安装（需手动配置防火墙）(&U)
+english.PrivilegesRequiredOverrideCurrentUser=Install for &you only (requires manual firewall configuration)
+english.PrivilegesRequiredOverrideCurrentUserRecommended=Install for &you only (requires manual firewall configuration)
 
 [CustomMessages]
 chinesesimplified.NetworkGroupDescription=网络设置
