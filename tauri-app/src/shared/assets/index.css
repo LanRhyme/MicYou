@@ -113,10 +113,11 @@
     cursor: pointer;
   }
 
-  /* Windows are transparent and frameless; clip-path also clips fixed
-     overlays such as dialog backdrops, which overflow: hidden would not. */
   body {
     @apply bg-transparent text-foreground;
+  }
+
+  .platform-linux body {
     clip-path: inset(0 round 1rem);
   }
 
@@ -460,6 +461,35 @@
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateY(-4px);
+}
+
+@keyframes glow-breathe {
+  from {
+    opacity: 0.3;
+    transform: scale(1.2);
+  }
+  to {
+    opacity: 0.7;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.4);
+  }
+}
+
+.glow-breathe {
+  animation: glow-breathe 2s cubic-bezier(0.37, 0, 0.63, 1) infinite alternate;
+}
+
+.dot-pulse {
+  animation: dot-pulse 1.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 /* Respect the system "reduce motion" setting everywhere. */
